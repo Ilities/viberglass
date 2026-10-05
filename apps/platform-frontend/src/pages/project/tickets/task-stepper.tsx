@@ -10,6 +10,8 @@ interface TaskStepperProps {
   shownStep: TaskStep
   /** Which artifacts exist: a document with content, or a pull request. */
   exists: Record<TaskStep, boolean>
+  /** Whether the person may ask the agent; only they are told how. */
+  canAsk?: boolean
   onShowStep: (step: TaskStep) => void
 }
 
@@ -26,7 +28,7 @@ function markerClass(position: 'done' | 'current' | 'upcoming', move: TaskNextMo
  * stands. They're options, not stages: any can be asked for at any time, and
  * nothing waits on approval.
  */
-export function TaskStepper({ currentStep, move, shownStep, exists, onShowStep }: TaskStepperProps) {
+export function TaskStepper({ currentStep, move, shownStep, exists, canAsk = true, onShowStep }: TaskStepperProps) {
   return (
     <div className="space-y-2">
       <div role="tablist" aria-label="Artifacts" className="flex flex-wrap gap-x-6 gap-y-2" onKeyDown={onTabListKeyDown}>
@@ -63,7 +65,11 @@ export function TaskStepper({ currentStep, move, shownStep, exists, onShowStep }
           )
         })}
       </div>
-      <p className="text-xs text-[var(--gray-10)]">Ask for any of these, in any order. Research and a plan help, but code can be asked for directly, and nothing needs approving.</p>
+      {canAsk && (
+        <p className="text-xs text-[var(--gray-10)]">
+          Ask for any of these, in any order. Research and a plan help, but code can be asked for directly, and nothing needs approving.
+        </p>
+      )}
     </div>
   )
 }

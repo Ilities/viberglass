@@ -32,7 +32,7 @@ export function HomeThreadRow({ thread, onChanged }: { thread: HomeThread; onCha
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
             {situation.yourMove && <span className="font-semibold text-[var(--accent-11)]">Your move · </span>}
             {situationPhrase(situation)}
-            <span className="text-zinc-400"> · {thread.task.spaceName}</span>
+            <span className="text-zinc-500 dark:text-zinc-400"> · {thread.task.spaceName}</span>
           </p>
           {line && <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">{line}</p>}
         </div>

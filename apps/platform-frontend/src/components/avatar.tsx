@@ -29,6 +29,9 @@ export function Avatar({
       fallback={initials ?? ''}
       alt={alt}
       radius={square ? 'medium' : 'full'}
+      // Neutral initials: amber stays for attention, and gray reads at full contrast.
+      color="gray"
+      highContrast
       className={className}
       {...props}
     />

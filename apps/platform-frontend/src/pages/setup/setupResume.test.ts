@@ -3,6 +3,7 @@ import { readStoredRepository, resumeSetup, storeRepository } from './setupResum
 
 const FRESH: SetupStatus = {
   connectedProviders: [],
+  connectedEndpoints: [],
   repositoryConnected: false,
   space: null,
   agent: null,
@@ -15,13 +16,13 @@ const SPACE = { projectId: 'p1', name: 'web', slug: 'web', repositoryUrl: 'https
 
 describe('resumeSetup', () => {
   it('starts with the model key on a fresh workspace', () => {
-    expect(resumeSetup(FRESH, null)).toEqual({ step: 'model', provider: null })
+    expect(resumeSetup(FRESH, null)).toEqual({ step: 'model', model: null })
   })
 
   it('asks for the repository once a key is saved', () => {
     expect(resumeSetup({ ...FRESH, connectedProviders: ['opencode-go'] }, null)).toEqual({
       step: 'repository',
-      provider: 'opencode-go',
+      model: { provider: 'opencode-go' },
     })
   })
 
@@ -53,6 +54,12 @@ describe('resumeSetup', () => {
       agent: { clankerId: 'c1', agentName: 'Claude Code', status: 'active' as const, statusMessage: null },
     }
     expect(resumeSetup(status, null).step).toBe('task')
+  })
+
+  it('counts a model endpoint with a model as the model step done', () => {
+    const status = { ...FRESH, connectedEndpoints: [{ id: 'e1', name: 'z.ai', models: ['glm-4.7-flash'] }] }
+    expect(resumeSetup(status, null)).toEqual({ step: 'repository', model: { endpointId: 'e1', model: 'glm-4.7-flash' } })
+    expect(resumeSetup({ ...FRESH, connectedEndpoints: [{ id: 'e1', name: 'z.ai', models: [] }] }, null).step).toBe('model')
   })
 })
 

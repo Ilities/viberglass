@@ -46,6 +46,7 @@ export function TaskPeople({ taskId }: { taskId: string }) {
   const notReviewing = people.filter((person) => !reviewers.some((reviewer) => reviewer.userId === person.id))
 
   return (
+    <div className="space-y-2">
     <FactList title="People">
       <Fact label="Requester">{requester?.name ?? '—'}</Fact>
       <Fact label="Owner">
@@ -113,9 +114,9 @@ export function TaskPeople({ taskId }: { taskId: string }) {
           )}
         </span>
       </Fact>
-      <div className="mt-2">
-        <TaskParticipationHelp />
-      </div>
     </FactList>
+      {/* Outside the list: a definition list may hold only its terms and definitions. */}
+      <TaskParticipationHelp />
+    </div>
   )
 }

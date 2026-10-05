@@ -31,7 +31,7 @@ jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me',
 const mockTimeline = jest.fn()
 jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
-  getNextAgent: () => Promise.resolve({ clankerId: null, via: null, problem: null }),
+  getNextAgent: () => Promise.resolve({ clankerId: null, name: null, via: null, problem: null }),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
   askAgent: (...args: unknown[]) => mockAsk(...args),
   answerQuestion: (...args: unknown[]) => mockAnswer(...args),

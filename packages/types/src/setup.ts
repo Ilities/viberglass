@@ -1,6 +1,9 @@
 import type { AgentType, ClankerStatus } from './clanker'
 import type { ModelProviderId } from './modelProviders'
 
+/** What setup runs the default agent on: a provider's key, or a workspace model endpoint and one of its models. */
+export type SetupModelChoice = { provider: ModelProviderId } | { endpointId: string; model: string }
+
 /** API contract of `/api/setup/*`, the first-run flow. */
 
 export interface SetupProvider {
@@ -62,6 +65,8 @@ export interface DemoWorkspace {
 export interface SetupStatus {
   /** Providers whose key is already stored (under their default harness's env var). */
   connectedProviders: ModelProviderId[]
+  /** Workspace model endpoints, which setup can run the default agent on instead of a provider's key. */
+  connectedEndpoints: Array<{ id: string; name: string; models: string[] }>
   repositoryConnected: boolean
   space: { projectId: string; name: string; slug: string; repositoryUrl: string } | null
   agent: { clankerId: string; agentName: string; status: ClankerStatus; statusMessage: string | null } | null

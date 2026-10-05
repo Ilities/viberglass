@@ -31,3 +31,21 @@ This review changes documentation, screenshots, mockups and review helpers. Appl
 No application unit/integration suite was run for this documentation-only change. Live-stream pause/interrupt, native credentials, writable remote merge, live Slack, reminders, long-context compaction and cloud compute remain follow-up verification. The persona guides mark source-inspected behaviors separately from executed ones where relevant.
 
 Current captures are a sequence: tasks evolved and some named screens were recaptured after later interactions. Proposed screenshots contain simulated data and are explicitly labeled. See SCREENSHOTS.md before choosing images for public documentation.
+
+## Closing validation (2026-10-04)
+
+After the backlog was implemented, on the merged build (UX changes plus workspace model endpoints) against the same review instance:
+
+| Check | Result | Evidence / limitation |
+|---|---|---|
+| Unit suites | Passed | Platform backend 173 suites / 1,206 tests; frontend 64 / 296; worker core 37 tests. Each suite run on its own with capped workers |
+| Type checks and lint | Passed | Backend and frontend `tsc`; eslint reports no errors (two older warnings remain) |
+| Accessibility, light | No violations | axe on Home, Overview, Space, Task, Notifications ([accessibility-results.json](accessibility-results.json)); contrast is now measurable on the neutral surfaces; incomplete checks are one prohibited-attribute node per page and one or two contrast nodes |
+| Accessibility, dark | No violations | Same routes with the dark theme ([accessibility-results-dark.json](accessibility-results-dark.json)) |
+| Persona captures | Recaptured | `harness/capture.cjs` for all six personas into [after/](after/) |
+| Browser checks | Exercised | Version link opens v1 with comparison; readiness labels on the runner list; failure card on a Codex failure; next-agent line (including for a guest); Overview totals; task at 390 px with no horizontal overflow; runner form; space settings; dark theme |
+| Timestamp handling | Verified | With the process in CEST, the database's `now()` and the app's time agree, and a timestamp round-trips exactly |
+| Migration | Applied | `100_model_endpoints` on the review database before the restart |
+
+Not re-run: live provider turns (the fixes to empty-document detection, failure classification and hand back are covered by unit tests and need a rebuilt worker image to exercise end to end), real PR merge, Slack, and the custom-endpoint setup flow against a live endpoint (covered by component and service tests).
+

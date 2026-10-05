@@ -22,10 +22,11 @@ export function registerTicketAgentSessionRoutes(router: Router, { turns, queryS
   router.get("/:id/next-agent", async (req, res, next) => {
     try {
       const { clanker, via } = await agents.preview(req.params.id);
-      return res.json({ success: true, data: { clankerId: clanker.id, via, problem: clanker.readiness?.problem ?? null } });
+      // The name too: people who can't list runners (guests) still see whom they'd ask.
+      return res.json({ success: true, data: { clankerId: clanker.id, name: clanker.name, via, problem: clanker.readiness?.problem ?? null } });
     } catch (error) {
       if (error instanceof TaskTurnError) {
-        return res.json({ success: true, data: { clankerId: null, via: null, problem: error.message } });
+        return res.json({ success: true, data: { clankerId: null, name: null, via: null, problem: error.message } });
       }
       next(error);
     }

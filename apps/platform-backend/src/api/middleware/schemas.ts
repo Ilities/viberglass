@@ -351,11 +351,18 @@ export const setupRepositorySchema = Joi.object({
   token: Joi.string().trim().min(1).max(1000).required(),
 });
 
-export const setupAgentSchema = Joi.object({
-  provider: Joi.string()
-    .valid(...MODEL_PROVIDERS.map((provider) => provider.id))
-    .required(),
-});
+/** A provider whose key setup stored, or a workspace model endpoint and the model to run on it. */
+export const setupAgentSchema = Joi.alternatives().try(
+  Joi.object({
+    provider: Joi.string()
+      .valid(...MODEL_PROVIDERS.map((provider) => provider.id))
+      .required(),
+  }),
+  Joi.object({
+    endpointId: Joi.string().uuid().required(),
+    model: Joi.string().trim().min(1).max(200).required(),
+  }),
+);
 
 export const setupSpaceSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),

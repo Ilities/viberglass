@@ -2,7 +2,7 @@ import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
 import { getSetupProviders, getSetupStatus, loadDemoWorkspace } from '@/service/api/setup-api'
-import type { ModelProviderId, RepositoryAccess, SetupProvider, SetupStatus } from '@viberglass/types'
+import type { RepositoryAccess, SetupModelChoice, SetupProvider, SetupStatus } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AgentStep } from './AgentStep'
@@ -28,7 +28,7 @@ export function SetupPage() {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [step, setStep] = useState<SetupStep | null>(null)
-  const [provider, setProvider] = useState<ModelProviderId | null>(null)
+  const [model, setModel] = useState<SetupModelChoice | null>(null)
   const [repository, setRepository] = useState<RepositoryAccess | null>(readStoredRepository)
   const [space, setSpace] = useState<SetupStatus['space']>(null)
   const [agent, setAgent] = useState<SetupStatus['agent']>(null)
@@ -45,7 +45,7 @@ export function SetupPage() {
       .then(([status, providers]) => {
         const resumed = resumeSetup(status, readStoredRepository())
         setLoaded({ status, providers })
-        setProvider(resumed.provider)
+        setModel(resumed.model)
         setSpace(status.space)
         setAgent(status.agent)
         setClankerId(status.agent?.status === 'active' ? status.agent.clankerId : null)
@@ -85,9 +85,9 @@ export function SetupPage() {
           <ModelKeyStep
             providers={loaded.providers}
             connectedProviders={loaded.status.connectedProviders}
-            initialProvider={provider}
+            initialProvider={model && 'provider' in model ? model.provider : null}
             onDone={(chosen) => {
-              setProvider(chosen)
+              setModel(chosen)
               setStep(space ? 'agent' : repository && loaded.status.repositoryConnected ? 'space' : 'repository')
             }}
           />
@@ -118,10 +118,10 @@ export function SetupPage() {
             }}
           />
         )}
-        {step === 'space' && repository && provider && (
+        {step === 'space' && repository && model && (
           <SpaceStep
             repository={repository}
-            provider={provider}
+            model={model}
             onChangeRepository={() => setStep('repository')}
             onDone={(created, started) => {
               setSpace(created)
@@ -130,7 +130,7 @@ export function SetupPage() {
             }}
           />
         )}
-        {step === 'agent' && provider && <AgentStep provider={provider} agent={agent} onReady={handleAgentReady} />}
+        {step === 'agent' && model && <AgentStep model={model} agent={agent} onReady={handleAgentReady} />}
         {step === 'task' && space && clankerId && <FirstTaskStep space={space} clankerId={clankerId} />}
         {step !== 'task' && (
           <Text className="text-xs">

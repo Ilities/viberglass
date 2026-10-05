@@ -19,12 +19,12 @@ export function OverviewSection({ title, tasks, empty }: { title: string; tasks:
             <li key={task.id} className="flex items-center justify-between gap-4 px-3 py-2">
               <div className="min-w-0">
                 <Link href={taskPath(task.spaceSlug, task)} className="flex items-center gap-2 text-sm">
-                  <span className="font-mono text-xs text-zinc-500">{task.key}</span>
+                  <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{task.key}</span>
                   <span className="truncate font-medium text-zinc-950 dark:text-white">{task.title}</span>
                 </Link>
                 <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300">
                   {situationPhrase(situation)}
-                  <span className="text-zinc-400"> · {task.spaceName}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400"> · {task.spaceName}</span>
                   {pullRequestUrl && situation.state === 'done' && (
                     <>
                       {' · '}
@@ -35,7 +35,7 @@ export function OverviewSection({ title, tasks, empty }: { title: string; tasks:
                   )}
                 </p>
               </div>
-              <Timestamp date={situation.since} className="text-xs whitespace-nowrap text-zinc-500" />
+              <Timestamp date={situation.since} className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400" />
             </li>
           ))}
         </ul>

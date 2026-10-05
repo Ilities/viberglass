@@ -40,27 +40,32 @@ export function NextAgentLine({ taskId, refreshKey, clankers, agentsOnTask }: Ne
 
   if (!next) return null
   const clanker = clankers.find((each) => each.id === next.clankerId)
-  if (!clanker) {
+  if (!next.clankerId) {
     return (
       <p role="status" className="text-xs text-[var(--red-11)]">
         {next.problem ?? 'No agent would run this.'}
       </p>
     )
   }
-  const model = summarizeRunner(clanker, []).model
-  const continues = agentsOnTask.has(clanker.id)
+  // Runner details only for those who can list runners; everyone else still sees the agent's name.
+  const model = clanker ? summarizeRunner(clanker, []).model : null
+  const continues = agentsOnTask.has(next.clankerId)
   return (
     <div role="status" aria-label="Agent for the next ask" className="space-y-0.5 text-xs text-[var(--gray-10)]">
       <p className="flex flex-wrap items-center gap-2">
         <span>
-          Asks go to <span className="font-medium text-[var(--gray-12)]">{clanker.name}</span>
+          Asks go to <span className="font-medium text-[var(--gray-12)]">{clanker?.name ?? next.name ?? 'the agent'}</span>
           {next.via && `, ${VIA[next.via]}`}.
         </span>
-        {clanker.readiness?.state !== 'ready' && <RunnerReadinessBadge readiness={clanker.readiness} />}
+        {clanker && clanker.readiness?.state !== 'ready' && <RunnerReadinessBadge readiness={clanker.readiness} />}
       </p>
       {next.problem && <p className="text-[var(--red-11)]">{next.problem}</p>}
       <p>
-        {clanker.agent ? getAgentLabel(clanker.agent) : 'No agent'} with {model ? `model ${model} as configured` : "the agent's default model"}.{' '}
+        {clanker && (
+          <>
+            {clanker.agent ? getAgentLabel(clanker.agent) : 'No agent'} with {model ? `model ${model} as configured` : "the agent's default model"}.{' '}
+          </>
+        )}
         {continues ? 'It picks up its conversation here.' : 'It starts fresh from the task and its documents.'} To ask another agent,
         @mention it or bring one in below.
       </p>

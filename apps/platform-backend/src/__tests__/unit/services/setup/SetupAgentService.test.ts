@@ -3,6 +3,7 @@ import type {
   ClankerStatus,
   CreateClankerRequest,
   DeploymentStrategy,
+  ModelEndpoint,
   ModelProviderId,
   UpdateClankerRequest,
 } from "@viberglass/types";
@@ -14,6 +15,23 @@ jest.mock("../../../../persistence/clanker/DeploymentStrategyDAO", () => ({ Depl
 jest.mock("../../../../persistence/secret/SecretDAO", () => ({ SecretDAO: jest.fn() }));
 jest.mock("../../../../provisioning/provisioningFactory", () => ({ getClankerProvisioner: jest.fn() }));
 jest.mock("../../../../services/ClankerStartService", () => ({ ClankerStartService: jest.fn() }));
+jest.mock("../../../../persistence/modelEndpoint/ModelEndpointDAO", () => ({ ModelEndpointDAO: jest.fn() }));
+
+const ZAI: ModelEndpoint = {
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "z.ai",
+  baseUrl: "https://api.z.ai/api/paas/v4",
+  apiFormat: "openai-chat",
+  auth: { scheme: "bearer" },
+  secretId: "endpoint-key",
+  extraHeaders: {},
+  models: ["glm-4.7-flash"],
+  mayColdStart: false,
+  source: "manual",
+  deploymentId: null,
+  createdAt: "",
+  updatedAt: "",
+};
 
 function strategy(name: string): DeploymentStrategy {
   return { id: `${name}-id`, name, description: null, configSchema: null, createdAt: "" };
@@ -40,7 +58,7 @@ function runner(request: CreateClankerRequest | UpdateClankerRequest, status: Cl
   };
 }
 
-function build(options: { ecsReady?: boolean; existing?: Clanker | null; secret?: boolean } = {}) {
+function build(options: { ecsReady?: boolean; existing?: Clanker | null; secret?: boolean; endpoint?: ModelEndpoint | null } = {}) {
   const getClankerBySlug = jest.fn(async (_slug: string) => options.existing ?? null);
   const createClanker = jest.fn(async (request: CreateClankerRequest) => runner(request));
   const updateClanker = jest.fn(async (_id: string, request: UpdateClankerRequest) => runner(request));
@@ -58,6 +76,7 @@ function build(options: { ecsReady?: boolean; existing?: Clanker | null; secret?
     { getLatestSecretForProvider },
     { getProvisioningPreflightError },
     { start },
+    { get: async (id: string) => (options.endpoint?.id === id ? options.endpoint : null) },
   );
   return { service, createClanker, updateClanker, getLatestSecretForProvider, start };
 }
@@ -66,7 +85,7 @@ describe("SetupAgentService", () => {
   it("creates the default agent on local Docker with the key and the binding's model", async () => {
     const { service, createClanker, getLatestSecretForProvider, start } = build();
 
-    const agent = await service.prepareDefaultAgent("opencode-go");
+    const agent = await service.prepareDefaultAgent({ provider: "opencode-go" });
 
     expect(getLatestSecretForProvider).toHaveBeenCalledWith("opencode-go");
     expect(createClanker).toHaveBeenCalledWith({
@@ -79,6 +98,8 @@ describe("SetupAgentService", () => {
         agent: { type: "opencode", model: "opencode-go/deepseek-v4.1-flash" },
       },
       agent: "opencode",
+      // A key-backed default agent drops any endpoint it ran on before.
+      modelEndpoint: null,
       secretBindings: [{ envVar: "OPENCODE_API_KEY", secretId: "secret-1" }],
     });
     expect(start).toHaveBeenCalled();
@@ -88,7 +109,7 @@ describe("SetupAgentService", () => {
   it("runs on ECS when the instance has the stack's ECS settings", async () => {
     const { service, createClanker } = build({ ecsReady: true });
 
-    const agent = await service.prepareDefaultAgent("anthropic");
+    const agent = await service.prepareDefaultAgent({ provider: "anthropic" });
 
     expect(createClanker).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -102,7 +123,7 @@ describe("SetupAgentService", () => {
   it("carries the binding's endpoint, for Moonshot keys on Kimi", async () => {
     const { service, createClanker } = build();
 
-    await service.prepareDefaultAgent("moonshotai");
+    await service.prepareDefaultAgent({ provider: "moonshotai" });
 
     expect(createClanker).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -115,11 +136,11 @@ describe("SetupAgentService", () => {
 
   it("leaves a running default agent alone when nothing changed", async () => {
     const first = build();
-    await first.service.prepareDefaultAgent("anthropic");
+    await first.service.prepareDefaultAgent({ provider: "anthropic" });
     const created = runner(first.createClanker.mock.calls[0][0], "active");
 
     const { service, updateClanker, start } = build({ existing: created });
-    const agent = await service.prepareDefaultAgent("anthropic");
+    const agent = await service.prepareDefaultAgent({ provider: "anthropic" });
 
     expect(updateClanker).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
@@ -128,11 +149,11 @@ describe("SetupAgentService", () => {
 
   it("reconfigures and restarts it for another provider", async () => {
     const first = build();
-    await first.service.prepareDefaultAgent("anthropic");
+    await first.service.prepareDefaultAgent({ provider: "anthropic" });
     const existing = runner(first.createClanker.mock.calls[0][0], "active");
 
     const { service, updateClanker, start } = build({ existing });
-    await service.prepareDefaultAgent("opencode-go");
+    await service.prepareDefaultAgent({ provider: "opencode-go" });
 
     expect(updateClanker).toHaveBeenCalledWith(
       "clanker-1",
@@ -143,11 +164,11 @@ describe("SetupAgentService", () => {
 
   it("retries a default agent that failed to start", async () => {
     const first = build();
-    await first.service.prepareDefaultAgent("anthropic");
+    await first.service.prepareDefaultAgent({ provider: "anthropic" });
     const failed = runner(first.createClanker.mock.calls[0][0], "failed");
 
     const { service, start } = build({ existing: failed });
-    await service.prepareDefaultAgent("anthropic");
+    await service.prepareDefaultAgent({ provider: "anthropic" });
 
     expect(start).toHaveBeenCalled();
   });
@@ -155,10 +176,39 @@ describe("SetupAgentService", () => {
   it("needs the model key first", async () => {
     const { service, createClanker } = build({ secret: false });
 
-    await expect(service.prepareDefaultAgent("anthropic")).rejects.toMatchObject({
+    await expect(service.prepareDefaultAgent({ provider: "anthropic" })).rejects.toMatchObject({
       code: SETUP_SERVICE_ERROR_CODE.MODEL_KEY_MISSING,
       message: "Connect your Anthropic key first, so the agent has something to run with.",
     });
     expect(createClanker).not.toHaveBeenCalled();
+  });
+
+  it("runs the default agent on a model endpoint with a harness that speaks its API, binding no vendor key", async () => {
+    const { service, createClanker, getLatestSecretForProvider } = build({ endpoint: ZAI });
+
+    const agent = await service.prepareDefaultAgent({ endpointId: ZAI.id, model: "glm-4.7-flash" });
+
+    expect(agent.agent).toBe("opencode");
+    expect(getLatestSecretForProvider).not.toHaveBeenCalled();
+    expect(createClanker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent: "opencode",
+        secretBindings: [],
+        modelEndpoint: { endpointId: ZAI.id, model: "glm-4.7-flash" },
+        description: "Runs OpenCode on z.ai (glm-4.7-flash). Created by setup.",
+      }),
+    );
+  });
+
+  it("picks Pi for an endpoint OpenCode can't speak", async () => {
+    const { service } = build({ endpoint: { ...ZAI, apiFormat: "anthropic-messages" } });
+    await expect(service.prepareDefaultAgent({ endpointId: ZAI.id, model: "glm-4.7-flash" })).resolves.toMatchObject({ agent: "pi" });
+  });
+
+  it("says so when the endpoint is gone", async () => {
+    const { service } = build({ endpoint: null });
+    await expect(service.prepareDefaultAgent({ endpointId: ZAI.id, model: "glm-4.7-flash" })).rejects.toMatchObject({
+      code: SETUP_SERVICE_ERROR_CODE.MODEL_KEY_MISSING,
+    });
   });
 });

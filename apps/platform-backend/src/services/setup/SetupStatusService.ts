@@ -6,6 +6,7 @@ import {
   type Integration,
   type ModelProviderId,
   type DemoWorkspace,
+  type ModelEndpoint,
   type ProjectScmConfig,
   type SetupStatus,
 } from "@viberglass/types";
@@ -15,6 +16,7 @@ import { IntegrationCredentialDAO } from "../../persistence/integrations/Integra
 import { IntegrationDAO } from "../../persistence/integrations/IntegrationDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
+import { ModelEndpointDAO } from "../../persistence/modelEndpoint/ModelEndpointDAO";
 import { SecretDAO } from "../../persistence/secret/SecretDAO";
 import { DEFAULT_AGENT_SLUG } from "./SetupAgentService";
 import { DemoWorkspaceService } from "../demo/DemoWorkspaceService";
@@ -30,6 +32,7 @@ interface Dependencies {
     listClankers(limit?: number): Promise<Clanker[]>;
   };
   demo: { getDemo(): Promise<DemoWorkspace | null> };
+  endpoints: { list(): Promise<ModelEndpoint[]> };
 }
 
 const defaults = (): Dependencies => ({
@@ -40,6 +43,7 @@ const defaults = (): Dependencies => ({
   scmConfigs: new ProjectScmConfigDAO(),
   clankers: new ClankerDAO(),
   demo: new DemoWorkspaceService(),
+  endpoints: new ModelEndpointDAO(),
 });
 
 /** What setup has already done, so the flow resumes at the first step that's left. */
@@ -51,8 +55,9 @@ export class SetupStatusService {
   }
 
   async getStatus(): Promise<SetupStatus> {
-    const [connectedProviders, repositoryConnected, space, defaultAgent, runners, demo] = await Promise.all([
+    const [connectedProviders, endpoints, repositoryConnected, space, defaultAgent, runners, demo] = await Promise.all([
       this.getConnectedProviders(),
+      this.deps.endpoints.list(),
       this.isRepositoryConnected(),
       this.findSpace(),
       this.deps.clankers.getClankerBySlug(DEFAULT_AGENT_SLUG),
@@ -72,6 +77,7 @@ export class SetupStatusService {
 
     return {
       connectedProviders,
+      connectedEndpoints: endpoints.map((endpoint) => ({ id: endpoint.id, name: endpoint.name, models: endpoint.models })),
       repositoryConnected,
       space,
       agent,

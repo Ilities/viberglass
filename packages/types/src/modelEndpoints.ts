@@ -1,5 +1,5 @@
 import { isObjectRecord } from "./clankerConfig";
-import type { AgentType } from "./clanker";
+import { SUPPORTED_AGENT_TYPES, type AgentType } from "./clanker";
 import catalog from "./agentPluginCatalog.json";
 
 export type ModelApiFormat =
@@ -91,6 +91,20 @@ export function getAgentModelApiFormats(
     Array.isArray(entry.modelApiFormats)
     ? entry.modelApiFormats
     : [];
+}
+
+/**
+ * The harness that runs a model endpoint speaking this API format: the first
+ * in the catalogue that supports it (OpenCode for Chat Completions, else Pi).
+ * Null when no harness here speaks it yet.
+ */
+export function agentForModelApiFormat(format: ModelApiFormat): AgentType | null {
+  for (const entry of catalog) {
+    const formats: readonly string[] = "modelApiFormats" in entry && Array.isArray(entry.modelApiFormats) ? entry.modelApiFormats : [];
+    const agent = SUPPORTED_AGENT_TYPES.find((type) => type === entry.agent);
+    if (agent && agent !== "fake" && formats.includes(format)) return agent;
+  }
+  return null;
 }
 
 export function readWorkerModelEndpoint(

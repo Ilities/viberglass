@@ -122,7 +122,7 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
         </div>
       )}
       {entry.status === 'failed' && (
-        <p className="text-sm text-red-700">
+        <p className="text-sm text-red-700 dark:text-red-400">
           This turn failed.{' '}
           {runLink && (
             <Link href={runLink} className="underline">

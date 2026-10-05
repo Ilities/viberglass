@@ -49,6 +49,8 @@ export function ModelSection({
   const [addingEndpoint, setAddingEndpoint] = useState(false)
   const endpoint = endpoints.find((item) => item.id === endpointSelection?.endpointId)
   const formats = getAgentModelApiFormats(agent)
+  // Only endpoints that speak an API this agent understands; the rest would fail at the first run.
+  const usableEndpoints = endpoints.filter((item) => formats.includes(item.apiFormat))
   const options = providerOptionsForAgent(agent)
   const usesChatGptLogin = agent === 'codex' && settings.codexAuthMode !== 'api_key'
   const keys = keysForProvider(secrets, provider, modelKeyId)
@@ -83,11 +85,17 @@ export function ModelSection({
                   {option.label}
                 </RadixSelect.Item>
               ))}</RadixSelect.Group>
-              {endpoints.length > 0 && <RadixSelect.Group><RadixSelect.Label>Custom endpoints</RadixSelect.Label>
-                {endpoints.map((item) => <RadixSelect.Item key={item.id} value={`endpoint:${item.id}`}>{item.name}</RadixSelect.Item>)}
+              {usableEndpoints.length > 0 && <RadixSelect.Group><RadixSelect.Label>Custom endpoints</RadixSelect.Label>
+                {usableEndpoints.map((item) => <RadixSelect.Item key={item.id} value={`endpoint:${item.id}`}>{item.name}</RadixSelect.Item>)}
               </RadixSelect.Group>}
             </Select>
-            {formats.length > 0 && <Button type="button" plain onClick={() => setAddingEndpoint(true)}>Add endpoint</Button>}
+            {formats.length > 0 ? (
+              <Button type="button" plain onClick={() => setAddingEndpoint(true)}>Add endpoint</Button>
+            ) : (
+              <Description>
+                {AGENT_LABELS[agent]} uses only its own providers here; it can&apos;t run on a custom endpoint yet. OpenCode and Pi can.
+              </Description>
+            )}
             {addingEndpoint && <ModelEndpointDialog open onClose={() => setAddingEndpoint(false)} onSaved={(value) => { onEndpointSaved(value); setAddingEndpoint(false) }} secrets={secrets} formats={formats} />}
             {endpoint && endpointSelection && <EndpointModelField endpoint={endpoint} selection={endpointSelection} onChange={onEndpointModelChange} onSaved={onEndpointSaved} secrets={secrets} formats={formats} />}
           </Field>
