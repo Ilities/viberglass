@@ -41,6 +41,7 @@ const mockAgentSessionWorkerEventService = {
 };
 
 const mockTouchHeartbeat = jest.fn();
+const mockRunRecordGet = jest.fn();
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: jest.fn(),
@@ -126,6 +127,11 @@ jest.mock("../../../../services/job/JobProgressService", () => ({
   recordLogBatch: jest.fn(),
   recordProgress: jest.fn(),
   touchHeartbeat: (...args: unknown[]) => mockTouchHeartbeat(...args),
+}));
+
+jest.mock("../../../../persistence/job/RunRecordDAO", () => ({ RunRecordDAO: jest.fn() }));
+jest.mock("../../../../services/runRecords/RunRecordService", () => ({
+  RunRecordService: jest.fn(() => ({ get: (...args: unknown[]) => mockRunRecordGet(...args) })),
 }));
 
 import jobsRouter from "../../../../api/routes/jobs";
@@ -429,5 +435,20 @@ describe("job result callbacks", () => {
 
     expect(mockAgentSessionEventDAO.listByJob).toHaveBeenCalledWith("job-1", 3);
     expect(res.json).toHaveBeenCalledWith({ success: true, data: events });
+  });
+
+  it("gives anyone who can see the run its record, and 404 for a run without one", async () => {
+    const handler = getRouteHandler("/:jobId/record", "get");
+    if (typeof handler !== "function") throw new Error("Missing run record handler");
+    mockRunRecordGet.mockResolvedValueOnce({ jobId: "job-1" }).mockResolvedValueOnce(null);
+
+    const found = response();
+    await handler({ params: { jobId: "job-1" } }, found);
+    expect(mockRunRecordGet).toHaveBeenCalledWith("job-1");
+    expect(found.json).toHaveBeenCalledWith({ jobId: "job-1" });
+
+    const missing = response();
+    await handler({ params: { jobId: "job-9" } }, missing);
+    expect(missing.status).toHaveBeenCalledWith(404);
   });
 });

@@ -142,15 +142,6 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
           )}
         </SidebarSection>
 
-        <SidebarSection>
-          <SidebarItem href={user.role === 'admin' ? '/settings/members' : '/settings/notifications'} current={pathname.startsWith('/settings')}>
-            <NavIcon>
-              <GearIcon />
-            </NavIcon>
-            {/* Named by scope: inside a space, its own settings sit just above. Non-admins only have their own here. */}
-            <SidebarLabel>{user.role === 'admin' ? 'Workspace settings' : 'Your settings'}</SidebarLabel>
-          </SidebarItem>
-        </SidebarSection>
       </SidebarBody>
       <SidebarFooter>
         <Dropdown>

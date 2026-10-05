@@ -1,11 +1,12 @@
 import { writePiModelConfig } from "./piModelConfig";
 import { BaseAgent } from "@viberglass/agent-core";
-import type { AcpMcpServer, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpMcpServer, AcpUsageProbe, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 import type { PiConfig } from "./config";
 import { piAgentDirectory, writePiMcpConfig } from "./piMcpConfig";
+import { piUsageProbe } from "./piSessionStats";
 
 /**
  * Pi coding agent harness.
@@ -35,6 +36,11 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
    */
   public getAcpServerCommand(): string[] {
     return ["pi-acp"];
+  }
+
+  /** pi-acp sends no usage over ACP; its `/session` command has the session's tokens and cost. */
+  public getAcpUsageProbe(): AcpUsageProbe {
+    return piUsageProbe;
   }
 
   /**

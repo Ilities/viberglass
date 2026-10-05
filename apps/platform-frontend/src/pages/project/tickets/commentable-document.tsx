@@ -1,3 +1,4 @@
+import { ChatBubbleIcon } from '@radix-ui/react-icons'
 import { quoteAt, type TextQuote } from '@viberglass/types'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { CommentComposer, type ApplySuggestion, type DocumentComments } from './document-comments'
@@ -50,6 +51,24 @@ interface CommentableDocumentProps {
   reading?: boolean
 }
 
+/** How to comment, said where people read: select text. And how many comments are on it already. */
+function CommentHint({ canComment, open }: { canComment: boolean; open: number }) {
+  const highlighted = open === 0 ? null : open === 1 ? 'One open comment is highlighted; click it to read it.' : `${open} open comments are highlighted; click one to read it.`
+  return (
+    <p className="mb-5 flex items-start gap-2 rounded-[7px] border border-[var(--amber-a5)] bg-[var(--amber-a2)] px-3 py-2 text-xs leading-relaxed text-[var(--gray-11)]">
+      <ChatBubbleIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-[var(--amber-11)]" />
+      <span>
+        {canComment && (
+          <>
+            <strong className="font-semibold text-[var(--gray-12)]">Select any text</strong> to comment on it or suggest new wording.{' '}
+          </>
+        )}
+        {highlighted}
+      </span>
+    </p>
+  )
+}
+
 /**
  * The rendered document with its open comments highlighted. Selecting
  * text offers to comment on it or suggest new wording; clicking a highlight
@@ -87,6 +106,7 @@ export function CommentableDocument({ source, comments, canComment, onApplySugge
 
   return (
     <div ref={containerRef} className="relative">
+      {(canComment || located.length > 0) && <CommentHint canComment={canComment} open={located.length} />}
       <div ref={documentRef} onMouseUp={captureSelection} onKeyUp={captureSelection}>
         <MarkdownDocument
           source={source}
@@ -107,9 +127,10 @@ export function CommentableDocument({ source, comments, canComment, onApplySugge
           style={{ top: selection.placement.top, left: selection.placement.left }}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setSelection({ ...selection, composing: true })}
-          className="absolute z-10 rounded-md bg-[var(--accent-9)] px-2.5 py-1 text-xs font-medium text-white shadow"
+          className="absolute z-10 inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-9)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] shadow-md hover:bg-[var(--accent-10)]"
         >
-          Comment
+          <ChatBubbleIcon className="size-3.5" />
+          Comment or suggest
         </button>
       )}
 

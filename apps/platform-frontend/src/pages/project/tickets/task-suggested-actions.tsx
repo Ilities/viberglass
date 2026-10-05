@@ -9,10 +9,12 @@ interface TaskSuggestedActionsProps {
   suggestions: TaskSuggestion[]
   agentWorking: boolean
   onAsked: () => void
+  /** More ways to ask, at the end of the same row: bringing in another agent. */
+  trailing?: React.ReactNode
 }
 
-/** The common next moves, under the composer: the likeliest one, the rest folded under Ask the agent. Each posts its words in the thread and asks the agent. */
-export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAsked }: TaskSuggestedActionsProps) {
+/** The common next moves, in one row under the composer, the likeliest first: each posts its words in the thread and asks the agent. */
+export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAsked, trailing }: TaskSuggestedActionsProps) {
   const [asking, setAsking] = useState<string | null>(null)
 
   async function ask(suggestion: TaskSuggestion) {
@@ -30,29 +32,20 @@ export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAske
   if (agentWorking) {
     return <p className="text-xs text-[var(--gray-10)]">The agent is working. Messages you post now reach it when it finishes.</p>
   }
-  if (suggestions.length === 0) return null
-  const [first, ...more] = suggestions
-  const button = (suggestion: TaskSuggestion, primary: boolean) => (
-    <Button
-      key={suggestion.label}
-      {...(primary ? { color: 'brand' as const } : { outline: true as const })}
-      disabled={asking !== null}
-      onClick={() => void ask(suggestion)}
-    >
-      {asking === suggestion.label ? 'Asking…' : suggestion.label}
-    </Button>
-  )
+  if (suggestions.length === 0 && !trailing) return null
   return (
-    <div role="group" aria-label="Suggested actions" className="flex flex-wrap items-start gap-2">
-      {button(first, true)}
-      {more.length > 0 && (
-        <details className="group">
-          <summary className="cursor-pointer px-2 py-2 text-xs text-[var(--gray-11)] hover:text-[var(--gray-12)]">
-            Ask the agent…
-          </summary>
-          <div className="mt-2 flex flex-wrap gap-2">{more.map((suggestion) => button(suggestion, false))}</div>
-        </details>
-      )}
+    <div role="group" aria-label="Suggested actions" className="flex flex-wrap items-center gap-2">
+      {suggestions.map((suggestion, index) => (
+        <Button
+          key={suggestion.label}
+          {...(index === 0 ? { color: 'brand' as const } : { outline: true as const })}
+          disabled={asking !== null}
+          onClick={() => void ask(suggestion)}
+        >
+          {asking === suggestion.label ? 'Asking…' : suggestion.label}
+        </Button>
+      ))}
+      {trailing}
     </div>
   )
 }

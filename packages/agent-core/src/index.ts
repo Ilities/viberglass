@@ -41,6 +41,7 @@ export {
 // ACP layer
 export type { AcpHttpMcpServer, AcpMcpServer, AcpStdioMcpServer, PlatformSessionEvent } from "./acp/types";
 export type { AcpEventMapper } from "./acp/acpEventMapperTypes";
+export type { AcpSessionTotals, AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
 export {
   defaultAcpEventMapper,
 } from "./acp/acpEventMapper";

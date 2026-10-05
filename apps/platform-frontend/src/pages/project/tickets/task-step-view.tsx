@@ -13,6 +13,7 @@ import { DocumentStep } from './document-step'
 import { DocumentVersion } from './document-version'
 import { STEP_NAME, type TaskNextMove, type TaskStep } from './task-next-move'
 import { TaskRunLine } from './task-run-line'
+import { runsForStep } from './step-runs'
 import { countNewComments } from './task-suggestions'
 import type { TaskPageData } from './use-task-page'
 
@@ -111,7 +112,7 @@ export function TaskStepView({
   onDocumentSaved,
   onNewComments,
 }: TaskStepViewProps) {
-  const stepRuns = data.runs.filter((run) => run.jobKind === step)
+  const stepRuns = runsForStep(data.runs, step, data.ticket.workflowPhase)
   const agentNames = new Map(data.clankers.map((clanker) => [clanker.id, clanker.name]))
   const isDocumentStep = step !== 'execution'
   const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0

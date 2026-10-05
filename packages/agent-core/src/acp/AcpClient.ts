@@ -13,6 +13,9 @@ import { defaultAcpEventMapper } from "./acpEventMapper";
 import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
 import { ToolCallStartFilter } from "./ToolCallStartFilter";
+import { AcpTurnUsage } from "./AcpTurnUsage";
+import { AcpSessionTotalsProbe, type AcpSessionTotals, type AcpUsageProbe } from "./AcpSessionTotalsProbe";
+import type { AgentUsageReport } from "../usage";
 import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
 import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
@@ -46,6 +49,8 @@ export interface AcpRunResult {
   contextUsage?: AcpContextUsage;
   /** Whether the harness compacted its context after the turn. */
   compacted: boolean;
+  /** The turn's tokens and cost, when the harness reported them. */
+  usage?: AgentUsageReport;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -93,6 +98,9 @@ interface PendingRequest {
   reject: (e: Error) => void;
 }
 
+/** A fresh session has used nothing before its first turn. */
+const NOTHING_YET: AcpSessionTotals = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, costUsd: 0 };
+
 export class AcpClient {
   private child?: ChildProcess;
   private nextId = 1;
@@ -102,6 +110,8 @@ export class AcpClient {
   private replaying = false;
   private readonly mapper: AcpEventMapper;
   private readonly toolCallStarts = new ToolCallStartFilter();
+  private readonly turnUsage = new AcpTurnUsage();
+  private readonly totalsProbe?: AcpSessionTotalsProbe;
   private contextUsage?: AcpContextUsage;
   private compactCommand: string | null = null;
 
@@ -113,8 +123,10 @@ export class AcpClient {
     private readonly logger: Logger,
     private readonly timeoutMs: number,
     mapper?: AcpEventMapper,
+    usageProbe?: AcpUsageProbe,
   ) {
     this.mapper = mapper ?? defaultAcpEventMapper;
+    if (usageProbe) this.totalsProbe = new AcpSessionTotalsProbe(usageProbe);
   }
 
   async run(options: AcpRunOptions): Promise<AcpRunResult> {
@@ -146,6 +158,7 @@ export class AcpClient {
         protocolVersion: 1,
         clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
       });
+      this.turnUsage.noteInitialized(initialized);
       const opener = new AcpSessionOpener(
         (method, params) => this.sendRequest(method, params),
         this.workDir,
@@ -158,6 +171,8 @@ export class AcpClient {
       this.reportSessionStart(sessionStart);
 
       const coldMessage = options.coldStartMessage ?? options.userMessage;
+      this.turnUsage.startTurn(!sessionStart.resumed);
+      let totalsBefore = sessionStart.resumed ? await this.sessionTotals() : NOTHING_YET;
       try {
         await this.prompt(sessionStart.resumed ? options.userMessage : coldMessage);
       } catch (error) {
@@ -166,10 +181,13 @@ export class AcpClient {
         sessionStart = { resumed: false, reason: "failed", detail: error instanceof Error ? error.message : String(error) };
         this.currentSessionId = await opener.create();
         this.reportSessionStart(sessionStart);
+        this.turnUsage.startTurn(true);
+        totalsBefore = NOTHING_YET;
         await this.prompt(coldMessage);
       }
       const compacted = await this.compact(options.compactInstructions);
-      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted };
+      if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
+      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report() };
     } finally {
       this.cleanup();
     }
@@ -188,6 +206,19 @@ export class AcpClient {
     this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
     const result = await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text }] });
     this.contextUsage = promptUsageOf(result) ?? this.contextUsage;
+    this.turnUsage.notePromptResult(result);
+  }
+
+  /** The session's totals from the harness's own command, for a harness that sends no usage over ACP. */
+  private async sessionTotals(): Promise<AcpSessionTotals | null> {
+    if (!this.totalsProbe) return null;
+    this.totalsProbe.begin();
+    try {
+      await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text: this.totalsProbe.command }] });
+    } catch (error) {
+      this.logger.warn("AcpClient couldn't read the session's totals", { error: error instanceof Error ? error.message : String(error) });
+    }
+    return this.totalsProbe.end();
   }
 
   /** A failed compaction leaves the session as it was; the next cold start reads the summary instead. */
@@ -244,9 +275,13 @@ export class AcpClient {
 
   private handleNotification(method: string, params: unknown): void {
     if (method !== "session/update") return;
+    // The answer to a totals probe is read, not shown as something the agent said.
+    if (this.totalsProbe?.capture(params)) return;
     // Commands are announced while a load replays history, so they're read before replayed updates are dropped.
     const command = compactCommandOf(params);
     if (command !== undefined) this.compactCommand = command;
+    // A replayed usage update still says what the session had cost before this turn.
+    this.turnUsage.noteSessionUpdate(params);
     if (this.replaying) return;
     this.contextUsage = contextUsageOf(params) ?? this.contextUsage;
     for (const event of this.mapper.mapSessionUpdate(params)) {

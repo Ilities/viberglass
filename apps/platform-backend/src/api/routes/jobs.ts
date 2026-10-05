@@ -22,6 +22,8 @@ import { registerQuestionCallbackRoute } from "./jobs/questionCallbackRoute";
 import { registerPartialResultRoute } from "./jobs/partialResultRoute";
 import { registerSkillCallbackRoute } from "./jobs/skillCallbackRoute";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { RunRecordDAO } from "../../persistence/job/RunRecordDAO";
+import { RunRecordService } from "../../services/runRecords/RunRecordService";
 
 const router = Router();
 // Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
@@ -31,6 +33,7 @@ const jobService = new JobService();
 const jobQueries = new JobQueryService();
 const jobCancellationService = new JobCancellationService();
 const sessionEvents = new AgentSessionEventDAO();
+const runRecords = new RunRecordService(new RunRecordDAO());
 
 router.post("/", requireRunnerRole, async (req: Request, res: Response) => {
   try {
@@ -111,6 +114,21 @@ router.get("/:jobId/events", requireAuth, async (req: Request, res: Response) =>
       jobId: req.params.jobId,
     });
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// The run's record: model, tokens, cost, outcome. Anyone who can see the run can see what it used.
+router.get("/:jobId/record", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const record = await runRecords.get(req.params.jobId);
+    if (!record) return res.status(404).json({ error: "No record for this run" });
+    return res.json(record);
+  } catch (error) {
+    logger.error("Failed to get run record", {
+      error: error instanceof Error ? error.message : String(error),
+      jobId: req.params.jobId,
+    });
+    return res.status(500).json({ error: "Failed to get run record" });
   }
 });
 

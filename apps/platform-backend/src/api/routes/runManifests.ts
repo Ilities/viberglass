@@ -70,18 +70,4 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /:jobId — one run's record. */
-router.get("/:jobId", async (req: Request, res: Response) => {
-  try {
-    const record = await recordService.get(req.params.jobId);
-    if (!record) {
-      return res.status(404).json({ error: "No record for this run" });
-    }
-    return res.json(record);
-  } catch (getError) {
-    logger.error("Failed to get run record", { jobId: req.params.jobId, error: getError });
-    return res.status(500).json({ error: "Failed to get run record" });
-  }
-});
-
 export default router;

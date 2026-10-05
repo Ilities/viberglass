@@ -13,6 +13,7 @@ import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { TaskActionsMenu } from './task-actions-menu'
 import { runnableAgents, taskAgents } from './task-agents'
+import { stepForRun } from './step-runs'
 import { TaskContextLine } from './task-context-line'
 import { TaskFailureNotice } from './task-failure-notice'
 import { TaskHeader } from './task-header'
@@ -123,11 +124,11 @@ export function TicketDetailPage() {
   const failedRunnerId = move.kind === 'failed' ? data.runs.find((run) => run.jobId === move.runId)?.clankerId : null
   const failedRunner = data.clankers.find((clanker) => clanker.id === failedRunnerId)
 
-  // A linked run shows its step; otherwise the step picked, or the current one.
+  // A linked run shows the step it's listed under (a reply's is the current one); otherwise the step picked, or the current one.
   const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
   const requestedStep = searchParams.get('step')
-  const shownStep: TaskStep = isTaskStep(linkedRun?.jobKind)
-    ? linkedRun.jobKind
+  const shownStep: TaskStep = linkedRun
+    ? stepForRun(linkedRun.jobKind, currentStep)
     : isTaskStep(requestedStep)
       ? requestedStep
       : currentStep

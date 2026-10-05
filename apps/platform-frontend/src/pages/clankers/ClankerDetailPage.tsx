@@ -19,6 +19,7 @@ import {
 } from '@radix-ui/react-icons'
 import { getAgentLabel, isObjectRecord, type Clanker } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
+import { RunnerInstructionsAndTools } from './runner-instructions-and-tools'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
 import { ChatGptLoginCard } from './chatgpt-login-card'
@@ -569,33 +570,7 @@ export function ClankerDetailPage() {
                 </details>
               )}
 
-              <div className="app-frame rounded-lg p-6">
-                <Subheading className="mb-4">Configuration Files</Subheading>
-                {clanker.configFiles.length > 0 ? (
-                  <div className="space-y-4">
-                    {clanker.configFiles.map((file) => (
-                      <div key={file.id}>
-                        <div className="mb-2 text-xs font-medium tracking-wider text-[var(--gray-9)] uppercase">
-                          {file.fileType}
-                        </div>
-                        <div className="rounded bg-[var(--gray-3)] p-4">
-                          <pre className="font-mono text-sm break-all whitespace-pre-wrap text-[var(--gray-11)]">
-                            {file.content}
-                          </pre>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-6 text-center">
-                    <p className="text-sm text-[var(--gray-9)]">No configuration files set up yet.</p>
-                    <Button href={`/settings/agents/${clanker.slug}/edit`} className="mt-4" outline>
-                      <Pencil1Icon className="h-4 w-4" />
-                      Add Configuration
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <RunnerInstructionsAndTools clanker={clanker} />
             </div>
           </div>
         </div>

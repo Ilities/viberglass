@@ -39,6 +39,8 @@ interface RunnerFormProps {
   submittingLabel: string
   onSubmit: (request: CreateClankerRequest) => Promise<void>
   onCancel: () => void
+  /** Opens Advanced from the start, for a link that came to change instructions or tools. */
+  openAdvanced?: boolean
 }
 
 function settingsOf(form: AgentSettings): AgentSettings {
@@ -61,7 +63,7 @@ function Section({ title, description, children }: { title: string; description:
  * Creates or edits a runner: name, agent, then model and key up front; compute
  * (Docker by default), instructions, tools and extra variables fold under Advanced.
  */
-export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel }: RunnerFormProps) {
+export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel, openAdvanced = false }: RunnerFormProps) {
   const initialForm = initial
     ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig, agent: initial.agent }).form
     : DEFAULT_CLANKER_CONFIG_FORM_STATE
@@ -273,7 +275,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         />
       </Section>
 
-      <details className="mt-10 rounded-lg border border-zinc-950/10 px-5 py-4 dark:border-white/10">
+      <details open={openAdvanced} className="mt-10 rounded-lg border border-zinc-950/10 px-5 py-4 dark:border-white/10">
         <summary className="cursor-pointer text-base/6 font-semibold text-zinc-950 dark:text-white">
           Advanced: compute, instructions, tools and extra variables
           <span className="mt-1 block text-sm font-normal text-zinc-500 dark:text-zinc-400">{advancedSummary}</span>

@@ -13,7 +13,7 @@ import {
 } from '../../settings/run-records/run-record-format'
 import { formatRunDuration } from './run-facts'
 
-/** What this run recorded for evaluation. Admin only; the record is written as the run is dispatched and finishes. */
+/** What this run recorded: outcome, model, tokens and cost. The record is written as the run is dispatched and finishes. */
 export function RunRecordPanel({ jobId }: { jobId: string }) {
   const [record, setRecord] = useState<RunRecord | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)

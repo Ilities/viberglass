@@ -231,9 +231,14 @@ export function TaskThread({
         />
       )}
       {canAsk && (
-        <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />
+        <TaskSuggestedActions
+          taskId={taskId}
+          suggestions={suggestions}
+          agentWorking={agentWorking}
+          onAsked={posted}
+          trailing={bringable.length > 0 && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
+        />
       )}
-      {canAsk && !agentWorking && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
     </section>
   )
 }
