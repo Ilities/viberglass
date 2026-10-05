@@ -128,17 +128,16 @@ function linkNames(drawer: HTMLElement): string[] {
 }
 
 describe('ApplicationLayout navigation', () => {
-  it('shows Home, Overview, the spaces and Workspace settings, with no plumbing', async () => {
+  it('shows Home, Overview and the spaces, with settings in the account menu rather than the sidebar', async () => {
     renderLayout('/')
     const drawer = await openDrawer()
 
-    for (const label of ['Home', 'Overview', 'Workspace settings']) {
+    for (const label of ['Home', 'Overview']) {
       expect(within(drawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
-    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
+    for (const label of ['Workspace settings', 'Your settings', 'Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
       expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    expect(within(drawer).getByRole('link', { name: /^Workspace settings$/i })).toHaveAttribute('href', '/settings/members')
     const viberglassLinks = within(drawer).getAllByRole('link', { name: /Viberglass/i })
     expect(viberglassLinks.some((link) => link.getAttribute('href') === '/spaces/viberglass')).toBe(true)
     expect(within(drawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
@@ -159,14 +158,6 @@ describe('ApplicationLayout navigation', () => {
       'Space settings /spaces/viberglass/settings',
     ])
     expect(outside.filter((name) => !inside.includes(name))).toEqual([])
-  })
-
-  it('names settings by scope: a member has only their own, opening on Notifications', async () => {
-    asRole('member')
-    renderLayout('/')
-    const drawer = await openDrawer()
-
-    expect(within(drawer).getByRole('link', { name: /^Your settings$/i })).toHaveAttribute('href', '/settings/notifications')
   })
 
   it('gives viewers Overview and no Home, since they have no threads of their own', async () => {

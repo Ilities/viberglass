@@ -57,6 +57,7 @@ export class AcpExecutor {
       this.logger,
       timeoutMs,
       mapperOverride ?? this.mapper,
+      agent.getAcpUsageProbe(),
     );
 
     try {
@@ -82,6 +83,7 @@ export class AcpExecutor {
         acpSessionStart: result.sessionStart,
         acpContextUsage: result.contextUsage,
         acpCompacted: result.compacted,
+        usage: result.usage && { ...result.usage, model: result.usage.model ?? agent.configuredModel() },
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

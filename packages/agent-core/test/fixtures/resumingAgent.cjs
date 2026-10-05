@@ -7,6 +7,7 @@
 //   AGENT_USAGE=1200/200000      the usage_update it sends with each reply (used/size)
 //   AGENT_ECHO_MCP=1             the reply ends with the MCP servers its session was opened with
 //   AGENT_MCP_HTTP=1             initialize advertises HTTP MCP servers
+//   AGENT_STATS=1000             answers /session with its totals, as pi-acp does: a continued session starts at 1000 input tokens; each prompt adds 100 in, 10 out, $0.001
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
 
@@ -16,6 +17,7 @@ const calls = [];
 let continued = false;
 let failedOnce = false;
 let mcpServers = [];
+let totals = { input: 0, output: 0, cost: 0 };
 
 const say = (sessionId, text) =>
   send({ method: "session/update", params: { sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } } } });
@@ -55,9 +57,15 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     if (msg.params.sessionId !== process.env.AGENT_KNOWS) return send({ id: msg.id, error: { code: -32002, message: "Resource not found" } });
     if (msg.method === "session/load") say(msg.params.sessionId, "an old reply, replayed");
     continued = true;
+    if (process.env.AGENT_STATS) totals = { input: Number(process.env.AGENT_STATS), output: 100, cost: 0.05 };
     return send({ id: msg.id, result: {} });
   }
   if (msg.method === "session/prompt") {
+    if (process.env.AGENT_STATS && msg.params.prompt[0]?.text === "/session") {
+      say(msg.params.sessionId, `Messages: 3\nCost: ${totals.cost}\nTokens: in ${totals.input}, out ${totals.output}, total ${totals.input + totals.output}`);
+      return send({ id: msg.id, result: { stopReason: "end_turn" } });
+    }
+    if (process.env.AGENT_STATS) totals = { input: totals.input + 100, output: totals.output + 10, cost: totals.cost + 0.001 };
     if (continued && process.env.AGENT_FAIL_FIRST_PROMPT && !failedOnce) {
       failedOnce = true;
       return send({ id: msg.id, error: { code: -32603, message: "service failure" } });

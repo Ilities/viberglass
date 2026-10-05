@@ -36,7 +36,7 @@ export function BringInAgent({ taskId, agents, onAsked }: { taskId: string; agen
 
   return (
     <Dropdown>
-      <DropdownButton plain disabled={asking}>
+      <DropdownButton outline disabled={asking}>
         Bring in another agent
         <ChevronDownIcon data-slot="icon" />
       </DropdownButton>

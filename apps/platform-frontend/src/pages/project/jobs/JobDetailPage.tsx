@@ -2,7 +2,6 @@ import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { TabButton } from '@/components/tab-button'
-import { useAuth } from '@/context/auth-context'
 import { formatJobKind } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { cancelJob } from '@/service/api/job-api'
@@ -26,8 +25,7 @@ export function JobDetailPage() {
   const { job, isLoading, error, isPolling, refetch } = useJobStatus(jobId)
   const context = useRunContext(job)
   const [searchParams] = useSearchParams()
-  const isAdmin = useAuth().user?.role === 'admin'
-  const [activeTab, setActiveTab] = useState<RunTab>(() => resolveRunTab(searchParams.get('runTab'), isAdmin))
+  const [activeTab, setActiveTab] = useState<RunTab>(() => resolveRunTab(searchParams.get('runTab')))
   const [isCancelling, setIsCancelling] = useState(false)
 
   if (isLoading) {
@@ -115,11 +113,9 @@ export function JobDetailPage() {
             <TabButton active={activeTab === 'log'} onClick={() => setActiveTab('log')}>
               Raw log
             </TabButton>
-            {isAdmin && (
-              <TabButton active={activeTab === 'record'} onClick={() => setActiveTab('record')}>
-                Record
-              </TabButton>
-            )}
+            <TabButton active={activeTab === 'record'} onClick={() => setActiveTab('record')}>
+              Record
+            </TabButton>
             <div className="mb-1 ml-2">
               <JobRefreshButton onRefresh={refresh} />
             </div>
@@ -151,7 +147,7 @@ export function JobDetailPage() {
             )}
             {activeTab === 'prompt' && <RunPrompt job={job} />}
             {activeTab === 'log' && <RunLog job={job} isPolling={isPolling} />}
-            {activeTab === 'record' && isAdmin && <RunRecordPanel jobId={job.jobId} />}
+            {activeTab === 'record' && <RunRecordPanel jobId={job.jobId} />}
           </main>
 
           <aside className="space-y-8 lg:border-l lg:border-[var(--gray-6)] lg:pl-8">

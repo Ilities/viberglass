@@ -2,7 +2,7 @@ import { Avatar } from '@/components/avatar'
 import { DropdownDivider, DropdownHeader, DropdownItem, DropdownLabel, DropdownMenu } from '@/components/dropdown'
 import { useTheme } from '@/context/theme-context'
 import type { AuthUser } from '@/service/api/auth-api'
-import { BellIcon, ExitIcon, LockClosedIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { BellIcon, ExitIcon, GearIcon, LockClosedIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import { isRunner } from '@/lib/roles'
 import { NavIcon } from './nav-icon'
 
@@ -27,7 +27,7 @@ export function UserAvatar({ user, slot, size, className = '' }: { user: AuthUse
   )
 }
 
-/** Me: how I'm told about things, my API tokens (for MCP), the theme, and signing out. */
+/** Me: how I'm told about things, my API tokens (for MCP), the workspace's settings for admins, the theme, and signing out. */
 export function AccountMenu({ user, onSignOut }: { user: AuthUser; onSignOut: () => void }) {
   const { theme, toggleTheme } = useTheme()
 
@@ -56,6 +56,18 @@ export function AccountMenu({ user, onSignOut }: { user: AuthUser; onSignOut: ()
           </NavIcon>
           <DropdownLabel>API tokens</DropdownLabel>
         </DropdownItem>
+      )}
+      {user.role === 'admin' && (
+        <>
+          <DropdownDivider />
+          <DropdownItem href="/settings/members">
+            <NavIcon>
+              <GearIcon />
+            </NavIcon>
+            <DropdownLabel>Workspace settings</DropdownLabel>
+          </DropdownItem>
+          <DropdownDivider />
+        </>
       )}
       <DropdownItem
         onClick={(e) => {

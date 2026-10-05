@@ -7,6 +7,7 @@ import type { TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberg
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { ThreadItem } from './thread-item'
+import { TurnRunFacts } from './turn-run-facts'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
 
@@ -92,6 +93,7 @@ function CancelTurn({ jobId, startedAt }: { jobId: string; startedAt: string }) 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
 export function AgentTurnEntry({ entry, summaryVersion }: { entry: AgentTurn; summaryVersion?: number }) {
   const [expanded, setExpanded] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
   const { user } = useAuth()
@@ -185,17 +187,20 @@ export function AgentTurnEntry({ entry, summaryVersion }: { entry: AgentTurn; su
           to keep them.
         </p>
       )}
-      {(facts.length > 0 || outcome?.compacted || (runLink && !working)) && (
-        <details className="text-xs text-[var(--gray-10)]">
-          <summary className="cursor-pointer hover:text-[var(--gray-12)]">
-            Turn details{facts.length > 0 && ` · ${facts.join(' · ')}`}
-          </summary>
+      {((Boolean(entry.jobId) && !working) || facts.length > 0 || outcome?.compacted) && (
+        <details className="text-xs text-[var(--gray-10)]" onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
+          <summary className="cursor-pointer hover:text-[var(--gray-12)]">Turn details{facts.length > 0 && ` · ${facts.join(' · ')}`}</summary>
           <div className="mt-1.5 space-y-1 pl-3">
+            {/* Loaded only once opened: a thread holds many turns. */}
+            {detailsOpen && entry.jobId && !working && <TurnRunFacts jobId={entry.jobId} />}
             {outcome?.compacted && <p>Compacted its context with the summary.</p>}
             {runLink && (
-              <p>
-                <Link href={`${runLink}&runTab=log`} className="underline">
+              <p className="flex flex-wrap gap-x-4">
+                <Link href={runLink} className="underline">
                   Everything it did, step by step
+                </Link>
+                <Link href={`${runLink}&runTab=record`} className="underline">
+                  The run's full record
                 </Link>
               </p>
             )}

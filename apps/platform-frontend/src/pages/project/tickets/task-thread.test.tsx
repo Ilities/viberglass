@@ -260,6 +260,8 @@ describe('TaskThread', () => {
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([
       'Revise the research with 1 comment',
       'Write the plan',
+      // On the same row, so every way to ask the agent lines up.
+      'Bring in another agent',
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Revise the research with 1 comment' }))
 

@@ -61,7 +61,11 @@ function TextRun({ value, node, context }: { value: string; node: RootContent; c
             {...position}
             data-comment-ids={ids.join(' ')}
             onClick={(event) => context.onHighlightClick?.(ids[0], event.currentTarget)}
-            className={clsx('cursor-pointer rounded-sm text-inherit', active ? 'bg-amber-300/70 dark:bg-amber-500/50' : 'bg-amber-200/60 dark:bg-amber-500/25')}
+            className={clsx(
+              // Radix's alpha amber reads on light and dark alike; the underline marks it even where the tint is faint.
+              'cursor-pointer rounded-[2px] text-inherit underline decoration-[var(--amber-9)] decoration-2 underline-offset-[5px] transition-colors',
+              active ? 'bg-[var(--amber-a6)]' : 'bg-[var(--amber-a3)] hover:bg-[var(--amber-a5)]'
+            )}
           >
             {text}
           </mark>

@@ -2,6 +2,7 @@ import * as path from "path";
 import { createLogger, transports } from "winston";
 import { AcpClient } from "../src/acp/AcpClient";
 import type { AcpMcpServer, PlatformSessionEvent } from "../src/acp/types";
+import type { AcpUsageProbe } from "../src/acp/AcpSessionTotalsProbe";
 
 const AGENT_SCRIPT = path.join(process.cwd(), "test", "fixtures", "resumingAgent.cjs");
 
@@ -14,6 +15,7 @@ async function runTurn(
   coldStartMessage?: string,
   compactInstructions?: string,
   mcpServers?: AcpMcpServer[],
+  usageProbe?: AcpUsageProbe,
 ) {
   const events: PlatformSessionEvent[] = [];
   const client = new AcpClient(
@@ -23,6 +25,8 @@ async function runTurn(
     (event) => events.push(event),
     createLogger({ transports: [new transports.Console({ silent: true })] }),
     10_000,
+    undefined,
+    usageProbe,
   );
   const result = await client.run({ userMessage: "Carry on", acpSessionId, coldStartMessage, compactInstructions, mcpServers });
   const replies = events.filter((event) => event.eventType === "assistant_message").map((event) => String(event.payload.text));
@@ -146,6 +150,31 @@ describe("AcpClient sessions", () => {
     it("doesn't compact a harness without a compact command, or when nobody asked", async () => {
       expect((await runTurn({ AGENT_SUPPORTS: "" }, undefined, undefined, "Keep the decisions")).result.compacted).toBe(false);
       expect((await runTurn({ AGENT_SUPPORTS: "", AGENT_COMMANDS: "compact" })).result.compacted).toBe(false);
+    });
+  });
+
+  describe("a harness that only reports its session's totals", () => {
+    const probe: AcpUsageProbe = {
+      command: "/session",
+      parse: (text) => {
+        const tokens = /Tokens: in (\d+), out (\d+)/.exec(text);
+        const cost = /Cost: ([\d.]+)/.exec(text);
+        return tokens ? { inputTokens: Number(tokens[1]), outputTokens: Number(tokens[2]), costUsd: cost ? Number(cost[1]) : undefined } : null;
+      },
+    };
+
+    it("records what a fresh session's turn used, without showing the probe as something the agent said", async () => {
+      const { result, replies } = await runTurn({ AGENT_STATS: "1000" }, undefined, undefined, undefined, undefined, probe);
+      expect(result.usage).toMatchObject({ inputTokens: 100, outputTokens: 10 });
+      expect(result.usage?.costUsd).toBeCloseTo(0.001);
+      expect(replies.join("")).not.toContain("Tokens:");
+    });
+
+    it("counts a continued session's turn from the totals it had before", async () => {
+      const { result } = await runTurn({ AGENT_SUPPORTS: "resume", AGENT_KNOWS: "sess_old", AGENT_STATS: "1000" }, "sess_old", undefined, undefined, undefined, probe);
+      expect(result.sessionStart.resumed).toBe(true);
+      expect(result.usage).toMatchObject({ inputTokens: 100, outputTokens: 10 });
+      expect(result.usage?.costUsd).toBeCloseTo(0.001);
     });
   });
 });
