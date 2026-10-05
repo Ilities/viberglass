@@ -1,4 +1,4 @@
-import type { ModelProviderId, RepositoryAccess, SetupStatus } from '@viberglass/types'
+import type { RepositoryAccess, SetupModelChoice, SetupStatus } from '@viberglass/types'
 
 export type SetupStep = 'model' | 'repository' | 'space' | 'agent' | 'task'
 
@@ -45,12 +45,20 @@ export function isSetupSkipped(): boolean {
 export function resumeSetup(
   status: SetupStatus,
   storedRepository: RepositoryAccess | null,
-): { step: SetupStep; provider: ModelProviderId | null } {
-  const provider = status.connectedProviders[0] ?? null
-  if (!provider) return { step: 'model', provider }
+): { step: SetupStep; model: SetupModelChoice | null } {
+  const model = modelOf(status)
+  if (!model) return { step: 'model', model }
   if (!status.space) {
-    return { step: status.repositoryConnected && storedRepository ? 'space' : 'repository', provider }
+    return { step: status.repositoryConnected && storedRepository ? 'space' : 'repository', model }
   }
-  if (status.agent?.status !== 'active') return { step: 'agent', provider }
-  return { step: 'task', provider }
+  if (status.agent?.status !== 'active') return { step: 'agent', model }
+  return { step: 'task', model }
+}
+
+/** A stored provider key first, else a model endpoint that names a model to run. */
+function modelOf(status: SetupStatus): SetupModelChoice | null {
+  const provider = status.connectedProviders[0]
+  if (provider) return { provider }
+  const endpoint = status.connectedEndpoints.find((entry) => entry.models.length > 0)
+  return endpoint ? { endpointId: endpoint.id, model: endpoint.models[0] } : null
 }

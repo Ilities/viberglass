@@ -28,7 +28,7 @@ export function SegmentedControl({
               'rounded-md px-3 py-1 text-sm font-medium transition-colors',
               value === option.value
                 ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
-                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                : 'text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
             )}
           >
             {option.label}

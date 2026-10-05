@@ -8,6 +8,7 @@ import type {
   ModelProviderId,
   SavedModelKey,
   SavedRepository,
+  SetupModelChoice,
   SetupProvider,
   SetupNextSteps,
   SetupStatus,
@@ -55,8 +56,8 @@ export async function createSpace(name: string, repository: string, baseBranch: 
   return readData(await post('space', { name, repository, baseBranch }), "Couldn't create the space")
 }
 
-export async function prepareDefaultAgent(provider: ModelProviderId): Promise<DefaultAgent> {
-  return readData(await post('agent', { provider }), "Couldn't prepare the agent")
+export async function prepareDefaultAgent(choice: SetupModelChoice): Promise<DefaultAgent> {
+  return readData(await post('agent', choice), "Couldn't prepare the agent")
 }
 
 export async function loadDemoWorkspace(): Promise<DemoWorkspace> {

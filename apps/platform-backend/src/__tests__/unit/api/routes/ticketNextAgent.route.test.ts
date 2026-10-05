@@ -17,12 +17,12 @@ function app(preview: jest.Mock) {
 
 describe("GET /api/tasks/:id/next-agent", () => {
   it("names the agent the next ask goes to, and how it was picked", async () => {
-    const preview = jest.fn().mockResolvedValue({ clanker: { id: "c-1", readiness: { problem: null } }, via: "on_task" });
+    const preview = jest.fn().mockResolvedValue({ clanker: { id: "c-1", name: "Claude", readiness: { problem: null } }, via: "on_task" });
 
     const response = await request(app(preview)).get("/api/tasks/t-1/next-agent");
 
     expect(preview).toHaveBeenCalledWith("t-1");
-    expect(response.body.data).toEqual({ clankerId: "c-1", via: "on_task", problem: null });
+    expect(response.body.data).toEqual({ clankerId: "c-1", name: "Claude", via: "on_task", problem: null });
   });
 
   it("says why no agent would run instead of failing", async () => {
@@ -31,6 +31,6 @@ describe("GET /api/tasks/:id/next-agent", () => {
     const response = await request(app(preview)).get("/api/tasks/t-1/next-agent");
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({ clankerId: null, via: null, problem: "No agent is ready to run." });
+    expect(response.body.data).toEqual({ clankerId: null, name: null, via: null, problem: "No agent is ready to run." });
   });
 });

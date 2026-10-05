@@ -607,3 +607,23 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
 }
+
+/* Outside the layers, so it overrides Radix's unlayered theme. Secondary text (gray 9 and 10) and amber text
+   (links, outline buttons) darkened just enough to reach 4.5:1 on white and on the page background; Radix's
+   own steps sit near 3.5:1 there. */
+.radix-themes.light {
+    --gray-9: #73726c;
+    --gray-a9: #73726c;
+    --gray-10: #6f6e69;
+    --gray-a10: #6f6e69;
+    --amber-11: #8f5400;
+    --amber-a11: #8f5400;
+}
+
+/* The same steps lightened for dark surfaces. */
+.radix-themes.dark {
+    --gray-9: #8f8e86;
+    --gray-a9: #8f8e86;
+    --gray-10: #9a9991;
+    --gray-a10: #9a9991;
+}

@@ -1,7 +1,7 @@
 [
   {
     "route": "/",
-    "passes": 22,
+    "passes": 23,
     "incomplete": [
       {
         "id": "aria-prohibited-attr",
@@ -9,14 +9,14 @@
       },
       {
         "id": "color-contrast",
-        "nodes": 27
+        "nodes": 1
       }
     ],
     "violations": []
   },
   {
     "route": "/overview",
-    "passes": 22,
+    "passes": 25,
     "incomplete": [
       {
         "id": "aria-prohibited-attr",
@@ -24,14 +24,14 @@
       },
       {
         "id": "color-contrast",
-        "nodes": 124
+        "nodes": 1
       }
     ],
     "violations": []
   },
   {
     "route": "/spaces/storefront",
-    "passes": 24,
+    "passes": 25,
     "incomplete": [
       {
         "id": "aria-prohibited-attr",
@@ -39,14 +39,14 @@
       },
       {
         "id": "color-contrast",
-        "nodes": 115
+        "nodes": 1
       }
     ],
     "violations": []
   },
   {
     "route": "/spaces/storefront/tasks/STO-7",
-    "passes": 29,
+    "passes": 32,
     "incomplete": [
       {
         "id": "aria-prohibited-attr",
@@ -54,30 +54,14 @@
       },
       {
         "id": "color-contrast",
-        "nodes": 124
+        "nodes": 2
       }
     ],
-    "violations": [
-      {
-        "id": "aria-required-children",
-        "impact": "critical",
-        "help": "Certain ARIA roles must contain particular children",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/aria-required-children?application=playwright",
-        "nodes": [
-          {
-            "html": "<div role=\"tablist\" aria-label=\"Research views\" class=\"mb-6 flex gap-1 border-b border-[var(--gray-5)]\">",
-            "target": [
-              ".border-\\[var\\(--gray-5\\)\\]"
-            ],
-            "summary": "Fix any of the following:\n  Element has children which are not allowed: button"
-          }
-        ]
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/settings/notifications",
-    "passes": 22,
+    "passes": 23,
     "incomplete": [
       {
         "id": "aria-prohibited-attr",
@@ -85,7 +69,7 @@
       },
       {
         "id": "color-contrast",
-        "nodes": 21
+        "nodes": 1
       }
     ],
     "violations": []

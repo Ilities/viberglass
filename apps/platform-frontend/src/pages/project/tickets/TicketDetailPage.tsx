@@ -245,6 +245,7 @@ export function TicketDetailPage() {
                 planning: data.documents.planning.content.trim().length > 0,
                 execution: Boolean(ticket.pullRequestUrl),
               }}
+              canAsk={Boolean(capabilities?.canAsk)}
               onShowStep={showStep}
             />
             <TaskStepView

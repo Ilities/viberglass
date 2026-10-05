@@ -6,6 +6,7 @@ All current-app images were captured against the isolated local review instance 
 
 - [Reuse rules](#reuse-rules)
 - [Current application](#current-application)
+- [After the fixes](#after-the-fixes)
 - [Proposed UI](#proposed-ui)
 
 ## Reuse rules
@@ -108,6 +109,10 @@ Viewport is 1440 × 1000 unless stated. PNG dimensions are given in screenshots.
 | [watcher-overview.png](images/watcher-overview.png) | watcher | Watcher Overview: Earlier journey snapshot; task data evolved during review; light | Recapture |
 | [watcher-space.png](images/watcher-space.png) | watcher | Watcher Space: Earlier journey snapshot; task data evolved during review; light | Recapture |
 | [watcher-task.png](images/watcher-task.png) | watcher | Watcher Task: Earlier journey snapshot; task data evolved during review; light | Recapture |
+
+## After the fixes
+
+[after/](after/) holds `<persona>-<page>.png` for admin, pm, engineer, reviewer, watcher and viewer, on Home (viewers land on Overview), Overview, the Storefront space, task STO-7 and Notifications, captured on 2026-10-04 with `harness/capture.cjs` after the backlog was implemented. They show real fixture data, including the older compatibility-probe tasks and turns recorded before the fixes (their stored summaries keep the old wording). For public documentation, prefer a clean scenario as the reuse rules above say.
 
 ## Proposed UI
 

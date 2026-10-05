@@ -105,13 +105,15 @@ router.post(
   }),
 );
 
-// POST /api/setup/agent - Create (or reconfigure) the default agent for the key's provider and start it.
+// POST /api/setup/agent - Create (or reconfigure) the default agent for the key's provider, or a model endpoint, and start it.
 // Progress shows on the runner's status message: GET /api/clankers/:id.
 router.post(
   "/agent",
   validateSetupAgent,
   asyncHandler(async (req, res) => {
-    const agent = await agentService.prepareDefaultAgent(req.body.provider);
+    const agent = await agentService.prepareDefaultAgent(
+      typeof req.body.endpointId === "string" ? { endpointId: req.body.endpointId, model: req.body.model } : { provider: req.body.provider },
+    );
     res.status(202).json({ success: true, data: agent });
   }),
 );

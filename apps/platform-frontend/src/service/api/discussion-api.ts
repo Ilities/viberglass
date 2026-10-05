@@ -17,6 +17,7 @@ export async function getTaskTimeline(taskId: string): Promise<TaskTimelineEntry
 /** The agent an ask goes to when it names none; null, with why, when none would run. */
 export interface NextAgent {
   clankerId: string | null
+  name: string | null
   via: 'named' | 'on_task' | 'default' | 'first_ready' | null
   problem: string | null
 }

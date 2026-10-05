@@ -4,9 +4,18 @@ import { Input } from '@/components/input'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { Text } from '@/components/text'
 import { saveModelKey } from '@/service/api/setup-api'
-import { guessModelProviderFromKey, type ModelProviderId, type SetupProvider } from '@viberglass/types'
+import {
+  guessModelProviderFromKey,
+  type ModelProviderId,
+  type SetupModelChoice,
+  type SetupProvider,
+} from '@viberglass/types'
 import { useState } from 'react'
+import { CustomEndpointSetup } from './CustomEndpointSetup'
 import { ExternalLink, SetupError, SetupFrame } from './SetupFrame'
+
+/** The provider list's entry for a model API the workspace runs or rents itself. */
+const CUSTOM = 'custom'
 
 export function ModelKeyStep({
   providers,
@@ -17,7 +26,7 @@ export function ModelKeyStep({
   providers: SetupProvider[]
   connectedProviders: ModelProviderId[]
   initialProvider: ModelProviderId | null
-  onDone: (provider: ModelProviderId) => void
+  onDone: (choice: SetupModelChoice) => void
 }) {
   const [providerId, setProviderId] = useState<string>(initialProvider ?? '')
   const [key, setKey] = useState('')
@@ -36,19 +45,21 @@ export function ModelKeyStep({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    // The custom endpoint form checks and saves with its own button.
+    if (providerId === CUSTOM) return
     if (!provider) {
       setError('Choose who issued the key.')
       return
     }
     if (!key.trim() && hasSavedKey) {
-      onDone(provider.id)
+      onDone({ provider: provider.id })
       return
     }
     setError(null)
     setIsChecking(true)
     try {
       await saveModelKey(provider.id, key)
-      onDone(provider.id)
+      onDone({ provider: provider.id })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't check the key.")
     } finally {
@@ -60,47 +71,55 @@ export function ModelKeyStep({
     <SetupFrame
       step={1}
       title="Connect an AI model"
-      intro="Paste an API key from your AI provider. Agents use it to read your code and write their results."
+      intro="Paste an API key from your AI provider, or connect a compatible endpoint you run yourself. Agents use it to read your code and write their results."
     >
       <form onSubmit={handleSubmit} className="grid gap-6">
-        <SetupError message={error} />
+        {providerId !== CUSTOM && <SetupError message={error} />}
         <Field>
           <Label>Provider</Label>
-          <Listbox
-            value={providerId}
-            onChange={setProviderId}
-            placeholder="Who issued the key?"
-            aria-label="Provider"
-          >
+          <Listbox value={providerId} onChange={setProviderId} placeholder="Who issued the key?" aria-label="Provider">
             {providers.map((p) => (
               <ListboxOption key={p.id} value={p.id}>
                 <ListboxLabel>{p.displayName}</ListboxLabel>
               </ListboxOption>
             ))}
+            <ListboxOption value={CUSTOM}>
+              <ListboxLabel>Custom endpoint (z.ai, a self-hosted model, …)</ListboxLabel>
+            </ListboxOption>
           </Listbox>
           {provider && (
             <Description>
-              <ExternalLink href={provider.keyUrl}>Get a key from {provider.displayName}</ExternalLink>. It's
-              stored encrypted, and agents run on {provider.agentName}.
+              <ExternalLink href={provider.keyUrl}>Get a key from {provider.displayName}</ExternalLink>. It's stored
+              encrypted, and agents run on {provider.agentName}.
             </Description>
           )}
         </Field>
-        <Field>
-          <Label>API key</Label>
-          <Input
-            type="password"
-            name="key"
-            autoComplete="off"
-            spellCheck={false}
-            value={key}
-            onChange={(event) => handleKeyChange(event.target.value)}
-            placeholder={hasSavedKey ? 'A key is saved; paste a new one to replace it' : undefined}
-          />
-        </Field>
-        {hasSavedKey && !key.trim() && <Text>Your saved {provider.displayName} key will be used.</Text>}
-        <Button type="submit" className="w-full" disabled={isChecking || !provider || (!key.trim() && !hasSavedKey)}>
-          {isChecking ? `Checking with ${provider?.displayName}…` : 'Continue'}
-        </Button>
+        {providerId === CUSTOM ? (
+          <CustomEndpointSetup onDone={(endpointId, model) => onDone({ endpointId, model })} />
+        ) : (
+          <>
+            <Field>
+              <Label>API key</Label>
+              <Input
+                type="password"
+                name="key"
+                autoComplete="off"
+                spellCheck={false}
+                value={key}
+                onChange={(event) => handleKeyChange(event.target.value)}
+                placeholder={hasSavedKey ? 'A key is saved; paste a new one to replace it' : undefined}
+              />
+            </Field>
+            {hasSavedKey && !key.trim() && <Text>Your saved {provider.displayName} key will be used.</Text>}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isChecking || !provider || (!key.trim() && !hasSavedKey)}
+            >
+              {isChecking ? `Checking with ${provider?.displayName}…` : 'Continue'}
+            </Button>
+          </>
+        )}
       </form>
     </SetupFrame>
   )

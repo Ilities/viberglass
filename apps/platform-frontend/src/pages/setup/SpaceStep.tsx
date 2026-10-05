@@ -3,19 +3,19 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Text } from '@/components/text'
 import { createSpace, prepareDefaultAgent } from '@/service/api/setup-api'
-import type { CreatedSpace, DefaultAgent, ModelProviderId, RepositoryAccess } from '@viberglass/types'
+import type { CreatedSpace, DefaultAgent, RepositoryAccess, SetupModelChoice } from '@viberglass/types'
 import { CheckIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { SetupError, SetupFrame } from './SetupFrame'
 
 export function SpaceStep({
   repository,
-  provider,
+  model,
   onDone,
   onChangeRepository,
 }: {
   repository: RepositoryAccess
-  provider: ModelProviderId
+  model: SetupModelChoice
   onDone: (space: CreatedSpace, agent: DefaultAgent) => void
   onChangeRepository: () => void
 }) {
@@ -30,7 +30,7 @@ export function SpaceStep({
     try {
       // Both steps are safe to repeat, so a retry after a failure picks up where this stopped.
       const space = await createSpace(name, repository.url, repository.defaultBranch)
-      const agent = await prepareDefaultAgent(provider)
+      const agent = await prepareDefaultAgent(model)
       onDone(space, agent)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the space.")

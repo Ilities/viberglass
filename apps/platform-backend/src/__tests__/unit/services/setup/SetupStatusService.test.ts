@@ -1,4 +1,4 @@
-import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
+import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ModelEndpoint, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
 import type { ProjectConfig } from "../../../../models/PMIntegration";
 import { SetupStatusService } from "../../../../services/setup/SetupStatusService";
 
@@ -73,7 +73,7 @@ function runner(status: ClankerStatus): Clanker {
   };
 }
 
-function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; agent?: ClankerStatus | null }) {
+function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[] }) {
   const defaultAgent = state.agent ? runner(state.agent) : null;
   return new SetupStatusService({
     secrets: {
@@ -89,6 +89,7 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
       listClankers: async () => (defaultAgent ? [defaultAgent] : []),
     },
     demo: { getDemo: async () => null },
+    endpoints: { list: async () => state.endpoints ?? [] },
   });
 }
 
@@ -96,6 +97,7 @@ describe("SetupStatusService", () => {
   it("has everything left on a fresh workspace", async () => {
     await expect(service({}).getStatus()).resolves.toEqual({
       connectedProviders: [],
+      connectedEndpoints: [],
       repositoryConnected: false,
       space: null,
       agent: null,
@@ -109,6 +111,7 @@ describe("SetupStatusService", () => {
 
     expect(status).toEqual({
       connectedProviders: ["opencode-go"],
+      connectedEndpoints: [],
       repositoryConnected: true,
       space: { projectId: "project-1", name: "Web", slug: "web", repositoryUrl: "https://github.com/acme/web" },
       agent: { clankerId: "clanker-1", agentName: "OpenCode", status: "deploying", statusMessage: "Docker image ready" },
@@ -121,5 +124,25 @@ describe("SetupStatusService", () => {
     const status = await service({ github: true, space: true, agent: "active" }).getStatus();
 
     expect(status.complete).toBe(true);
+  });
+
+  it("lists the workspace's model endpoints, which setup can run the agent on instead of a key", async () => {
+    const endpoint: ModelEndpoint = {
+      id: "e-1",
+      name: "z.ai",
+      baseUrl: "https://api.z.ai/api/paas/v4",
+      apiFormat: "openai-chat",
+      auth: { scheme: "bearer" },
+      secretId: "s",
+      extraHeaders: {},
+      models: ["glm-4.7-flash"],
+      mayColdStart: false,
+      source: "manual",
+      deploymentId: null,
+      createdAt: "",
+      updatedAt: "",
+    };
+    const status = await service({ endpoints: [endpoint] }).getStatus();
+    expect(status.connectedEndpoints).toEqual([{ id: "e-1", name: "z.ai", models: ["glm-4.7-flash"] }]);
   });
 });

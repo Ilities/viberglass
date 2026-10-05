@@ -4,7 +4,7 @@ import { Text } from '@/components/text'
 import { usePolling } from '@/hooks/usePolling'
 import { getClanker } from '@/service/api/clanker-api'
 import { prepareDefaultAgent } from '@/service/api/setup-api'
-import type { ModelProviderId } from '@viberglass/types'
+import type { SetupModelChoice } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { SetupError, SetupFrame } from './SetupFrame'
 
@@ -66,11 +66,11 @@ function AgentProgress({
 }
 
 export function AgentStep({
-  provider,
+  model,
   agent: initialAgent,
   onReady,
 }: {
-  provider: ModelProviderId
+  model: SetupModelChoice
   agent: AgentState | null
   onReady: (clankerId: string) => void
 }) {
@@ -83,14 +83,14 @@ export function AgentStep({
     setError(null)
     setIsStarting(true)
     try {
-      setAgent(await prepareDefaultAgent(provider))
+      setAgent(await prepareDefaultAgent(model))
       setAttempt((value) => value + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't prepare the agent.")
     } finally {
       setIsStarting(false)
     }
-  }, [provider])
+  }, [model])
 
   // Resuming with no agent yet, or one that was stopped: start it.
   const needsStart = !agent || agent.status === 'inactive'

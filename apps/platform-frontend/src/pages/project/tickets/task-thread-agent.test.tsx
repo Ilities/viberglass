@@ -145,7 +145,7 @@ describe('TaskThread and the agent', () => {
     jest.clearAllMocks()
     mockRole = 'member'
     mockBranch.mockResolvedValue(null)
-    mockNextAgent.mockResolvedValue({ clankerId: null, via: null, problem: null })
+    mockNextAgent.mockResolvedValue({ clankerId: null, name: null, via: null, problem: null })
     mockResumeTarget.mockResolvedValue({ sessionId: 's-1', clankerId: CLAUDE, action: 'code' })
   })
 

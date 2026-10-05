@@ -191,7 +191,7 @@ export function SpacePage() {
           {groups.map(({ group, tasks }) => (
             <section key={group} aria-label={SPACE_GROUP_LABEL[group]} className="mt-8">
               <Subheading>
-                {SPACE_GROUP_LABEL[group]} <span className="text-zinc-400">· {tasks.length}</span>
+                {SPACE_GROUP_LABEL[group]} <span className="text-zinc-500 dark:text-zinc-400">· {tasks.length}</span>
               </Subheading>
               {list(tasks)}
             </section>
@@ -201,7 +201,7 @@ export function SpacePage() {
             <section aria-label="Done" className="mt-8">
               <button type="button" aria-expanded={doneOpen} onClick={() => setShowDone(!doneOpen)} className="text-left">
                 <Subheading>
-                  {doneOpen ? '▾' : '▸'} Done <span className="text-zinc-400">· {done.total}</span>
+                  {doneOpen ? '▾' : '▸'} Done <span className="text-zinc-500 dark:text-zinc-400">· {done.total}</span>
                 </Subheading>
               </button>
               {doneOpen && (
@@ -217,11 +217,11 @@ export function SpacePage() {
 
       <p className="mt-10 text-sm">
         {showArchived ? (
-          <Link href={`/spaces/${slug}`} className="text-zinc-500 underline">
+          <Link href={`/spaces/${slug}`} className="text-zinc-500 underline dark:text-zinc-400">
             Back to the space's tasks
           </Link>
         ) : (
-          <Link href={`/spaces/${slug}?archived=1`} className="text-zinc-500 underline">
+          <Link href={`/spaces/${slug}?archived=1`} className="text-zinc-500 underline dark:text-zinc-400">
             Archived tasks
           </Link>
         )}

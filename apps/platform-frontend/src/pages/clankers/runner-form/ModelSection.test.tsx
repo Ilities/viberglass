@@ -116,3 +116,56 @@ test('an existing endpoint selection survives loading the endpoint list', async 
   expect(await screen.findByRole('combobox', { name: 'Model' })).toHaveTextContent('qwen')
   expect(screen.getByRole('combobox', { name: 'Provider' })).toHaveTextContent('EU models')
 })
+
+test("explains that an agent without endpoint support can't use one, instead of offering it", () => {
+  render(
+    <Theme>
+      <ModelSection
+        agent="claude-code"
+        provider=""
+        modelKeyId=""
+        secrets={[]}
+        settings={DEFAULT_CLANKER_CONFIG_FORM_STATE}
+        endpoints={[endpoint]}
+        endpointSelection={null}
+        onProviderChange={jest.fn()}
+        onEndpointChange={jest.fn()}
+        onEndpointModelChange={jest.fn()}
+        onEndpointSaved={jest.fn()}
+        onModelKeyChange={jest.fn()}
+        onSettingsChange={jest.fn()}
+        onKeyAdded={jest.fn()}
+      />
+    </Theme>
+  )
+
+  expect(screen.getByText(/Claude Code uses only its own providers here; it can't run on a custom endpoint yet/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Add endpoint' })).not.toBeInTheDocument()
+})
+
+test('offers only endpoints that speak an API the agent understands', async () => {
+  render(
+    <Theme>
+      <ModelSection
+        agent="opencode"
+        provider=""
+        modelKeyId=""
+        secrets={[]}
+        settings={DEFAULT_CLANKER_CONFIG_FORM_STATE}
+        endpoints={[endpoint, { ...endpoint, id: 'endpoint-2', name: 'Anthropic proxy', apiFormat: 'anthropic-messages' }]}
+        endpointSelection={null}
+        onProviderChange={jest.fn()}
+        onEndpointChange={jest.fn()}
+        onEndpointModelChange={jest.fn()}
+        onEndpointSaved={jest.fn()}
+        onModelKeyChange={jest.fn()}
+        onSettingsChange={jest.fn()}
+        onKeyAdded={jest.fn()}
+      />
+    </Theme>
+  )
+
+  fireEvent.keyDown(screen.getByRole('combobox', { name: 'Provider' }), { key: 'ArrowDown' })
+  expect(await screen.findByRole('option', { name: 'EU models' })).toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Anthropic proxy' })).not.toBeInTheDocument()
+})

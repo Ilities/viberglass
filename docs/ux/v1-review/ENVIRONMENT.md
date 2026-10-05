@@ -21,7 +21,7 @@ The fixture repository contains README.md and greeting.js exporting a function r
 
 ## Accounts and work
 
-Read the ignored `.tmp/ux-review/accounts.json` for fixture login credentials. Do not copy that file into public documentation. Account emails use example.com; none point to real recipients.
+Read the ignored .tmp/ux-review/accounts.json for fixture login credentials. Do not copy that file into public documentation. Account emails use example.com; none point to real recipients.
 
 | Persona | Fixture account | Access |
 |---|---|---|

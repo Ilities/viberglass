@@ -1,6 +1,6 @@
 # User guide baseline
 
-These guides describe the current application reviewed on 2026-10-03. Select the guide closest to your work; one person may use several. Each guide ends with review/editorial notes that should be removed or resolved before publication. The UI proposals in [mockups](../mockups/index.html) are separate from these instructions.
+These guides describe the current application, reviewed on 2026-10-03 and updated after the follow-up UX fixes. Select the guide closest to your work; one person may use several. Each guide ends with review/editorial notes that should be removed or resolved before publication. The UI proposals in [mockups](../mockups/index.html) are separate from these instructions.
 
 | Your work | Guide | Starting access |
 |---|---|---|
@@ -17,12 +17,13 @@ These guides describe the current application reviewed on 2026-10-03. Select the
 - **Workspace:** the installation and its people, agents, credentials and connections.
 - **Space:** a group of related tasks, with membership and shared defaults. Private spaces are visible to their members and workspace admins. Members/viewers can see open spaces; guests see spaces they belong to.
 - **Task:** a requested outcome with a key, description, people, artifacts and conversation.
-- **Home:** your tasks and requests for your attention. **Overview:** work across the spaces you can see. Viewers land on Overview.
+- **Home:** your tasks and requests for your attention. **Overview:** work across the spaces you can see, in five groups (Needs attention, Agent working, Waiting on people, Not started, Done this week); each task is counted once. Viewers land on Overview.
 - **Requester:** the person who created the task. **Owner:** the person responsible for moving it forward. **Reviewer:** someone asked to look at results. **Watcher:** someone following the task. These are task relationships, not workspace roles.
 - **Agent / runner:** the agent software and its configured model, credentials and compute. Admins configure these; people ask them to work from task conversations.
 - **Turn:** one agent response to a request. **Run:** its execution record. A task can have many turns and runs.
-- **Research / Plan / Code:** available work artifacts. Research and planning help clarify a request; they are not mandatory approval stages.
-- **Your move:** there is a request for your attention. Read its context to distinguish a question, review request, mention or failure.
+- **Research / Plan / Code:** available work artifacts, each with its own status. They can be asked for in any order; research and planning help clarify a request and nothing needs approving.
+- **Your move:** there is a request for your attention. Home's Needs you explains whether it is a question, review request, mention or failure.
+- **Settings:** the sidebar names settings by scope: Space settings inside a space, Workspace settings for admins, and Your settings for everyone else. Connected services are under Connections.
 
 ## Access at a glance
 
@@ -38,6 +39,6 @@ Hiding a control can be intentional. Ask an admin about access rather than assum
 
 ## Notifications and completion
 
-Open Settings → Notifications to see whether Slack is connected and which email address receives task/setup messages. Delivery depends on workspace configuration. Home attention, a mention’s Mark done, and a task’s Mark as done are different things. Acknowledging a mention does not finish the task. Manual task closure does not by itself prove that a pull request was merged.
+Open Your settings (or Workspace settings) → Notifications to see whether Slack is connected and which email address receives task/setup messages. Delivery depends on workspace configuration. Home attention, a mention’s Acknowledge mention, and a task’s Actions → Finish task are different things. Acknowledging a mention only stops it being your move; the task is unchanged. Finishing a task keeps its history and merges nothing, so it does not prove that a pull request was merged. On Home, a row's number badge counts new messages; the sidebar Home badge counts things that need you.
 
 Use [current-app screenshots](../gallery.html) as evidence, and [the screenshot manifest](../SCREENSHOTS.md) to decide which images can be published. Fixture names and local URLs must be replaced with your documentation examples if needed.
