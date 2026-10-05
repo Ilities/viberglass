@@ -2,6 +2,7 @@ import { Badge } from '@/components/badge'
 import { Fact, FactList } from '@/components/fact-list'
 import { getRunRecord, type RunRecord } from '@/service/api/run-record-api'
 import type { ReactNode } from 'react'
+import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 import { Link } from '@/components/link'
 import {
@@ -14,7 +15,7 @@ import {
 import { formatRunDuration } from './run-facts'
 
 /** What this run recorded: outcome, model, tokens and cost. The record is written as the run is dispatched and finishes. */
-export function RunRecordPanel({ jobId }: { jobId: string }) {
+export function RunRecordPanel({ jobId, compact = false }: { jobId: string; compact?: boolean }) {
   const [record, setRecord] = useState<RunRecord | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,17 +32,17 @@ export function RunRecordPanel({ jobId }: { jobId: string }) {
   if (record === null) {
     return <p className="text-sm text-[var(--gray-9)]">This run has no record. Runs dispatched before records existed only have one if they opened a pull request.</p>
   }
-  return <RunRecordFacts record={record} />
+  return <RunRecordFacts record={record} compact={compact} />
 }
 
-function RunRecordFacts({ record }: { record: RunRecord }) {
+function RunRecordFacts({ record, compact }: { record: RunRecord; compact: boolean }) {
   const result = formatRunResult(record)
   const pullRequestState = formatPullRequestState(record)
   const cost = formatRunCost(record)
   const usage = record.usageAvailable ? record.usage : null
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
+    <div className={clsx('grid gap-8', !compact && 'md:grid-cols-2')}>
       <FactList title="Outcome">
         <Fact label="Result">
           <Badge color={result.color}>{result.label}</Badge>

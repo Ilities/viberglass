@@ -3,6 +3,8 @@ import { EmptyState } from '@/components/empty-state'
 import { PageMeta } from '@/components/page-meta'
 import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { useProject } from '@/context/project-context'
+import { useAuth } from '@/context/auth-context'
+import { isRunner } from '@/lib/roles'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { archiveTickets, deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import { TICKET_STATUS } from '@viberglass/types'
@@ -13,8 +15,11 @@ import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { TaskActionsMenu } from './task-actions-menu'
 import { runnableAgents, taskAgents } from './task-agents'
-import { stepForRun } from './step-runs'
+import { runName } from './step-runs'
 import { TaskContextLine } from './task-context-line'
+import { TaskDescription } from './task-description'
+import { TaskRunHistory } from './task-run-history'
+import { TaskRunInspector } from './task-run-inspector'
 import { TaskFailureNotice } from './task-failure-notice'
 import { TaskHeader } from './task-header'
 import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
@@ -22,14 +27,15 @@ import { WatchButton } from './task-people'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
 import { TaskThread } from './task-thread'
+import { TaskViewSwitch } from './task-view-switch'
 import { useTaskPage, workingSession } from './use-task-page'
-import { useTaskParticipants, withRole } from './use-task-participants'
+import { useTaskParticipants } from './use-task-participants'
 
 function isTaskStep(value: string | null | undefined): value is TaskStep {
   return TASK_STEPS.some((step) => step === value)
 }
 
-const STEP_VIEWS: StepView[] = ['document', 'runs', 'comments']
+const STEP_VIEWS: StepView[] = ['document', 'comments']
 function isStepView(value: string | null): value is StepView {
   return STEP_VIEWS.some((view) => view === value)
 }
@@ -38,27 +44,22 @@ function isStepView(value: string | null): value is StepView {
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const { project: space } = useProject()
+  const { user } = useAuth()
+  const canInspectRuns = isRunner(user?.role)
   const navigate = useNavigate()
   const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
   // The page's address may name the task by its key; people are looked up by its id.
   const people = useTaskParticipants(data?.ticket.id)
   const [searchParams, setSearchParams] = useSearchParams()
-  const [openRunId, setOpenRunId] = useState<string | null>(searchParams.get('run'))
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  // Below the two-column width, one of conversation or artifact shows at a time; a link to a run or document opens the artifact.
+  // Hidden panels stay mounted so switching preserves a draft and its scroll position.
   const wide = useMediaQuery('(min-width: 1280px)')
   const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
-    ['run', 'step', 'view', 'version'].some((key) => searchParams.has(key)) ? 'artifact' : 'conversation'
+    ['step', 'version'].some((key) => searchParams.has(key)) || searchParams.get('view') === 'comments' ? 'artifact' : 'conversation'
   )
 
   const linkedRunId = searchParams.get('run')
-  // A link on this page to one of its runs opens the run beside the thread, without leaving the page.
-  useEffect(() => {
-    if (!linkedRunId) return
-    setOpenRunId(linkedRunId)
-    setNarrowView('artifact')
-  }, [linkedRunId])
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
   // The step view counts new comments as people add and resolve them; the page's counts are from its last load.
   const [liveNewComments, setLiveNewComments] = useState<Partial<Record<'research' | 'planning', number>>>({})
@@ -71,11 +72,15 @@ export function TicketDetailPage() {
   // A link to a run opens it; if it's new, load it.
   const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
   useEffect(() => {
-    if (linkedRunId) setOpenRunId(linkedRunId)
-  }, [linkedRunId])
-  useEffect(() => {
     if (linkedRunMissing) changed()
   }, [linkedRunMissing, changed])
+
+  const closeRun = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('run')
+    next.delete('runTab')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const setDone = useCallback(
     async (done: boolean) => {
@@ -120,22 +125,14 @@ export function TicketDetailPage() {
     workingSession: workingSession(data.sessions),
   })
 
-  const requester = withRole(people.participants ?? [], 'requester')[0]
   const failedRunnerId = move.kind === 'failed' ? data.runs.find((run) => run.jobId === move.runId)?.clankerId : null
   const failedRunner = data.clankers.find((clanker) => clanker.id === failedRunnerId)
 
-  // A linked run shows the step it's listed under (a reply's is the current one); otherwise the step picked, or the current one.
   const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
   const requestedStep = searchParams.get('step')
-  const shownStep: TaskStep = linkedRun
-    ? stepForRun(linkedRun.jobKind, currentStep)
-    : isTaskStep(requestedStep)
-      ? requestedStep
-      : currentStep
-
-  // A linked run opens on the Runs view; otherwise the view picked, or the document.
+  const shownStep: TaskStep = isTaskStep(requestedStep) ? requestedStep : currentStep
   const requestedView = searchParams.get('view')
-  const shownView: StepView = isStepView(requestedView) ? requestedView : linkedRun ? 'runs' : 'document'
+  const shownView: StepView = isStepView(requestedView) ? requestedView : 'document'
 
   // An earlier version of the shown document, opened from the thread.
   const requestedVersion = Number(searchParams.get('version'))
@@ -144,26 +141,19 @@ export function TicketDetailPage() {
 
   const showStep = (step: TaskStep, version: number | null = null, compare = false) =>
     setSearchParams({
+      ...(linkedRunId ? { run: linkedRunId } : {}),
+      ...(searchParams.get('runTab') ? { runTab: searchParams.get('runTab') ?? '' } : {}),
       ...(step === currentStep ? {} : { step }),
       ...(version ? { version: String(version) } : {}),
       ...(compare ? { compare: '1' } : {}),
     })
   const showView = (view: StepView) =>
     setSearchParams({
+      ...(linkedRunId ? { run: linkedRunId } : {}),
+      ...(searchParams.get('runTab') ? { runTab: searchParams.get('runTab') ?? '' } : {}),
       ...(shownStep === currentStep ? {} : { step: shownStep }),
       ...(view === 'document' ? {} : { view }),
     })
-  const toggleRun = (runId: string) => {
-    const closing = openRunId === runId
-    setOpenRunId(closing ? null : runId)
-    // Closing the linked run drops the link, so the thread's link to it opens it again.
-    if (closing && runId === linkedRunId) {
-      const next = new URLSearchParams(searchParams)
-      next.delete('run')
-      next.delete('runTab')
-      setSearchParams(next)
-    }
-  }
   // The thread reloads when anything it shows may have changed.
   const threadRefreshKey = [
     ...data.runs.map((run) => `${run.jobId}:${run.status}`),
@@ -210,44 +200,9 @@ export function TicketDetailPage() {
           }
         />
         <TaskContextLine ticket={ticket} people={people} />
+        <TaskDescription key={ticket.id} description={ticket.description} />
 
-        {!wide && (
-          <div role="group" aria-label="Show" className="flex gap-2">
-            <Button
-              {...(narrowView === 'conversation' ? { color: 'zinc' as const } : { outline: true as const })}
-              aria-pressed={narrowView === 'conversation'}
-              onClick={() => setNarrowView('conversation')}
-            >
-              Conversation
-            </Button>
-            <Button
-              {...(narrowView === 'artifact' ? { color: 'zinc' as const } : { outline: true as const })}
-              aria-pressed={narrowView === 'artifact'}
-              onClick={() => setNarrowView('artifact')}
-            >
-              Artifacts
-            </Button>
-            {capabilities?.canPost && (
-              <Button
-                plain
-                className="ml-auto"
-                onClick={() => {
-                  setNarrowView('conversation')
-                  // After the conversation is shown again, so the composer can take focus.
-                  requestAnimationFrame(() => {
-                    const composer = document.querySelector<HTMLTextAreaElement>(
-                      'textarea[aria-label="Write a message"]'
-                    )
-                    composer?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-                    composer?.focus({ preventScroll: true })
-                  })
-                }}
-              >
-                Write a reply
-              </Button>
-            )}
-          </div>
-        )}
+        {!wide && <TaskViewSwitch view={narrowView} onView={setNarrowView} canPost={Boolean(capabilities?.canPost)} />}
 
         {/* Hidden rather than unmounted, so a draft and the scroll position survive switching. */}
         <div className="grid min-h-0 flex-1 items-start gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
@@ -266,7 +221,6 @@ export function TicketDetailPage() {
                   planning: data.documents.planning.content.trim().length > 0,
                   execution: Boolean(ticket.pullRequestUrl),
                 }}
-                canAsk={Boolean(capabilities?.canAsk)}
                 onShowStep={showStep}
               />
             </div>
@@ -279,28 +233,20 @@ export function TicketDetailPage() {
                 onCompare={(version) => showStep(shownStep, version, true)}
                 onView={showView}
                 data={data}
-                project={project}
                 move={move}
-                openRunId={openRunId}
-                focusedRunId={linkedRunId}
-                focusedRunTab={searchParams.get('runTab')}
-                onToggleRun={toggleRun}
                 onDocumentSaved={setDocument}
                 onNewComments={countNewComments}
               />
             </div>
           </section>
 
-          <div hidden={!wide && narrowView !== 'conversation'} className="min-w-0 xl:order-first">
+          <div hidden={!wide && narrowView !== 'conversation'} className="min-w-0 space-y-4 xl:order-first">
+            {canInspectRuns && <TaskRunHistory key={ticket.id} runs={data.runs} open={requestedView === 'runs'} />}
             <TaskThread
               taskId={ticket.id}
               taskKey={ticket.key}
               refreshKey={threadRefreshKey}
-              request={
-                ticket.description?.trim()
-                  ? { who: requester?.name ?? 'Someone', at: ticket.createdAt, body: ticket.description }
-                  : null
-              }
+              runs={data.runs}
               onOpenComments={(step) => {
                 setNarrowView('artifact')
                 setSearchParams({ ...(step === currentStep ? {} : { step }), view: 'comments' })
@@ -332,6 +278,14 @@ export function TicketDetailPage() {
               }}
             />
           </div>
+          {canInspectRuns && (
+            <TaskRunInspector
+              jobId={linkedRunId}
+              title={linkedRun ? `${runName(linkedRun.jobKind)} #${data.runs.length - data.runs.indexOf(linkedRun)}` : 'Run details'}
+              linkedTab={searchParams.get('runTab')}
+              onClose={closeRun}
+            />
+          )}
         </div>
       </div>
 

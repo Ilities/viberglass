@@ -3,6 +3,7 @@ import { useAuth } from '@/context/auth-context'
 import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
+import type { JobListItem } from '@/service/api/job-api'
 import type { Clanker, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { AgentSteering } from './agent-steering'
@@ -15,7 +16,7 @@ import { PinnedSummary, SummaryEntry } from './summary-entry'
 import { TaskComposer, type Mentionable } from './task-composer'
 import { TaskSuggestedActions } from './task-suggested-actions'
 import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
-import { EventEntry, MessageEntry, RequestEntry, VersionEntry } from './thread-entries'
+import { EventEntry, MessageEntry, VersionEntry } from './thread-entries'
 import { summaryFacts } from './thread-summaries'
 
 const ARTIFACT_STEP: Record<TaskArtifactKind, 'research' | 'planning'> = { research: 'research', plan: 'planning' }
@@ -53,8 +54,8 @@ interface TaskThreadProps {
   clankers?: Clanker[]
   /** The page reloads after an ask, to show the agent working. */
   onAsked: () => void
-  /** The task as it was asked for, which opens the conversation. */
-  request?: { who: string; at: string; body: string } | null
+  /** Run status and duration shown beneath the turn that started it. */
+  runs?: JobListItem[]
 }
 
 /** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
@@ -76,7 +77,7 @@ export function TaskThread({
   runnableAgents,
   clankers = [],
   onAsked,
-  request = null,
+  runs = [],
 }: TaskThreadProps) {
   const { user } = useAuth()
   const personName = usePersonName()
@@ -102,12 +103,11 @@ export function TaskThread({
 
   if (!entries) return null
   // A comment is a message about a document; a change to its status shows on the comment itself.
-  // The request opens the conversation, so the line saying the task was created would repeat it.
   const listed = entries.filter(
     (entry) =>
       !(
         entry.kind === 'event' &&
-        (entry.activity.kind === 'comment_status_changed' || (request && entry.activity.kind === 'task_created'))
+        entry.activity.kind === 'comment_status_changed'
       )
   )
   const shown = messagesOnly ? listed.filter((entry) => entry.kind !== 'event' || isFullComment(entry)) : listed
@@ -152,7 +152,7 @@ export function TaskThread({
 
       {summaries.latest && <PinnedSummary entry={summaries.latest} />}
 
-      {shown.length === 0 && !request ? (
+      {shown.length === 0 ? (
         <p className="text-sm text-[var(--gray-10)]">
           {canAsk
             ? 'Nothing here yet. Ask the agent, or bring someone in with @.'
@@ -162,12 +162,11 @@ export function TaskThread({
         </p>
       ) : (
         <ol className="space-y-6">
-          {request && <RequestEntry who={request.who} at={request.at} body={request.body} />}
           {shown.map((entry) =>
             entry.kind === 'message' ? (
               <MessageEntry key={entry.id} entry={entry} />
             ) : entry.kind === 'agent_turn' ? (
-              <AgentTurnEntry key={entry.id} entry={entry} summaryVersion={summaries.versionByTurn.get(entry.id)} />
+              <AgentTurnEntry key={entry.id} entry={entry} run={runs.find((run) => run.jobId === entry.jobId)} summaryVersion={summaries.versionByTurn.get(entry.id)} />
             ) : entry.kind === 'question' ? (
               <QuestionEntry key={entry.id} entry={entry} answerBelow={canPost} />
             ) : entry.kind === 'summary' ? (

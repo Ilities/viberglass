@@ -20,15 +20,6 @@ export function MessageEntry({ entry }: { entry: Extract<TaskTimelineEntry, { ki
   )
 }
 
-/** The task as it was asked for, opening the conversation. */
-export function RequestEntry({ who, at, body }: { who: string; at: string; body: string }) {
-  return (
-    <ThreadItem who={who} at={at} note="asked for this" label="The request">
-      <p className="whitespace-pre-wrap text-[var(--gray-12)]">{body.replace(/\\n/g, '\n')}</p>
-    </ThreadItem>
-  )
-}
-
 /** A new version of a document, as a card that opens it. */
 export function VersionEntry({
   entry,

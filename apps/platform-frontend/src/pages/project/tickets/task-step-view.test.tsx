@@ -48,12 +48,7 @@ function renderStep(step: 'research' | 'execution', capabilities: TaskCapabiliti
         onCompare={jest.fn()}
         onView={jest.fn()}
         data={data}
-        project="shop"
         move={{ kind: 'start', step: 'research' }}
-        openRunId={null}
-        focusedRunId={null}
-        focusedRunTab={null}
-        onToggleRun={jest.fn()}
         onDocumentSaved={jest.fn()}
         onNewComments={jest.fn()}
       />

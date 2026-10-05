@@ -47,13 +47,13 @@ export function BuildPullRequestPanel({ ticketId, pullRequestUrl, runs }: { tick
   const comments = pullRequest?.comments ?? []
 
   return (
-    <div className="space-y-8 py-4">
-      <div className="grid gap-8 md:grid-cols-2">
+    <div className="@container space-y-8 py-4">
+      <div className="grid gap-8 @min-[40rem]:grid-cols-2">
         <FactList title="Pull request">
           <Fact label="Link">
-            <a href={pullRequestUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
-              {pullRequestUrl.replace(/^https:\/\/github\.com\//, '')}
-              <ExternalLinkIcon className="size-3.5" />
+            <a href={pullRequestUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-start gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
+              <span className="min-w-0 break-all">{pullRequestUrl.replace(/^https:\/\/github\.com\//, '')}</span>
+              <ExternalLinkIcon className="mt-0.5 size-3.5 shrink-0" />
             </a>
           </Fact>
           {details?.previewUrl && (

@@ -53,7 +53,7 @@ export function TaskContextLine({ ticket, people }: { ticket: Ticket; people: Ta
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="border-b border-[var(--gray-5)] pb-5 text-xs text-[var(--gray-11)]">
+    <div className="text-xs text-[var(--gray-11)]">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         {owner ? (
           <Person person={owner}>{firstName(owner)} owns this task</Person>
