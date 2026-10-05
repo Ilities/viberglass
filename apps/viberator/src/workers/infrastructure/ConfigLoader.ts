@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { objectStorageClientConfig } from "@viberglass/types";
 import { Logger } from "winston";
 
 /**
@@ -29,9 +30,7 @@ export class ConfigLoader {
 
   constructor(logger: Logger, config?: { region?: string }) {
     this.logger = logger;
-    this.s3Client = new S3Client({
-      region: config?.region || process.env.AWS_REGION || "eu-west-1",
-    });
+    this.s3Client = new S3Client(objectStorageClientConfig(process.env, config?.region));
   }
 
   /**

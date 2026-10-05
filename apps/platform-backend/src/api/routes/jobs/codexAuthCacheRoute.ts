@@ -1,3 +1,5 @@
+import { isObjectRecord } from "@viberglass/types";
+import { JobBootstrapService } from "../../../services/job/JobBootstrapService";
 import { Request, Response, Router } from "express";
 import logger from "../../../config/logger";
 import { isSecretServiceError } from "../../../services/errors/SecretServiceError";
@@ -10,7 +12,9 @@ import { validateCodexAuthCache } from "../../middleware/validation";
 
 const jobQueries = new JobQueryService();
 const secretService = new SecretService();
+const bootstraps = new JobBootstrapService();
 const codexLogins = new CodexLoginService();
+const kubernetesCodexLogins = new CodexLoginService(undefined, secretService, "database");
 
 /** Where a Codex worker keeps the login it refreshed, for the next run. */
 export function registerCodexAuthCacheRoute(router: Router): void {
@@ -59,6 +63,14 @@ export function registerCodexAuthCacheRoute(router: Router): void {
           return res.status(403).json({ error: "Access denied" });
         }
 
+        const bootstrap = await bootstraps.getBootstrapPayload(jobId);
+        const isKubernetes = bootstrap?.payload?.workerType === "kubernetes";
+        if (isKubernetes && (bootstrap.status !== "active" ||
+          !Array.isArray(bootstrap.payload?.requiredCredentials) ||
+          !bootstrap.payload.requiredCredentials.some((request: unknown) => isObjectRecord(request) && request.envVar === secretName))) {
+          return res.status(403).json({ error: "Auth cache is not authorized for this run" });
+        }
+
         logger.info("Persisting Codex auth cache", {
           jobId,
           tenantId,
@@ -66,8 +78,8 @@ export function registerCodexAuthCacheRoute(router: Router): void {
         });
         // A runner's job keeps its own login; a job without a runner falls back to the shared one.
         const metadata = job.clankerId
-          ? await codexLogins.saveLogin(job.clankerId, authJson)
-          : await secretService.upsertWorkerAuthCache(secretName, authJson);
+          ? await (isKubernetes ? kubernetesCodexLogins : codexLogins).saveLogin(job.clankerId, authJson)
+          : await secretService.upsertWorkerAuthCache(secretName, authJson, isKubernetes ? "database" : "ssm");
 
         logger.info("Persisted Codex auth cache", {
           jobId,

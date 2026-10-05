@@ -194,3 +194,7 @@ describe('buildClankerDeploymentConfig', () => {
     })
   })
 })
+
+test('builds a prebuilt Kubernetes worker with resource bounds', () => {
+  expect(buildClankerDeploymentConfig({ strategyName: 'kubernetes', selectedAgent: 'opencode', form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, containerImage: 'worker:1', kubernetesCpu: '250m', kubernetesMemory: '512Mi', kubernetesStorage: '2Gi', kubernetesDeadline: '120' } }).strategy).toEqual({ type: 'kubernetes', provisioningMode: 'prebuilt', containerImage: 'worker:1', cpu: '250m', memory: '512Mi', ephemeralStorage: '2Gi', activeDeadlineSeconds: 120 })
+})

@@ -1,4 +1,5 @@
 import db from "../../persistence/config/database";
+import { sql } from "kysely";
 
 /**
  * Database queries for job sweepers.
@@ -57,4 +58,13 @@ export async function findStaleJobs(
     started_at: job.started_at,
     last_heartbeat: job.last_heartbeat,
   }));
+}
+
+export async function findActiveKubernetesJobs(): Promise<Array<{ id: string; started_at: Date | null }>> {
+  return db
+    .selectFrom("jobs")
+    .select(["id", "started_at"])
+    .where("status", "=", "active")
+    .where(sql<string>`bootstrap_payload ->> 'workerType'`, "=", "kubernetes")
+    .execute();
 }

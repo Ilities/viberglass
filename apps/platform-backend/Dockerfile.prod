@@ -80,7 +80,7 @@ RUN npm run build -w @viberglass/platform-backend
 
 # Prune dev dependencies and remove @viberglass/* workspace packages.
 # server.js has them bundled, so the production image does not need them in node_modules.
-RUN npm prune --production --ignore-scripts && \
+RUN npm prune --omit=dev --legacy-peer-deps --ignore-scripts --no-audit --no-fund && \
     npm cache clean --force && \
     rm -rf node_modules/@viberglass
 
@@ -103,14 +103,14 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy production dependencies. Two-step merge: root node_modules first, then any
 # packages npm didn't hoist (e.g. express). @viberglass/* was removed from root
 # node_modules in the builder stage — server.js has them bundled.
-COPY --from=builder /build/node_modules ./node_modules
-COPY --from=builder /build/apps/platform-backend/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /build/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /build/apps/platform-backend/node_modules ./node_modules
 
 # Copy compiled backend output (server.js + migration files)
-COPY --from=builder /build/apps/platform-backend/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /build/apps/platform-backend/dist ./dist
 
-# Set ownership to non-root user
-RUN chown -R nodejs:nodejs /app
+# Give the runtime a writable working directory for temporary media files.
+RUN chown nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs

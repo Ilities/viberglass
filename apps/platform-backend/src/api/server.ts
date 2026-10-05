@@ -12,6 +12,11 @@ import * as http from "http";
 import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
+import { KubernetesJobReconciler } from "../workers/KubernetesJobReconciler";
+import { createKubernetesJobClient } from "../workers/invokers/kubernetesJobClient";
+import { findActiveKubernetesJobs } from "../services/job/JobSweeperQueries";
+import { JobService } from "../services/JobService";
+import { WorkerStopperChain } from "../workers/WorkerStopperChain";
 import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
 import { PeriodicSweeper } from "../workers/PeriodicSweeper";
 import { QuestionReminderService } from "../services/questions/QuestionReminderService";
@@ -62,6 +67,10 @@ const heartbeatSweeper = shouldRunBackgroundSweepers
         10,
       ),
     })
+  : null;
+
+const kubernetesJobReconciler = shouldRunBackgroundSweepers && process.env.KUBERNETES_WORKER_NAMESPACE
+  ? new KubernetesJobReconciler(createKubernetesJobClient, findActiveKubernetesJobs, new JobService(), new WorkerStopperChain())
   : null;
 
 const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
@@ -184,6 +193,7 @@ function onListening(): void {
     logger.info("Starting pull request outcome sweeper for eval labels");
     orphanSweeper?.start();
     heartbeatSweeper?.start();
+    kubernetesJobReconciler?.start();
     pullRequestOutcomeSweeper?.start();
     for (const sweeper of periodicSweepers) sweeper.start();
   } else {
@@ -251,6 +261,7 @@ async function startServer(): Promise<void> {
     logger.info(`${signal} received, shutting down gracefully`);
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
+    kubernetesJobReconciler?.stop();
     pullRequestOutcomeSweeper?.stop();
     for (const sweeper of periodicSweepers) sweeper.stop();
     await clawSchedulingEngine.stop();

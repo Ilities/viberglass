@@ -1,15 +1,15 @@
-# Kubernetes deployment, validated on OVHcloud
+# Kubernetes deployment plan, targeting OVHcloud
 
 ## Goal and boundary
 
-Add a deployable European cloud path for Viberglass using Kubernetes as the compute interface and OVHcloud Managed Kubernetes Service (MKS) as the first documented implementation. Keep Docker and AWS deployments working. A Kubernetes Job runs each agent execution; the backend and Next.js frontend run as long-lived workloads. PostgreSQL, object storage, email, and DNS are deployment dependencies, not Kubernetes-specific application features.
+Add a deployable European cloud path for Viberglass using Kubernetes as the compute interface and OVHcloud Managed Kubernetes Service (MKS) as the first documented implementation. Keep Docker and AWS deployments working. A Kubernetes Job runs each agent execution; the backend and React/Vite frontend run as long-lived workloads. PostgreSQL, object storage, email, and DNS are deployment dependencies, not Kubernetes-specific application features.
 
 This plan uses OVHcloud to validate a reusable Kubernetes distribution. It does not require every service to come from OVHcloud. In particular, verify the managed PostgreSQL offering, region, network access, backup options, and price for the selected OVHcloud account before locking the deployment template. A compatible external PostgreSQL service remains a valid choice. Avoid presenting a cluster as a zero-cost abstraction: worker nodes, load balancers, persistent volumes, database, storage, traffic, and backups are billed separately even when the control plane is included.
 
 ## Target shape
 
 ```text
-Internet -> ingress/TLS -> Next.js frontend -> platform backend
+Internet -> ingress/TLS -> React/Vite frontend -> platform backend
                                       backend -> PostgreSQL
                                       backend -> S3-compatible object storage
                                       backend -> Kubernetes API -> one Job per worker run
@@ -31,7 +31,7 @@ Use one cluster for the backend, frontend, and Jobs initially, with separate nod
 
 - Add `kubernetes` to [`WorkerType`](../apps/platform-backend/src/workers/WorkerInvoker.ts) and implement `KubernetesInvoker` beside [`EcsInvoker`](../apps/platform-backend/src/workers/invokers/EcsInvoker.ts). Register it in [`WorkerInvokerFactory`](../apps/platform-backend/src/workers/WorkerInvokerFactory.ts). Use the official Kubernetes JavaScript client with in-cluster service account credentials; allow kubeconfig for local integration tests. Build a `batch/v1` Job with the selected prebuilt worker image, unique name and labels for job/tenant IDs, `restartPolicy: Never`, resource requests/limits, `activeDeadlineSeconds`, `backoffLimit: 0`, and `ttlSecondsAfterFinished`. Never put tenant secrets in command arguments or Job metadata.
 - Pass the existing bootstrap payload contract to the worker, adding a `KubernetesPayload` variant to [`apps/viberator/src/workers/core/types.ts`](../apps/viberator/src/workers/core/types.ts). Update the CLI acceptance check in [`cli-handler.ts`](../apps/viberator/src/workers/entrypoints/cli-handler.ts) and remote instruction handling in [`InstructionFileManager.ts`](../apps/viberator/src/workers/runtime/InstructionFileManager.ts). The worker image and startup command come from the existing worker build path in [`infra/workers/docker/`](../infra/workers/docker), not a new runtime.
-- Add a Kubernetes stopper beside [`EcsWorkerStopper`](../apps/platform-backend/src/workers/stoppers/EcsWorkerStopper.ts). Record the Kubernetes Job name/UID as `executionId` via [`WorkerExecutionService`](../apps/platform-backend/src/workers/WorkerExecutionService.ts) and delete the Job on cancellation. Reconcile Jobs that disappear, fail, or expire so jobs cannot remain active forever.
+- Add a Kubernetes stopper beside [`DockerWorkerStopper`](../apps/platform-backend/src/workers/stoppers/DockerWorkerStopper.ts). Derive a stable Job name from the run ID so retries and cancellation find the same Job; record that name as `executionId` through [`WorkerExecutionService`](../apps/platform-backend/src/workers/WorkerExecutionService.ts). Extend [`OrphanSweeper`](../apps/platform-backend/src/workers/OrphanSweeper.ts) to reconcile Jobs that disappear, fail, or expire so runs cannot remain active forever.
 - Unit test manifest construction, duplicate submission, permission errors, cancellation, and terminal state mapping. Run a real worker against a disposable local Kubernetes cluster (kind or k3d). **Exit:** one job runs, calls back, completes, and can be cancelled; an existing AWS/Docker smoke test still passes.
 
 ### 3. Make storage and credentials portable
@@ -40,15 +40,15 @@ Use one cluster for the backend, frontend, and Jobs initially, with separate nod
 - [`CredentialProviderFactory`](../apps/platform-backend/src/credentials/CredentialProviderFactory.ts) already supports environment, file, and SSM; [`CredentialProvider`](../apps/viberator/src/workers/infrastructure/CredentialProvider.ts) still falls back to SSM. Decide how tenant secrets are stored and fetched in production: a database-backed encrypted provider or another audited secret store, with backend-mediated worker bootstrap. Mount only platform-level credentials using Kubernetes Secrets or an external secrets controller. Do not give a worker access to a cluster-wide Secret containing all tenants' values.
 - [`TicketMediaExecutionService`](../apps/platform-backend/src/services/TicketMediaExecutionService.ts) and worker media access also need a real upload/download test against OVHcloud storage. **Exit:** a job can read instructions and ticket media, use its own credentials, and resume a session without AWS credentials.
 
-### 4. Expose Kubernetes in the product safely
+### 4. Expose Kubernetes in the product safely (implemented)
 
 - Insert a `kubernetes` deployment strategy in a new migration under [`apps/platform-backend/src/migrations/`](../apps/platform-backend/src/migrations); do not rewrite migration 004. Update [`ClankerDAO`](../apps/platform-backend/src/persistence/clanker/ClankerDAO.ts) and [`InstructionStrategyType`](../apps/platform-backend/src/services/instructions/InstructionStorageService.ts) so instructions take the hosted object-storage path. Add a provisioning handler to [`ProvisioningStrategyResolver`](../apps/platform-backend/src/provisioning/ProvisioningStrategyResolver.ts) and the existing provisioning orchestrator. The first handler should validate access, namespace and image and report availability; it need not build images automatically.
 - Extend the strategy form and validation under [`apps/platform-frontend/src/pages/clankers/config/`](../apps/platform-frontend/src/pages/clankers/config) and the setup default type in [`packages/types/src/setup.ts`](../packages/types/src/setup.ts). Show Kubernetes only when the backend reports the invoker/storage path configured. Keep Docker/ECS/Lambda records unchanged.
 - Test create/update/read round trips, instruction storage selection, provisioning status, and frontend form behavior. **Exit:** an operator can select a Kubernetes Clanker and launch a job through the normal UI/API without manually editing database rows.
 
-### 5. Package the platform for Kubernetes
+### 5. Package the platform for Kubernetes (implemented; locally validated)
 
-- Add a chart or Kustomize overlay under `infra/kubernetes/` for backend, Next.js frontend, ingress/TLS, config, service accounts, namespaces, network policies, resource limits, startup/readiness probes, and migration Job. Use the existing [`apps/platform-backend/Dockerfile.prod`](../apps/platform-backend/Dockerfile.prod); add or adapt a production frontend image if needed. Publish multi-architecture images only if the selected OVH nodes require it.
+- Add a chart or Kustomize overlay under `infra/kubernetes/` for backend, React/Vite frontend, ingress/TLS, config, service accounts, namespaces, network policies, resource limits, startup/readiness probes, and migration Job. Use the existing [`apps/platform-backend/Dockerfile.prod`](../apps/platform-backend/Dockerfile.prod); add or adapt a production frontend image if needed. Publish multi-architecture images only if the selected OVH nodes require it.
 - Give the backend service account namespaced rights to create/get/list/watch/delete Jobs and inspect Pods. Workers get no Kubernetes API rights. Use a distinct namespace or tightly bounded namespace configuration and per-Job labels; reject arbitrary namespace values outside the configured allowlist. Define CPU/memory/temporary-disk defaults and quotas before enabling user-selected overrides.
 - Put deployment values in a documented example, not plaintext credentials. **Exit:** a fresh cluster installs cleanly and survives a backend/frontend rolling update while running Jobs continue.
 
@@ -68,7 +68,23 @@ Use one cluster for the backend, frontend, and Jobs initially, with separate nod
 1. **Credentials:** worker-side SSM lookup is the biggest AWS coupling in the execution path. Choose and test tenant-scoped secret delivery before exposing Kubernetes to users.
 2. **Object storage:** S3 API compatibility helps but endpoint, signing, and presigned URL behavior must be exercised with the actual OVHcloud service.
 3. **Job lifecycle:** callback loss, pod eviction, TTL cleanup, and retries need explicit reconciliation to avoid stuck or duplicate jobs.
-4. **Next.js deployment:** confirm build-time and runtime environment variables and whether any current frontend path assumes Amplify features; package a regular container behind ingress.
+4. **Frontend deployment:** confirm build-time and runtime environment variables and whether any current frontend path assumes Amplify features; package a regular container behind ingress.
 5. **Capacity and isolation:** size the node pool for the backend/frontend baseline plus worker bursts; set per-Job limits and quotas before allowing user-controlled resource fields.
 
-The first code slice deliberately stops at the Clanker config contract. It does not make Kubernetes selectable or runnable until work packages 2–4 are complete.
+## Implementation status and configuration
+
+The config contract and Job execution are implemented: dispatch, retries, cancellation, worker payload support, and reconciliation of failed, missing, or completed Jobs without callbacks. Reconciliation uses a conditional status update to protect a successful callback arriving concurrently. Backend-mediated credentials and S3-compatible endpoint configuration are implemented and locally validated. Product selection, setup defaults, a migration-seeded strategy, and the Helm application distribution are implemented. See [local installation](local-kubernetes.md) and [deployment operations](kubernetes-deployment.md). Validation against actual OVHcloud infrastructure/storage remains outstanding.
+
+A real fake-agent worker passed a disposable kind v0.33.0 / Kubernetes v1.37.0 smoke test: bootstrap retrieval, repository clone, result callback, Job completion, duplicate submission, and cancellation. The image used a cached worker base with the compiled code from this branch overlaid. This validates local Kubernetes execution; OVHcloud installation and an AWS/Docker deployment smoke remain outstanding. Focused regression tests cover existing execution and cancellation orchestration.
+
+The reusable runner is `npm run smoke:kubernetes -w @viberglass/platform-backend`. Set `KUBECONFIG`, `KUBERNETES_WORKER_NAMESPACE`, `KUBERNETES_SMOKE_IMAGE` (a fake-agent worker image available to the cluster), and `KUBERNETES_SMOKE_HOST` (the host address reachable from Pods). Use a disposable cluster. The runner starts a temporary repository and callback server, creates and deletes its Jobs, and removes its repository fixture.
+
+For this slice, set `KUBERNETES_WORKER_NAMESPACE` and a worker-reachable `PLATFORM_API_URL` on the backend. A Clanker uses an explicit prebuilt `containerImage` or its configured catalog image; its optional namespace must equal the backend's configured namespace. The client uses the backend's in-cluster service account or local kubeconfig. Grant that identity namespaced `create`, `get`, and `delete` permissions on Jobs. Worker Pods disable service account token mounting.
+
+`KUBERNETES_WORKER_ENV_SECRET` names an existing Secret for platform-level worker environment values; product setup requires it alongside durable object storage. It must not contain other tenants' agent or SCM credentials. The per-run callback token is currently a Pod environment value, so access to Job/Pod specifications must be restricted. The worker fetches the task payload through `--job-ref`. Credentials are resolved only for the stored run's credential requests and secret bindings, delivered in the authenticated response with `Cache-Control: no-store`, and never added to persisted bootstrap data. Completed, failed, and cancelled Kubernetes runs cannot fetch bootstrap credentials. Kubernetes workers use the supplied map without environment or SSM fallback, including Codex auth-cache restoration; Codex refreshes are stored encrypted in the database.
+
+All application S3 clients now share endpoint, region, path-style and credential settings: instructions, media/presigning, phase documents, and worker session archives. Kubernetes instructions use the hosted storage path. The portable smoke passed against disposable MinIO and PostgreSQL: encrypted credential round trip, allowlist filtering, large Codex auth cache, instruction upload/download/delete, signed media retrieval/delete, and session capture/restore excluding auth files. Run `npm run smoke:portable -w @viberglass/platform-backend` with Docker available; the runner provisions and removes its own containers. This is a real S3-compatible test, not an OVHcloud service certification.
+
+See [portable storage and credentials configuration](portable-storage-and-credentials.md) for deployment settings and remaining limitations.
+
+See [local Kubernetes verification](local-kubernetes.md) for the current runnable tests and the application parity checklist. The Helm distribution supports local self-hosted installation; OVHcloud certification remains outstanding.

@@ -37,6 +37,7 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
 
   return {
     form: {
+      ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
       provisioningMode,
       containerImage: typeof config.containerImage === 'string' ? config.containerImage : '',
       clusterArn: typeof config.clusterArn === 'string' ? config.clusterArn : '',
@@ -63,8 +64,13 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
   const provisioningMode: 'managed' | 'prebuilt' = strategy.provisioningMode === 'prebuilt' ? 'prebuilt' : 'managed'
 
   const strategyForm = {
+    ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
+    kubernetesCpu: strategy.type === 'kubernetes' ? strategy.cpu || '' : '',
+    kubernetesMemory: strategy.type === 'kubernetes' ? strategy.memory || '' : '',
+    kubernetesStorage: strategy.type === 'kubernetes' ? strategy.ephemeralStorage || '' : '',
+    kubernetesDeadline: strategy.type === 'kubernetes' ? String(strategy.activeDeadlineSeconds || '') : '',
     provisioningMode,
-    containerImage: strategy.type === 'docker' ? strategy.containerImage || '' : '',
+    containerImage: (strategy.type === 'docker' || strategy.type === 'kubernetes') ? strategy.containerImage || '' : '',
     clusterArn: strategy.type === 'ecs' ? strategy.clusterArn || '' : '',
     taskDefinitionArn: strategy.type === 'ecs' ? strategy.taskDefinitionArn || '' : '',
     functionArn: strategy.type === 'lambda' ? strategy.functionArn || '' : '',

@@ -55,6 +55,7 @@ const slugify = (text: string) =>
 
 function normalizeStrategyName(name: string | null | undefined): InstructionStrategyType {
   const normalized = (name || "").toLowerCase();
+  if (normalized === "kubernetes") return "kubernetes";
   if (normalized === "ecs") {
     return "ecs";
   }
@@ -88,6 +89,7 @@ function readStrategyTypeFromConfig(config: unknown): InstructionStrategyType | 
     return null;
   }
 
+  if (strategy.type === "kubernetes") return "kubernetes";
   if (strategy.type === "ecs") {
     return "ecs";
   }

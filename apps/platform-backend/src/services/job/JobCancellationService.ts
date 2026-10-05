@@ -9,8 +9,7 @@ import {
 } from "../../types/agentSession";
 import { createChildLogger } from "../../config/logger";
 import type { WorkerStopper } from "../../workers/WorkerStopper";
-import { DockerWorkerStopper } from "../../workers/stoppers/DockerWorkerStopper";
-import { EcsWorkerStopper } from "../../workers/stoppers/EcsWorkerStopper";
+import { configuredWorkerStoppers } from "../../workers/configuredWorkerStoppers";
 import { WorkerStopperChain } from "../../workers/WorkerStopperChain";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
@@ -28,8 +27,7 @@ export class JobCancellationService {
     private readonly sessionDAO = new AgentSessionDAO(),
     private readonly turnDAO = new AgentTurnDAO(),
     private readonly eventDAO = new AgentSessionEventDAO(),
-    // Lambda can't be stopped mid-invocation: its run is marked cancelled and its late result refused.
-    private readonly workerStoppers: WorkerStopper[] = [new DockerWorkerStopper(), new EcsWorkerStopper()],
+    private readonly workerStoppers: WorkerStopper[] = configuredWorkerStoppers(),
     private readonly ticketStatus: TicketStatusSynchronizer = new TicketLifecycleStatusService(),
     private readonly activity: Pick<TaskActivityRecorder, "record"> = new TaskActivityRecorder(),
   ) {}

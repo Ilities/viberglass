@@ -3,6 +3,7 @@ import { SegmentedControl } from '@/components/segmented-control'
 import type { ReactNode } from 'react'
 import { normalizeStrategyName, toProvisioningMode } from '../normalizers'
 import type { ClankerConfigFormState, ProvisioningMode } from '../types'
+import { KubernetesStrategyFields } from './kubernetesFields'
 import { DockerStrategyFields } from './dockerFields'
 import { EcsStrategyFields } from './ecsFields'
 import { LambdaStrategyFields } from './lambdaFields'
@@ -35,6 +36,8 @@ export function StrategySpecificFields({
   onProvisioningModeChange,
   defaults,
 }: StrategySpecificFieldsProps) {
+  if (normalizeStrategyName(strategyName) === 'kubernetes') return <KubernetesStrategyFields defaults={defaults} />
+
   if (!strategyName) {
     return null
   }
