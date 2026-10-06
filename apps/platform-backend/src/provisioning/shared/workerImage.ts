@@ -59,7 +59,7 @@ export function getWorkerImageForClanker(
   }
 
   const imagePrefix = process.env.VIBERATOR_WORKER_IMAGE_PREFIX || "";
-  const registry = process.env.VIBERATOR_WORKER_REGISTRY || "";
+  const registry = process.env.VIBERATOR_WORKER_REGISTRY ?? (strategy === "ecs" ? "ghcr.io/ilities" : "");
   const imageVariant =
     strategy === "lambda"
       ? "lambda"

@@ -1,6 +1,6 @@
 # Publishes the worker images self-hosters pull to GHCR (ADR 0002): the base
 # image plus each agent's default image, for linux/amd64 and linux/arm64.
-# ECS and Lambda keep using ECR (deploy-viberators.yml).
+# ECS also pulls these images; Lambda uses ECR (deploy-viberators.yml).
 #
 # Each architecture builds natively and pushes `<sha>-<arch>`; agent images
 # build on the base image of the same commit and architecture. The last job
