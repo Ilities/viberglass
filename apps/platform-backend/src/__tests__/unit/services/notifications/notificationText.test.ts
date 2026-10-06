@@ -29,6 +29,11 @@ describe("notificationText for a merge", () => {
     expect(notificationText("task_done", null, "Gift notes", { merged: true, mergedBy: "dev" })).toBe("“Gift notes” is done: dev merged its pull request");
     expect(notificationText("task_done", null, "Gift notes", { merged: true })).toBe("“Gift notes” is done: its pull request was merged");
   });
+
+  it("says which part merged, and which can be built now", () => {
+    expect(notificationText("part_merged", null, "Gift notes", { parts: [1], next: 2 })).toBe("Part 1 of “Gift notes” is merged; part 2 can be built now");
+    expect(notificationText("part_merged", null, "Gift notes", {})).toBe("A part of “Gift notes” is merged");
+  });
 });
 
 describe("notificationText for the agent's questions", () => {

@@ -8,7 +8,7 @@ interface Dependencies {
   tickets: Pick<TicketDAO, "getTicket">;
   scm: Pick<ProjectScmConfigDAO, "getByProjectId">;
   takeovers: Pick<TaskTakeoverDAO, "get" | "lastBuildBranch">;
-  namer: Pick<TaskBranchNamer, "nameFor">;
+  namer: Pick<TaskBranchNamer, "current">;
 }
 
 /**
@@ -34,7 +34,7 @@ export class TaskCodeBranchService {
     const scm = ticket ? await this.deps.scm.getByProjectId(ticket.projectId) : null;
     if (!ticket || !scm?.sourceRepository.trim()) return null;
     const [branch, pushed, takenOver] = await Promise.all([
-      this.deps.namer.nameFor(ticketId, ticketId),
+      this.deps.namer.current(ticketId, ticketId),
       this.deps.takeovers.lastBuildBranch(ticketId),
       this.deps.takeovers.get(ticketId),
     ]);

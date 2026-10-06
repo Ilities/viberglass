@@ -2,9 +2,9 @@ import { onTabListKeyDown } from '@/components/tab-button'
 import { Button } from '@/components/button'
 import { Textarea } from '@/components/textarea'
 import {
-  createPhaseDocumentComment,
-  getPhaseDocumentComments,
-  updatePhaseDocumentComment,
+  createPlanComment,
+  getPlanComments,
+  updatePlanComment,
   type PhaseDocumentCommentResponse,
 } from '@/service/api/ticket-api'
 import type { TextQuote } from '@viberglass/types'
@@ -15,19 +15,19 @@ import { readableQuote } from './readable-quote'
 
 export type ApplySuggestion = (comment: PhaseDocumentCommentResponse, suggestedText: string) => Promise<void>
 
-/** A document's comments, kept current as people add and resolve them. */
-export function useDocumentComments(ticketId: string, phase: 'planning' | null) {
+/** The plan's comments, kept current as people add and resolve them. */
+export function useDocumentComments(ticketId: string, enabled: boolean) {
   const [comments, setComments] = useState<PhaseDocumentCommentResponse[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
   const reload = useCallback(async () => {
-    if (!phase) return setComments([])
+    if (!enabled) return setComments([])
     try {
-      setComments(await getPhaseDocumentComments(ticketId, phase))
+      setComments(await getPlanComments(ticketId))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load comments')
     }
-  }, [ticketId, phase])
+  }, [ticketId, enabled])
 
   useEffect(() => {
     void reload()
@@ -35,10 +35,10 @@ export function useDocumentComments(ticketId: string, phase: 'planning' | null) 
 
   const add = useCallback(
     async (quote: TextQuote, content: string): Promise<boolean> => {
-      if (!phase) return false
+      if (!enabled) return false
       setIsSaving(true)
       try {
-        await createPhaseDocumentComment(ticketId, phase, { quote, content })
+        await createPlanComment(ticketId, { quote, content })
         await reload()
         toast.success('Comment added')
         return true
@@ -49,16 +49,16 @@ export function useDocumentComments(ticketId: string, phase: 'planning' | null) 
         setIsSaving(false)
       }
     },
-    [phase, reload, ticketId]
+    [enabled, reload, ticketId]
   )
 
   const toggleStatus = useCallback(
     async (comment: PhaseDocumentCommentResponse) => {
-      if (!phase) return
+      if (!enabled) return
       const status = comment.status === 'open' ? 'resolved' : 'open'
       setIsSaving(true)
       try {
-        await updatePhaseDocumentComment(ticketId, phase, comment.id, { status })
+        await updatePlanComment(ticketId, comment.id, { status })
         await reload()
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update comment')
@@ -66,7 +66,7 @@ export function useDocumentComments(ticketId: string, phase: 'planning' | null) 
         setIsSaving(false)
       }
     },
-    [phase, reload, ticketId]
+    [enabled, reload, ticketId]
   )
 
   const openCount = comments.filter((comment) => comment.status === 'open').length

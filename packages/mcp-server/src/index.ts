@@ -8,7 +8,7 @@ export type {
   CreateTicketParams,
   TriggerParams,
   CommentParams,
-  ReviewPhaseDocument,
+  ReviewPlan,
   ReviewState,
 } from "./types";
 export { ToolRegistry } from "./tools/registry";

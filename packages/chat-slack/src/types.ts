@@ -1,4 +1,4 @@
-import type { TaskTurnAction } from "@viberglass/types";
+import type { PartRange, TaskTurnAction } from "@viberglass/types";
 import type { Thread } from "chat";
 
 export interface ProjectSummary {
@@ -32,7 +32,7 @@ export interface SlackHandlerServices {
   /** A message in the task's Slack thread: an answer to the agent, an ask of it when it mentions the bot, else a message. */
   receiveThreadMessage(params: { ticketId: string; slackUserId: string; text: string; mentionsBot: boolean }): Promise<void>;
   /** Asks the agent for a step, from a button or the launch form. */
-  askAgent(params: { ticketId: string; slackUserId: string; action: TaskTurnAction; agentId?: string }): Promise<void>;
+  askAgent(params: { ticketId: string; slackUserId: string; action: TaskTurnAction; agentId?: string; parts?: PartRange }): Promise<void>;
   /** Answers the agent's question with one of its options. */
   answerQuestion(params: { questionId: string; option: number; slackUserId: string }): Promise<void>;
 }

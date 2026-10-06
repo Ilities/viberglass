@@ -1,5 +1,5 @@
 import type { Thread } from "chat";
-import { TICKET_WORKFLOW_PHASE, type TaskTurnProduct } from "@viberglass/types";
+import { nextBuild, TICKET_WORKFLOW_PHASE, type TaskTurnProduct } from "@viberglass/types";
 import { currentSlackUserId } from "../api/auth/requestActor";
 import { AgentQuestionDAO, publicQuestion } from "../persistence/agentSession/AgentQuestionDAO";
 import { TaskAgentTurnDAO } from "../persistence/agentSession/TaskAgentTurnDAO";
@@ -7,6 +7,7 @@ import { TaskMessageDAO } from "../persistence/ticketing/TaskMessageDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import type { RecordedActivity } from "../services/notifications/NotificationService";
 import type { ActivityListener } from "../services/tasks/activityListeners";
+import { TaskPartsService } from "../services/tasks/TaskPartsService";
 import { TicketPhaseDocumentService } from "../services/TicketPhaseDocumentService";
 import { ticketUrl } from "./platformLinks";
 import { getThreadForTicket } from "./ticketThreadMap";
@@ -14,7 +15,8 @@ import {
   answeredPost,
   documentPost,
   messagePost,
-  nextStepCard,
+  nextBuildCard,
+  partMergedPost,
   questionCard,
   replyPost,
   runFailedPost,
@@ -30,6 +32,7 @@ interface Dependencies {
   messages: Pick<TaskMessageDAO, "getById">;
   documents: Pick<TicketPhaseDocumentService, "getOrCreateDocument">;
   tickets: Pick<TicketDAO, "getSummary">;
+  parts: Pick<TaskPartsService, "state">;
   /** Whether the change came from Slack, which shows it already. */
   fromSlack: () => boolean;
 }
@@ -53,6 +56,7 @@ export class TaskSlackMirror implements ActivityListener {
       messages: new TaskMessageDAO(),
       documents: new TicketPhaseDocumentService(),
       tickets: new TicketDAO(),
+      parts: new TaskPartsService(),
       fromSlack: () => currentSlackUserId() !== null,
       ...deps,
     };
@@ -91,6 +95,11 @@ export class TaskSlackMirror implements ActivityListener {
       case "pull_request_merged":
       case "task_done":
         return [{ markdown: "**Done.**" }];
+      case "part_merged": {
+        const merged = Array.isArray(payload.parts) ? payload.parts.filter((part): part is number => typeof part === "number") : [];
+        const build = nextBuild(await this.deps.parts.state({ id: ticketId }));
+        return [partMergedPost(merged, text(payload.mergedBy)), ...(build ? [nextBuildCard(ticketId, build, "Mention me to ask for something else, or:")] : [])];
+      }
       default:
         return [];
     }
@@ -106,8 +115,8 @@ export class TaskSlackMirror implements ActivityListener {
     for (const product of turn.outcome.produced) {
       posts.push(...(await this.productPosts(ticketId, product, task?.pullRequestUrl ?? null)));
     }
-    const next = nextStepCard(ticketId, turn.outcome.produced);
-    if (next) posts.push(next);
+    const build = turn.outcome.produced.includes("plan") ? nextBuild(await this.deps.parts.state({ id: ticketId })) : null;
+    if (build) posts.push(nextBuildCard(ticketId, build));
     return posts;
   }
 

@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/auth-context'
-import { savePlanningDocument, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import { savePlan, type PhaseDocumentResponse } from '@/service/api/ticket-api'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { CommentableDocument } from './commentable-document'
@@ -11,32 +11,33 @@ import { PlanPartsOutline } from './plan-parts-outline'
 import type { TaskNextMove } from './task-next-move'
 import type { TaskPageData } from './use-task-page'
 
-/** A document step: the current document to read, comment on and edit, or what to do while there's none yet. */
+/** The plan: the current version to read, comment on and edit, or what to do while there's none yet. */
 export function DocumentStep({
-  step,
   data,
   move,
   comments,
   onApplySuggestion,
   onDocumentSaved,
   onCompare,
+  onAsked,
 }: {
-  step: 'planning'
   data: TaskPageData
   move: TaskNextMove
   comments: DocumentComments
   onApplySuggestion: ApplySuggestion
-  onDocumentSaved: (step: 'planning', document: PhaseDocumentResponse) => void
+  onDocumentSaved: (document: PhaseDocumentResponse) => void
   /** Opens an earlier version, compared with the current one. */
   onCompare: (version: number) => void
+  /** Someone asked the agent for a part's build. */
+  onAsked: () => void
 }) {
-  const document = data.documents[step]
+  const document = data.plan
   const [draft, setDraft] = useState<string | null>(null)
   const [fullScreen, setFullScreen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const noun = 'plan'
   const hasContent = document.content.trim().length > 0
-  const latest = useLatestRevision(data.ticket.id, step, document.updatedAt, hasContent)
+  const latest = useLatestRevision(data.ticket.id, document.updatedAt, hasContent)
   const { user } = useAuth()
   // Nothing is approved, so any document can be edited; an edit is its next version.
   const canEdit = Boolean(user && user.role !== 'viewer')
@@ -44,8 +45,8 @@ export function DocumentStep({
   const save = async (content: string) => {
     setIsSaving(true)
     try {
-      const saved = await savePlanningDocument(data.ticket.id, content)
-      onDocumentSaved(step, saved)
+      const saved = await savePlan(data.ticket.id, content)
+      onDocumentSaved(saved)
       setDraft(null)
       toast.success(`The ${noun} is saved`)
     } catch (error) {
@@ -114,14 +115,19 @@ export function DocumentStep({
   return (
     <div>
       <DocumentHead
-        step={step}
         latest={latest}
         updatedAt={document.updatedAt}
         onCompare={onCompare}
         onFullScreen={() => setFullScreen(true)}
         onEdit={canEdit ? () => setDraft(document.content) : undefined}
       />
-      <PlanPartsOutline plan={document.content} />
+      <PlanPartsOutline
+        plan={document.content}
+        state={data.planParts}
+        ticketId={data.ticket.id}
+        canBuild={Boolean(data.capabilities?.canAskForCode) && move.kind !== 'working'}
+        onAsked={onAsked}
+      />
       <CommentableDocument
         source={document.content}
         comments={comments}
@@ -131,7 +137,7 @@ export function DocumentStep({
       <FullScreenReader
         open={fullScreen}
         onClose={() => setFullScreen(false)}
-        title={<VersionTitle step={step} version={latest?.version ?? null} />}
+        title={<VersionTitle version={latest?.version ?? null} />}
         meta={
           <>
             {data.ticket.key} · {data.ticket.title} · <VersionByline revision={latest} updatedAt={document.updatedAt} />

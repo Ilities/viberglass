@@ -1,5 +1,5 @@
 import type { McpToolServices } from "@viberglass/mcp-server";
-import { isTicketOrigin, NATIVE_TICKET_ORIGIN, type TicketWorkflowPhase } from "@viberglass/types";
+import { isTicketOrigin, NATIVE_TICKET_ORIGIN, TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketListDAO } from "../persistence/ticketing/TicketListDAO";
 import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
@@ -135,59 +135,32 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
         await scope.assertTask(ticketId);
         const workflow = await workflowService.getTicketWorkflow(ticketId);
 
-        const phases: Array<TicketWorkflowPhase> = [
-          "planning",
-          "execution",
-        ];
-        const documents = await Promise.all(
-          phases.map(async (phase) => {
-            const doc = await ticketPhaseDocumentDAO.getByTicketAndPhase(
-              ticketId,
-              phase,
-            );
-            let comments: Array<{
-              id: string;
-              lineNumber: number;
-              content: string;
-              status: string;
-              actor: string | null;
-              createdAt: string;
-            }> = [];
-
-            if (phase === "planning") {
-              const rawComments = await commentService.listComments(
-                ticketId,
-                phase,
-              );
-              comments = rawComments.map((c) => ({
-                id: c.id,
-                lineNumber: c.lineNumber,
-                content: c.content,
-                status: c.status,
-                actor: c.actor,
-                createdAt: c.createdAt,
-              }));
-            }
-
-            return {
-              phase,
-              content: doc?.content ?? null,
-              comments,
-            };
-          }),
-        );
+        const [plan, comments] = await Promise.all([
+          ticketPhaseDocumentDAO.getByTicketAndPhase(ticketId, TICKET_WORKFLOW_PHASE.PLANNING),
+          commentService.listComments(ticketId),
+        ]);
 
         return {
           ticketId,
           workflowPhase: workflow.workflowPhase,
           phases: workflow.phases,
-          documents,
+          plan: {
+            content: plan?.content ?? null,
+            comments: comments.map((c) => ({
+              id: c.id,
+              lineNumber: c.lineNumber,
+              content: c.content,
+              status: c.status,
+              actor: c.actor,
+              createdAt: c.createdAt,
+            })),
+          },
         };
       },
 
-      async addComment(ticketId, phase, params) {
+      async addComment(ticketId, params) {
         await scope.assertTask(ticketId);
-        const comment = await commentService.createComment(ticketId, phase, {
+        const comment = await commentService.createComment(ticketId, {
           lineNumber: params.lineNumber,
           content: params.content,
           actor: params.actor,
@@ -198,19 +171,6 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
           content: comment.content,
           status: comment.status,
         };
-      },
-
-      async listComments(ticketId, phase) {
-        await scope.assertTask(ticketId);
-        const comments = await commentService.listComments(ticketId, phase);
-        return comments.map((c) => ({
-          id: c.id,
-          lineNumber: c.lineNumber,
-          content: c.content,
-          status: c.status,
-          actor: c.actor,
-          createdAt: c.createdAt,
-        }));
       },
     },
   };

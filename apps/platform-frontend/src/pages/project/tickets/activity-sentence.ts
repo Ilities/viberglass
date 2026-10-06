@@ -43,6 +43,13 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       return `${who} marked the task as done`
     case 'pull_request_merged':
       return typeof entry.payload.mergedBy === 'string' ? `Merged by ${entry.payload.mergedBy}` : 'The pull request was merged'
+    case 'part_merged': {
+      const parts = Array.isArray(entry.payload.parts) ? entry.payload.parts.filter((part) => typeof part === 'number') : []
+      const merged = parts.length > 0 ? `Part ${parts.join(', ')} merged` : 'A part of the plan merged'
+      const by = typeof entry.payload.mergedBy === 'string' ? ` by ${entry.payload.mergedBy}` : ''
+      const next = typeof entry.payload.next === 'number' ? `; part ${entry.payload.next} is next` : ''
+      return `${merged}${by}${next}`
+    }
     case 'comment_added':
       // Entries from before quotes name the line instead.
       if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`

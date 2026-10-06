@@ -69,7 +69,7 @@ export async function timeline(api: APIRequestContext, taskId: string): Promise<
 
 /** The plan's current content; empty until it's written. */
 export async function planDocument(api: APIRequestContext, taskId: string): Promise<string> {
-  const body = await (await api.get(`/api/tasks/${taskId}/phases/planning`)).json();
+  const body = await (await api.get(`/api/tasks/${taskId}/plan`)).json();
   return String(body?.data?.document?.content ?? "");
 }
 

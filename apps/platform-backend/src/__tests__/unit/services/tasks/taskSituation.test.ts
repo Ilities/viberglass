@@ -44,6 +44,12 @@ describe("taskSituation", () => {
       "Failed · Credential expired · Olli",
     ],
     ["a pull request", { latestArtifact: { kind: "code" as const, version: 1, at: "2026-10-01T12:00:00Z" } }, "pr_open", "PR open · Olli"],
+    [
+      "a merged part with more to build",
+      { latestArtifact: { kind: "code" as const, version: 1, at: "2026-10-01T12:00:00Z" }, partMerged: 1 },
+      "artifact_ready",
+      "Part 1 merged · build part 2 · Olli",
+    ],
     ["a done task", { status: "resolved" as const, latestArtifact: PLAN_V2 }, "done", "Done"],
     ["a task its merge closed", { status: "resolved" as const, mergedBy: "dev-koskinen" }, "done", "Done · merged by dev-koskinen"],
   ])("%s", (_name, input, state, phrase) => {

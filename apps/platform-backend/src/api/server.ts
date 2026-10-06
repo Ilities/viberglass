@@ -24,12 +24,7 @@ import { CredentialExpiryWarner } from "../services/notifications/CredentialExpi
 import { registerActivityListener } from "../services/tasks/activityListeners";
 import { RunFailureHandler } from "../services/taskTurns/RunFailureHandler";
 import { PullRequestOutcomeDAO } from "../persistence/job/PullRequestOutcomeDAO";
-import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
-import { IntegrationCredentialDAO } from "../persistence/integrations/IntegrationCredentialDAO";
-import { SecretResolutionService } from "../services/SecretResolutionService";
-import { ProjectScmTokenResolver } from "../services/pull-request-outcomes/ProjectScmTokenResolver";
-import { GitHubPullRequestOutcomeSource } from "../services/pull-request-outcomes/GitHubPullRequestOutcomeSource";
-import { TaskMergeCompleter } from "../services/pull-request-outcomes/TaskMergeCompleter";
+import { createPullRequestOutcomeChecker } from "../services/pull-request-outcomes/createPullRequestOutcomeChecker";
 import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
@@ -74,22 +69,9 @@ const kubernetesJobReconciler = shouldRunBackgroundSweepers && process.env.KUBER
   : null;
 
 const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
-  ? new PullRequestOutcomeSweeper(
-      new PullRequestOutcomeDAO(),
-      new ProjectScmTokenResolver(
-        new ProjectScmConfigDAO(),
-        new IntegrationCredentialDAO(),
-        new SecretResolutionService(),
-      ),
-      [new GitHubPullRequestOutcomeSource()],
-      {
-        sweepIntervalMs: parseInt(
-          process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "900000",
-          10,
-        ),
-      },
-      [new TaskMergeCompleter()],
-    )
+  ? new PullRequestOutcomeSweeper(new PullRequestOutcomeDAO(), createPullRequestOutcomeChecker(), {
+      sweepIntervalMs: parseInt(process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "900000", 10),
+    })
   : null;
 
 // A failed run ends its turn, and a setup failure pauses the task's agent until someone retries.

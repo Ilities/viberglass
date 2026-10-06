@@ -7,6 +7,8 @@ export const NOTIFICATION_KINDS = [
   'run_failed_setup',
   'run_failed_agent',
   'task_done',
+  /** A pull request for some of the plan's parts merged, and the next part can be built. */
+  'part_merged',
   'question_asked',
   'question_reminder',
   'credential_expiring',
@@ -50,5 +52,10 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
           : `“${taskTitle}” is done: its pull request was merged`
       }
       return `${who} marked “${taskTitle}” as done`
+    case 'part_merged': {
+      const merged = Array.isArray(payload.parts) && payload.parts.length > 0 ? `Part ${payload.parts.join(', ')}` : 'A part'
+      const next = typeof payload.next === 'number' ? `; part ${payload.next} can be built now` : ''
+      return `${merged} of “${taskTitle}” is merged${next}`
+    }
   }
 }

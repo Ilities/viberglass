@@ -34,7 +34,10 @@ export class TaskTurnPromptBuilder {
         pullRequestComments: formatReviewComments(fresh.pullRequestComments),
         writePlan: flag(action === "plan" && !documents.plan),
         revisePlan: flag(action === "plan" && Boolean(documents.plan)),
+        // A reply may revise the plan too, so it's told which parts are built as well.
+        builtParts: (action === "plan" && Boolean(documents.plan)) || action === "reply" ? (context.parts.built ?? undefined) : undefined,
         buildIt: flag(action === "code"),
+        buildParts: action === "code" ? (context.parts.building ?? undefined) : undefined,
         continuesPullRequest: flag(action === "code" && Boolean(ticket.pullRequestUrl)),
         pullRequestUrl: ticket.pullRequestUrl ?? undefined,
         reply: flag(action === "reply"),

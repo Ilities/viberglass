@@ -10,6 +10,7 @@ import {
   type TicketWorkflowPhase,
 } from "@viberglass/types";
 import db from "../config/database";
+import { latestPullRequestUrl } from "./latestPullRequestUrl";
 import { ticketOfRow } from "./ticketRow";
 
 export interface TicketListQuery {
@@ -62,10 +63,9 @@ export class TicketListDAO {
         "t.ticket_status",
         "t.workflow_phase",
         "t.archived_at",
-        "t.pull_request_url",
+        latestPullRequestUrl("t").as("pull_request_url"),
         "t.taken_over_by",
         "t.taken_over_at",
-        "t.task_branch",
         "t.created_at",
         "t.updated_at",
         "s.id as screenshot_id",

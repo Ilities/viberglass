@@ -74,12 +74,14 @@ export class SessionTurnContinuationService {
     const action = actionForPending(pending.map((turn) => turn.action));
     // Code is written only when someone asked for it; TaskTurnService.ask lets only those who may ask for code.
     const allowCode = action === "code";
+    const buildParts = allowCode ? (pending.filter((entry) => entry.action === "code").at(-1)?.buildParts ?? null) : null;
     const turn = await this.agentTurnDAO.create({
       sessionId: session.id,
       role: AGENT_TURN_ROLE.ASSISTANT,
       sequence: await this.agentTurnDAO.nextSequence(session.id),
       status: AGENT_TURN_STATUS.QUEUED,
       action,
+      buildParts,
     });
     await this.agentTurnDAO.markConsumed(pending.map((entry) => entry.id), turn.id);
 
@@ -89,6 +91,7 @@ export class SessionTurnContinuationService {
         sessionId: session.id,
         turnId: turn.id,
         action,
+        buildParts,
         sessionMessages: pending.filter((entry) => !entry.taskMessageId),
       });
       const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode);
@@ -98,6 +101,7 @@ export class SessionTurnContinuationService {
           turnId: turn.id,
           action,
           allowCode,
+          buildParts,
           prompts,
           ticket,
           documents: context.documents,

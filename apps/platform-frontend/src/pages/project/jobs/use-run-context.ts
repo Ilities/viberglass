@@ -1,6 +1,6 @@
 import { getClankersList } from '@/data'
 import { getJobs, type JobListItem, type JobStatus } from '@/service/api/job-api'
-import { getPlanningPhase, getTicket, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import { getPlan, getTicket, type PhaseDocumentResponse } from '@/service/api/ticket-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -14,7 +14,7 @@ export interface RunContext {
 const EMPTY: RunContext = { ticket: null, taskRuns: [], document: null, clankers: [] }
 
 async function loadDocument(ticketId: string, jobKind: JobStatus['jobKind']): Promise<PhaseDocumentResponse | null> {
-  if (jobKind === 'planning') return (await getPlanningPhase(ticketId)).document
+  if (jobKind === 'planning') return (await getPlan(ticketId)).document
   return null
 }
 

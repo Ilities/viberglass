@@ -81,18 +81,17 @@ function getRouteHandler(path: string, method: string): unknown {
   return stack[stack.length - 1].handle;
 }
 
-describe("ticket phase comment routes", () => {
+describe("plan comment routes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("returns comment history for a valid phase", async () => {
+  it("returns the plan's comments", async () => {
     mockTicketPhaseDocumentCommentService.listComments.mockResolvedValue([
       {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "planning",
         lineNumber: 2,
         content: "Clarify this point",
         status: "open",
@@ -104,7 +103,7 @@ describe("ticket phase comment routes", () => {
       },
     ]);
 
-    const handler = getRouteHandler("/:id/phases/:phase/comments", "get");
+    const handler = getRouteHandler("/:id/plan/comments", "get");
     if (typeof handler !== "function") {
       throw new Error("Route handler was not a function");
     }
@@ -112,7 +111,6 @@ describe("ticket phase comment routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "planning",
       },
     };
     const res = {
@@ -124,7 +122,7 @@ describe("ticket phase comment routes", () => {
 
     expect(
       mockTicketPhaseDocumentCommentService.listComments,
-    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "planning");
+    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111");
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       data: [
@@ -132,7 +130,6 @@ describe("ticket phase comment routes", () => {
           id: "comment-1",
           documentId: "doc-1",
           ticketId: "ticket-1",
-          phase: "planning",
           lineNumber: 2,
           content: "Clarify this point",
           status: "open",
@@ -151,7 +148,6 @@ describe("ticket phase comment routes", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "planning",
       lineNumber: 4,
       content: "This needs a rollback plan.",
       status: "open",
@@ -162,7 +158,7 @@ describe("ticket phase comment routes", () => {
       updatedAt: "2026-03-01T09:00:00.000Z",
     });
 
-    const handler = getRouteHandler("/:id/phases/:phase/comments", "post");
+    const handler = getRouteHandler("/:id/plan/comments", "post");
     if (typeof handler !== "function") {
       throw new Error("Route handler was not a function");
     }
@@ -170,7 +166,6 @@ describe("ticket phase comment routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "planning",
       },
       body: {
         lineNumber: 4,
@@ -191,7 +186,7 @@ describe("ticket phase comment routes", () => {
 
     expect(
       mockTicketPhaseDocumentCommentService.createComment,
-    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "planning", {
+    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", {
       lineNumber: 4,
       content: "This needs a rollback plan.",
       actor: "reviewer@example.com",
@@ -204,7 +199,6 @@ describe("ticket phase comment routes", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "planning",
       lineNumber: 2,
       content: "Clarify this point",
       status: "resolved",
@@ -216,7 +210,7 @@ describe("ticket phase comment routes", () => {
     });
 
     const handler = getRouteHandler(
-      "/:id/phases/:phase/comments/:commentId",
+      "/:id/plan/comments/:commentId",
       "put",
     );
     if (typeof handler !== "function") {
@@ -226,7 +220,6 @@ describe("ticket phase comment routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "planning",
         commentId: "22222222-2222-4222-8222-222222222222",
       },
       body: {
@@ -249,7 +242,6 @@ describe("ticket phase comment routes", () => {
       mockTicketPhaseDocumentCommentService.updateComment,
     ).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
-      "planning",
       "22222222-2222-4222-8222-222222222222",
       {
         content: undefined,
@@ -259,28 +251,4 @@ describe("ticket phase comment routes", () => {
     );
   });
 
-  it("rejects execution comments", async () => {
-    const handler = getRouteHandler("/:id/phases/:phase/comments", "get");
-    if (typeof handler !== "function") {
-      throw new Error("Route handler was not a function");
-    }
-
-    const req = {
-      params: {
-        id: "11111111-1111-4111-8111-111111111111",
-        phase: "execution",
-      },
-    };
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-    };
-
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Comments are only supported on the plan",
-    });
-  });
 });

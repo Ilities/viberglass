@@ -52,7 +52,8 @@ export function toISOString(date: unknown): string {
 }
 
 /** A task as the API returns it, from its row and the media columns joined to it. */
-export function ticketOfRow(row: TicketsRow & Record<string, unknown>): Ticket {
+/** `pull_request_url` is the task's latest pull request, selected with `latestPullRequestUrl`. */
+export function ticketOfRow(row: TicketsRow & { pull_request_url?: string | null } & Record<string, unknown>): Ticket {
   let screenshot: MediaAsset | undefined;
   if (row.screenshot_id) {
     screenshot = {

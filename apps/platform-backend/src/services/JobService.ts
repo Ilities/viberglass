@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import db from "../persistence/config/database";
 import { JobData, JobResult, JobStatus } from "../types/Job";
 import { createChildLogger } from "../config/logger";
+import { TaskPullRequestDAO } from "../persistence/ticketing/TaskPullRequestDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
@@ -36,6 +37,7 @@ export class JobService {
   private ticketDAO: TicketDAO;
   private lifecycleStatusService: TicketLifecycleStatusService;
   private readonly activity = new TaskActivityRecorder();
+  private readonly pullRequests = new TaskPullRequestDAO();
 
   constructor() {
     this.ticketDAO = new TicketDAO();
@@ -193,12 +195,16 @@ export class JobService {
               ? {
                   autoFixStatus: "completed" as const,
                   status: TICKET_STATUS.IN_REVIEW,
-                  pullRequestUrl: updates.result?.pullRequestUrl,
                 }
               : {
                   autoFixStatus: "failed" as const,
                 };
 
+        const branch = updates.result?.branch;
+        const pullRequestUrl = updates.result?.pullRequestUrl;
+        if (status === "completed" && branch && pullRequestUrl) {
+          await this.pullRequests.record(job.ticket_id, branch, pullRequestUrl);
+        }
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
       }
 
@@ -225,16 +231,12 @@ export class JobService {
     updates: {
       autoFixStatus: "pending" | "in_progress" | "completed" | "failed";
       status?: TicketLifecycleStatus;
-      pullRequestUrl?: string;
     },
   ): Promise<void> {
     try {
       await this.ticketDAO.updateTicket(ticketId, {
         status: updates.status,
         autoFixStatus: updates.autoFixStatus,
-        ...(updates.pullRequestUrl
-          ? { pullRequestUrl: updates.pullRequestUrl }
-          : {}),
       });
     } catch (error) {
       logger.warn("Failed to update ticket auto-fix status", {

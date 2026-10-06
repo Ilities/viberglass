@@ -1,6 +1,7 @@
 import {
   TICKET_WORKFLOW_PHASE,
   type BuildPullRequest,
+  type PartRange,
   type TaskTurnAction,
   type Ticket,
   type TicketWorkflowPhase,
@@ -20,8 +21,10 @@ import {
   TicketPhaseDocumentRevisionDAO,
 } from "../../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
 import { createBuildPullRequestService } from "../pull-request-reviews/createBuildPullRequestService";
+import { TaskPartsService } from "../tasks/TaskPartsService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
+import { describeTurnParts } from "./describeTurnParts";
 import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage, TurnPerson } from "./taskTurnContext";
 
 /** How much of the thread a cold start reads, newest last; what the latest summary covers is left to it. */
@@ -43,6 +46,7 @@ interface Dependencies {
   participants: Pick<TaskParticipantDAO, "list">;
   questions: Pick<AgentQuestionDAO, "questionsAnsweredBy">;
   agentTurns: Pick<TaskAgentTurnDAO, "listForTask">;
+  parts: Pick<TaskPartsService, "state">;
 }
 
 export interface LoadTurnContextInput {
@@ -51,6 +55,8 @@ export interface LoadTurnContextInput {
   /** The turn being prompted, which doesn't count as the agent's last one. */
   turnId: string;
   action: TaskTurnAction;
+  /** For a build: the parts it covers in a new pull request; null when it continues the open one. */
+  buildParts?: PartRange | null;
   /** What people said in the live session that this turn answers. */
   sessionMessages: AgentTurn[];
 }
@@ -71,6 +77,7 @@ export class TaskTurnContextLoader {
       participants: new TaskParticipantDAO(),
       questions: new AgentQuestionDAO(),
       agentTurns: new TaskAgentTurnDAO(),
+      parts: new TaskPartsService(),
       ...deps,
     };
   }
@@ -78,16 +85,20 @@ export class TaskTurnContextLoader {
   async load(input: LoadTurnContextInput): Promise<TaskTurnContext> {
     const { ticket } = input;
     const since = await this.lastPromptedAt(input.sessionId, input.turnId);
-    const [threadMessages, comments, plan, summary, edits, pullRequest, people, answered, agentTurns] = await Promise.all([
+    const buildParts = input.buildParts ?? null;
+    // A build of new parts opens a pull request of its own; only a continuing build has one to read.
+    const continuesUrl = input.action === "code" && !buildParts ? (ticket.pullRequestUrl ?? null) : null;
+    const [threadMessages, comments, plan, summary, edits, pullRequest, people, answered, agentTurns, parts] = await Promise.all([
       this.deps.messages.list(ticket.id),
       this.openComments(ticket.id),
       this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING),
       this.deps.summaries.latest(ticket.id),
       since ? this.handEdits(ticket.id, since) : Promise.resolve([]),
-      input.action === "code" && ticket.pullRequestUrl ? this.deps.pullRequest.forTask(ticket) : Promise.resolve(null),
+      continuesUrl ? this.deps.pullRequest.forTask(ticket) : Promise.resolve(null),
       this.people(ticket.id),
       this.deps.questions.questionsAnsweredBy(ticket.id),
       this.deps.agentTurns.listForTask(ticket.id),
+      this.deps.parts.state(ticket),
     ]);
 
     const messages: TurnMessage[] = [
@@ -113,9 +124,10 @@ export class TaskTurnContextLoader {
         title: ticket.title,
         description: ticket.description,
         externalTicketId: ticket.externalTicketId ?? null,
-        pullRequestUrl: ticket.pullRequestUrl ?? null,
+        pullRequestUrl: buildParts ? null : (ticket.pullRequestUrl ?? null),
       },
       documents: { plan: plan.content.trim() },
+      parts: describeTurnParts(parts, buildParts),
       people,
       lastAgentCommit: agentTurns.flatMap((turn) => (turn.outcome?.commit ? [turn.outcome.commit] : [])).at(-1) ?? null,
       summary: summary?.content.trim() ?? "",

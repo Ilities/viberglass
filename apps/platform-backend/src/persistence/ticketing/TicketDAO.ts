@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { sql } from "kysely";
 import db from "../config/database";
+import { latestPullRequestUrl } from "./latestPullRequestUrl";
 import {
   formatTaskKey,
   NATIVE_TICKET_ORIGIN,
@@ -177,10 +178,9 @@ export class TicketDAO {
         "t.ticket_status",
         "t.workflow_phase",
         "t.archived_at",
-        "t.pull_request_url",
+        latestPullRequestUrl("t").as("pull_request_url"),
         "t.taken_over_by",
         "t.taken_over_at",
-        "t.task_branch",
         "t.created_at",
         "t.updated_at",
         "s.id as screenshot_id",
@@ -232,10 +232,9 @@ export class TicketDAO {
         "t.ticket_status",
         "t.workflow_phase",
         "t.archived_at",
-        "t.pull_request_url",
+        latestPullRequestUrl("t").as("pull_request_url"),
         "t.taken_over_by",
         "t.taken_over_at",
-        "t.task_branch",
         "t.created_at",
         "t.updated_at",
         "s.id as screenshot_id",
@@ -285,18 +284,6 @@ export class TicketDAO {
         external_ticket_id: updates.externalTicketId,
         external_ticket_url: updates.externalTicketUrl,
         auto_fix_status: updates.autoFixStatus,
-        pull_request_url: updates.pullRequestUrl,
-        updated_at: new Date(),
-      })
-      .where("id", "=", id)
-      .execute();
-  }
-
-  async updatePullRequestUrl(id: string, pullRequestUrl: string): Promise<void> {
-    await db
-      .updateTable("tickets")
-      .set({
-        pull_request_url: pullRequestUrl,
         updated_at: new Date(),
       })
       .where("id", "=", id)
@@ -407,7 +394,7 @@ export class TicketDAO {
     const row = await db
       .selectFrom("tickets")
       .innerJoin("projects", "projects.id", "tickets.project_id")
-      .select(["tickets.title", "tickets.task_key", "tickets.pull_request_url", "projects.slug"])
+      .select(["tickets.title", "tickets.task_key", latestPullRequestUrl("tickets").as("pull_request_url"), "projects.slug"])
       .where("tickets.id", "=", id)
       .executeTakeFirst();
     return row ? { title: row.title, key: row.task_key, spaceSlug: row.slug, pullRequestUrl: row.pull_request_url } : null;

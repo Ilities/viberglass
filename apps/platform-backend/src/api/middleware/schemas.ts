@@ -103,7 +103,6 @@ export const updateTicketSchema = Joi.object({
   autoFixStatus: Joi.string()
     .valid("pending", "in_progress", "completed", "failed")
     .optional(),
-  pullRequestUrl: Joi.string().uri().optional(),
 });
 
 export const archiveTicketsSchema = Joi.object({

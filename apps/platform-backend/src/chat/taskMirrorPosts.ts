@@ -1,6 +1,6 @@
 import { Actions, Button, Card, CardText } from "chat";
 import { MAX_OPTION_BUTTONS, SLACK_ACTION, answerValue, askValue } from "@viberglass/chat-slack";
-import { withPlainMentions, type AgentQuestion, type TaskTurnAction, type TaskTurnProduct } from "@viberglass/types";
+import { withPlainMentions, type AgentQuestion, type PartRange } from "@viberglass/types";
 
 /** Slack takes about 4,000 characters a message; long replies end with a link to the rest. */
 const REPLY_LIMIT = 3_000;
@@ -9,11 +9,6 @@ const DOING: Record<string, string> = {
   planning: "writing the plan",
   execution: "building",
   reply: "replying",
-};
-
-/** What a finished artifact suggests asking for next. */
-const NEXT_ASK: Partial<Record<TaskTurnProduct, { action: TaskTurnAction; label: string }>> = {
-  plan: { action: "code", label: "Build it" },
 };
 
 export function messagePost(author: string, body: string): { markdown: string } {
@@ -43,16 +38,20 @@ export function documentPost(content: string, version: number | null): { markdow
   };
 }
 
-/** The next step a finished turn suggests, as a button that asks the agent for it. */
-export function nextStepCard(ticketId: string, produced: TaskTurnProduct[]) {
-  const next = [...produced].reverse().map((product) => NEXT_ASK[product]).find((ask) => ask !== undefined);
-  if (!next) return null;
+/** The build to ask for next, as a button: after a plan, or once a part's pull request is merged. */
+export function nextBuildCard(ticketId: string, build: { label: string; parts?: PartRange }, intro = "Reply here to discuss it, mention me to ask for changes, or:") {
   return Card({
     children: [
-      CardText("Reply here to discuss it, mention me to ask for changes, or:"),
-      Actions([Button({ id: SLACK_ACTION.ask, label: next.label, style: "primary", value: askValue(ticketId, next.action) })]),
+      CardText(intro),
+      Actions([Button({ id: SLACK_ACTION.ask, label: build.label, style: "primary", value: askValue(ticketId, "code", build.parts) })]),
     ],
   });
+}
+
+/** "Part 1 is merged.": a merged pull request that built some of the plan, with more to build. */
+export function partMergedPost(parts: number[], mergedBy: string | null): { markdown: string } {
+  const merged = parts.length > 0 ? `Part ${parts.join(", ")}` : "A part of the plan";
+  return { markdown: `**${merged} is merged**${mergedBy ? ` by ${mergedBy}` : ""}.` };
 }
 
 /** The agent's question, with its options as buttons; a reply in the thread from the person asked answers it too. */

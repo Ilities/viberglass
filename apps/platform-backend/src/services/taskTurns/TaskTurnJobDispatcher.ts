@@ -1,6 +1,6 @@
 import { runnerModelEndpoints } from "../modelEndpoints";
 import { randomUUID } from "crypto";
-import { isObjectRecord, type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { isObjectRecord, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import logger from "../../config/logger";
 import type { AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
@@ -26,6 +26,8 @@ export interface DispatchTurnInput {
   turnId: string;
   action: TaskTurnAction;
   allowCode: boolean;
+  /** For a build: the parts it covers in a new pull request; null when it continues the open one. */
+  buildParts?: PartRange | null;
   prompts: TurnPrompts;
   ticket: Ticket;
   documents: { plan: string };
@@ -78,7 +80,7 @@ export class TaskTurnJobDispatcher {
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker"> = new CredentialRequirementsService(),
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
     private readonly media: Pick<TicketMediaExecutionService, "prepareForExecution"> = new TicketMediaExecutionService(),
-    private readonly branches: Pick<TaskBranchNamer, "nameFor"> = new TaskBranchNamer(),
+    private readonly branches: Pick<TaskBranchNamer, "nameFor" | "existing"> = new TaskBranchNamer(),
   ) {}
 
   /**
@@ -156,8 +158,11 @@ export class TaskTurnJobDispatcher {
       acpSessionId,
       conversationStateUrl,
       lastAgentCommit: input.lastAgentCommit,
-      // Named once for the task, so every turn and whoever takes over use the same branch.
-      taskBranch: await this.branches.nameFor(ticket.id, jobId),
+      // A build names its pull request's branch; other turns read the code on the latest one, if there's one.
+      taskBranch:
+        action === "code"
+          ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? undefined)
+          : ((await this.branches.existing(ticket.id)) ?? undefined),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };

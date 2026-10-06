@@ -22,7 +22,7 @@ import { TaskRunHistory } from './task-run-history'
 import { TaskRunInspector } from './task-run-inspector'
 import { TaskFailureNotice } from './task-failure-notice'
 import { TaskHeader } from './task-header'
-import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
+import { codeProgress, decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
 import { WatchButton } from './task-people'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
@@ -62,12 +62,8 @@ export function TicketDetailPage() {
   const linkedRunId = searchParams.get('run')
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
   // The step view counts new comments as people add and resolve them; the page's counts are from its last load.
-  const [liveNewComments, setLiveNewComments] = useState<Partial<Record<'planning', number>>>({})
-  const countNewComments = useCallback(
-    (step: 'planning', count: number) =>
-      setLiveNewComments((current) => (current[step] === count ? current : { ...current, [step]: count })),
-    []
-  )
+  const [liveNewComments, setLiveNewComments] = useState<number | null>(null)
+  const countNewComments = useCallback((count: number) => setLiveNewComments(count), [])
 
   // A link to a run opens it; if it's new, load it.
   const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
@@ -121,7 +117,7 @@ export function TicketDetailPage() {
   const move = decideTaskNextMove({
     ticket,
     runs: data.runs,
-    documents: data.documents,
+    plan: data.plan,
     workingSession: workingSession(data.sessions),
   })
 
@@ -158,7 +154,7 @@ export function TicketDetailPage() {
   const threadRefreshKey = [
     ...data.runs.map((run) => `${run.jobId}:${run.status}`),
     ...data.sessions.map((session) => `${session.id}:${session.status}`),
-    data.documents.planning.updatedAt,
+    data.plan.updatedAt,
     ticket.updatedAt,
   ].join('|')
 
@@ -216,9 +212,10 @@ export function TicketDetailPage() {
                 move={move}
                 shownStep={shownStep}
                 exists={{
-                  planning: data.documents.planning.content.trim().length > 0,
+                  planning: data.plan.content.trim().length > 0,
                   execution: Boolean(ticket.pullRequestUrl),
                 }}
+                codeProgress={codeProgress(data.planParts)}
                 onShowStep={showStep}
               />
             </div>
@@ -234,6 +231,7 @@ export function TicketDetailPage() {
                 move={move}
                 onDocumentSaved={setDocument}
                 onNewComments={countNewComments}
+                onAsked={changed}
               />
             </div>
           </section>
@@ -245,14 +243,14 @@ export function TicketDetailPage() {
               taskKey={ticket.key}
               refreshKey={threadRefreshKey}
               runs={data.runs}
-              onOpenComments={(step) => {
+              onOpenComments={() => {
                 setNarrowView('artifact')
-                setSearchParams({ ...(step === currentStep ? {} : { step }), view: 'comments' })
+                setSearchParams({ ...(currentStep === 'planning' ? {} : { step: 'planning' }), view: 'comments' })
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              onOpenArtifact={(step, version) => {
+              onOpenArtifact={(version) => {
                 setNarrowView('artifact')
-                showStep(step, version)
+                showStep('planning', version)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               agents={taskAgents(data.clankers, data.sessions)}
@@ -268,11 +266,12 @@ export function TicketDetailPage() {
               onAsked={changed}
               suggestionInput={{
                 ticket,
-                documents: data.documents,
+                plan: data.plan,
                 capabilities,
-                newComments: { ...data.newComments, ...liveNewComments },
+                newComments: liveNewComments ?? data.newComments,
                 agentWorking: move.kind === 'working',
                 lastFailure: move.kind === 'failed' ? move.failure : null,
+                planParts: data.planParts,
               }}
             />
           </div>

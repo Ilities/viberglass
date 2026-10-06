@@ -23,6 +23,7 @@ function setup() {
     mentions: { listOpen: jest.fn().mockResolvedValue(new Map()) },
     participants: { listDrivers: jest.fn().mockResolvedValue(new Map([["t-1", OLLI]])) },
     takeovers: { listFor: jest.fn().mockResolvedValue(new Map()) },
+    pullRequests: { lastMergedParts: jest.fn().mockResolvedValue(new Map()) },
   };
   return { deps, service: new TaskSituationService(deps) };
 }
@@ -79,6 +80,16 @@ describe("TaskSituationService", () => {
     const described = (await service.describe([{ ...TASK, pullRequestUrl: "https://github.com/o/r/pull/1" }], viewer("owner"))).get("t-1");
 
     expect(described?.situation).toMatchObject({ state: "pr_open", yourMove: true });
+  });
+
+  it("says which part is next once a part's pull request is merged", async () => {
+    const { deps, service } = setup();
+    deps.turns.aggregates.mockResolvedValue(new Map([["t-1", { codeTurns: 1, lastCodeAt: at("11:00"), lastReplyAt: null }]]));
+    deps.pullRequests.lastMergedParts.mockResolvedValue(new Map([["t-1", 1]]));
+
+    const described = (await service.describe([{ ...TASK, pullRequestUrl: "https://github.com/o/r/pull/1" }], viewer("owner"))).get("t-1");
+
+    expect(described?.situation).toMatchObject({ state: "artifact_ready", label: "Part 1 merged · build part 2", yourMove: true });
   });
 
   it("asks for each fact once for the whole list", async () => {
