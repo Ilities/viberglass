@@ -1,4 +1,6 @@
 import modelEndpointsRouter from "./routes/modelEndpoints";
+import modelHostAccountsRouter from "./routes/modelHostAccounts";
+import modelDeploymentsRouter from "./routes/modelDeployments";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -208,6 +210,8 @@ app.use("/api/webhooks", webhooksRouter);
 app.use("/api/clankers", adminOnlyChanges(), auditRequests(RUNNER_AUDIT), clankersRouter);
 app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);
 app.use("/api/model-endpoints", adminOnlyChanges(), modelEndpointsRouter);
+app.use("/api/model-host-accounts", adminOnlyChanges(), modelHostAccountsRouter);
+app.use("/api/model-deployments", adminOnlyChanges(), modelDeploymentsRouter);
 app.use("/api/mcp-servers", adminOnlyChanges(), auditRequests(MCP_SERVER_AUDIT), mcpServersRouter);
 app.use("/api/skills", adminOnlyChanges(), auditRequests(SKILL_AUDIT), skillsRouter);
 app.use("/api/jobs", jobsRouter);

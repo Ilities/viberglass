@@ -9,6 +9,7 @@ on:
       - 'packages/types/**'
       - 'packages/telemetry/**'
       - 'packages/chat-slack/**'
+      - 'packages/model-hosting-verda/**'
       - 'packages/mcp-server/**'
       - 'packages/integration-core/**'
       - 'packages/integrations/**'

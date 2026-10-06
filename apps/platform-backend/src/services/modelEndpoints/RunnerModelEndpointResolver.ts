@@ -5,6 +5,7 @@ import {
   type WorkerModelEndpoint,
 } from "@viberglass/types";
 import type { ModelEndpointService } from "./ModelEndpointService";
+import type { ModelEndpointWaker } from "./ModelEndpointWaker";
 
 export class RunnerModelEndpointResolver {
   constructor(
@@ -12,6 +13,7 @@ export class RunnerModelEndpointResolver {
       ModelEndpointService,
       "require" | "validateSelection"
     >,
+    private readonly waker?: Pick<ModelEndpointWaker, "prepare">,
   ) {}
 
   async resolve(
@@ -28,6 +30,7 @@ export class RunnerModelEndpointResolver {
     const endpoint = await this.endpoints.require(
       clanker.modelEndpoint.endpointId,
     );
+    await this.waker?.prepare(endpoint);
     return {
       endpoint: {
         name: endpoint.name,

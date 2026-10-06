@@ -1,4 +1,9 @@
 import { modelEndpointSchema } from "./modelEndpointSchema";
+import {
+  modelDeploymentModeSchema,
+  modelDeploymentSchema,
+  modelHostAccountSchema,
+} from "./modelHostingSchema";
 import Joi from "joi";
 import { Request, Response, NextFunction } from "express";
 import type { MulterError } from "multer";
@@ -328,3 +333,6 @@ export const handleMulterError = (
 };
 
 export const validateModelEndpoint = createValidator(modelEndpointSchema);
+export const validateModelHostAccount = createValidator(modelHostAccountSchema);
+export const validateModelDeployment = createValidator(modelDeploymentSchema);
+export const validateModelDeploymentMode = createValidator(modelDeploymentModeSchema);

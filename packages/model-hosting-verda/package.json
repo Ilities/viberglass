@@ -1,0 +1,33 @@
+{
+  "name": "@viberglass/model-hosting-verda",
+  "version": "1.0.0",
+  "description": "Model deployments on Verda serverless containers",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test:unit": "jest",
+    "test": "jest"
+  },
+  "peerDependencies": {
+    "@viberglass/types": "*"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@viberglass/types": "*",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

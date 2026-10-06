@@ -5,7 +5,11 @@ import { MCP_HEADER_ENV_VAR_PREFIX } from './mcpServer'
 export type SecretLocation = 'env' | 'database' | 'ssm'
 
 /** What the platform keeps a secret for, when it manages the secret itself. */
-export type SecretPurpose = 'codex_login'
+export type SecretPurpose = 'codex_login' | 'model_host'
+
+export function isSecretPurpose(value: unknown): value is SecretPurpose {
+  return value === 'codex_login' || value === 'model_host'
+}
 
 export interface Secret {
   id: string
