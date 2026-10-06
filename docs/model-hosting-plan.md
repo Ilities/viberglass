@@ -66,7 +66,14 @@ Facts settled with the live Verda API (no GPU spend):
 - Verda puts its own auth in front of every container: requests need the account's *inference API key*, which the API can't create. vLLM's `--api-key` is therefore not used.
 - Creating a deployment needs a positive account balance ("You must add balance to run deployments").
 
-**Live exit still open:** min-replica-0 acceptance, whether `GET /v1/models` wakes a scaled-to-zero container, the status values during a real cold start, and an OpenCode task on a deployment all need a funded Verda account. The probe failed on a zero balance before anything was created.
+Facts from the first live deployment (Qwen3-Coder-30B-A3B FP8 on one RTX PRO 6000, 2026-10-06):
+
+- `min_replica_count: 0` is accepted. An idle deployment reports `healthy` with no replicas.
+- One `GET /v1/models` wakes it. Verda holds the request while the replica starts, and a client that gives up after 10 s still leaves the scale-up in progress.
+- While a replica boots, the deployment reports `unhealthy` and the replica goes `unavailable` → `imagepulling` → `unavailable`. Replica states therefore decide "waking" before the deployment status can mean "failed".
+- The first cold start took 577 s: about 40 s waiting for a free GPU, 3 min pulling the vLLM image, and the rest downloading the 31 GB of weights and loading them. That is inside the worker's 15-minute wait, but not by much. Warm, a tool call returned in 0.4 s with `--tool-call-parser qwen3_coder`.
+
+**Live exit still open:** an OpenCode task on a deployment, a second (cached) wake time, and scale-down, Keep warm, Stop and Delete against the live deployment.
 
 ## Implementation progress (2026-10-04)
 

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/textarea'
 import { createModelDeployment, getModelRecipeCommand } from '@/service/api/model-hosting-api'
 import { CloudAccountDialog } from '@/pages/secrets/cloud-account-dialog'
 import type { ModelHostFlavour } from '@viberglass/types'
-import { flavourLabel, GENERIC_SERVING_ARGS, parseServingArgs, withGpuCount } from './deploymentDisplay'
+import { flavourLabel, GENERIC_SERVING_ARGS, parseServingArgs, recipeHardwareFor, withGpuCount } from './deploymentDisplay'
 import { useDeployOptions, useModelRecipe } from './useDeployOptions'
 
 const NONE = 'none'
@@ -67,8 +67,7 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
     if (!recipe) return []
     return flavours.filter(
       (flavour) =>
-        flavour.recipeHardware !== null &&
-        recipe.hardware.includes(flavour.recipeHardware) &&
+        recipeHardwareFor(flavour, recipe.hardware) !== null &&
         (recipe.minVramGb === null || flavour.vramGb >= recipe.minVramGb)
     )
   }, [flavours, recipe, source])
@@ -80,17 +79,18 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
       setArgsText((previous) => previous || GENERIC_SERVING_ARGS.join('\n'))
       return
     }
-    if (!recipeModel || !flavour.recipeHardware) return
+    const hardware = recipe ? recipeHardwareFor(flavour, recipe.hardware) : null
+    if (!recipeModel || !hardware) return
     let current = true
     setLoadingArgs(true)
-    getModelRecipeCommand(recipeModel, flavour.recipeHardware)
+    getModelRecipeCommand(recipeModel, hardware)
       .then((command) => current && setArgsText(withGpuCount(command.servingArgs, flavour.gpuCount).join('\n')))
       .catch((error) => current && toast.error("Couldn't read the recipe", { description: error instanceof Error ? error.message : undefined }))
       .finally(() => current && setLoadingArgs(false))
     return () => {
       current = false
     }
-  }, [flavour, recipeModel, source])
+  }, [flavour, recipe, recipeModel, source])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -191,6 +191,8 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
                   <Label>GPU</Label>
                   {flavourError ? (
                     <Description className="text-red-600 dark:text-red-400">{flavourError}</Description>
+                  ) : source === 'recipe' && model.trim() && !recipeModel ? (
+                    <Description>Pick a model from the recipe list first, or deploy it as any Hugging Face model.</Description>
                   ) : noMatchingGpu ? (
                     <Description>
                       None of this account&apos;s available GPUs is one the recipe lists ({recipe.hardware.join(', ')}).

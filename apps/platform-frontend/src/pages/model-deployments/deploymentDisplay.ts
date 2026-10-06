@@ -34,6 +34,13 @@ export function deploymentState(deployment: ModelDeploymentView): { label: strin
   return { label: 'Idle · scaled to zero', color: 'sky' }
 }
 
+/** The recipe's hardware key for this GPU setup: its multi-GPU entry when it has one, else the card's. */
+export function recipeHardwareFor(flavour: ModelHostFlavour, recipeHardware: string[]): string | null {
+  if (!flavour.recipeHardware) return null
+  const candidates = [`${flavour.recipeHardware}_${flavour.gpuCount}x`, flavour.recipeHardware]
+  return candidates.find((key) => recipeHardware.includes(key)) ?? null
+}
+
 /** Deployments whose state changes on its own soon, so the page should look again. */
 export function isSettling(deployment: ModelDeploymentView): boolean {
   return deployment.status.state === 'creating' || deployment.status.state === 'waking'

@@ -1,5 +1,5 @@
 import type { ModelDeploymentView } from '@viberglass/types'
-import { deploymentState, parseServingArgs, withGpuCount } from './deploymentDisplay'
+import { deploymentState, parseServingArgs, recipeHardwareFor, withGpuCount } from './deploymentDisplay'
 
 const deployment: ModelDeploymentView = {
   id: 'd',
@@ -39,5 +39,22 @@ describe('deployment display', () => {
   it('matches tensor parallelism to the GPU count', () => {
     expect(withGpuCount(['--tensor-parallel-size', '1', '--x'], 2)).toEqual(['--tensor-parallel-size', '2', '--x'])
     expect(withGpuCount(['--x'], 2)).toEqual(['--x'])
+  })
+
+  it("uses a recipe's multi-GPU hardware entry when it has one", () => {
+    const flavour = {
+      id: 'RTX PRO 6000',
+      gpuCount: 2,
+      gpu: 'RTX PRO 6000 96GB',
+      vramGb: 192,
+      pricePerHour: 4.06,
+      currency: 'EUR',
+      available: true,
+      recipeHardware: 'rtx_pro_6000',
+    }
+    expect(recipeHardwareFor(flavour, ['rtx_pro_6000', 'rtx_pro_6000_2x'])).toBe('rtx_pro_6000_2x')
+    expect(recipeHardwareFor(flavour, ['rtx_pro_6000'])).toBe('rtx_pro_6000')
+    expect(recipeHardwareFor(flavour, ['h100'])).toBeNull()
+    expect(recipeHardwareFor({ ...flavour, recipeHardware: null }, ['rtx_pro_6000'])).toBeNull()
   })
 })

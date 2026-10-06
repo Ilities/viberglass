@@ -43,7 +43,10 @@ export interface ModelHostFlavour {
   pricePerHour: number | null
   currency: string | null
   available: boolean
-  /** The vLLM Recipes hardware key this GPU matches, when recipes cover it. */
+  /**
+   * The vLLM Recipes hardware key of one such GPU, when recipes cover it. Recipes name
+   * multi-GPU setups of some cards with a suffix, such as `rtx_pro_6000_2x`.
+   */
   recipeHardware: string | null
 }
 
