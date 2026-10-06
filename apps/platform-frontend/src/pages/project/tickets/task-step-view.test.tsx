@@ -18,7 +18,7 @@ const TICKET: Ticket = {
   severity: 'medium',
   category: 'general',
   status: 'open',
-  workflowPhase: 'research',
+  workflowPhase: 'planning',
   metadata: { timestamp: '', timezone: 'UTC' },
   annotations: [],
   ticketSystem: 'custom',
@@ -28,15 +28,15 @@ const TICKET: Ticket = {
 }
 
 const READ_ONLY: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false }
-const emptyDocument = (phase: 'research' | 'planning') => ({ id: phase, ticketId: 't-1', phase, content: '', createdAt: '', updatedAt: '' })
+const emptyPlan = { id: 'planning', ticketId: 't-1', phase: 'planning' as const, content: '', createdAt: '', updatedAt: '' }
 
-function renderStep(step: 'research' | 'execution', capabilities: TaskCapabilities) {
+function renderStep(step: 'planning' | 'execution', capabilities: TaskCapabilities) {
   const data: TaskPageData = {
     ticket: TICKET,
     clankers: [],
     runs: [],
-    documents: { research: emptyDocument('research'), planning: emptyDocument('planning') },
-    newComments: { research: 0, planning: 0 },
+    documents: { planning: emptyPlan },
+    newComments: { planning: 0 },
     sessions: [],
     capabilities,
   }
@@ -48,7 +48,7 @@ function renderStep(step: 'research' | 'execution', capabilities: TaskCapabiliti
         onCompare={jest.fn()}
         onView={jest.fn()}
         data={data}
-        move={{ kind: 'start', step: 'research' }}
+        move={{ kind: 'start', step: 'planning' }}
         onDocumentSaved={jest.fn()}
         onNewComments={jest.fn()}
       />
@@ -59,7 +59,7 @@ function renderStep(step: 'research' | 'execution', capabilities: TaskCapabiliti
 describe('TaskStepView empty artifacts', () => {
   it("never tells a viewer to ask, write or build what they can't", () => {
     mockRole = 'viewer'
-    renderStep('research', READ_ONLY)
+    renderStep('planning', READ_ONLY)
     expect(screen.getByText(/People on this task can ask the agent for it/)).toBeInTheDocument()
     expect(screen.queryByText(/Ask the agent for it in the thread/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Write it yourself' })).not.toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('TaskStepView empty artifacts', () => {
 
   it('tells someone who can ask how to get it', () => {
     mockRole = 'member'
-    renderStep('research', { ...READ_ONLY, canPost: true, canAsk: true })
+    renderStep('planning', { ...READ_ONLY, canPost: true, canAsk: true })
     expect(screen.getByText(/Ask the agent for it in the thread, or write it yourself/)).toBeInTheDocument()
   })
 

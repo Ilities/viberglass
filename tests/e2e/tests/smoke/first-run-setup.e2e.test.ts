@@ -3,7 +3,7 @@ import { FirstRunScenario } from "../../playwright/firstRunScenario";
 import { SETUP_STUB, SetupStubServer } from "../../playwright/setupStubServer";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-test("a product leader sets up an empty workspace alone and gets a first research result", async ({ page }) => {
+test("a product leader sets up an empty workspace alone and gets a first plan", async ({ page }) => {
   test.setTimeout(240_000);
   const stub = new SetupStubServer();
   await stub.start();
@@ -51,14 +51,14 @@ test("a product leader sets up an empty workspace alone and gets a first researc
     await page.getByRole("button", { name: "Start the task" }).click();
     await expect(page).toHaveURL(/\/tasks\/[A-Z][A-Z0-9]*-[0-9]+$/);
 
-    // The research runs on the fake agent against the fixture repository, and its document appears on the task.
-    const researchDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();
+    // The plan runs on the fake agent against the fixture repository, and its document appears on the task.
+    const planDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();
     await expect
       .poll(
         async () => {
           // Reload: the container start can abort a load (ERR_NETWORK_CHANGED). Then give the page time to fetch.
           await page.reload();
-          return researchDocument.waitFor({ timeout: 5_000 }).then(
+          return planDocument.waitFor({ timeout: 5_000 }).then(
             () => true,
             () => false,
           );

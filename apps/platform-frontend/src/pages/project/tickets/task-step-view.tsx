@@ -1,9 +1,4 @@
-import {
-  savePlanningDocument,
-  saveResearchDocument,
-  type PhaseDocumentCommentResponse,
-  type PhaseDocumentResponse,
-} from '@/service/api/ticket-api'
+import { savePlanningDocument, type PhaseDocumentCommentResponse, type PhaseDocumentResponse } from '@/service/api/ticket-api'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { BuildPullRequestPanel } from './build-pull-request-panel'
@@ -29,18 +24,18 @@ interface TaskStepViewProps {
   onView: (view: StepView) => void
   data: TaskPageData
   move: TaskNextMove
-  onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
+  onDocumentSaved: (step: 'planning', document: PhaseDocumentResponse) => void
   /** The shown document's open comments made since its latest version, as they change here. */
-  onNewComments: (step: 'research' | 'planning', count: number) => void
+  onNewComments: (step: 'planning', count: number) => void
 }
 
-/** The artifact tabs (Research, Plan, Code) and the panel they show. */
+/** The artifact tabs (Plan, Code) and the panel they show. */
 export const stepTabId = (step: TaskStep) => `task-artifact-tab-${step}`
 export const stepPanelId = (step: TaskStep) => `task-artifact-panel-${step}`
 
 /** Puts a suggestion's wording in place of the text it was on, and resolves it. */
 function useApplySuggestion(
-  step: 'research' | 'planning',
+  step: 'planning',
   data: TaskPageData,
   comments: DocumentComments,
   onDocumentSaved: TaskStepViewProps['onDocumentSaved']
@@ -50,10 +45,7 @@ function useApplySuggestion(
     const source = data.documents[step].content
     const content = source.slice(0, comment.location.start) + suggestedText + source.slice(comment.location.end)
     try {
-      const saved =
-        step === 'research'
-          ? await saveResearchDocument(data.ticket.id, content)
-          : await savePlanningDocument(data.ticket.id, content)
+      const saved = await savePlanningDocument(data.ticket.id, content)
       onDocumentSaved(step, saved)
       await comments.toggleStatus(comment)
       toast.success('Suggestion applied')
@@ -99,7 +91,7 @@ export function TaskStepView({
   const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0
   const documentStep = step === 'execution' ? null : step
   const comments = useDocumentComments(data.ticket.id, hasDocument ? documentStep : null)
-  const applySuggestion = useApplySuggestion(documentStep ?? 'research', data, comments, onDocumentSaved)
+  const applySuggestion = useApplySuggestion('planning', data, comments, onDocumentSaved)
   const documentContent = documentStep ? data.documents[documentStep].content : ''
   const reloadComments = comments.reload
   const newCount = documentStep ? countNewComments(comments.comments, data.documents[documentStep].updatedAt) : 0

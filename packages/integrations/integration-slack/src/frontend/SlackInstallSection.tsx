@@ -112,8 +112,8 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
           <Subheading>Install the Viberator Slack app</Subheading>
           <Text className="mt-1.5 text-[var(--gray-9)]">
             Slack is integrated as a workspace-level bot. Use <code>/viberator</code> to create
-            tickets and run AI agent jobs directly from Slack — research, planning, and execution
-            phases are all driven by keyword commands in the thread. A workspace admin sets the bot
+            tickets and run AI agent jobs directly from Slack — planning and execution
+            phases are both driven by keyword commands in the thread. A workspace admin sets the bot
             up once; there is nothing to configure per project here.
           </Text>
         </div>
@@ -214,7 +214,7 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
         <Text className="text-[var(--gray-9)]">
           Invite the bot to a channel with <code>/invite @Viberator</code>, then run{' '}
           <code>/viberator</code> to open the launch modal. Pick a project, clanker, starting phase
-          (research / planning / execution), and describe the task. Clicking <strong>Launch</strong>{' '}
+          (planning / execution), and describe the task. Clicking <strong>Launch</strong>{' '}
           creates a ticket and starts the first job — the bot posts a thread with a link to the
           ticket and streams progress there.
         </Text>
@@ -228,16 +228,8 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
         </Text>
         <ul className="list-disc list-inside space-y-1 text-sm text-[var(--gray-11)]">
           <li>
-            <strong>From research:</strong> <code>plan it</code> / <code>lgtm</code> /{' '}
-            <code>next</code> → advance to planning
-          </li>
-          <li>
             <strong>From planning:</strong> <code>execute</code> / <code>ship it</code> /{' '}
             <code>lgtm</code> / <code>next</code> → advance to execution
-          </li>
-          <li>
-            <strong>From research (skip planning):</strong> <code>execute</code> / <code>ship it</code>{' '}
-            → chains planning then execution automatically
           </li>
           <li>
             <strong>Any other text</strong> → revision job using your message as feedback

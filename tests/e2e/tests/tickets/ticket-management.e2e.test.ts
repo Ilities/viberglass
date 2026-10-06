@@ -68,7 +68,7 @@ async function seedTicket(
       description: `Deterministic fixture for ${fixture.title}.`,
       workflowPhase: fixture.phase,
       workflowOverrideReason:
-        fixture.phase === "research"
+        fixture.phase === "planning"
           ? undefined
           : "Seeded E2E fixture requires this workflow phase",
     },
@@ -90,7 +90,7 @@ async function seedTicket(
 }
 
 test.describe("Submitter-first ticket journey", () => {
-  test("submits a minimal ticket into Research without operational concepts", async ({
+  test("submits a minimal ticket into Planning without operational concepts", async ({
     authenticatedPage: page,
     request,
     backendURL,
@@ -102,7 +102,7 @@ test.describe("Submitter-first ticket journey", () => {
       page.getByRole("heading", { name: "Create New Ticket" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Every new ticket starts in Research"),
+      page.getByText("Every new task starts with a plan"),
     ).toBeVisible();
     await expect(page.getByText("Optional details")).toBeVisible();
     await expect(page.getByText("Workflow Phase")).toHaveCount(0);
@@ -124,7 +124,7 @@ test.describe("Submitter-first ticket journey", () => {
     await expect(page.getByText("(Current)").first()).toBeVisible();
   });
 
-  test("groups seeded tickets directly into Research, Planning, and Execution", async ({
+  test("groups seeded tickets directly into Planning and Execution", async ({
     authenticatedPage: page,
     request,
     backendURL,
@@ -135,7 +135,6 @@ test.describe("Submitter-first ticket journey", () => {
     }
 
     await page.goto(`/project/${project.slug}/tickets?status=all`);
-    await expect(page.getByRole("heading", { name: "Research" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Planning" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Execution" }),
@@ -162,7 +161,7 @@ test.describe("Submitter-first ticket journey", () => {
     await page.getByRole("button", { name: "More actions" }).click();
     await page.getByText("Skip to execution…").click();
     await expect(
-      page.getByRole("heading", { name: "Execute without Research/Planning" }),
+      page.getByRole("heading", { name: "Execute without Planning" }),
     ).toBeVisible();
     await page
       .getByLabel("Override Reason")

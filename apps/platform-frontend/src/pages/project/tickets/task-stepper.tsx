@@ -22,8 +22,8 @@ function markerClass(position: 'done' | 'current' | 'upcoming', move: TaskNextMo
 }
 
 /**
- * The task's artifacts as tabs: research, a plan and code, each with where it
- * stands. They're options, not stages: any can be asked for at any time, and
+ * The task's artifacts as tabs: the plan and code, each with where it stands.
+ * They're options, not stages: either can be asked for at any time, and
  * nothing waits on approval.
  */
 export function TaskStepper({ currentStep, move, shownStep, exists, onShowStep }: TaskStepperProps) {

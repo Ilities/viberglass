@@ -3,7 +3,7 @@ import { runFactsLine } from './run-facts-line'
 
 function record(overrides: Partial<RunRecord> = {}): RunRecord {
   return {
-    jobId: 'job-1', jobKind: 'research', projectSlug: 'web', ticketId: 't', ticketTitle: 'Task', clankerName: 'Default agent', clankerSlug: 'default',
+    jobId: 'job-1', jobKind: 'planning', projectSlug: 'web', ticketId: 't', ticketTitle: 'Task', clankerName: 'Default agent', clankerSlug: 'default',
     requestedAgent: 'opencode', agent: 'opencode', modelSnapshot: 'zai/glm-4.7-flash', harnessVersion: '1.18.34', repository: 'r', baseBranch: 'main',
     branch: null, baseSha: null, commitSha: null, workerType: 'docker', computeImage: null, configHash: null, instructionsHash: null, promptHash: null,
     promptCharacters: null, changedFileCount: null, success: true, stopReason: 'completed', errorMessage: null, usageAvailable: true,

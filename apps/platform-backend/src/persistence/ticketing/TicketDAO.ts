@@ -102,7 +102,7 @@ export class TicketDAO {
           ticket_system: request.ticketSystem ?? NATIVE_TICKET_ORIGIN,
           auto_fix_requested: request.autoFixRequested ?? false,
           ticket_status: TICKET_STATUS.OPEN,
-          workflow_phase: TICKET_WORKFLOW_PHASE.RESEARCH,
+          workflow_phase: TICKET_WORKFLOW_PHASE.PLANNING,
           archived_at: null,
           created_at: timestamp,
           updated_at: timestamp,

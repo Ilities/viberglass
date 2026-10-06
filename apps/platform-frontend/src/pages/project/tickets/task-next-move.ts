@@ -9,7 +9,7 @@ export type TaskNextMove =
   | { kind: 'start'; step: TaskStep }
   | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null }
   /** A written document, waiting on people to read it and say what's next. */
-  | { kind: 'ready'; step: 'research' | 'planning' }
+  | { kind: 'ready'; step: 'planning' }
   | { kind: 'failed'; step: TaskStep; runId: string; failure: JobFailure | null }
   | { kind: 'cancelled'; step: TaskStep; runId: string }
   | { kind: 'pull_request'; url: string }
@@ -24,14 +24,14 @@ export interface TaskNextMoveInput {
   ticket: Pick<Ticket, 'workflowPhase' | 'status' | 'pullRequestUrl'>
   /** The task's runs, newest first. */
   runs: Pick<JobListItem, 'jobId' | 'jobKind' | 'status' | 'failure'>[]
-  documents: Partial<Record<'research' | 'planning', StepDocument>>
+  documents: Partial<Record<'planning', StepDocument>>
   /** The agent's session with a turn running, if any. */
   workingSession: Pick<AgentSession, 'id'> | undefined
 }
 
 const RUNNING = ['queued', 'active']
 
-const isTaskStep = (kind: string): kind is TaskStep => kind === 'research' || kind === 'planning' || kind === 'execution'
+const isTaskStep = (kind: string): kind is TaskStep => kind === 'planning' || kind === 'execution'
 
 export function decideTaskNextMove({ ticket, runs, documents, workingSession }: TaskNextMoveInput): TaskNextMove {
   if (ticket.status === 'resolved') return { kind: 'done' }
@@ -60,15 +60,15 @@ export function decideTaskNextMove({ ticket, runs, documents, workingSession }: 
   return { kind: 'start', step }
 }
 
-export const TASK_STEPS: TaskStep[] = ['research', 'planning', 'execution']
-export const STEP_NAME: Record<TaskStep, string> = { research: 'Research', planning: 'Plan', execution: 'Code' }
+export const TASK_STEPS: TaskStep[] = ['planning', 'execution']
+export const STEP_NAME: Record<TaskStep, string> = { planning: 'Plan', execution: 'Code' }
 
 export type StepPosition = 'done' | 'current' | 'upcoming'
 
 /**
  * Where an artifact stands, in the words its tab shows under its name. Steps
- * are not a sequence: a task can go straight to code, so an earlier artifact
- * counts as written only when it exists.
+ * are not a sequence: a task can go straight to code, so a plan counts as
+ * written only when it exists.
  */
 export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNextMove, exists: boolean): { position: StepPosition; label: string } {
   if (step === currentStep) return { position: move.kind === 'done' ? 'done' : 'current', label: CURRENT_LABEL[move.kind] }

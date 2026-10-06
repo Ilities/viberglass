@@ -26,8 +26,8 @@ describe('summariseAgentWork', () => {
     ...command('c2', 'read /repo/README.md'),
     ...command('c3', 'glob **/*.md'),
     ...command('c4', 'cd /repo && npm test'),
-    ...command('c5', 'write /repo/RESEARCH.md'),
-    agentLine({ type: 'agent_message', text: 'Created RESEARCH.md summarising the README.' }),
+    ...command('c5', 'write /repo/PLAN.md'),
+    agentLine({ type: 'agent_message', text: 'Created PLAN.md summarising the README.' }),
   ]
 
   it('counts each command once, by kind, and keeps the agent\'s messages', () => {
@@ -37,8 +37,8 @@ describe('summariseAgentWork', () => {
       filesRead: 2,
       searches: 1,
       commandsRun: 1,
-      changedFiles: ['/repo/RESEARCH.md'],
-      messages: ['Created RESEARCH.md summarising the README.'],
+      changedFiles: ['/repo/PLAN.md'],
+      messages: ['Created PLAN.md summarising the README.'],
     })
   })
 

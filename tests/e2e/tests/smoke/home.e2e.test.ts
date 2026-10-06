@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { invite, userId } from "../../playwright/people";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
-import { createTask, needsYou, runStatus, startResearch } from "../../playwright/tasks";
+import { createTask, needsYou, runStatus, startPlan } from "../../playwright/tasks";
 
 const mention = (name: string, id: string, text: string) => `@[${name}](user:${id}) ${text}`;
 
@@ -42,7 +42,7 @@ test("a member who is mentioned sees it on Home with what's unread; replying mak
   await expect(yours.getByLabel(/unread/)).toHaveCount(0);
 });
 
-test("a new task is its owner's move, and the agent's research is theirs to look at, not the person's who asked for it", async ({
+test("a new task is its owner's move, and the agent's plan is theirs to look at, not the person's who asked for it", async ({
   adminApi,
   memberApi,
   workspace,
@@ -50,12 +50,12 @@ test("a new task is its owner's move, and the agent's research is theirs to look
   const task = await createTask(memberApi, workspace.projectId, "Summarise the README");
   await expect.poll(() => needsYou(memberApi)).toContain(`${task.title}: Not started`);
 
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => needsYou(memberApi)).not.toContain(`${task.title}: Not started`);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
 
   // With no reviewers, the agent mentions the owner with what it produced.
-  await expect.poll(() => needsYou(memberApi)).toContain(`${task.title}: Research v1 ready`);
+  await expect.poll(() => needsYou(memberApi)).toContain(`${task.title}: Plan v1 ready`);
   expect((await needsYou(adminApi)).filter((line) => line.startsWith(task.title))).toEqual([]);
 });
 

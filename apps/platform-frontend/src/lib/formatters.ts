@@ -76,8 +76,6 @@ export function formatDeploymentStrategy(strategy: DeploymentStrategy | null | u
 
 export function formatJobKind(kind: string): string {
   switch (kind) {
-    case 'research':
-      return 'Research'
     case 'execution':
       return 'Code'
     case 'planning':
@@ -108,8 +106,7 @@ export function formatJobStatus(status: string): { label: string; color: 'green'
   }
 }
 
-export function jobKindBadgeColor(kind: string): 'blue' | 'teal' | 'amber' | 'violet' {
-  if (kind === 'research') return 'blue'
+export function jobKindBadgeColor(kind: string): 'teal' | 'amber' | 'violet' {
   if (kind === 'planning') return 'teal'
   if (kind === 'claw') return 'amber'
   return 'violet'

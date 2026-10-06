@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-30
 - **Decider:** Jussi Hallila
-- **Amended by:** [ADR 0008](./0008-tasks-are-conversations.md) (tasks are conversations), 2026-10-01
+- **Amended by:** [ADR 0008](./0008-tasks-are-conversations.md) (tasks are conversations), 2026-10-01; [ADR 0009](./0009-the-plan-includes-the-research.md) (no separate research), 2026-10-06
 
 ## Context
 A task ran research, plan and build once each. Once research or the plan was approved nothing reopened it, and a second build failed: it started a fresh branch from the base branch and pushed, without force, to the task's branch `viberator/<task>`, which the first build had already pushed. When the plan's approval was withdrawn the task stayed in the build step, so the next build was refused. The UX contract (`docs/SUBMITTER_UX_CONTRACT.md`) describes a linear journey, and nothing described iterating on it.

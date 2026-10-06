@@ -83,7 +83,7 @@ describe('HomePage', () => {
           unread: 2,
           situation: {
             state: 'artifact_ready',
-            label: 'Research v2 ready',
+            label: 'Plan v3 ready',
             waitingOn: { kind: 'people', people: [{ id: 'q', name: 'Quinn QA' }] },
             since: 't',
             yourMove: false,

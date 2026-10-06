@@ -167,10 +167,9 @@ describe("ticket workflow routes", () => {
   it("returns workflow state for GET /:id/phases", async () => {
     mockTicketWorkflowService.getTicketWorkflow.mockResolvedValue({
       ticketId: TICKET_ID,
-      workflowPhase: "research",
+      workflowPhase: "planning",
       phases: [
-        { phase: "research", status: "current" },
-        { phase: "planning", status: "upcoming" },
+        { phase: "planning", status: "current" },
         { phase: "execution", status: "upcoming" },
       ],
     });
@@ -183,10 +182,9 @@ describe("ticket workflow routes", () => {
       success: true,
       data: {
         ticketId: TICKET_ID,
-        workflowPhase: "research",
+        workflowPhase: "planning",
         phases: [
-          { phase: "research", status: "current" },
-          { phase: "planning", status: "upcoming" },
+          { phase: "planning", status: "current" },
           { phase: "execution", status: "upcoming" },
         ],
       },
@@ -211,7 +209,7 @@ describe("ticket workflow routes", () => {
         id: "revision-1",
         documentId: "doc-1",
         ticketId: TICKET_ID,
-        phase: "research",
+        phase: "planning",
         content: "First draft",
         source: "manual",
         actor: "author@example.com",
@@ -220,12 +218,12 @@ describe("ticket workflow routes", () => {
     ]);
 
     const response = await request(app)
-      .get(`/api/tasks/${TICKET_ID}/phases/research/revisions`)
+      .get(`/api/tasks/${TICKET_ID}/phases/planning/revisions`)
       .expect(200);
 
     expect(mockTicketPhaseDocumentRevisionService.listRevisions).toHaveBeenCalledWith(
       TICKET_ID,
-      "research",
+      "planning",
     );
     expect(response.body).toEqual({
       success: true,
@@ -234,7 +232,7 @@ describe("ticket workflow routes", () => {
           id: "revision-1",
           documentId: "doc-1",
           ticketId: TICKET_ID,
-          phase: "research",
+          phase: "planning",
           content: "First draft",
           source: "manual",
           actor: "author@example.com",
@@ -280,6 +278,8 @@ describe("ticket workflow routes", () => {
     ["post", "workflow/override-to-execution"],
     ["post", "phases/planning/approve"],
     ["post", "phases/research/reopen"],
+    ["get", "phases/research"],
+    ["put", "phases/research/document"],
     ["get", "approvals"],
     ["get", "capabilities"],
   ] as const)("no longer has %s /:id/%s", async (method, path) => {
@@ -297,14 +297,14 @@ describe("ticket workflow routes", () => {
       .get("/api/tasks")
       .query({
         statuses: "open,in_progress",
-        workflowPhases: "research,planning",
+        workflowPhases: "planning,execution",
       })
       .expect(200);
 
     expect(mockTicketDAO.getTicketsWithFilters).toHaveBeenCalledWith(
       expect.objectContaining({
         statuses: ["open", "in_progress"],
-        workflowPhases: ["research", "planning"],
+        workflowPhases: ["planning", "execution"],
       }),
     );
   });
@@ -334,7 +334,7 @@ describe("ticket workflow routes", () => {
   it("returns 400 for invalid workflow phase filters on GET /api/tasks", async () => {
     const response = await request(app)
       .get("/api/tasks")
-      .query({ workflowPhases: "research,invalid-phase" })
+      .query({ workflowPhases: "planning,research" })
       .expect(400);
 
     expect(response.body).toEqual({

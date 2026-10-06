@@ -10,11 +10,11 @@ export interface TaskSuggestion {
 
 export interface TaskSuggestionInput {
   ticket: Pick<Ticket, 'status'>
-  documents: Record<'research' | 'planning', { content: string }>
+  documents: Record<'planning', { content: string }>
   /** What the person may ask for; null when it couldn't be loaded, so nothing is offered. */
   capabilities: TaskCapabilities | null
-  /** Open comments on each document made since its latest version, which the agent hasn't revised it with. */
-  newComments: Record<'research' | 'planning', number>
+  /** Open comments on the plan made since its latest version, which the agent hasn't revised it with. */
+  newComments: Record<'planning', number>
   /** The agent's latest turn on the task, if any. */
   latestTurn: { action: TaskTurnAction; status: string; agent?: { id: string; name: string } } | null
   agentWorking: boolean
@@ -61,12 +61,7 @@ export function suggestTaskActions({
     )
   }
 
-  const hasResearch = documents.research.content.trim().length > 0
   const hasPlan = documents.planning.content.trim().length > 0
-  if (!hasResearch && !hasPlan) suggestions.push({ action: 'research', label: 'Write the research' })
-  if (hasResearch && newComments.research > 0) {
-    suggestions.push({ action: 'research', label: `Revise the research with ${plural(newComments.research, 'comment')}` })
-  }
   if (!hasPlan) suggestions.push({ action: 'plan', label: 'Write the plan' })
   if (hasPlan && newComments.planning > 0) {
     suggestions.push({ action: 'plan', label: `Revise the plan with ${plural(newComments.planning, 'comment')}` })

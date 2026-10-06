@@ -6,7 +6,6 @@ import { withPlainMentions, type AgentQuestion, type TaskTurnAction, type TaskTu
 const REPLY_LIMIT = 3_000;
 
 const DOING: Record<string, string> = {
-  research: "writing the research",
   planning: "writing the plan",
   execution: "building",
   reply: "replying",
@@ -14,7 +13,6 @@ const DOING: Record<string, string> = {
 
 /** What a finished artifact suggests asking for next. */
 const NEXT_ASK: Partial<Record<TaskTurnProduct, { action: TaskTurnAction; label: string }>> = {
-  research: { action: "plan", label: "Write the plan" },
   plan: { action: "code", label: "Build it" },
 };
 
@@ -38,11 +36,10 @@ export function replyPost(agent: string, reply: string, taskLink: string | null)
   return { markdown: `**${agent}:** ${cut}` };
 }
 
-export function documentPost(kind: "research" | "plan", content: string, version: number | null): { markdown: string; files: Array<{ data: Buffer; filename: string; mimeType: string }> } {
-  const title = kind === "research" ? "Research" : "Plan";
+export function documentPost(content: string, version: number | null): { markdown: string; files: Array<{ data: Buffer; filename: string; mimeType: string }> } {
   return {
-    markdown: `_${title}${version ? ` v${version}` : ""}:_`,
-    files: [{ data: Buffer.from(content), filename: `${kind}.md`, mimeType: "text/markdown" }],
+    markdown: `_Plan${version ? ` v${version}` : ""}:_`,
+    files: [{ data: Buffer.from(content), filename: "plan.md", mimeType: "text/markdown" }],
   };
 }
 

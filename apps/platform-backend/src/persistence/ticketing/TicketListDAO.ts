@@ -247,7 +247,6 @@ export class TicketListDAO {
     const autoFixFailed = parseInt(statsRow?.auto_fix_failed || "0");
 
     const byPhase = {
-      research: 0,
       planning: 0,
       execution: 0,
     };

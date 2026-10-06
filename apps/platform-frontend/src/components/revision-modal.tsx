@@ -8,18 +8,16 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { taskPath } from '@/lib/taskPath'
 
-type RevisionMode = 'research' | 'planning'
-
 interface RevisionModalProps {
   ticket: Ticket | null
   clankers: Clanker[]
   project: string
   open: boolean
   onClose: () => void
-  mode: RevisionMode
 }
 
-export function RevisionModal({ ticket, clankers, project, open, onClose, mode }: RevisionModalProps) {
+/** Asks the agent to revise the plan, with a note of what to change. */
+export function RevisionModal({ ticket, clankers, project, open, onClose }: RevisionModalProps) {
   const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const configuredClankers = clankers.filter((c) => c.deploymentStrategyId)
@@ -57,12 +55,12 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
     setIsRunning(true)
     try {
       const { jobId } = await askAgent(ticket.id, {
-        action: mode === 'research' ? 'research' : 'plan',
+        action: 'plan',
         body: revisionMessage.trim(),
         agentId: selectedClanker.id,
       })
 
-      toast.success(mode === 'research' ? 'Research revision started' : 'Planning revision started', {
+      toast.success('Plan revision started', {
         description: `Revising "${ticket.title}" with ${selectedClanker.name}`,
         action: {
           label: 'View run',
@@ -84,11 +82,9 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
-      <DialogTitle>{mode === 'research' ? 'Revise research' : 'Revise planning'}</DialogTitle>
+      <DialogTitle>Revise the plan</DialogTitle>
       <DialogDescription>
-        {mode === 'research'
-          ? 'Ask the agent to revise the research. Your message goes in the task’s thread, with the open comments.'
-          : 'Ask the agent to revise the plan. Your message goes in the task’s thread, with the open comments.'}
+        Ask the agent to revise the plan. Your message goes in the task’s thread, with the open comments.
       </DialogDescription>
       <DialogBody>
         <div className="space-y-6">
@@ -135,7 +131,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
               onChange={(event) => setRevisionMessage(event.target.value)}
               rows={4}
               className="focus:border-brand-500 focus:ring-brand-500/30 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="E.g., 'The research should focus more on security aspects and include recent CVEs for the dependencies mentioned.'"
+              placeholder="E.g., 'The plan should cover the security side too, including recent CVEs for the dependencies it mentions.'"
             />
           </div>
         </div>

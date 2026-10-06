@@ -1,6 +1,6 @@
 import { E2E } from "../../playwright/e2eEnvironment";
 import { expect, test } from "../../playwright/smokeFixtures";
-import { createTask, runStatus, startResearch } from "../../playwright/tasks";
+import { createTask, runStatus, startPlan } from "../../playwright/tasks";
 
 test("a task's thread shows what was said, each document version and what happened, in order", async ({
   adminApi,
@@ -20,8 +20,8 @@ test("a task's thread shows what was said, each document version and what happen
   const people = (await (await memberApi.get(`/api/tasks/${task.id}/participants`)).json()).data;
   expect(people).toContainEqual(expect.objectContaining({ userId: member.id, role: "watcher" }));
 
-  // The admin asks the agent for the research, which it writes; then the owner changes.
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  // The admin asks the agent for the plan, which it writes; then the owner changes.
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
   expect((await adminApi.put(`/api/tasks/${task.id}/participants/owner`, { data: { userId: member.id } })).status()).toBe(200);
 
@@ -40,9 +40,9 @@ test("a task's thread shows what was said, each document version and what happen
   const order = [
     "E2E Admin created the task",
     "Which colour works here,",
-    "Write the research",
-    "asked for the research",
-    "Research v1",
+    "Write the plan",
+    "asked for the plan",
+    "Plan v1",
     `E2E Admin made ${member.name} the owner`,
     "The darker amber, it passes contrast.",
   ].map(position);
@@ -53,6 +53,6 @@ test("a task's thread shows what was said, each document version and what happen
   // Messages only hides what happened and keeps what was said and written.
   await thread.getByRole("checkbox", { name: "Messages only" }).check();
   await expect(thread.getByText("E2E Admin created the task")).toHaveCount(0);
-  await expect(thread.getByText("Research v1")).toBeVisible();
+  await expect(thread.getByText("Plan v1")).toBeVisible();
   await expect(thread.getByText("The darker amber, it passes contrast.")).toBeVisible();
 });

@@ -3,14 +3,14 @@ import { runName, runsForStep, stepForRun } from './step-runs'
 const runs = [
   { jobId: 'code-1', jobKind: 'execution' as const },
   { jobId: 'reply-1', jobKind: 'reply' as const },
-  { jobId: 'research-1', jobKind: 'research' as const },
+  { jobId: 'plan-1', jobKind: 'planning' as const },
   { jobId: 'login', jobKind: 'agent_login' as const },
 ]
 
 describe('step runs', () => {
   it("lists a step's own runs, and replies under the task's current step", () => {
     expect(runsForStep(runs, 'execution', 'execution').map((run) => run.jobId)).toEqual(['code-1', 'reply-1'])
-    expect(runsForStep(runs, 'research', 'execution').map((run) => run.jobId)).toEqual(['research-1'])
+    expect(runsForStep(runs, 'planning', 'execution').map((run) => run.jobId)).toEqual(['plan-1'])
   })
 
   it('opens a reply under the current step, and names each run by what it was', () => {

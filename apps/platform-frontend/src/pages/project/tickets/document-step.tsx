@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/auth-context'
-import { savePlanningDocument, saveResearchDocument, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import { savePlanningDocument, type PhaseDocumentResponse } from '@/service/api/ticket-api'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { CommentableDocument } from './commentable-document'
@@ -9,8 +9,6 @@ import { DocumentHead, useLatestRevision, VersionByline, VersionTitle } from './
 import { FullScreenReader } from './full-screen-reader'
 import type { TaskNextMove } from './task-next-move'
 import type { TaskPageData } from './use-task-page'
-
-const DOCUMENT_NOUN = { research: 'research', planning: 'plan' } as const
 
 /** A document step: the current document to read, comment on and edit, or what to do while there's none yet. */
 export function DocumentStep({
@@ -22,12 +20,12 @@ export function DocumentStep({
   onDocumentSaved,
   onCompare,
 }: {
-  step: 'research' | 'planning'
+  step: 'planning'
   data: TaskPageData
   move: TaskNextMove
   comments: DocumentComments
   onApplySuggestion: ApplySuggestion
-  onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
+  onDocumentSaved: (step: 'planning', document: PhaseDocumentResponse) => void
   /** Opens an earlier version, compared with the current one. */
   onCompare: (version: number) => void
 }) {
@@ -35,7 +33,7 @@ export function DocumentStep({
   const [draft, setDraft] = useState<string | null>(null)
   const [fullScreen, setFullScreen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const noun = DOCUMENT_NOUN[step]
+  const noun = 'plan'
   const hasContent = document.content.trim().length > 0
   const latest = useLatestRevision(data.ticket.id, step, document.updatedAt, hasContent)
   const { user } = useAuth()
@@ -45,10 +43,7 @@ export function DocumentStep({
   const save = async (content: string) => {
     setIsSaving(true)
     try {
-      const saved =
-        step === 'research'
-          ? await saveResearchDocument(data.ticket.id, content)
-          : await savePlanningDocument(data.ticket.id, content)
+      const saved = await savePlanningDocument(data.ticket.id, content)
       onDocumentSaved(step, saved)
       setDraft(null)
       toast.success(`The ${noun} is saved`)

@@ -65,7 +65,7 @@ describe("FakeAcpServer, asking a question", () => {
     await request(1, "session/new", { cwd: "/work/repo", mcpServers: [ASK_SERVER] });
     await request(2, "session/prompt", {
       sessionId: sessionIdOf(sent[1]),
-      prompt: [{ type: "text", text: "Write RESEARCH.md [fake:ask=Which warehouse?|North|South] [fake:ask-of=requester]" }],
+      prompt: [{ type: "text", text: "Write PLAN.md [fake:ask=Which warehouse?|North|South] [fake:ask-of=requester]" }],
     });
 
     expect(mcp.callTool).toHaveBeenCalledWith(ASK_SERVER, "ask_human", {
@@ -82,9 +82,9 @@ describe("FakeAcpServer, asking a question", () => {
   it("carries on after a question that doesn't block", async () => {
     const { sent, io, request, said } = startAsking("Carry on.");
     await request(1, "session/new", { cwd: "/work/repo", mcpServers: [ASK_SERVER] });
-    await request(2, "session/prompt", { sessionId: sessionIdOf(sent[1]), prompt: [{ type: "text", text: "Write RESEARCH.md [fake:ask-later=Dark mode too?]" }] });
+    await request(2, "session/prompt", { sessionId: sessionIdOf(sent[1]), prompt: [{ type: "text", text: "Write PLAN.md [fake:ask-later=Dark mode too?]" }] });
 
-    expect(io.files.has(path.join("/work/repo", "RESEARCH.md"))).toBe(true);
+    expect(io.files.has(path.join("/work/repo", "PLAN.md"))).toBe(true);
     expect(said()).toContain("Carry on.");
   });
 

@@ -23,7 +23,7 @@ The redesign says *how* screens should behave. This doc says *what each one is f
 |---|---|---|
 | What people and the agent have said, and what happened, in order | The task's **thread** | The last message on Home and the space page |
 | Whose move it is | The task's **status phrase**, from its situation | Home (Needs you), the space page, Overview |
-| What exists so far (Research, Plan, Code) | The **artifact bar** in the task header | The status phrase ("Plan v2 ready") |
+| What exists so far (Plan, Code) | The **artifact bar** in the task header | The status phrase ("Plan v2 ready") |
 | An artifact's content and its versions | The **artifact view** | Its card in the thread |
 | Feedback on an artifact's text, for the agent | **Comments** anchored on the artifact | A line in the thread, and the comment count on the card |
 | Who decided to go on, and when | The **message** that asked the agent ("Jussi asked the agent to build it") | — |
@@ -77,7 +77,7 @@ For: viewers (their landing, J13), and anyone wanting the workspace picture. Rea
 | Item | Purpose | Shown to | Today |
 |---|---|---|---|
 | **Stuck** | Failed, or waiting longer than a day, each with the person it waits on: who to chase | everyone | New; Pulse left failures out (RA11) |
-| **In progress** | By what's being made (research, plan, code), with whose move | everyone | Replaces Pulse's "Awaiting review / Agent working" |
+| **In progress** | By what's being made (plan, code), with whose move | everyone | Replaces Pulse's "Awaiting review / Agent working" |
 | **Done this week** | Outcome (PR link), who closed it, how long it took | everyone | New (J13) |
 | **Live now** | Threads where an agent is working right now | everyone | Replaces a separate Live page (Q7) |
 | Per-space line | Each space: in progress · stuck · done this week | everyone | Replaces the Dashboard's space cards |
@@ -111,7 +111,7 @@ For: everyone who can see the task. The page is the task's **thread**, with the 
 | Item | Purpose | Shown to | Today |
 |---|---|---|---|
 | Header: space name › key, title, status phrase | What the task is and whose move it is | everyone | Change: the status phrase replaces the banner's eyebrow; space name, not slug (RA15) |
-| **Artifact bar**: Research ✓ · Plan v2 · Code | What the conversation has produced so far; opens each one | everyone | Replaces the Research · Plan · Build stepper, which was a sequence of gates |
+| **Artifact bar**: Plan v2 · Code | What the conversation has produced so far; opens each one | everyone | Replaces the Research · Plan · Build stepper, which was a sequence of gates |
 | **People and agents** (avatars in the header, open for the list) | Who's on the task: requester, owner, reviewers, watchers, and the agents with "resumed" or "starts cold"; change the owner, add people, **bring in another agent** | everyone; changes for those allowed | Change: today's People column, plus agents |
 | **Thread** | Everything in order: messages, the agent's intents and replies, artifact cards, questions, quiet lines for events | everyone | Replaces the Discussion and Activity tabs and the live session page |
 | Agent turn (in the thread) | What the agent was asked, what it's doing ("Revising the plan: …"), and the result; its details (what it read and ran, the prompt, the raw log) folded under it | everyone; details for admins and members | Replaces the Runs view and the History column |

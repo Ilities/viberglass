@@ -1,7 +1,6 @@
 import {
   TICKET_WORKFLOW_PHASE,
   type BuildPullRequest,
-  type TaskArtifactKind,
   type TaskTurnAction,
   type Ticket,
   type TicketWorkflowPhase,
@@ -27,8 +26,6 @@ import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage, TurnPerson } 
 
 /** How much of the thread a cold start reads, newest last; what the latest summary covers is left to it. */
 const MESSAGE_LIMIT = 40;
-
-const PHASE_OF: Record<TaskArtifactKind, "research" | "planning"> = { research: "research", plan: "planning" };
 
 interface Dependencies {
   messages: Pick<TaskMessageDAO, "list">;
@@ -81,10 +78,9 @@ export class TaskTurnContextLoader {
   async load(input: LoadTurnContextInput): Promise<TaskTurnContext> {
     const { ticket } = input;
     const since = await this.lastPromptedAt(input.sessionId, input.turnId);
-    const [threadMessages, comments, research, plan, summary, edits, pullRequest, people, answered, agentTurns] = await Promise.all([
+    const [threadMessages, comments, plan, summary, edits, pullRequest, people, answered, agentTurns] = await Promise.all([
       this.deps.messages.list(ticket.id),
       this.openComments(ticket.id),
-      this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.RESEARCH),
       this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING),
       this.deps.summaries.latest(ticket.id),
       since ? this.handEdits(ticket.id, since) : Promise.resolve([]),
@@ -119,7 +115,7 @@ export class TaskTurnContextLoader {
         externalTicketId: ticket.externalTicketId ?? null,
         pullRequestUrl: ticket.pullRequestUrl ?? null,
       },
-      documents: { research: research.content.trim(), plan: plan.content.trim() },
+      documents: { plan: plan.content.trim() },
       people,
       lastAgentCommit: agentTurns.flatMap((turn) => (turn.outcome?.commit ? [turn.outcome.commit] : [])).at(-1) ?? null,
       summary: summary?.content.trim() ?? "",
@@ -164,26 +160,17 @@ export class TaskTurnContextLoader {
   }
 
   private async openComments(ticketId: string): Promise<TurnComment[]> {
-    const lists = await Promise.all(
-      (["research", "plan"] as const).map(async (artifact) =>
-        (await this.deps.comments.listByTicketAndPhase(ticketId, PHASE_OF[artifact]))
-          .filter((comment) => comment.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN)
-          .map((comment) => ({ artifact, comment })),
-      ),
-    );
-    return lists.flat().sort((a, b) => a.comment.createdAt.getTime() - b.comment.createdAt.getTime());
+    const comments = await this.deps.comments.listByTicketAndPhase(ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
+    return comments
+      .filter((comment) => comment.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .map((comment) => ({ artifact: "plan", comment }));
   }
 
-  /** The latest hand edit of each document since the agent's last turn. */
+  /** The latest hand edit of the plan since the agent's last turn. */
   private async handEdits(ticketId: string, since: Date): Promise<TurnEdit[]> {
     const revisions = await this.deps.revisions.listHandEditsSince(ticketId, since);
-    const latest = new Map<TaskArtifactKind, TurnEdit>();
-    for (const revision of revisions) {
-      const artifact: TaskArtifactKind | null =
-        revision.phase === "research" ? "research" : revision.phase === "planning" ? "plan" : null;
-      if (!artifact) continue;
-      latest.set(artifact, { artifact, by: revision.authorName ?? revision.actor ?? "Someone", content: revision.content });
-    }
-    return [...latest.values()];
+    const latest = revisions.filter((revision) => revision.phase === TICKET_WORKFLOW_PHASE.PLANNING).at(-1);
+    return latest ? [{ artifact: "plan", by: latest.authorName ?? latest.actor ?? "Someone", content: latest.content }] : [];
   }
 }

@@ -8,7 +8,7 @@ import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { documentsAskedFor } from "./documentsAskedFor";
 
 export interface PartialWork {
-  documents: { research?: string; plan?: string };
+  documents: { plan?: string };
   commitHash?: string;
 }
 
@@ -43,14 +43,13 @@ export class PartialTurnService {
       throw new AgentSessionServiceError(AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_FOUND, "No stopped turn for this run", 404);
     }
     const kept: TaskTurnProduct[] = [];
-    for (const [product, phase] of [
-      ["research", TICKET_WORKFLOW_PHASE.RESEARCH],
-      ["plan", TICKET_WORKFLOW_PHASE.PLANNING],
-    ] as const) {
-      const content = documentsAskedFor(turn.action).includes(product) ? work.documents[product]?.trim() : undefined;
-      if (!content) continue;
-      await this.deps.documents.saveDocument(session.ticketId, phase, content, { source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT, agentTurnId: turn.id });
-      kept.push(product);
+    const plan = documentsAskedFor(turn.action).includes("plan") ? work.documents.plan?.trim() : undefined;
+    if (plan) {
+      await this.deps.documents.saveDocument(session.ticketId, TICKET_WORKFLOW_PHASE.PLANNING, plan, {
+        source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT,
+        agentTurnId: turn.id,
+      });
+      kept.push("plan");
     }
     if (work.commitHash) kept.push("code");
     await this.deps.turns.update(turn.id, {

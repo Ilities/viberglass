@@ -114,7 +114,7 @@ export interface TicketsTable {
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "in_review" | "resolved">;
-  workflow_phase: Generated<"research" | "planning" | "execution">;
+  workflow_phase: Generated<"planning" | "execution">;
   archived_at: Timestamp | null;
   pull_request_url: string | null;
   taken_over_by: string | null;
@@ -297,7 +297,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw" | "agent_login">;
+  job_kind: Generated<"planning" | "execution" | "reply" | "claw" | "agent_login">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -559,7 +559,7 @@ export interface SpaceMembersTable {
 export interface TicketPhaseDocumentsTable {
   id: Generated<string>;
   ticket_id: string;
-  phase: "research" | "planning" | "execution";
+  phase: "planning" | "execution";
   content: Generated<string>;
   storage_url: string | null;
   created_at: Generated<Timestamp>;
@@ -599,7 +599,7 @@ export interface TicketPhaseDocumentCommentsTable {
   id: Generated<string>;
   document_id: string;
   ticket_id: string;
-  phase: "research" | "planning";
+  phase: "planning";
   line_number: number;
   quote_exact: string | null;
   quote_prefix: string | null;

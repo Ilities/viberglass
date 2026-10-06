@@ -75,7 +75,6 @@ export async function runClawJob(
       consoleErrors: context?.consoleErrors || [],
       affectedFiles: context?.affectedFiles || [],
       ticketMedia: context?.ticketMedia || [],
-      researchDocument: context?.researchDocument,
       planDocument: context?.planDocument,
       maxChanges: mergedSettings.maxChanges,
       testRequired: mergedSettings.testRequired,

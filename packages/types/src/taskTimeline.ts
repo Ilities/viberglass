@@ -3,7 +3,7 @@ import type { TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
 import type { TaskTurnAction, TaskTurnOutcome } from './taskTurn'
 
 /** The artifacts a task's conversation produces so far. Code arrives with the pull request. */
-export type TaskArtifactKind = 'research' | 'plan'
+export type TaskArtifactKind = 'plan'
 
 export interface TaskTimelinePerson {
   id: string

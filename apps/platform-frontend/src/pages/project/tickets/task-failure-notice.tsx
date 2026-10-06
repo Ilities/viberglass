@@ -4,7 +4,7 @@ import { useAuth } from '@/context/auth-context'
 import { HandoffCard } from '../jobs/handoff-card'
 import type { TaskNextMove, TaskStep } from './task-next-move'
 
-const STEP_NOUN: Record<TaskStep, string> = { research: 'research', planning: 'plan', execution: 'build' }
+const STEP_NOUN: Record<TaskStep, string> = { planning: 'plan', execution: 'build' }
 
 interface TaskFailureNoticeProps {
   move: TaskNextMove

@@ -33,7 +33,7 @@ export const ticketListSchema = {
   workflowPhases: z
     .string()
     .optional()
-    .describe("Comma-separated phases: research, planning, execution"),
+    .describe("Comma-separated phases: planning, execution"),
   severity: z
     .string()
     .optional()
@@ -72,7 +72,7 @@ export const ticketTriggerSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
   agentId: z.string().uuid().describe("UUID of the agent to run, from agent_list"),
   targetPhase: z
-    .enum(["research", "planning", "execution"])
+    .enum(["planning", "execution"])
     .describe("Workflow phase to run"),
 };
 
@@ -83,7 +83,7 @@ export const ticketReviewSchema = {
 export const ticketReviewCommentSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
   phase: z
-    .enum(["research", "planning"])
+    .enum(["planning"])
     .describe("Phase to comment on"),
   lineNumber: z.number().int().min(1).describe("Line number in the document"),
   content: z.string().min(1).describe("Comment text"),

@@ -12,8 +12,7 @@ const hasContent = (document: { content: string } | null) => (document?.content.
 
 /**
  * Keeps a ticket's phase and status true to what exists. The phase
- * is the furthest artifact: the build once there's a pull request, the plan
- * once one is written, else research. The status is in progress only while an
+ * is the build once there's a pull request, else the plan. The status is in progress only while an
  * agent is working, in review while an artifact waits on people, and open
  * otherwise. Call it whenever a run or a document changes.
  */
@@ -27,16 +26,13 @@ export class TicketLifecycleStatusService {
       throw new Error("Ticket not found");
     }
 
-    const [research, plan] = await Promise.all([
-      this.documentDAO.getByTicketAndPhase(ticket.id, TICKET_WORKFLOW_PHASE.RESEARCH),
-      this.documentDAO.getByTicketAndPhase(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING),
-    ]);
-    const phase = derivePhase(ticket, hasContent(plan));
+    const plan = await this.documentDAO.getByTicketAndPhase(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING);
+    const phase = derivePhase(ticket);
     if (ticket.workflowPhase !== phase) {
       await this.ticketDAO.updateWorkflowPhase(ticketId, phase);
     }
 
-    const hasArtifact = Boolean(ticket.pullRequestUrl) || hasContent(plan) || hasContent(research);
+    const hasArtifact = Boolean(ticket.pullRequestUrl) || hasContent(plan);
     const nextStatus = await this.deriveStatus(ticket, hasArtifact);
     if (ticket.status !== nextStatus) {
       await this.ticketDAO.updateTicket(ticketId, { status: nextStatus });
@@ -56,7 +52,6 @@ export class TicketLifecycleStatusService {
   }
 }
 
-export function derivePhase(ticket: Pick<Ticket, "pullRequestUrl">, hasPlan: boolean): TicketWorkflowPhase {
-  if (ticket.pullRequestUrl) return TICKET_WORKFLOW_PHASE.EXECUTION;
-  return hasPlan ? TICKET_WORKFLOW_PHASE.PLANNING : TICKET_WORKFLOW_PHASE.RESEARCH;
+export function derivePhase(ticket: Pick<Ticket, "pullRequestUrl">): TicketWorkflowPhase {
+  return ticket.pullRequestUrl ? TICKET_WORKFLOW_PHASE.EXECUTION : TICKET_WORKFLOW_PHASE.PLANNING;
 }

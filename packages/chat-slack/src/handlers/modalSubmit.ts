@@ -3,7 +3,7 @@ import { ThreadImpl } from "chat";
 import type { SlackHandlerServices } from "../types";
 
 /** What the launch form's step asks the agent for. */
-const ACTION_OF_MODE: Record<string, TaskTurnAction> = { research: "research", planning: "plan", execution: "code" };
+const ACTION_OF_MODE: Record<string, TaskTurnAction> = { planning: "plan", execution: "code" };
 
 /**
  * Build a Slack thread ID that includes the message timestamp as threadTs.

@@ -63,8 +63,7 @@ export async function createTicket(
   return response.json();
 }
 
-const PHASE_ACTION: Record<TicketWorkflowPhase, "research" | "plan" | "code"> = {
-  research: "research",
+const PHASE_ACTION: Record<TicketWorkflowPhase, "plan" | "code"> = {
   planning: "plan",
   execution: "code",
 };

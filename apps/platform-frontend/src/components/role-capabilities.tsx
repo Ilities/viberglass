@@ -14,7 +14,7 @@ const ROWS: Array<{ what: string; can: Record<WorkspaceRole, string> }> = [
     can: { admin: 'Every space', member: 'Open spaces, and private ones they belong to', guest: 'Only spaces they are invited to', viewer: 'Open spaces, and private ones they belong to' },
   },
   { what: 'Comment and post', can: { admin: 'Yes', member: 'Yes', guest: 'Yes', viewer: 'No' } },
-  { what: 'Ask the agent for research or a plan', can: { admin: 'Yes', member: 'Yes', guest: 'On tasks they are on', viewer: 'No' } },
+  { what: 'Ask the agent for a plan', can: { admin: 'Yes', member: 'Yes', guest: 'On tasks they are on', viewer: 'No' } },
   { what: 'Ask the agent for code', can: { admin: 'Yes', member: 'On tasks they are on, or as a space maintainer', guest: 'On tasks they are on', viewer: 'No' } },
   { what: 'Pause, take over and hand back', can: { admin: 'Yes', member: 'As the task owner or a space maintainer', guest: 'As the task owner', viewer: 'No' } },
   { what: 'Agents, connections, secrets and members', can: { admin: 'Yes', member: 'No', guest: 'No', viewer: 'No' } },

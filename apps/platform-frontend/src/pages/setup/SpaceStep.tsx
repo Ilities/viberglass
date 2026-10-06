@@ -67,7 +67,7 @@ export function SpaceStep({
           </Button>
         </div>
         <Text>
-          Agents research, plan and then open a pull request against {repository.defaultBranch}. Each step waits for
+          Agents write a plan and then open a pull request against {repository.defaultBranch}. Each step waits for
           your review.
         </Text>
       </form>

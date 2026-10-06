@@ -97,7 +97,6 @@ export interface BaseWorkerPayload {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
-    researchDocument?: string;
     planDocument?: string;
     /** The task's latest summary, for the agent to rewrite on a summarise turn. */
     summaryDocument?: string;
@@ -126,7 +125,7 @@ export interface BaseWorkerPayload {
   agentSessionId?: string;
   /** Platform turn UUID linking this job to an agent_turns row */
   agentTurnId?: string;
-  /** What the task turn was asked for (research, plan, code, reply, summarise) */
+  /** What the task turn was asked for (plan, code, reply, summarise) */
   turnAction?: TaskTurnAction;
   /** Whether the turn may change code. Absent on scheduled jobs. */
   allowCode?: boolean;
@@ -258,7 +257,6 @@ export interface CodingJobData {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
-    researchDocument?: string;
     planDocument?: string;
     /** The task's latest summary, for the agent to rewrite on a summarise turn. */
     summaryDocument?: string;

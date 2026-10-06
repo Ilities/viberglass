@@ -48,7 +48,7 @@ export function ClankersPage() {
       </div>
 
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 font-mono">
-        <span className="text-zinc-400">&gt;</span> Agent runners connect coding agents to task research, planning and builds.
+        <span className="text-zinc-400">&gt;</span> Agent runners connect coding agents to task plans and builds.
       </div>
 
       <Subheading className="mt-8">Runners</Subheading>

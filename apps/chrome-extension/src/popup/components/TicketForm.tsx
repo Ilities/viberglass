@@ -32,7 +32,6 @@ interface Props {
 }
 
 const PHASES: { value: TicketWorkflowPhase; label: string }[] = [
-  { value: "research", label: "Research" },
   { value: "planning", label: "Planning" },
   { value: "execution", label: "Execution" },
 ];
@@ -55,7 +54,7 @@ export function TicketForm({
   const [clankers, setClankers] = useState<Clanker[]>([]);
   const [projectId, setProjectId] = useState("");
   const [clankerId, setClankerId] = useState("");
-  const [phase, setPhase] = useState<TicketWorkflowPhase>("research");
+  const [phase, setPhase] = useState<TicketWorkflowPhase>("planning");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Severity>("medium");

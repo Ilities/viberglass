@@ -10,10 +10,9 @@ export type RunNextStep =
   | { kind: 'superseded'; newerRunId: string }
   | { kind: 'session'; sessionId: string }
   /** The document is the task's latest, waiting on people to read it and say what's next. */
-  | { kind: 'research_ready'; preview: string }
   | { kind: 'plan_ready'; preview: string }
-  /** The task has a later artifact since this run's document. */
-  | { kind: 'moved_on'; phase: 'research' | 'planning' }
+  /** The task has a pull request since this run's plan. */
+  | { kind: 'moved_on' }
   | { kind: 'pull_request'; url: string }
   | { kind: 'build_done' }
   | { kind: 'done' }
@@ -24,7 +23,7 @@ export interface RunNextStepInput {
   newerRunId: string | null
   /** Where the task is now; it may have moved on since this run. */
   taskPhase: TicketWorkflowPhase | null
-  /** The task's document for this run's phase, for research and planning runs. */
+  /** The task's plan, for planning runs. */
   document: { content: string } | null
 }
 
@@ -40,20 +39,12 @@ export function decideRunNextStep({ job, newerRunId, taskPhase, document }: RunN
   if (newerRunId) return { kind: 'superseded', newerRunId }
   if (job.status === 'failed') return { kind: 'failed' }
 
-  const isDocumentRun = job.jobKind === 'research' || job.jobKind === 'planning'
   if (job.status === 'cancelled') {
-    return { kind: 'cancelled', canRunAgain: isDocumentRun && taskPhase === job.jobKind }
+    return { kind: 'cancelled', canRunAgain: job.jobKind === 'planning' && taskPhase === job.jobKind }
   }
   const content = document?.content.trim() ?? ''
-  if (job.jobKind === 'research' && content) {
-    return taskPhase === 'research'
-      ? { kind: 'research_ready', preview: documentPreview(content) }
-      : { kind: 'moved_on', phase: 'research' }
-  }
   if (job.jobKind === 'planning' && content) {
-    return taskPhase === 'planning'
-      ? { kind: 'plan_ready', preview: documentPreview(content) }
-      : { kind: 'moved_on', phase: 'planning' }
+    return taskPhase === 'planning' ? { kind: 'plan_ready', preview: documentPreview(content) } : { kind: 'moved_on' }
   }
   if (job.jobKind === 'execution') {
     return job.result?.pullRequestUrl ? { kind: 'pull_request', url: job.result.pullRequestUrl } : { kind: 'build_done' }

@@ -17,7 +17,7 @@ interface Dependencies {
   questions: Pick<AgentQuestionDAO, "listForTask">;
 }
 
-const ARTIFACT_OF_PHASE: Record<string, TaskArtifactKind | undefined> = { research: "research", planning: "plan" };
+const ARTIFACT_OF_PHASE: Record<string, TaskArtifactKind | undefined> = { planning: "plan" };
 
 /** When two entries share a moment, a message reads before what it caused. */
 const ORDER_AT_SAME_TIME: Record<TaskTimelineEntry["kind"], number> = {

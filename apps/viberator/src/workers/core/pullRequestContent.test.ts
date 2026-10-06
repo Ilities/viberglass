@@ -67,9 +67,9 @@ describe("pullRequestContent", () => {
 
   const renderedPrompt = [
     "You are an expert software engineer tasked with fixing a bug or implementing a feature.",
-    "<research-document>",
+    "<current-plan>",
     "x".repeat(20_000),
-    "</research-document>",
+    "</current-plan>",
   ].join("\n");
 
   test("titles a ticket run's fallback PR after the ticket, not the prompt", () => {
@@ -92,7 +92,7 @@ describe("pullRequestContent", () => {
     expect(description).toContain("## Summary\nPrice refresh never reaches the UI");
     expect(description).toContain("## Problem\nRunning the script changes nothing on screen.");
     expect(description).not.toContain("You are an expert");
-    expect(description).not.toContain("research-document");
+    expect(description).not.toContain("current-plan");
   });
 
   test("leaves out the problem section for a ticket with no description", () => {

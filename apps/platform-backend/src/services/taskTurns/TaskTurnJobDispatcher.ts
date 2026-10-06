@@ -28,7 +28,7 @@ export interface DispatchTurnInput {
   allowCode: boolean;
   prompts: TurnPrompts;
   ticket: Ticket;
-  documents: { research: string; plan: string };
+  documents: { plan: string };
   /** The latest summary of the conversation, written into the repository as SUMMARY.md. */
   summary: string;
   /** The last commit an agent pushed to the task's branch, so the worker can tell it what people pushed since. */
@@ -51,8 +51,6 @@ function resumeState(metadata: unknown): { acpSessionId: string | null; conversa
 function jobDataFor(action: TaskTurnAction, base: Omit<BaseJobData, "jobKind">, context: TicketJobContext): JobData {
   const kind = TURN_JOB_KIND[action];
   switch (kind) {
-    case "research":
-      return { ...base, jobKind: kind, context };
     case "planning":
       return { ...base, jobKind: kind, context };
     case "execution":
@@ -120,7 +118,6 @@ export class TaskTurnJobDispatcher {
         originalTicketId: ticket.externalTicketId || ticket.id,
         ticketTitle: ticket.title,
         ticketDescription: ticket.description,
-        researchDocument: input.documents.research || undefined,
         planDocument: input.documents.plan || undefined,
         summaryDocument: input.summary || undefined,
         instructionFiles: prepared.mergedInstructionFiles,

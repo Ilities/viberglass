@@ -3,7 +3,7 @@ import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDA
 import { TASK_ASK_POLICY_ERROR_CODE, TaskAskPolicyError } from "../../../../services/errors/TaskAskPolicyError";
 import { TaskTurnService } from "../../../../services/taskTurns/TaskTurnService";
 
-const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "research" as const };
+const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "planning" as const };
 
 function session(overrides: Partial<AgentSession> = {}): AgentSession {
   return {
@@ -14,7 +14,7 @@ function session(overrides: Partial<AgentSession> = {}): AgentSession {
     ticketId: "t-1",
     ticketTitle: null,
     clankerId: "claude",
-    mode: "research",
+    mode: "planning",
     status: "waiting_on_user",
     title: "Dark mode",
     repository: null,
@@ -84,7 +84,7 @@ describe("TaskTurnService", () => {
   it("posts the person's words in the thread and makes them the session's next turn", async () => {
     const { deps, service } = setup();
 
-    const result = await service.ask("t-1", "maria", { message: "  @agent cover Safari  ", action: "research" });
+    const result = await service.ask("t-1", "maria", { message: "  @agent cover Safari  ", action: "plan" });
 
     expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "@agent cover Safari");
     expect(deps.turns.create).toHaveBeenCalledWith(
@@ -94,7 +94,7 @@ describe("TaskTurnService", () => {
         sequence: 4,
         contentMarkdown: "@agent cover Safari",
         userId: "maria",
-        action: "research",
+        action: "plan",
         taskMessageId: "message-1",
       }),
     );
@@ -106,7 +106,7 @@ describe("TaskTurnService", () => {
 
   it("asks with a message already in the thread, such as an answer, without posting it again", async () => {
     const { deps, service } = setup();
-    const result = await service.ask("t-1", "maria", { message: "North", action: "research", postedMessageId: "answer-1" });
+    const result = await service.ask("t-1", "maria", { message: "North", action: "plan", postedMessageId: "answer-1" });
     expect(deps.discussion.create).not.toHaveBeenCalled();
     expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ taskMessageId: "answer-1" }));
     expect(result.messageId).toBe("answer-1");
@@ -187,11 +187,11 @@ describe("TaskTurnService", () => {
   it("starts a turn nobody asked for in the thread, from Slack without a linked account", async () => {
     const { deps, service } = setup();
 
-    const result = await service.ask("t-1", null, { message: "", action: "research", agentId: "codex" });
+    const result = await service.ask("t-1", null, { message: "", action: "plan", agentId: "codex" });
 
-    expect(deps.agents.resolve).toHaveBeenCalledWith("t-1", { agentId: "codex", message: "Write the research" });
+    expect(deps.agents.resolve).toHaveBeenCalledWith("t-1", { agentId: "codex", message: "Write the plan" });
     expect(deps.discussion.create).not.toHaveBeenCalled();
-    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ userId: null, taskMessageId: null, action: "research" }));
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ userId: null, taskMessageId: null, action: "plan" }));
     expect(result.messageId).toBeNull();
   });
 

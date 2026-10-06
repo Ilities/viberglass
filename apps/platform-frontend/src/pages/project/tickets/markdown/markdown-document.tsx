@@ -194,7 +194,7 @@ interface MarkdownDocumentProps {
   reading?: boolean
 }
 
-/** A research or plan document, rendered from its markdown, with comments' text highlighted. */
+/** A plan document, rendered from its markdown, with comments' text highlighted. */
 export function MarkdownDocument({ source, highlights = [], activeHighlightId = null, onHighlightClick, reading = false }: MarkdownDocumentProps) {
   const tree = useMemo(() => parseMarkdown(source), [source])
   const context: RenderContext = { source, highlights, activeId: activeHighlightId, onHighlightClick, reading }

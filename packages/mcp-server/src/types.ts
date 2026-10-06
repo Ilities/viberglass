@@ -97,12 +97,12 @@ export interface McpToolServices {
     getState(ticketId: string): Promise<ReviewState>;
     addComment(
       ticketId: string,
-      phase: "research" | "planning",
+      phase: "planning",
       params: CommentParams,
     ): Promise<{ id: string; lineNumber: number; content: string; status: string }>;
     listComments(
       ticketId: string,
-      phase: "research" | "planning",
+      phase: "planning",
     ): Promise<
       Array<{
         id: string;

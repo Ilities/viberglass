@@ -21,7 +21,7 @@ export async function createTask(
   return { id, title };
 }
 
-/** The task's current workflow phase: research, planning or execution. */
+/** The task's current workflow phase: planning or execution. */
 export async function taskPhase(api: APIRequestContext, taskId: string): Promise<string> {
   const body = await (await api.get(`/api/tasks/${taskId}`)).json();
   return String(body?.data?.workflowPhase);
@@ -45,7 +45,7 @@ export interface AskedTurn {
 export async function askAgent(
   api: APIRequestContext,
   taskId: string,
-  ask: { action?: "research" | "plan" | "code" | "reply"; body?: string; agentId?: string },
+  ask: { action?: "plan" | "code" | "reply"; body?: string; agentId?: string },
 ): Promise<AskedTurn> {
   const response = await api.post(`/api/tasks/${taskId}/messages`, { data: { body: ask.body ?? "", ...ask } });
   if (!response.ok()) {
@@ -56,21 +56,15 @@ export async function askAgent(
   return turn;
 }
 
-/** Asks the agent for the research and returns its run's job id. */
-export async function startResearch(api: APIRequestContext, taskId: string, clankerId: string): Promise<string> {
-  return (await askAgent(api, taskId, { action: "research", body: "Write the research", agentId: clankerId })).jobId;
+/** Asks the agent for the plan and returns its run's job id. */
+export async function startPlan(api: APIRequestContext, taskId: string, clankerId: string): Promise<string> {
+  return (await askAgent(api, taskId, { action: "plan", body: "Write the plan", agentId: clankerId })).jobId;
 }
 
 /** The task's thread, oldest first. */
 export async function timeline(api: APIRequestContext, taskId: string): Promise<Array<Record<string, unknown>>> {
   const body = await (await api.get(`/api/tasks/${taskId}/timeline`)).json();
   return Array.isArray(body?.data) ? body.data : [];
-}
-
-/** The research document's current content; empty until an agent writes it. */
-export async function researchDocument(api: APIRequestContext, taskId: string): Promise<string> {
-  const body = await (await api.get(`/api/tasks/${taskId}/phases/research`)).json();
-  return String(body?.data?.document?.content ?? "");
 }
 
 /** The plan's current content; empty until it's written. */
@@ -85,15 +79,15 @@ export async function runStatus(api: APIRequestContext, jobId: string): Promise<
   return String(body?.status);
 }
 
-/** Starts a live research session and returns the session and first run ids. */
-export async function startLiveResearchSession(
+/** Starts a live planning session and returns the session and first run ids. */
+export async function startLivePlanSession(
   api: APIRequestContext,
   taskId: string,
   clankerId: string,
-  initialMessage = "Start research",
+  initialMessage = "Start the plan",
 ): Promise<{ sessionId: string; jobId: string }> {
   const response = await api.post(`/api/tasks/${taskId}/agent-sessions`, {
-    data: { clankerId, mode: "research", initialMessage },
+    data: { clankerId, mode: "planning", initialMessage },
   });
   if (!response.ok()) {
     throw new Error(`Starting a session failed: ${response.status()} ${await response.text()}`);

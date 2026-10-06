@@ -3,7 +3,6 @@ import type { TaskTurnAction } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 const STEP: Record<TaskTurnAction, string> = {
-  research: 'asks it to write the research again',
   plan: 'asks it to write the plan again',
   code: 'asks it to build again',
   reply: 'asks it to reply',

@@ -3,7 +3,7 @@ import { apiFetch } from '@/service/api/client'
 
 // Types
 
-export type AgentSessionMode = 'research' | 'planning' | 'execution'
+export type AgentSessionMode = 'planning' | 'execution'
 
 export type AgentSessionStatus =
   | 'active'

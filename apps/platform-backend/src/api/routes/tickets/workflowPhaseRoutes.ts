@@ -4,7 +4,6 @@ import logger from "../../../config/logger";
 import type { TicketPhaseDocumentRevisionService } from "../../../services/TicketPhaseDocumentRevisionService";
 import type { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
 import type { TicketPlanningService } from "../../../services/TicketPlanningService";
-import type { TicketResearchService } from "../../../services/TicketResearchService";
 import type { TicketWorkflowService } from "../../../services/TicketWorkflowService";
 import { validateUuidParam } from "../../middleware/validation";
 
@@ -12,13 +11,11 @@ interface TicketWorkflowPhaseRouteDependencies {
   ticketWorkflowService: TicketWorkflowService;
   ticketPhaseDocumentService: TicketPhaseDocumentService;
   ticketPhaseDocumentRevisionService: TicketPhaseDocumentRevisionService;
-  ticketResearchService: TicketResearchService;
   ticketPlanningService: TicketPlanningService;
 }
 
 function parseWorkflowPhaseParam(rawPhase: string): TicketWorkflowPhase | null {
   if (
-    rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH ||
     rawPhase === TICKET_WORKFLOW_PHASE.PLANNING ||
     rawPhase === TICKET_WORKFLOW_PHASE.EXECUTION
   ) {
@@ -34,7 +31,6 @@ export function registerTicketWorkflowPhaseRoutes(
     ticketWorkflowService,
     ticketPhaseDocumentService,
     ticketPhaseDocumentRevisionService,
-    ticketResearchService,
     ticketPlanningService,
   }: TicketWorkflowPhaseRouteDependencies,
 ): void {
@@ -67,41 +63,6 @@ export function registerTicketWorkflowPhaseRoutes(
       });
     }
   });
-
-  // GET /api/tasks/:id/phases/research - Get research phase document
-  router.get(
-    "/:id/phases/research",
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const phase = await ticketResearchService.getResearchPhase(
-          req.params.id,
-        );
-
-        res.json({
-          success: true,
-          data: phase,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        logger.error("Error fetching research document", {
-          ticketId: req.params.id,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to fetch research document",
-        });
-      }
-    },
-  );
 
   // GET /api/tasks/:id/phases/:phase/revisions - Get revision history for a phase document
   router.get(
@@ -143,52 +104,6 @@ export function registerTicketWorkflowPhaseRoutes(
         return res.status(500).json({
           error: "Internal server error",
           message: "Failed to fetch phase document revisions",
-        });
-      }
-    },
-  );
-
-  // PUT /api/tasks/:id/phases/research/document - Save research phase document
-  router.put(
-    "/:id/phases/research/document",
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const { content } = req.body;
-        if (typeof content !== "string") {
-          return res.status(400).json({
-            error: "Validation error",
-            message: "content must be a string",
-          });
-        }
-
-        const document = await ticketPhaseDocumentService.saveDocument(
-          req.params.id,
-          TICKET_WORKFLOW_PHASE.RESEARCH,
-          content,
-          { actor: req.authContext?.user.email },
-        );
-
-        res.json({
-          success: true,
-          data: document,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        logger.error("Error saving research document", {
-          ticketId: req.params.id,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to save research document",
         });
       }
     },

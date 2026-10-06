@@ -117,7 +117,7 @@ export function CreateTicketPage() {
       {projectData ? <div className="mt-6"><ProjectReadinessBanner projectId={projectData.id} /></div> : null}
 
       <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-        Every new task starts in Research so the agent can understand the codebase before planning changes.
+        Every new task starts with a plan: the agent reads the codebase and writes what it found and what it would change.
       </p>
 
       {error && (

@@ -60,7 +60,7 @@ describe("TicketPhaseDocumentService", () => {
       .mockResolvedValueOnce({
         id: "doc-1",
         ticketId: "ticket-1",
-        phase: TICKET_WORKFLOW_PHASE.RESEARCH,
+        phase: TICKET_WORKFLOW_PHASE.PLANNING,
         content: "Old content",
         storageUrl: null,
         approvalState: "draft",
@@ -72,7 +72,7 @@ describe("TicketPhaseDocumentService", () => {
       .mockResolvedValueOnce({
         id: "doc-1",
         ticketId: "ticket-1",
-        phase: TICKET_WORKFLOW_PHASE.RESEARCH,
+        phase: TICKET_WORKFLOW_PHASE.PLANNING,
         content: "New content",
         storageUrl: null,
         approvalState: "draft",
@@ -89,7 +89,7 @@ describe("TicketPhaseDocumentService", () => {
     const service = new TicketPhaseDocumentService();
     const result = await service.saveDocument(
       "ticket-1",
-      TICKET_WORKFLOW_PHASE.RESEARCH,
+      TICKET_WORKFLOW_PHASE.PLANNING,
       "New content",
       { actor: "author@example.com" },
     );
@@ -102,7 +102,7 @@ describe("TicketPhaseDocumentService", () => {
     expect(mockRevisionDAO.create).toHaveBeenCalledWith({
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: TICKET_WORKFLOW_PHASE.RESEARCH,
+      phase: TICKET_WORKFLOW_PHASE.PLANNING,
       content: "New content",
       source: "manual",
       actor: "author@example.com",

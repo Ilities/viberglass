@@ -18,17 +18,16 @@ describe("TicketWorkflowService", () => {
   it("returns the current ticket workflow state", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({
       id: "ticket-1",
-      workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
+      workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING,
     } as any);
 
     const result = await service.getTicketWorkflow("ticket-1");
 
     expect(result).toEqual({
       ticketId: "ticket-1",
-      workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
+      workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING,
       phases: [
-        { phase: TICKET_WORKFLOW_PHASE.RESEARCH, status: "current" },
-        { phase: TICKET_WORKFLOW_PHASE.PLANNING, status: "upcoming" },
+        { phase: TICKET_WORKFLOW_PHASE.PLANNING, status: "current" },
         { phase: TICKET_WORKFLOW_PHASE.EXECUTION, status: "upcoming" },
       ],
     });
@@ -37,11 +36,11 @@ describe("TicketWorkflowService", () => {
   it("marks the steps before the current one completed", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({
       id: "ticket-1",
-      workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING,
+      workflowPhase: TICKET_WORKFLOW_PHASE.EXECUTION,
     } as any);
 
     const result = await service.getTicketWorkflow("ticket-1");
 
-    expect(result.phases.map((phase) => phase.status)).toEqual(["completed", "current", "upcoming"]);
+    expect(result.phases.map((phase) => phase.status)).toEqual(["completed", "current"]);
   });
 });

@@ -8,11 +8,11 @@ import { FullScreenReader } from './full-screen-reader'
 import { diffLines } from './line-diff'
 import { MarkdownDocument } from './markdown/markdown-document'
 
-const DOCUMENT_NAME = { research: 'Research', planning: 'Plan' } as const
+const DOCUMENT_NAME = { planning: 'Plan' } as const
 
 interface DocumentVersionProps {
   ticketId: string
-  step: 'research' | 'planning'
+  step: 'planning'
   version: number
   /** Whether it opens compared with the current version. */
   comparing?: boolean

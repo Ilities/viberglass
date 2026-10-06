@@ -2,27 +2,21 @@ import { decideRunNextStep, type RunNextStepInput } from './run-next-step'
 
 function input(overrides: Partial<RunNextStepInput['job']> = {}, rest: Partial<Omit<RunNextStepInput, 'job'>> = {}): RunNextStepInput {
   return {
-    job: { status: 'completed', jobKind: 'research', agentSessionId: null, result: { success: true }, ...overrides },
+    job: { status: 'completed', jobKind: 'planning', agentSessionId: null, result: { success: true }, ...overrides },
     newerRunId: null,
-    taskPhase: 'research',
-    document: { content: '# Research\n\nFindings' },
+    taskPhase: 'planning',
+    document: { content: '# Plan\n\nWhat we found' },
     ...rest,
   }
 }
 
 describe('decideRunNextStep', () => {
-  it("says fresh research is ready while it is still the task's latest artifact", () => {
-    expect(decideRunNextStep(input())).toEqual({ kind: 'research_ready', preview: '# Research\n\nFindings' })
+  it("says a fresh plan is ready while it is still the task's latest artifact", () => {
+    expect(decideRunNextStep(input())).toEqual({ kind: 'plan_ready', preview: '# Plan\n\nWhat we found' })
   })
 
-  it('says the task moved on once a plan was written', () => {
-    expect(decideRunNextStep(input({}, { taskPhase: 'planning' }))).toEqual({ kind: 'moved_on', phase: 'research' })
-  })
-
-  it('says the plan is ready until the task has a pull request', () => {
-    const plan = input({ jobKind: 'planning' }, { taskPhase: 'planning' })
-    expect(decideRunNextStep(plan).kind).toBe('plan_ready')
-    expect(decideRunNextStep({ ...plan, taskPhase: 'execution' })).toEqual({ kind: 'moved_on', phase: 'planning' })
+  it('says the task moved on once it has a pull request', () => {
+    expect(decideRunNextStep(input({}, { taskPhase: 'execution' }))).toEqual({ kind: 'moved_on' })
   })
 
   it('points at the pull request a build opened', () => {
@@ -40,16 +34,16 @@ describe('decideRunNextStep', () => {
     expect(decideRunNextStep(input({ status: 'queued' }))).toEqual({ kind: 'queued' })
   })
 
-  it('offers to run a cancelled phase again only while the task is in that phase', () => {
+  it('offers to run a cancelled plan again only while the task is still on its plan', () => {
     expect(decideRunNextStep(input({ status: 'cancelled' }))).toEqual({ kind: 'cancelled', canRunAgain: true })
-    expect(decideRunNextStep(input({ status: 'cancelled' }, { taskPhase: 'planning' }))).toEqual({
+    expect(decideRunNextStep(input({ status: 'cancelled' }, { taskPhase: 'execution' }))).toEqual({
       kind: 'cancelled',
       canRunAgain: false,
     })
   })
 
   it('asks for a review when a turn wrote the document, and says other turns answered', () => {
-    expect(decideRunNextStep(input({ agentSessionId: 'sess-1' })).kind).toBe('research_ready')
+    expect(decideRunNextStep(input({ agentSessionId: 'sess-1' })).kind).toBe('plan_ready')
 
     const noDocument = input({ agentSessionId: 'sess-1' }, { document: { content: '' } })
     expect(decideRunNextStep(noDocument)).toEqual({ kind: 'session', sessionId: 'sess-1' })

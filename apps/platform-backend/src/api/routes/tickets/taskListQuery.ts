@@ -20,7 +20,6 @@ const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
 ];
 
 const ticketWorkflowPhases: TicketWorkflowPhase[] = [
-  TICKET_WORKFLOW_PHASE.RESEARCH,
   TICKET_WORKFLOW_PHASE.PLANNING,
   TICKET_WORKFLOW_PHASE.EXECUTION,
 ];

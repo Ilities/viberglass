@@ -28,7 +28,7 @@ function setup(asked = question()) {
       getById: jest.fn().mockResolvedValue({ id: "s-1", latestPendingRequestId: "q-1" }),
       update: jest.fn().mockResolvedValue(undefined),
     },
-    turns: { getById: jest.fn().mockResolvedValue({ id: "turn-1", action: "research" }) },
+    turns: { getById: jest.fn().mockResolvedValue({ id: "turn-1", action: "plan" }) },
     asker: {
       ask: jest.fn().mockResolvedValue({
         session: { id: "s-1" },
@@ -49,12 +49,12 @@ describe("AgentQuestionAnswerService", () => {
     const { deps, service } = setup();
     await service.answer("t-1", "q-1", "u-maria", "  North  ");
 
-    expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("u-maria", "t-1", "research");
+    expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("u-maria", "t-1", "plan");
     expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "u-maria", "North");
     // Linked before the agent is asked, so the turn's prompt can say what the message answers.
     expect(deps.questions.answer.mock.invocationCallOrder[0]).toBeLessThan(deps.asker.ask.mock.invocationCallOrder[0]);
     expect(deps.questions.answer).toHaveBeenCalledWith("q-1", { by: "u-maria", text: "North", messageId: "m-1" });
-    expect(deps.asker.ask).toHaveBeenCalledWith("t-1", "u-maria", { message: "North", action: "research", agentId: "claude", postedMessageId: "m-1" });
+    expect(deps.asker.ask).toHaveBeenCalledWith("t-1", "u-maria", { message: "North", action: "plan", agentId: "claude", postedMessageId: "m-1" });
     expect(deps.sessions.update).toHaveBeenCalledWith("s-1", { latestPendingRequestId: null });
     expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "u-maria" }, "question_answered", { questionId: "q-1" });
   });

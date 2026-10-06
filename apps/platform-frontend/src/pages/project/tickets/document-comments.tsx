@@ -16,7 +16,7 @@ import { readableQuote } from './readable-quote'
 export type ApplySuggestion = (comment: PhaseDocumentCommentResponse, suggestedText: string) => Promise<void>
 
 /** A document's comments, kept current as people add and resolve them. */
-export function useDocumentComments(ticketId: string, phase: 'research' | 'planning' | null) {
+export function useDocumentComments(ticketId: string, phase: 'planning' | null) {
   const [comments, setComments] = useState<PhaseDocumentCommentResponse[]>([])
   const [isSaving, setIsSaving] = useState(false)
 

@@ -38,7 +38,7 @@ function setup(options: { canSteer?: boolean; askStatus?: string; cancelled?: st
       getInFlightAssistantTurn: jest.fn().mockResolvedValue({ id: "running", jobId: "job-running" }),
       listBySession: jest.fn().mockResolvedValue([turn()]),
     },
-    facts: { running: jest.fn().mockResolvedValue(new Map([["t-1", { action: "research", since: new Date() }]])) },
+    facts: { running: jest.fn().mockResolvedValue(new Map([["t-1", { action: "plan", since: new Date() }]])) },
     jobs: { cancel: jest.fn().mockResolvedValue(options.cancelled ?? "cancelled") },
     continuation: {
       launchForPendingMessages: jest.fn().mockResolvedValue({ currentTurn: { id: "next" }, job: { id: "job-next", status: "pending" } }),
@@ -54,7 +54,7 @@ describe("TaskSteeringService", () => {
       const { deps, service } = setup();
       const result = await service.interrupt("t-1", "u-owner", { message: "Use the new API instead" });
 
-      expect(deps.turns.ask).toHaveBeenCalledWith("t-1", "u-owner", { message: "Use the new API instead", action: "research" });
+      expect(deps.turns.ask).toHaveBeenCalledWith("t-1", "u-owner", { message: "Use the new API instead", action: "plan" });
       expect(deps.jobs.cancel).toHaveBeenCalledWith("job-running", "u-owner");
       expect(deps.continuation.launchForPendingMessages).toHaveBeenCalledWith(expect.objectContaining({ id: "s-1", status: "waiting_on_user" }));
       expect(result.job).toEqual({ id: "job-next", status: "pending" });
@@ -91,7 +91,7 @@ describe("TaskSteeringService", () => {
     it("starts a turn for what people asked while it was paused, when pausing stopped nothing", async () => {
       const { deps, service } = setup();
       deps.sessions.listByTicket.mockResolvedValue([session({ status: "paused" })]);
-      deps.agentTurns.listBySession.mockResolvedValue([turn({ id: "done", status: "completed", action: "research" })]);
+      deps.agentTurns.listBySession.mockResolvedValue([turn({ id: "done", status: "completed", action: "plan" })]);
       await service.resume("t-1", "u-owner");
 
       expect(deps.sessions.update).toHaveBeenCalledWith("s-1", { status: "waiting_on_user" });
@@ -118,9 +118,9 @@ describe("TaskSteeringService", () => {
         session({ id: "s-opencode", clankerId: "opencode", status: "paused" }),
       ]);
       const lastTurns: Record<string, ReturnType<typeof turn>> = {
-        "s-qwen": turn({ status: "failed", action: "research", createdAt: new Date("2026-10-03T08:00:00Z") }),
+        "s-qwen": turn({ status: "failed", action: "plan", createdAt: new Date("2026-10-03T08:00:00Z") }),
         "s-claude": turn({ status: "cancelled", action: "code", createdAt: new Date("2026-10-03T09:20:00Z") }),
-        "s-opencode": turn({ status: "failed", action: "research", createdAt: new Date("2026-10-03T08:30:00Z") }),
+        "s-opencode": turn({ status: "failed", action: "plan", createdAt: new Date("2026-10-03T08:30:00Z") }),
       };
       deps.agentTurns.listBySession.mockImplementation(async (id: string) => [lastTurns[id]]);
 

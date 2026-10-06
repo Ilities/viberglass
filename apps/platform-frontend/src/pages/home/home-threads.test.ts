@@ -40,7 +40,7 @@ describe('Home threads', () => {
 describe('Home rows', () => {
   const situation = (waitingOn: HomeThread['situation']['waitingOn'], state: HomeThread['situation']['state'] = 'artifact_ready') => ({
     state,
-    label: 'Research v2 ready',
+    label: 'Plan v2 ready',
     waitingOn,
     since: 't',
     yourMove: false,

@@ -1,7 +1,7 @@
 import { isObjectRecord, type TaskTurnOutcome, type TaskTurnProduct } from "@viberglass/types";
 import type { JsonValue } from "../types/database";
 
-const PRODUCTS: readonly TaskTurnProduct[] = ["research", "plan", "code", "summary"];
+const PRODUCTS: readonly TaskTurnProduct[] = ["plan", "code", "summary"];
 
 /** The outcome a finished turn stored (TaskTurnOutcomeService); null before it finished, or for turns from before turns had one. */
 export function outcomeOf(json: JsonValue | null): TaskTurnOutcome | null {

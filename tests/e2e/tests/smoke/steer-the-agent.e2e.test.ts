@@ -1,5 +1,5 @@
 import { expect, test } from "../../playwright/smokeFixtures";
-import { askAgent, createTask, planDocument, researchDocument, runStatus, timeline } from "../../playwright/tasks";
+import { askAgent, createTask, planDocument, runStatus, timeline } from "../../playwright/tasks";
 import { isWorkerContainerRunning } from "../../playwright/workerContainers";
 
 /** Opens the task once its worker is up; a new container can abort the page's loads, so this retries. */
@@ -21,19 +21,19 @@ test("the owner interrupts the agent with a new instruction, then pauses it and 
   const url = `/spaces/${workspace.projectSlug}/tasks/${task.id}`;
   const thread = page.getByRole("region", { name: "Thread" });
 
-  // A slow research turn, interrupted with a new instruction: it stops, and the next turn has the instruction.
-  const first = await askAgent(adminApi, task.id, { action: "research", body: "Write the research. [fake:sleep=15]", agentId: workspace.clankerId });
+  // A slow plan turn, interrupted with a new instruction: it stops, and the next turn has the instruction.
+  const first = await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan. [fake:sleep=15]", agentId: workspace.clankerId });
   await expect.poll(() => isWorkerContainerRunning(first.jobId), { timeout: 30_000 }).toBe(true);
   await openTask(page, url, thread.getByRole("button", { name: "Pause the agent" }));
   await thread.getByRole("textbox", { name: "Write a message" }).fill("Cover the farewell function too.");
   await thread.getByRole("button", { name: "Interrupt with this" }).click();
 
   await expect.poll(() => runStatus(adminApi, first.jobId)).toBe("cancelled");
-  await expect(thread.getByText("Research v1")).toBeVisible({ timeout: 120_000 });
-  expect(await researchDocument(adminApi, task.id)).toContain("Cover the farewell function too.");
+  await expect(thread.getByText("Plan v1")).toBeVisible({ timeout: 120_000 });
+  expect(await planDocument(adminApi, task.id)).toContain("Cover the farewell function too.");
 
-  // Paused mid-plan: the run stops and asks wait; carrying on finishes the plan.
-  const plan = await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan. [fake:sleep=15]" });
+  // Paused mid-revision: the run stops and asks wait; carrying on finishes the plan.
+  const plan = await askAgent(adminApi, task.id, { action: "plan", body: "Revise the plan. [fake:sleep=15]" });
   await expect.poll(() => isWorkerContainerRunning(plan.jobId), { timeout: 30_000 }).toBe(true);
   await openTask(page, url, thread.getByRole("button", { name: "Pause the agent" }));
   await thread.getByRole("button", { name: "Pause the agent" }).click();
@@ -46,7 +46,7 @@ test("the owner interrupts the agent with a new instruction, then pauses it and 
   );
 
   await pausedCard.getByRole("button", { name: "Let it carry on" }).click();
-  await expect(thread.getByText("Plan v1")).toBeVisible({ timeout: 120_000 });
+  await expect(thread.getByText("Plan v2")).toBeVisible({ timeout: 120_000 });
   // The message sent while it was paused reached the agent with the plan.
   expect(await planDocument(adminApi, task.id)).toContain("mention the docs folder");
   const recorded = JSON.stringify(await timeline(adminApi, task.id));

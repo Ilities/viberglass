@@ -35,7 +35,6 @@ interface Dependencies {
 }
 
 const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
-const DOCUMENT_STEP = { research: TICKET_WORKFLOW_PHASE.RESEARCH, plan: TICKET_WORKFLOW_PHASE.PLANNING } as const;
 
 /**
  * Keeps a task's Slack thread in step with its thread in Viberglass: what
@@ -66,7 +65,7 @@ export class TaskSlackMirror implements ActivityListener {
   }
 
   private async postsFor({ ticketId, kind, payload }: RecordedActivity): Promise<Postable[]> {
-    const step = text(payload.step) ?? "research";
+    const step = text(payload.step) ?? TICKET_WORKFLOW_PHASE.PLANNING;
     switch (kind) {
       case "message_posted": {
         const message = this.deps.fromSlack() ? null : await this.deps.messages.getById(text(payload.messageId) ?? "");
@@ -115,7 +114,7 @@ export class TaskSlackMirror implements ActivityListener {
   private async productPosts(ticketId: string, product: TaskTurnProduct, pullRequestUrl: string | null): Promise<Postable[]> {
     if (product === "code") return pullRequestUrl ? [{ markdown: `**Pull request:** ${pullRequestUrl}` }] : [];
     if (product === "summary") return [];
-    const document = await this.deps.documents.getOrCreateDocument(ticketId, DOCUMENT_STEP[product]);
-    return document.content.trim() ? [documentPost(product, document.content, null)] : [];
+    const document = await this.deps.documents.getOrCreateDocument(ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
+    return document.content.trim() ? [documentPost(document.content, null)] : [];
   }
 }

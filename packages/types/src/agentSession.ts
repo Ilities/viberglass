@@ -3,7 +3,6 @@
  */
 
 export const AGENT_SESSION_MODE = {
-  RESEARCH: "research",
   PLANNING: "planning",
   EXECUTION: "execution",
 } as const;

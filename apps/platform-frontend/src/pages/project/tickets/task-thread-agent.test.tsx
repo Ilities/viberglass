@@ -62,9 +62,9 @@ const CLAUDE_RUNNER: Clanker = {
 
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
-  documents: { research: { content: '# Research' }, planning: { content: '' } },
+  documents: { planning: { content: '# Plan' } },
   capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
-  newComments: { research: 1, planning: 0 },
+  newComments: { planning: 1 },
   agentWorking: false,
 }
 
@@ -107,12 +107,12 @@ function agentTurn(overrides: Partial<Extract<TaskTimelineEntry, { kind: 'agent_
     id: 'turn-1',
     at: '2026-10-01T10:08:00Z',
     agent: { id: CLAUDE, name: 'Claude' },
-    action: 'research',
+    action: 'plan',
     status: 'completed',
     outcome: {
-      intent: 'Revising the research: covering the checkout',
-      reply: 'Revising the research: covering the checkout\n\nI added a section on the checkout flow.',
-      produced: ['research'],
+      intent: 'Revising the plan: covering the checkout',
+      reply: 'Revising the plan: covering the checkout\n\nI added a section on the checkout flow.',
+      produced: ['plan'],
       codeDiscarded: false,
       resumed: true,
     },
