@@ -1,6 +1,6 @@
 # 04 · Rented GPU models
 
-An open-weight model served from a GPU you rent, used by agents through a workspace model endpoint. Viberglass can't create or manage GPU deployments yet (the "model deployments" phase of [../../model-hosting-plan.md](../../model-hosting-plan.md) isn't built), so you set the server up by hand and point an endpoint at it. Bedrock role auth isn't built either.
+An open-weight model served from a GPU you rent, used by agents through a workspace model endpoint. Viberglass deploys models to Verda itself ([Viberglass-created deployments](#viberglass-created-deployments-verda)); for any other provider you set the server up by hand and point an endpoint at it ([Tests (GPU)](#tests-gpu)). Background: [../../model-hosting-plan.md](../../model-hosting-plan.md).
 
 **Stop or delete the GPU when you finish.** A running GPU bills by the hour.
 
@@ -8,6 +8,7 @@ An open-weight model served from a GPU you rent, used by agents through a worksp
 
 - [Choosing a model and a provider](#choosing-a-model-and-a-provider)
 - [Tests (GPU)](#tests-gpu)
+- [Viberglass-created deployments (Verda)](#viberglass-created-deployments-verda)
 - [Not available yet](#not-available-yet)
 
 ## Choosing a model and a provider
@@ -55,7 +56,7 @@ Expect: "Waking …" progress until the model answers, then the run continues. R
 Expect: both complete; record throughput and whether the GPU queued requests.
 
 ### GPU-06 · Bedrock through an API key (optional)
-1. Create a Bedrock API key; add an endpoint with Bedrock's OpenAI-compatible base URL for your region, bearer auth.
+1. Create a Bedrock API key; add an endpoint with base URL `https://bedrock-runtime.<region>.amazonaws.com/openai/v1`, Chat Completions, bearer auth with the key. **Check** should discover models; otherwise type one, e.g. `openai.gpt-oss-120b`.
 2. Run a task on OpenCode.
 
 Expect: if it works, record it as the first validation of this path; it hasn't been tested.
@@ -65,6 +66,42 @@ Expect: if it works, record it as the first validation of this path; it hasn't b
 
 Expect: no running GPU left in the provider console.
 
+## Viberglass-created deployments (Verda)
+
+Needs: a Verda account **with a positive balance**, a Cloud API credential (client ID and secret) and an Inference API key, both from Keys in the Verda console. A cheap first pass: `Qwen/Qwen3-8B` on one L40S (€1.52/h) through **Any Hugging Face model**, with the default serving arguments.
+
+### DEP-01 · Cloud account
+1. Settings → Secrets → Cloud accounts → **Add account**; enter the client ID, client secret and inference key.
+
+Expect: the account is listed with its client ID; none of its credentials appear under Model keys or Other secrets.
+
+### DEP-02 · Deploy from a recipe
+1. Settings → Model deployments → **Deploy a model**; pick the account, **From vLLM Recipes**, a model such as `openai/gpt-oss-20b`.
+
+Expect: the GPU list holds only GPUs the recipe lists (H100, H200…), with prices; picking one fills the serving arguments, including the tool-call parser.
+
+### DEP-03 · Deploy any model and wait for the first start
+1. Deploy `Qwen/Qwen3-8B` on L40S through **Any Hugging Face model**.
+2. Watch the row; the page refreshes itself while it starts.
+
+Expect: the row goes from Creating to Idle · scaled to zero; the Verda console shows the deployment with 0–1 replicas.
+
+### DEP-04 · A run wakes the deployment
+1. Point an OpenCode runner at the deployment's endpoint (Model section → Custom endpoints).
+2. Start a research task while the deployment is idle.
+
+Expect: the run shows "Waking …", then completes; the row shows Running during the run and Idle again about five minutes after. Record the wake time.
+
+### DEP-05 · Keep warm, stop, start
+1. Change the mode to **Keep warm**; then **Stop**; start a task on the runner; then **Start**.
+
+Expect: Keep warm shows the hourly price and a replica stays up. While stopped, the task fails at once with "<name> is stopped. Start it or pick another endpoint." Start returns it to scale-to-zero.
+
+### DEP-06 · Delete
+1. Try deleting while the runner uses it; move the runner to another model; delete.
+
+Expect: the first attempt is refused, naming the runner. After deletion, the Verda console shows no deployment and no `*-hf-token` secret, and the endpoint is gone from the runner form.
+
 ## Not available yet
 
-Mark these `n/a`: Viberglass-created GPU deployments (Verda containers, OVH AI Deploy), keep-warm/stop controls, the job waking a stopped deployment, Bedrock SigV4 with the ECS task role.
+Mark these `n/a`: OVH AI Deploy deployments, Bedrock with the ECS task role (replaced by GPU-06).

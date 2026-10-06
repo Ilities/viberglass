@@ -13,6 +13,7 @@ function section(pathname: string, heading: string, items: Array<{ name: string;
 
 const ADVANCED = [
   { name: 'Agents & runners', href: '/settings/agents' },
+  { name: 'Model deployments', href: '/settings/model-deployments' },
   { name: 'MCP servers', href: '/settings/mcp-servers' },
   { name: 'Skills', href: '/settings/skills' },
   { name: 'Connections', href: '/settings/connections' },

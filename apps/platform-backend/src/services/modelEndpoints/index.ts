@@ -5,6 +5,8 @@ import { SecretService } from "../SecretService";
 import { ModelEndpointService } from "./ModelEndpointService";
 import { ModelEndpointChecker } from "./ModelEndpointChecker";
 import { RunnerModelEndpointResolver } from "./RunnerModelEndpointResolver";
+import { ModelEndpointWaker } from "./ModelEndpointWaker";
+import { ModelDeploymentDAO } from "../../persistence/modelHosting/ModelDeploymentDAO";
 
 export const modelEndpoints = new ModelEndpointService(
   new ModelEndpointDAO(),
@@ -15,4 +17,5 @@ export const modelEndpointChecker = new ModelEndpointChecker(
 );
 export const runnerModelEndpoints = new RunnerModelEndpointResolver(
   modelEndpoints,
+  new ModelEndpointWaker(new ModelDeploymentDAO(), new SecretService()),
 );

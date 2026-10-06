@@ -10,6 +10,7 @@ on:
       - 'apps/platform-backend/**'
       - 'packages/types/**'
       - 'packages/chat-slack/**'
+      - 'packages/model-hosting-verda/**'
       - '.github/workflows/deploy-backend-dev.yml'
       - 'apps/platform-backend/Dockerfile.prod'
 

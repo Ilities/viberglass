@@ -44,7 +44,11 @@ function toEndpoint(
   };
 }
 
-function values(input: ModelEndpointInput) {
+/** Row values for an endpoint; a deployment's endpoint carries its id. */
+export function modelEndpointValues(
+  input: ModelEndpointInput,
+  deploymentId: string | null = null,
+) {
   return {
     name: input.name,
     base_url: input.baseUrl.replace(/\/+$/, ""),
@@ -54,7 +58,8 @@ function values(input: ModelEndpointInput) {
     extra_headers: JSON.stringify(input.extraHeaders),
     models: JSON.stringify(input.models),
     may_cold_start: input.mayColdStart,
-    deployment_id: null,
+    source: deploymentId ? ("deployment" as const) : ("manual" as const),
+    deployment_id: deploymentId,
   };
 }
 
@@ -82,7 +87,7 @@ export class ModelEndpointDAO {
     return toEndpoint(
       await db
         .insertInto("model_endpoints")
-        .values(values(input))
+        .values(modelEndpointValues(input))
         .returningAll()
         .executeTakeFirstOrThrow(),
     );
@@ -94,7 +99,7 @@ export class ModelEndpointDAO {
   ): Promise<ModelEndpoint | null> {
     const row = await db
       .updateTable("model_endpoints")
-      .set({ ...values(input), updated_at: new Date() })
+      .set({ ...modelEndpointValues(input), updated_at: new Date() })
       .where("id", "=", id)
       .where("source", "=", "manual")
       .returningAll()

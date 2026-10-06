@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { isModelProviderId, type ModelProviderId, type SecretPurpose } from "@viberglass/types";
+import { isModelProviderId, isSecretPurpose, type ModelProviderId, type SecretPurpose } from "@viberglass/types";
 import db from "../config/database";
 
 export type SecretLocation = "env" | "database" | "ssm";
@@ -185,7 +185,7 @@ export class SecretDAO {
         : null,
       sourceEnvVar: row.source_env_var ? String(row.source_env_var) : null,
       provider: typeof row.provider === "string" && isModelProviderId(row.provider) ? row.provider : null,
-      purpose: row.purpose === "codex_login" ? row.purpose : null,
+      purpose: isSecretPurpose(row.purpose) ? row.purpose : null,
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,
     };

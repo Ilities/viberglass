@@ -23,6 +23,7 @@ import { getClankers, type Clanker } from '@/service/api/clanker-api'
 import { summarizeRunner } from '@/pages/clankers/config/runnerSummary'
 import { SecretsTable } from './secrets-table'
 import { SsmPathField } from './ssm-path-field'
+import { CloudAccountsSection } from './cloud-accounts-section'
 import { ENV_VAR_NAME_PATTERN, MODEL_PROVIDERS, type ModelProviderId } from '@viberglass/types'
 
 type SecretFormState = {
@@ -293,6 +294,8 @@ export function SecretsPage() {
           )}
         </>
       )}
+
+      <CloudAccountsSection />
 
       <Dialog open={dialogOpen} onClose={closeDialog} size="lg">
         <form onSubmit={handleSubmit}>
