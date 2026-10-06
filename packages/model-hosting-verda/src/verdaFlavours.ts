@@ -6,6 +6,8 @@ const RECIPE_HARDWARE: Record<string, string> = {
   H200: 'h200',
   B200: 'b200',
   B300: 'b300',
+  'RTX PRO 6000': 'rtx_pro_6000',
+  L40S: 'l40s',
 }
 
 export interface VerdaComputeResource {

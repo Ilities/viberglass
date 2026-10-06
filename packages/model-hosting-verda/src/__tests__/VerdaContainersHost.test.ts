@@ -130,6 +130,9 @@ describe('Verda status', () => {
     ['paused', [], 'stopped'],
     ['healthy', [], 'idle'],
     ['healthy', ['initializing'], 'waking'],
+    ['unhealthy', ['unavailable'], 'waking'],
+    ['unhealthy', ['imagepulling'], 'waking'],
+    ['unhealthy', [], 'failed'],
     ['healthy', ['running'], 'running'],
     ['initializing', [], 'creating'],
     ['quota_reached', [], 'failed'],
@@ -183,7 +186,7 @@ describe('Verda flavours', () => {
         pricePerHour: 1.52,
         currency: 'EUR',
         available: false,
-        recipeHardware: null,
+        recipeHardware: 'l40s',
       },
       {
         id: 'H100',
