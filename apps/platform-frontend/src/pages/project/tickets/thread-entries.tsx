@@ -5,7 +5,7 @@ import { describeActivity } from './activity-sentence'
 import { MessageBody } from './message-body'
 import { ThreadItem } from './thread-item'
 
-const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { research: 'Research', plan: 'Plan' }
+const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { plan: 'Plan' }
 
 /** What someone wrote in the thread, or to the agent in its session. */
 export function MessageEntry({ entry }: { entry: Extract<TaskTimelineEntry, { kind: 'message' }> }) {

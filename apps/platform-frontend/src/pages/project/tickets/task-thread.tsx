@@ -19,7 +19,7 @@ import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions
 import { EventEntry, MessageEntry, VersionEntry } from './thread-entries'
 import { summaryFacts } from './thread-summaries'
 
-const ARTIFACT_STEP: Record<TaskArtifactKind, 'research' | 'planning'> = { research: 'research', plan: 'planning' }
+const ARTIFACT_STEP: Record<TaskArtifactKind, 'planning'> = { plan: 'planning' }
 
 interface TaskThreadProps {
   taskId: string
@@ -28,9 +28,9 @@ interface TaskThreadProps {
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
   refreshKey: string
   /** Opens a document at a version; null opens its current version, where people comment and edit. */
-  onOpenArtifact: (step: 'research' | 'planning', version: number | null) => void
+  onOpenArtifact: (step: 'planning', version: number | null) => void
   /** Opens a document's comments. */
-  onOpenComments?: (step: 'research' | 'planning') => void
+  onOpenComments?: (step: 'planning') => void
   /** The agents a message can ask, the one already on the task first. */
   agents: Mentionable[]
   /** What the suggested actions are worked out from; the latest turn comes from the thread. */

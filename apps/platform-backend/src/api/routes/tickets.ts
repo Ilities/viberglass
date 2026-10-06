@@ -9,7 +9,6 @@ import { TicketPhaseDocumentCommentService } from "../../services/TicketPhaseDoc
 import { TicketPhaseDocumentRevisionService } from "../../services/TicketPhaseDocumentRevisionService";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
 import { TicketPlanningService } from "../../services/TicketPlanningService";
-import { TicketResearchService } from "../../services/TicketResearchService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 import { requireAuth } from "../middleware/authentication";
 import { validateUuidParam } from "../middleware/validation";
@@ -64,7 +63,6 @@ const ticketPhaseDocumentRevisionService =
 const ticketPhaseDocumentCommentService =
   new TicketPhaseDocumentCommentService();
 
-const ticketResearchService = new TicketResearchService();
 const ticketPlanningService = new TicketPlanningService();
 
 router.use(requireAuth);
@@ -170,7 +168,6 @@ registerTicketWorkflowPhaseRoutes(router, {
   ticketWorkflowService,
   ticketPhaseDocumentService,
   ticketPhaseDocumentRevisionService,
-  ticketResearchService,
   ticketPlanningService,
 });
 registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });

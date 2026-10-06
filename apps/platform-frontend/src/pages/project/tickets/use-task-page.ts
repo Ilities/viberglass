@@ -4,7 +4,6 @@ import { listSessionsForTicket, type AgentSession } from '@/service/api/session-
 import {
   getPhaseDocumentComments,
   getPlanningPhase,
-  getResearchDocument,
   getTaskByKey,
   type PhaseDocumentResponse,
 } from '@/service/api/ticket-api'
@@ -17,9 +16,9 @@ export interface TaskPageData {
   clankers: Clanker[]
   /** Newest first. */
   runs: JobListItem[]
-  documents: { research: PhaseDocumentResponse; planning: PhaseDocumentResponse }
-  /** Open comments on each document made since its latest version. */
-  newComments: { research: number; planning: number }
+  documents: { planning: PhaseDocumentResponse }
+  /** Open comments on the plan made since its latest version. */
+  newComments: { planning: number }
   sessions: AgentSession[]
   /** What the person may ask the agent for; null if it couldn't be loaded, so nothing is offered. */
   capabilities: TaskCapabilities | null
@@ -30,12 +29,10 @@ const POLL_MS = 5000
 const WORKING_SESSION = ['active']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {
-  const [ticket, runs, research, planning, researchComments, planComments, sessions] = await Promise.all([
+  const [ticket, runs, planning, planComments, sessions] = await Promise.all([
     getTicketDetails(id),
     getJobs({ ticketId: id, limit: 50 }),
-    getResearchDocument(id),
     getPlanningPhase(id),
-    getPhaseDocumentComments(id, 'research').catch(() => []),
     getPhaseDocumentComments(id, 'planning').catch(() => []),
     listSessionsForTicket(id),
   ])
@@ -43,11 +40,8 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
   return {
     ticket,
     runs: runs.jobs,
-    documents: { research: research.document, planning: planning.document },
-    newComments: {
-      research: countNewComments(researchComments, research.document.updatedAt),
-      planning: countNewComments(planComments, planning.document.updatedAt),
-    },
+    documents: { planning: planning.document },
+    newComments: { planning: countNewComments(planComments, planning.document.updatedAt) },
     sessions,
     capabilities: ticket.capabilities ?? null,
   }
@@ -116,7 +110,7 @@ export function useTaskPage(routeId: string | undefined) {
     []
   )
   const setDocument = useCallback(
-    (step: 'research' | 'planning', document: PhaseDocumentResponse) =>
+    (step: 'planning', document: PhaseDocumentResponse) =>
       setData((previous) => (previous ? { ...previous, documents: { ...previous.documents, [step]: document } } : null)),
     []
   )

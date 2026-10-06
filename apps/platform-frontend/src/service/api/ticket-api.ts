@@ -285,7 +285,7 @@ export interface PhaseDocumentCommentResponse {
   id: string
   documentId: string
   ticketId: string
-  phase: 'research' | 'planning'
+  phase: 'planning'
   /** Where the comment is in the document now, else the line it was placed on. */
   lineNumber: number
   quote: TextQuote | null
@@ -300,50 +300,6 @@ export interface PhaseDocumentCommentResponse {
   resolvedBy: string | null
   createdAt: string
   updatedAt: string
-}
-
-export interface ResearchRunResponse {
-  id: string
-  jobId: string
-  status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
-  clankerId: string
-  clankerName: string | null
-  clankerSlug: string | null
-  createdAt: string
-  startedAt: string | null
-  finishedAt: string | null
-}
-
-export interface ResearchPhaseResponse {
-  document: PhaseDocumentResponse
-  latestRun: ResearchRunResponse | null
-}
-
-export async function getResearchDocument(ticketId: string): Promise<ResearchPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research`)
-  if (!response.ok) {
-    if (response.status === 404) throw new Error('Task not found')
-    throw new Error('Failed to fetch research document')
-  }
-  const data: ApiResponse<ResearchPhaseResponse> = await response.json()
-  return data.data
-}
-
-export async function saveResearchDocument(
-  ticketId: string,
-  content: string,
-): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/document`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to save research document')
-  }
-  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
-  return data.data
 }
 
 export async function getPhaseDocumentRevisions(
@@ -361,7 +317,7 @@ export async function getPhaseDocumentRevisions(
 
 export async function getPhaseDocumentComments(
   ticketId: string,
-  phase: 'research' | 'planning',
+  phase: 'planning',
 ): Promise<PhaseDocumentCommentResponse[]> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`)
   if (!response.ok) {
@@ -374,7 +330,7 @@ export async function getPhaseDocumentComments(
 
 export async function createPhaseDocumentComment(
   ticketId: string,
-  phase: 'research' | 'planning',
+  phase: 'planning',
   payload: { quote: TextQuote; content: string },
 ): Promise<PhaseDocumentCommentResponse> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`, {
@@ -392,7 +348,7 @@ export async function createPhaseDocumentComment(
 
 export async function updatePhaseDocumentComment(
   ticketId: string,
-  phase: 'research' | 'planning',
+  phase: 'planning',
   commentId: string,
   payload: { content?: string; status?: PhaseDocumentCommentStatus },
 ): Promise<PhaseDocumentCommentResponse> {

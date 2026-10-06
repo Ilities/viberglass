@@ -13,7 +13,7 @@ export function testTask(id: string, situation: Partial<TaskSituation> = {}, ext
     severity: 'medium',
     category: 'General',
     status: 'open',
-    workflowPhase: 'research',
+    workflowPhase: 'planning',
     metadata: { timestamp: at, timezone: 'UTC' },
     annotations: [],
     ticketSystem: 'custom',

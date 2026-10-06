@@ -14,7 +14,7 @@ export interface CorpusRecord {
   jobId: string;
   jobKind: string;
   /**
-   * The task the run worked on — the sampling unit. A ticket's research,
+   * The task the run worked on — the sampling unit. A ticket's
    * planning, execution and retried runs share it. Null for runs with no
    * ticket, such as claws.
    */

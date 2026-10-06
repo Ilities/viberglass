@@ -12,7 +12,6 @@ export interface SpaceFilters extends SituationFilters {
 }
 
 const ARTIFACT_LABEL: Record<TicketWorkflowPhase, string> = {
-  [TICKET_WORKFLOW_PHASE.RESEARCH]: 'Research',
   [TICKET_WORKFLOW_PHASE.PLANNING]: 'Plan',
   [TICKET_WORKFLOW_PHASE.EXECUTION]: 'Code',
 }

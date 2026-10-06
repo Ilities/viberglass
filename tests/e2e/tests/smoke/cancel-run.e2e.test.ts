@@ -1,4 +1,4 @@
-import { askAgent, researchDocument, runStatus, createTask, startResearch } from "../../playwright/tasks";
+import { askAgent, planDocument, runStatus, createTask, startPlan } from "../../playwright/tasks";
 import { isWorkerContainerRunning } from "../../playwright/workerContainers";
 import { expect, test } from "../../playwright/smokeFixtures";
 
@@ -9,7 +9,7 @@ test("cancelling a run stops the agent and keeps the run cancelled", async ({
 }) => {
   // The fake agent sleeps long enough to be cancelled mid-run.
   const task = await createTask(adminApi, workspace.projectId, "Take your time. [fake:sleep=60]");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => isWorkerContainerRunning(jobId), { timeout: 30_000 }).toBe(true);
 
   // Starting a container changes the host's network interfaces, and Chromium
@@ -28,14 +28,14 @@ test("cancelling a run stops the agent and keeps the run cancelled", async ({
   // Nothing arrives late: the run stays cancelled and no document is written.
   await page.waitForTimeout(3_000);
   expect(await runStatus(adminApi, jobId)).toBe("cancelled");
-  expect(await researchDocument(adminApi, task.id)).toBe("");
+  expect(await planDocument(adminApi, task.id)).toBe("");
 });
 
-test("a run stopped partway keeps the research it had written, and says who stopped it", async ({ adminApi, adminPage: page, workspace }) => {
+test("a run stopped partway keeps the plan it had written, and says who stopped it", async ({ adminApi, adminPage: page, workspace }) => {
   test.setTimeout(120_000);
   const task = await createTask(adminApi, workspace.projectId, "Explain greeting.js.");
-  // The fake agent writes the research, then keeps working.
-  const run = await askAgent(adminApi, task.id, { action: "research", body: "Write the research. [fake:sleep-after=90]", agentId: workspace.clankerId });
+  // The fake agent writes the plan, then keeps working.
+  const run = await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan. [fake:sleep-after=90]", agentId: workspace.clankerId });
   await expect.poll(() => isWorkerContainerRunning(run.jobId), { timeout: 30_000 }).toBe(true);
   await page.waitForTimeout(8_000);
 
@@ -48,10 +48,10 @@ test("a run stopped partway keeps the research it had written, and says who stop
   await page.getByRole("alertdialog").getByRole("button", { name: "Stop agent" }).click();
 
   await expect.poll(() => runStatus(adminApi, run.jobId)).toBe("cancelled");
-  await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 30_000 }).toContain("# Fake Research");
+  await expect.poll(() => planDocument(adminApi, task.id), { timeout: 30_000 }).toContain("# Fake Plan");
   await page.reload();
-  await expect(thread.getByRole("listitem", { name: "Fake Agent's turn" })).toContainText("It kept the research it had written.");
-  await expect(thread.getByRole("button", { name: "Open Research v1" })).toBeVisible();
+  await expect(thread.getByRole("listitem", { name: "Fake Agent's turn" })).toContainText("It kept the plan it had written.");
+  await expect(thread.getByRole("button", { name: "Open Plan v1" })).toBeVisible();
 
   // The stopped container changes the host's network, which can abort a load; retry it.
   await expect(async () => {

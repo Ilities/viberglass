@@ -21,8 +21,8 @@ describe('audit entry text', () => {
     expect(auditSentence(entry({ actor: null, actorKind: 'system', action: 'run.started', details: { via: 'slack', slackUserId: 'U999' } }))).toBe(
       'Slack user U999 started a run'
     )
-    expect(auditDetails(entry({ action: 'run.started', details: { step: 'research', via: 'slack', slackUserId: 'U1' } }), () => '')).toEqual([
-      'the research',
+    expect(auditDetails(entry({ action: 'run.started', details: { step: 'planning', via: 'slack', slackUserId: 'U1' } }), () => '')).toEqual([
+      'the plan',
       'from Slack',
     ])
   })

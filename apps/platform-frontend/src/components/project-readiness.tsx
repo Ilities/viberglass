@@ -90,7 +90,7 @@ export function ProjectReadinessBanner({
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-warning-950 dark:text-warning-100">Automation needs setup</h2>
           <p className="mt-1 text-sm text-warning-900/80 dark:text-warning-200/80">
-            You can submit tasks now. Complete these items before starting research or execution.
+            You can submit tasks now. Complete these items before asking an agent for a plan or a build.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
     {incomplete.map((check: ProjectReadiness['checks'][number]) => (

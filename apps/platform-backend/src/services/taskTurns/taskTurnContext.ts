@@ -39,7 +39,7 @@ export interface TaskTurnContext {
     externalTicketId: string | null;
     pullRequestUrl: string | null;
   };
-  documents: { research: string; plan: string };
+  documents: { plan: string };
   people: TurnPerson[];
   /** The last commit an agent's build pushed to the task's branch; what people pushed since is news to it. */
   lastAgentCommit: string | null;

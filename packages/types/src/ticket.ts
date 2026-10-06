@@ -17,7 +17,6 @@ export const TICKET_STATUS = {
 export type TicketLifecycleStatus = (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS]
 
 export const TICKET_WORKFLOW_PHASE = {
-  RESEARCH: 'research',
   PLANNING: 'planning',
   EXECUTION: 'execution',
 } as const
@@ -233,7 +232,6 @@ export interface TicketStats {
   inProgress: number
   inReview: number
   byPhase: {
-    research: number
     planning: number
     execution: number
   }

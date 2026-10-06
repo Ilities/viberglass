@@ -4,12 +4,12 @@ import { HandoffCard } from './handoff-card'
 describe('HandoffCard', () => {
   it('shows the moves on offer beside the card', () => {
     render(
-      <HandoffCard owner="you" eyebrow="Your move · research ready" title="Review the research" actions={<button>Approve</button>}>
+      <HandoffCard owner="you" eyebrow="Your move · plan ready" title="Read the plan" actions={<button>Approve</button>}>
         Preview
       </HandoffCard>
     )
 
-    expect(screen.getByRole('region', { name: 'Your move · research ready' })).toHaveTextContent('Review the research')
+    expect(screen.getByRole('region', { name: 'Your move · plan ready' })).toHaveTextContent('Read the plan')
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
   })
 

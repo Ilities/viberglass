@@ -12,7 +12,7 @@ function revision(version: number, content: string, source: 'agent' | 'manual' =
     id: `r-${version}`,
     documentId: 'd-1',
     ticketId: 't-1',
-    phase: 'research',
+    phase: 'planning',
     content,
     source,
     actor: source === 'manual' ? 'u-1' : null,
@@ -27,7 +27,7 @@ describe('DocumentVersion', () => {
   })
 
   it('shows the version it was opened at, not the current text', async () => {
-    render(<DocumentVersion ticketId="t-1" step="research" version={1} onShowCurrent={jest.fn()} />)
+    render(<DocumentVersion ticketId="t-1" step="planning" version={1} onShowCurrent={jest.fn()} />)
 
     expect(await screen.findByText('Return hello.')).toBeInTheDocument()
     expect(screen.queryByText('Return Welcome to Acme.')).not.toBeInTheDocument()
@@ -36,7 +36,7 @@ describe('DocumentVersion', () => {
   })
 
   it('compares an older version with the current one', async () => {
-    render(<DocumentVersion ticketId="t-1" step="research" version={1} onShowCurrent={jest.fn()} />)
+    render(<DocumentVersion ticketId="t-1" step="planning" version={1} onShowCurrent={jest.fn()} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Compare with current' }))
     expect(screen.getByText('Return hello.')).toHaveClass('line-through', { exact: false })
@@ -45,7 +45,7 @@ describe('DocumentVersion', () => {
 
   it('names who edited a version, and leads back to the current document', async () => {
     const onShowCurrent = jest.fn()
-    render(<DocumentVersion ticketId="t-1" step="research" version={2} onShowCurrent={onShowCurrent} />)
+    render(<DocumentVersion ticketId="t-1" step="planning" version={2} onShowCurrent={onShowCurrent} />)
 
     expect(await screen.findByText(/Edited by Maria/)).toBeInTheDocument()
     expect(screen.getByText('Current')).toBeInTheDocument()
@@ -54,7 +54,7 @@ describe('DocumentVersion', () => {
   })
 
   it("says so when the version doesn't exist", async () => {
-    render(<DocumentVersion ticketId="t-1" step="research" version={7} onShowCurrent={jest.fn()} />)
-    expect(await screen.findByText("Research v7 isn't available.")).toBeInTheDocument()
+    render(<DocumentVersion ticketId="t-1" step="planning" version={7} onShowCurrent={jest.fn()} />)
+    expect(await screen.findByText("Plan v7 isn't available.")).toBeInTheDocument()
   })
 })

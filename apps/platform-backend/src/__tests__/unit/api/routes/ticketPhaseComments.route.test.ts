@@ -92,7 +92,7 @@ describe("ticket phase comment routes", () => {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
+        phase: "planning",
         lineNumber: 2,
         content: "Clarify this point",
         status: "open",
@@ -112,7 +112,7 @@ describe("ticket phase comment routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "research",
+        phase: "planning",
       },
     };
     const res = {
@@ -124,7 +124,7 @@ describe("ticket phase comment routes", () => {
 
     expect(
       mockTicketPhaseDocumentCommentService.listComments,
-    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "research");
+    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "planning");
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       data: [
@@ -132,7 +132,7 @@ describe("ticket phase comment routes", () => {
           id: "comment-1",
           documentId: "doc-1",
           ticketId: "ticket-1",
-          phase: "research",
+          phase: "planning",
           lineNumber: 2,
           content: "Clarify this point",
           status: "open",
@@ -204,7 +204,7 @@ describe("ticket phase comment routes", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "research",
+      phase: "planning",
       lineNumber: 2,
       content: "Clarify this point",
       status: "resolved",
@@ -226,7 +226,7 @@ describe("ticket phase comment routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "research",
+        phase: "planning",
         commentId: "22222222-2222-4222-8222-222222222222",
       },
       body: {
@@ -249,7 +249,7 @@ describe("ticket phase comment routes", () => {
       mockTicketPhaseDocumentCommentService.updateComment,
     ).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
-      "research",
+      "planning",
       "22222222-2222-4222-8222-222222222222",
       {
         content: undefined,
@@ -280,7 +280,7 @@ describe("ticket phase comment routes", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Comments are only supported for research and planning phases",
+      error: "Comments are only supported on the plan",
     });
   });
 });

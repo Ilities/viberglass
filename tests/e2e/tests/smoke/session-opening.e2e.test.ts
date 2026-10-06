@@ -1,8 +1,8 @@
 import {
   createTask,
-  researchDocument,
+  planDocument,
   sessionStatus,
-  startLiveResearchSession,
+  startLivePlanSession,
 } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
@@ -13,7 +13,7 @@ test("a session opens with what the person wrote, which reaches the agent and sh
 }) => {
   const opening = "OPENING NOTE: start from the greeting function";
   const task = await createTask(adminApi, workspace.projectId, "Explain how greeting.js works.");
-  const { sessionId } = await startLiveResearchSession(
+  const { sessionId } = await startLivePlanSession(
     adminApi,
     task.id,
     workspace.clankerId,
@@ -21,7 +21,7 @@ test("a session opens with what the person wrote, which reaches the agent and sh
   );
 
   // The fake agent echoes its prompt into the document; then the session waits for the next message.
-  await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 90_000 }).toContain(opening);
+  await expect.poll(() => planDocument(adminApi, task.id), { timeout: 90_000 }).toContain(opening);
   await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 10_000 }).toBe("waiting_on_user");
 
   // There's no separate session page: the person's message is in the task's thread.

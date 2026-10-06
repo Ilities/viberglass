@@ -15,18 +15,11 @@ function parseTextQuote(raw: unknown): TextQuote | null | undefined {
 
 function parseCommentableWorkflowPhaseParam(
   rawPhase: string,
-): "research" | "planning" | null {
-  if (rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
-    return TICKET_WORKFLOW_PHASE.RESEARCH;
-  }
-  if (rawPhase === TICKET_WORKFLOW_PHASE.PLANNING) {
-    return TICKET_WORKFLOW_PHASE.PLANNING;
-  }
-
-  return null;
+): "planning" | null {
+  return rawPhase === TICKET_WORKFLOW_PHASE.PLANNING ? TICKET_WORKFLOW_PHASE.PLANNING : null;
 }
 
-/** Comments anchored to the text of a task's research or plan. */
+/** Comments anchored to the text of a task's plan. */
 export function registerDocumentCommentRoutes(
   router: Router,
   { ticketPhaseDocumentCommentService }: { ticketPhaseDocumentCommentService: TicketPhaseDocumentCommentService },
@@ -39,7 +32,7 @@ export function registerDocumentCommentRoutes(
       const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
       if (!phase) {
         return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
+          error: "Comments are only supported on the plan",
         });
       }
 
@@ -83,7 +76,7 @@ export function registerDocumentCommentRoutes(
       const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
       if (!phase) {
         return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
+          error: "Comments are only supported on the plan",
         });
       }
 
@@ -160,7 +153,7 @@ export function registerDocumentCommentRoutes(
       const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
       if (!phase) {
         return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
+          error: "Comments are only supported on the plan",
         });
       }
 

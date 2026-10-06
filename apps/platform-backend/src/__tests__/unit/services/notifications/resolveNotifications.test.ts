@@ -20,7 +20,7 @@ describe("resolveNotifications", () => {
     ["message_posted", { mentioned: ["watcher", "owner"] }, [{ userId: "watcher", kind: "mentioned" }, { userId: "owner", kind: "mentioned" }]],
     [
       "run_finished",
-      { step: "research" },
+      { step: "planning" },
       [
         { userId: "requester", kind: "step_completed" },
         { userId: "owner", kind: "step_completed" },

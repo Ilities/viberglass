@@ -3,7 +3,7 @@ import { selectText } from "../../playwright/documentSelection";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { signIn } from "../../playwright/seedWorkspace";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
-import { askAgent, createTask, needsYou, runStatus, startResearch, timeline } from "../../playwright/tasks";
+import { askAgent, createTask, needsYou, runStatus, startPlan, timeline } from "../../playwright/tasks";
 
 /** Invites someone by link, has them accept it, and signs them in. */
 async function invitePerson(adminApi: APIRequestContext, browser: Browser, name: string) {
@@ -39,9 +39,9 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   const designer = await invitePerson(adminApi, browser, "Dana Designer");
   const reviewer = await invitePerson(adminApi, browser, "Tomi Reviewer");
 
-  // 1. The PM (the workspace admin) asks for something, and the agent researches it.
+  // 1. The PM (the workspace admin) asks for something, and the agent plans it.
   const task = await createTask(adminApi, workspace.projectId, "Make the checkout copy friendlier on mobile.");
-  await runFinishes(adminApi, await startResearch(adminApi, task.id, workspace.clankerId));
+  await runFinishes(adminApi, await startPlan(adminApi, task.id, workspace.clankerId));
 
   // 3. The PM brings the designer in with an @mention; the designer answers in the thread.
   const posted = await adminApi.post(`/api/tasks/${task.id}/messages`, {
@@ -56,10 +56,10 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   // Replying answers the mention, so it's no longer the designer's move.
   await expect.poll(() => needsYou(designer.api)).not.toContain(`${task.title}: Discussing`);
 
-  // The PM adds the reviewer and asks for the plan; the agent mentions the reviewer when it's written.
+  // The PM adds the reviewer and asks for the plan with the designer's point; the agent mentions the reviewer when it's revised.
   expect((await adminApi.post(`/api/tasks/${task.id}/participants`, { data: { userId: reviewer.id, role: "reviewer" } })).status()).toBe(201);
-  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan" })).jobId);
-  await expect.poll(() => needsYou(reviewer.api)).toContain(`${task.title}: Plan v1 ready`);
+  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Revise the plan with Dana's tone" })).jobId);
+  await expect.poll(() => needsYou(reviewer.api)).toContain(`${task.title}: Plan v2 ready`);
 
   // 4. The reviewer comments on the rendered plan and asks the agent to revise it with the comment.
   const page = reviewer.page;

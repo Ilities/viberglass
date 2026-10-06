@@ -1,9 +1,7 @@
-import { withPlainMentions, type PullRequestReviewComment, type TaskArtifactKind } from "@viberglass/types";
+import { withPlainMentions, type PullRequestReviewComment } from "@viberglass/types";
 import { formatCommentsForAgent } from "../comments/formatCommentsForAgent";
 import { formatPullRequestComments } from "../pull-request-reviews/formatPullRequestComments";
 import type { TurnComment, TurnEdit, TurnMessage, TurnPerson } from "./taskTurnContext";
-
-const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { research: "research", plan: "plan" };
 
 /**
  * People's words go inside tags, so angle brackets are escaped: a message
@@ -40,13 +38,8 @@ export function formatPeople(people: TurnPerson[]): string | undefined {
 
 export function formatComments(comments: TurnComment[]): string | undefined {
   if (comments.length === 0) return undefined;
-  return (["research", "plan"] as const)
-    .map((artifact) => {
-      const listed = formatCommentsForAgent(comments.filter((entry) => entry.artifact === artifact).map((entry) => entry.comment));
-      return listed ? `On the ${ARTIFACT_NAME[artifact]}:\n${escape(listed)}` : null;
-    })
-    .filter((section): section is string => section !== null)
-    .join("\n\n");
+  const listed = formatCommentsForAgent(comments.map((entry) => entry.comment));
+  return listed ? `On the plan:\n${escape(listed)}` : undefined;
 }
 
 export function formatEdits(edits: TurnEdit[]): string | undefined {

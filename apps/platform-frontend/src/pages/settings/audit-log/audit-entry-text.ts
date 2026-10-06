@@ -13,7 +13,7 @@ export const AREA_LABEL: Record<AuditTargetType, string> = {
   invite: 'Invites',
 }
 
-const STEP_NOUN: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build' }
+const STEP_NOUN: Record<string, string> = { planning: 'plan', execution: 'build' }
 
 /** "Maria approved a step"; a Slack user nobody linked is named by their Slack id, and the system stands in for nobody. */
 export function auditSentence(entry: AuditEntry): string {

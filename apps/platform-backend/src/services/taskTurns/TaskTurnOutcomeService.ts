@@ -14,14 +14,14 @@ import { documentsAskedFor } from "./documentsAskedFor";
 /** What the worker reports a turn produced. */
 export interface TurnResult {
   success: boolean;
-  documents?: { research?: string; plan?: string; summary?: string };
+  documents?: { plan?: string; summary?: string };
   codeDiscarded?: boolean;
   resumed?: boolean;
   commitHash?: string;
   contextUsage?: { used: number; size: number | null };
   compacted?: boolean;
   /** The document the turn was asked for and didn't write; it keeps what it did write, but ends as failed. */
-  missing?: "research" | "plan";
+  missing?: "plan";
 }
 
 /** What a recorded turn means for the run's Activity: the step it produced, and whom it mentioned. */
@@ -34,7 +34,6 @@ const INTENT_LIMIT = 200;
 
 /** The artifacts that are a step of the task; a summary is about the conversation, so it mentions nobody. */
 const PRODUCT_STEP: Partial<Record<TaskTurnProduct, TicketWorkflowPhase>> = {
-  research: TICKET_WORKFLOW_PHASE.RESEARCH,
   plan: TICKET_WORKFLOW_PHASE.PLANNING,
   code: TICKET_WORKFLOW_PHASE.EXECUTION,
 };
@@ -93,15 +92,12 @@ export class TaskTurnOutcomeService {
   ): Promise<RecordedTurn | null> {
     const produced: TaskTurnProduct[] = [];
     if (result.success) {
-      const asked = documentsAskedFor(turn.action);
-      const research = asked.includes("research") ? result.documents?.research : undefined;
-      const plan = asked.includes("plan") ? result.documents?.plan : undefined;
-      if (research?.trim()) {
-        await this.saveVersion(session.ticketId, TICKET_WORKFLOW_PHASE.RESEARCH, research, turn.id);
-        produced.push("research");
-      }
+      const plan = documentsAskedFor(turn.action).includes("plan") ? result.documents?.plan : undefined;
       if (plan?.trim()) {
-        await this.saveVersion(session.ticketId, TICKET_WORKFLOW_PHASE.PLANNING, plan, turn.id);
+        await this.deps.documents.saveDocument(session.ticketId, TICKET_WORKFLOW_PHASE.PLANNING, plan, {
+          source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT,
+          agentTurnId: turn.id,
+        });
         produced.push("plan");
       }
       if (result.commitHash) produced.push("code");
@@ -146,13 +142,6 @@ export class TaskTurnOutcomeService {
     return artifactReviewers(participants).flatMap((id) => {
       const person = participants.find((p) => p.userId === id);
       return person ? [{ id, name: person.name }] : [];
-    });
-  }
-
-  private async saveVersion(ticketId: string, phase: "research" | "planning", content: string, turnId: string): Promise<void> {
-    await this.deps.documents.saveDocument(ticketId, phase, content, {
-      source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT,
-      agentTurnId: turnId,
     });
   }
 }

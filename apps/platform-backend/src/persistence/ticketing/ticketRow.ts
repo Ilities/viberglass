@@ -36,7 +36,6 @@ function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
 
 export function normalizeWorkflowPhase(value: unknown): TicketWorkflowPhase {
   if (
-    value === TICKET_WORKFLOW_PHASE.RESEARCH ||
     value === TICKET_WORKFLOW_PHASE.PLANNING ||
     value === TICKET_WORKFLOW_PHASE.EXECUTION
   ) {

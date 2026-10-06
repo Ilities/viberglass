@@ -17,8 +17,8 @@ interface ResolvePullRequestDescriptionParams {
 
 /**
  * Longest problem statement a fallback description quotes. The task is the
- * rendered prompt, and for a ticket run it carries the research and plan
- * documents; a fallback must never paste that into the PR.
+ * rendered prompt, and for a ticket run it carries the plan; a fallback
+ * must never paste that into the PR.
  */
 const MAX_PROBLEM_LENGTH = 2000;
 

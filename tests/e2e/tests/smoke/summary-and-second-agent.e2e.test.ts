@@ -1,6 +1,6 @@
 import { expect, test } from "../../playwright/smokeFixtures";
 import { createFakeRunner } from "../../playwright/seedWorkspace";
-import { askAgent, createTask, researchDocument, runStatus, timeline } from "../../playwright/tasks";
+import { askAgent, createTask, planDocument, runStatus, timeline } from "../../playwright/tasks";
 
 type Entry = Record<string, unknown>;
 const isEntry = (value: unknown): value is Entry => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -14,8 +14,8 @@ test("a full context is summarised on its own, and a second agent starts fresh f
   test.setTimeout(300_000);
   // The fake agent reports 150,000 of 200,000 tokens in its context, past the threshold.
   const task = await createTask(adminApi, workspace.projectId, "Explain greeting.js. [fake:usage=150000]");
-  const research = await askAgent(adminApi, task.id, { action: "research", body: "Write the research", agentId: workspace.clankerId });
-  await expect.poll(() => runStatus(adminApi, research.jobId), { timeout: 120_000 }).toBe("completed");
+  const plan = await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan", agentId: workspace.clankerId });
+  await expect.poll(() => runStatus(adminApi, plan.jobId), { timeout: 120_000 }).toBe("completed");
 
   // The summary follows without anyone asking, and the harness compacts its context with it.
   let summary: Entry | undefined;
@@ -45,10 +45,10 @@ test("a full context is summarised on its own, and a second agent starts fresh f
     await expect(page.getByRole("menuitem", { name: /Stand-in Agent/ })).toBeVisible();
     await page.keyboard.press("Escape");
 
-    const before = await researchDocument(adminApi, task.id);
-    const brought = await askAgent(adminApi, task.id, { action: "research", body: "Revise the research", agentId: second });
+    const before = await planDocument(adminApi, task.id);
+    const brought = await askAgent(adminApi, task.id, { action: "plan", body: "Revise the plan", agentId: second });
     await expect.poll(() => runStatus(adminApi, brought.jobId), { timeout: 120_000 }).toBe("completed");
-    const written = await researchDocument(adminApi, task.id);
+    const written = await planDocument(adminApi, task.id);
     expect(written).not.toBe(before);
     expect(written).toContain("&lt;summary-so-far>");
     expect(written).toContain("This is turn 1 of its session.");

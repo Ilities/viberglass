@@ -45,9 +45,9 @@ function setup(options: { fromSlack?: boolean; thread?: boolean } = {}) {
         id: "turn-1",
         sessionId: "s-1",
         agent: { id: "claude", name: "Claude" },
-        action: "research",
+        action: "plan",
         status: "completed",
-        outcome: { intent: "Writing the research", reply: "Writing the research\n\nDone.", produced: ["research"], codeDiscarded: false, resumed: true },
+        outcome: { intent: "Writing the plan", reply: "Writing the plan\n\nDone.", produced: ["plan"], codeDiscarded: false, resumed: true },
         jobId: "job-1",
         createdAt: new Date(),
       }),
@@ -56,7 +56,7 @@ function setup(options: { fromSlack?: boolean; thread?: boolean } = {}) {
     messages: {
       getById: jest.fn().mockResolvedValue({ id: "m-1", ticketId: "t-1", author: { id: "u-tomi", name: "Tomi" }, body: "Hi @[Maria](user:11111111-1111-4111-8111-111111111111)", createdAt: "", editedAt: null }),
     },
-    documents: { getOrCreateDocument: jest.fn().mockResolvedValue({ content: "# Research\nIt greets." }) },
+    documents: { getOrCreateDocument: jest.fn().mockResolvedValue({ content: "# Plan\nIt greets." }) },
     tickets: { getSummary: jest.fn().mockResolvedValue({ title: "Greeting", key: "WEB-1", spaceSlug: "web", pullRequestUrl: null }) },
     fromSlack: () => options.fromSlack ?? false,
   };
@@ -80,19 +80,19 @@ describe("TaskSlackMirror", () => {
     expect(fromSlack.thread.post).not.toHaveBeenCalled();
 
     const noThread = setup({ thread: false });
-    await noThread.mirror.onActivity(activity("run_started", { step: "research" }));
+    await noThread.mirror.onActivity(activity("run_started", { step: "planning" }));
     expect(noThread.deps.turns.getByJobId).not.toHaveBeenCalled();
   });
 
   it("posts the agent's reply, the document it wrote, and a button for the next step", async () => {
     const { thread, mirror } = setup();
-    await mirror.onActivity(activity("run_finished", { jobId: "job-1", step: "research" }));
+    await mirror.onActivity(activity("run_finished", { jobId: "job-1", step: "planning" }));
 
     const posts = posted(thread);
-    expect(posts[0]).toBe(JSON.stringify({ markdown: "**Claude:** Writing the research\n\nDone." }));
-    expect(posts[1]).toContain("research.md");
-    expect(posts[2]).toContain("Write the plan");
-    expect(posts[2]).toContain('"t-1|plan"');
+    expect(posts[0]).toBe(JSON.stringify({ markdown: "**Claude:** Writing the plan\n\nDone." }));
+    expect(posts[1]).toContain("plan.md");
+    expect(posts[2]).toContain("Build it");
+    expect(posts[2]).toContain('"t-1|code"');
   });
 
   it("asks the agent's question with its options as buttons", async () => {

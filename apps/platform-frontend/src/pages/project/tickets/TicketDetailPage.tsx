@@ -62,9 +62,9 @@ export function TicketDetailPage() {
   const linkedRunId = searchParams.get('run')
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
   // The step view counts new comments as people add and resolve them; the page's counts are from its last load.
-  const [liveNewComments, setLiveNewComments] = useState<Partial<Record<'research' | 'planning', number>>>({})
+  const [liveNewComments, setLiveNewComments] = useState<Partial<Record<'planning', number>>>({})
   const countNewComments = useCallback(
-    (step: 'research' | 'planning', count: number) =>
+    (step: 'planning', count: number) =>
       setLiveNewComments((current) => (current[step] === count ? current : { ...current, [step]: count })),
     []
   )
@@ -158,7 +158,6 @@ export function TicketDetailPage() {
   const threadRefreshKey = [
     ...data.runs.map((run) => `${run.jobId}:${run.status}`),
     ...data.sessions.map((session) => `${session.id}:${session.status}`),
-    data.documents.research.updatedAt,
     data.documents.planning.updatedAt,
     ticket.updatedAt,
   ].join('|')
@@ -217,7 +216,6 @@ export function TicketDetailPage() {
                 move={move}
                 shownStep={shownStep}
                 exists={{
-                  research: data.documents.research.content.trim().length > 0,
                   planning: data.documents.planning.content.trim().length > 0,
                   execution: Boolean(ticket.pullRequestUrl),
                 }}

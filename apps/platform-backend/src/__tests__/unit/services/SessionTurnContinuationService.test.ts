@@ -12,7 +12,7 @@ function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
     ticketId: "ticket-1",
     ticketTitle: null,
     clankerId: "clanker-1",
-    mode: "research",
+    mode: "planning",
     status: "active",
     title: null,
     repository: "org/repo",
@@ -56,7 +56,7 @@ function makeUserTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
 
 const context: TaskTurnContext = {
   ticket: { title: "Dark mode", description: "Users want it", externalTicketId: null, pullRequestUrl: null },
-  documents: { research: "", plan: "" },
+  documents: { plan: "" },
   people: [],
   lastAgentCommit: null,
   summary: "",
@@ -110,7 +110,7 @@ describe("SessionTurnContinuationService", () => {
 
   it("answers every pending message in one turn, doing what the latest specific ask wanted", async () => {
     turns.listUnconsumedUserTurns.mockResolvedValue([
-      makeUserTurn({ id: "u1", action: "research" }),
+      makeUserTurn({ id: "u1", action: "summarise" }),
       makeUserTurn({ id: "u2", action: "plan" }),
       makeUserTurn({ id: "u3", action: "reply", taskMessageId: null }),
     ]);

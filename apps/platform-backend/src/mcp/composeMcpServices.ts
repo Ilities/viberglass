@@ -136,7 +136,6 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
         const workflow = await workflowService.getTicketWorkflow(ticketId);
 
         const phases: Array<TicketWorkflowPhase> = [
-          "research",
           "planning",
           "execution",
         ];
@@ -155,10 +154,10 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
               createdAt: string;
             }> = [];
 
-            if (phase === "research" || phase === "planning") {
+            if (phase === "planning") {
               const rawComments = await commentService.listComments(
                 ticketId,
-                phase as "research" | "planning",
+                phase,
               );
               comments = rawComments.map((c) => ({
                 id: c.id,

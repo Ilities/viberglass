@@ -13,7 +13,7 @@ export type PhaseDocumentCommentStatus =
 
 export type CommentableTicketWorkflowPhase = Extract<
   TicketWorkflowPhase,
-  "research" | "planning"
+  "planning"
 >;
 
 type PhaseDocumentCommentRow =

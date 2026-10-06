@@ -180,7 +180,7 @@ export class DemoWorkspaceSeeder {
       finishedAt: new Date(Date.now() - run.hoursAgo * 3_600_000),
     });
     await this.deps.records.record("job", jobId);
-    // Phase runs track research and planning; an execution run is linked by the job's ticket alone.
+    // Phase runs track planning; an execution run is linked by the job's ticket alone.
     if (run.phase !== "execution") await this.deps.runs.createRun(ticketId, jobId, runnerId, run.phase);
   }
 }

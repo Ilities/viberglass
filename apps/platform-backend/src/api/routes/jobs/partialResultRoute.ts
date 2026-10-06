@@ -19,7 +19,7 @@ export function registerPartialResultRoute(router: Router): void {
     const documents = isObjectRecord(req.body?.documents) ? req.body.documents : {};
     try {
       const kept = await partialTurns.keep(req.params.jobId, {
-        documents: { research: text(documents.research), plan: text(documents.plan) },
+        documents: { plan: text(documents.plan) },
         commitHash: text(req.body?.commitHash),
       });
       return res.json({ success: true, data: { kept } });

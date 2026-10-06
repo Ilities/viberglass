@@ -129,13 +129,12 @@ src/
 │   ├── TicketPhaseOrchestrationService.ts
 │   ├── TicketPlanningApprovalService.ts
 │   ├── TicketPlanningService.ts
-│   ├── TicketResearchService.ts
 │   ├── TicketWorkflowOverrideService.ts
 │   ├── TicketWorkflowService.ts
 │   ├── metrics.ts
 │   └── ticketRunOrchestration.ts   Shared logic for prepareTicketRunContext + submitJobWithBootstrapAndInvoke
 ├── types/
-│   ├── Job.ts               JobData, ResearchJobData, etc.
+│   ├── Job.ts               JobData, PlanningJobData, etc.
 │   └── agentSession.ts      AGENT_SESSION_MODE, AGENT_SESSION_EVENT_TYPE, statuses
 ├── utils/                   Misc utility functions
 ├── webhooks/
@@ -312,7 +311,6 @@ src/
     │   ├── jobPipeline.ts
     │   ├── runClawJob.ts        Claw (scheduled task) job runner
     │   ├── runSessionTurnJob.ts ACP session turn job runner
-    │   ├── phasePrompts.ts      Research/planning prompt builders
     │   ├── pullRequestContent.ts
     │   ├── workerConfig.ts
     │   └── workerHelpers.ts

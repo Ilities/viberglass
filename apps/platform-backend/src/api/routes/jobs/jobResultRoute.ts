@@ -153,7 +153,7 @@ export function registerJobResultRoute(router: Router): void {
           agentTurn = session?.lastTurnId ? await agentTurnDAO.getById(session.lastTurnId) : null;
         }
         const session = agentTurn ? await agentSessionDAO.getById(agentTurn.sessionId) : null;
-        // A turn asked for research or a plan that ends without it, and without a question, didn't succeed.
+        // A turn asked for a plan that ends without it, and without a question, didn't succeed.
         const missing = agentTurn && result.success ? await documentCheck.missing(agentTurn, result.documents) : null;
         const success = Boolean(result.success) && !missing;
         const status = success ? "completed" : "failed";

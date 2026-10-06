@@ -1,7 +1,7 @@
 import type { TaskActivityEntry } from '@viberglass/types'
 import { readableQuote } from './readable-quote'
 
-const STEP: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build', claw: 'scheduled run' }
+const STEP: Record<string, string> = { planning: 'plan', execution: 'build', claw: 'scheduled run' }
 
 /** One plain sentence per Activity entry. `nameOf` turns a user id in the payload into a name. */
 export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: string) => string): string {

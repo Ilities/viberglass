@@ -287,7 +287,6 @@ export const resultCallbackSchema = Joi.object({
   pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
   // The documents a task turn wrote: each becomes the document's next version.
   documents: Joi.object({
-    research: Joi.string().allow("").optional(),
     plan: Joi.string().allow("").optional(),
     summary: Joi.string().allow("").optional(),
   }).optional(),

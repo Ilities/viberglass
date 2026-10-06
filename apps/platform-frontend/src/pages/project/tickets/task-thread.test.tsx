@@ -86,8 +86,8 @@ describe('describeActivity', () => {
     expect(describeActivity(entry({ kind: 'owner_changed', payload: { userId: DANA } }), nameOf)).toBe('Maria made Dana the owner')
     expect(describeActivity(entry({ kind: 'document_approved', payload: { step: 'planning' } }), nameOf)).toBe('Maria approved the plan')
     expect(
-      describeActivity(entry({ kind: 'run_failed', actorType: 'agent', actor: null, payload: { step: 'research', reason: 'Credential expired' } }), nameOf)
-    ).toBe('The research run failed: Credential expired')
+      describeActivity(entry({ kind: 'run_failed', actorType: 'agent', actor: null, payload: { step: 'planning', reason: 'Credential expired' } }), nameOf)
+    ).toBe('The plan run failed: Credential expired')
     expect(describeActivity(entry({ kind: 'message_posted', payload: { mentioned: [DANA] } }), nameOf)).toBe(
       'Maria wrote in the discussion and mentioned Dana'
     )
@@ -106,16 +106,16 @@ const THREAD: TaskTimelineEntry[] = [
     at: '2026-10-01T10:00:00Z',
     activity: { id: 'e-1', ticketId: 't-1', actorType: 'human', actor: MARIA, kind: 'task_created', payload: {}, createdAt: '2026-10-01T10:00:00Z' },
   },
-  { kind: 'artifact_version', id: 'v-1', at: '2026-10-01T10:05:00Z', artifact: 'research', version: 1, author: null, byAgent: true },
+  { kind: 'artifact_version', id: 'v-1', at: '2026-10-01T10:05:00Z', artifact: 'plan', version: 1, author: null, byAgent: true },
   { kind: 'message', id: 'm-1', at: '2026-10-01T10:06:00Z', author: MARIA, body: 'Looks right to me', channel: 'thread', sessionId: null },
   { kind: 'message', id: 'm-2', at: '2026-10-01T10:07:00Z', author: MARIA, body: 'Check the checkout too', channel: 'session', sessionId: 's-1' },
 ]
 
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
-  documents: { research: { content: '# Research' }, planning: { content: '' } },
+  documents: { planning: { content: '# Plan' } },
   capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
-  newComments: { research: 1, planning: 0 },
+  newComments: { planning: 1 },
   agentWorking: false,
 }
 
@@ -152,12 +152,12 @@ function agentTurn(overrides: Partial<Extract<TaskTimelineEntry, { kind: 'agent_
     id: 'turn-1',
     at: '2026-10-01T10:08:00Z',
     agent: { id: CLAUDE, name: 'Claude' },
-    action: 'research',
+    action: 'plan',
     status: 'completed',
     outcome: {
-      intent: 'Revising the research: covering the checkout',
-      reply: 'Revising the research: covering the checkout\n\nI added a section on the checkout flow.',
-      produced: ['research'],
+      intent: 'Revising the plan: covering the checkout',
+      reply: 'Revising the plan: covering the checkout\n\nI added a section on the checkout flow.',
+      produced: ['plan'],
       codeDiscarded: false,
       resumed: true,
     },
@@ -177,7 +177,7 @@ describe('TaskThread', () => {
   it('shows messages, document versions and events in one thread', async () => {
     renderThread()
     expect(await screen.findByText('Maria created the task')).toBeInTheDocument()
-    expect(screen.getByText('Research v1')).toBeInTheDocument()
+    expect(screen.getByText('Plan v1')).toBeInTheDocument()
     expect(screen.getByText('Looks right to me')).toBeInTheDocument()
     expect(screen.getByText(/to the agent/)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /session/ })).not.toBeInTheDocument()
@@ -197,19 +197,19 @@ describe('TaskThread', () => {
     renderThread()
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Messages only' }))
     expect(screen.queryByText('Maria created the task')).not.toBeInTheDocument()
-    expect(screen.getByText('Research v1')).toBeInTheDocument()
+    expect(screen.getByText('Plan v1')).toBeInTheDocument()
   })
 
   it("opens the latest version as the current document, and an earlier one at its own version", async () => {
     mockTimeline.mockResolvedValue([
       ...THREAD,
-      { kind: 'artifact_version', id: 'v-2', at: '2026-10-01T10:08:00Z', artifact: 'research', version: 2, author: null, byAgent: true },
+      { kind: 'artifact_version', id: 'v-2', at: '2026-10-01T10:08:00Z', artifact: 'plan', version: 2, author: null, byAgent: true },
     ])
     const { onOpenArtifact } = renderThread()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open Research v2' }))
-    expect(onOpenArtifact).toHaveBeenLastCalledWith('research', null)
-    fireEvent.click(screen.getByRole('button', { name: 'Open Research v1' }))
-    expect(onOpenArtifact).toHaveBeenLastCalledWith('research', 1)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Plan v2' }))
+    expect(onOpenArtifact).toHaveBeenLastCalledWith('planning', null)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Plan v1' }))
+    expect(onOpenArtifact).toHaveBeenLastCalledWith('planning', 1)
   })
 
   it("shows the agent's turn: what it set out to do, what it made, and whether it continued its session; what it said is a click away", async () => {
@@ -217,11 +217,11 @@ describe('TaskThread', () => {
     renderThread()
 
     const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
-    expect(turn).toHaveTextContent('asked for the research')
+    expect(turn).toHaveTextContent('asked for the plan')
     expect(turn).toHaveTextContent('resumed session')
     expect(within(turn).getByRole('link', { name: 'Run details' })).toHaveAttribute('href', '/?run=job-1')
-    expect(turn).toHaveTextContent('Revising the research: covering the checkout')
-    expect(turn).toHaveTextContent('Wrote the research.')
+    expect(turn).toHaveTextContent('Revising the plan: covering the checkout')
+    expect(turn).toHaveTextContent('Wrote the plan.')
     expect(turn).not.toHaveTextContent('I added a section on the checkout flow.')
     fireEvent.click(within(turn).getByRole('button', { name: 'Show what it said' }))
     expect(turn).toHaveTextContent('I added a section on the checkout flow.')
@@ -259,14 +259,13 @@ describe('TaskThread', () => {
 
     const actions = await screen.findByRole('group', { name: 'Suggested actions' })
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([
-      'Revise the research with 1 comment',
-      'Write the plan',
+      'Revise the plan with 1 comment',
       // On the same row, so every way to ask the agent lines up.
       'Bring in another agent',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'Revise the research with 1 comment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revise the plan with 1 comment' }))
 
-    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'research', body: 'Revise the research with 1 comment' }))
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'plan', body: 'Revise the plan with 1 comment' }))
     await waitFor(() => expect(onAsked).toHaveBeenCalled())
   })
 
@@ -337,7 +336,7 @@ describe('TaskThread', () => {
         actorType: 'human',
         actor: { id: 'q', name: 'Quinn' },
         kind: 'comment_added',
-        payload: { step: 'research', quote: '`greeting.js` exports **greeting**', commentId: `c-${id}`, comment },
+        payload: { step: 'planning', quote: '`greeting.js` exports **greeting**', commentId: `c-${id}`, comment },
         createdAt: '2026-10-01T10:09:00Z',
       },
     })
@@ -351,7 +350,7 @@ describe('TaskThread', () => {
         actorType: 'human',
         actor: MARIA,
         kind: 'comment_status_changed',
-        payload: { step: 'research', commentId: 'c-1', status: 'resolved' },
+        payload: { step: 'planning', commentId: 'c-1', status: 'resolved' },
         createdAt: '2026-10-01T10:10:00Z',
       },
     }
@@ -383,6 +382,6 @@ describe('TaskThread', () => {
     expect(screen.getAllByText('Open')[0]).toBeInTheDocument()
     expect(screen.queryByText(/resolved a comment/)).not.toBeInTheDocument()
     fireEvent.click(within(first).getByRole('button', { name: 'Open in comments' }))
-    expect(onOpenComments).toHaveBeenCalledWith('research')
+    expect(onOpenComments).toHaveBeenCalledWith('planning')
   })
 })

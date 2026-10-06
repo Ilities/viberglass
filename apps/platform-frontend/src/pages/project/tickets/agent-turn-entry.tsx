@@ -15,7 +15,6 @@ import { ThreadItem } from './thread-item'
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
 
 const ASKED_FOR: Record<TaskTurnAction, string> = {
-  research: 'the research',
   plan: 'the plan',
   code: 'the build',
   reply: 'a reply',
@@ -44,20 +43,18 @@ function joinNames(names: string[]): string {
 }
 
 const KEPT: Record<TaskTurnProduct, string> = {
-  research: 'the research it had written',
   plan: 'the plan it had written',
   code: 'its code so far, as a work-in-progress commit',
   summary: 'its summary',
 }
 
 const WROTE: Record<TaskTurnProduct, string> = {
-  research: 'Wrote the research',
   plan: 'Wrote the plan',
   code: 'Pushed code to the pull request',
   summary: 'Wrote a summary',
 }
 
-/** What a finished turn produced, as one sentence: "Wrote the research and the plan." Null when it only replied. */
+/** What a finished turn produced, as one sentence: "Wrote the plan, pushed code to the pull request." Null when it only replied. */
 export function resultLine(produced: TaskTurnProduct[]): string | null {
   const shown = produced.filter((product) => product !== 'summary')
   if (shown.length === 0) return null

@@ -33,13 +33,13 @@ function run(allowCode: boolean): PartialWorkRun & { sent: jest.Mock; commits: j
 describe("keepPartialWork", () => {
   it("sends the documents a stopped turn had written", async () => {
     const dir = repo();
-    const snapshot = materializeArtifacts(dir, { research: "# Research v1" });
-    fs.writeFileSync(path.join(dir, "RESEARCH.md"), "# Research, half done");
+    const snapshot = materializeArtifacts(dir, { plan: "# Plan v1" });
+    fs.writeFileSync(path.join(dir, "PLAN.md"), "# Plan, half done");
     const stopped = run(false);
 
     await keepPartialWork(stopped, { repoDir: dir, snapshot, taskBranch: undefined });
 
-    expect(stopped.sent).toHaveBeenCalledWith("job-1", "tenant", { documents: { research: "# Research, half done" }, commitHash: undefined, branch: undefined });
+    expect(stopped.sent).toHaveBeenCalledWith("job-1", "tenant", { documents: { plan: "# Plan, half done" }, commitHash: undefined, branch: undefined });
     expect(stopped.commits).not.toHaveBeenCalled();
   });
 

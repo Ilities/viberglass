@@ -23,7 +23,7 @@ function turn(overrides: Partial<AgentTurn>): AgentTurn {
     jobId: null,
     userId: null,
     consumedByTurnId: null,
-    action: "research",
+    action: "plan",
     taskMessageId: null,
     startedAt: null,
     completedAt: null,
@@ -38,7 +38,7 @@ function comment(id: string, createdAt: string, status: "open" | "resolved" = "o
     id,
     documentId: "d",
     ticketId: "t",
-    phase: "research",
+    phase: "planning",
     lineNumber: 1,
     quote: null,
     content: id,
@@ -65,11 +65,11 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
     },
     turns: { listBySession: jest.fn().mockResolvedValue(sources.turns ?? []) },
     comments: {
-      listByTicketAndPhase: jest.fn(async (_ticketId: string, phase: string) => (phase === "research" ? sources.comments ?? [] : [])),
+      listByTicketAndPhase: jest.fn(async (_ticketId: string, phase: string) => (phase === "planning" ? sources.comments ?? [] : [])),
     },
     revisions,
     summaries: { latest: jest.fn().mockResolvedValue(summary) },
-    documents: { getOrCreateDocument: jest.fn(async (_id: string, phase: string) => ({ content: phase === "research" ? " # R \n" : "" })) },
+    documents: { getOrCreateDocument: jest.fn(async (_id: string, phase: string) => ({ content: phase === "planning" ? " # P \n" : "" })) },
     pullRequest,
     participants: {
       list: jest.fn().mockResolvedValue([
@@ -91,7 +91,7 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
 }
 
 describe("TaskTurnContextLoader", () => {
-  const input = { ticket: TICKET, sessionId: "s", turnId: "current", action: "research" as const, sessionMessages: [] };
+  const input = { ticket: TICKET, sessionId: "s", turnId: "current", action: "plan" as const, sessionMessages: [] };
 
   it("on the agent's first turn, everything is new", async () => {
     const { instance, revisions } = loader({ comments: [comment("c-1", "2026-10-01T09:00:00Z")] });
@@ -103,7 +103,7 @@ describe("TaskTurnContextLoader", () => {
     expect(context.fresh.comments.map((c) => c.comment.id)).toEqual(["c-1"]);
     expect(context.earlier).toEqual({ messages: [], openComments: [] });
     expect(revisions.listHandEditsSince).not.toHaveBeenCalled();
-    expect(context.documents).toEqual({ research: "# R", plan: "" });
+    expect(context.documents).toEqual({ plan: "# P" });
   });
 
   it("names the people on the task with their roles, and marks the answers to the agent's questions", async () => {
@@ -170,11 +170,12 @@ describe("TaskTurnContextLoader", () => {
     ]);
   });
 
-  it("keeps the latest hand edit of each document", async () => {
+  it("keeps the latest hand edit of the plan", async () => {
     const { instance, revisions } = loader({ turns: [turn({ id: "answered" })] });
     revisions.listHandEditsSince.mockResolvedValue([
       { phase: "planning", content: "first", authorName: "Maria", actor: "m@example.com" },
       { phase: "planning", content: "second", authorName: null, actor: "t@example.com" },
+      { phase: "execution", content: "not a plan", authorName: "Maria", actor: "m@example.com" },
     ]);
 
     const context = await instance.load(input);

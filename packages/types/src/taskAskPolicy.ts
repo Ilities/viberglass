@@ -18,7 +18,7 @@ const isOnTask = (person: AskingPerson, participants: AskingParticipant[]) =>
   participants.some((participant) => participant.userId === person.userId)
 
 /**
- * Who may ask the agent for research, a plan or a reply: admins and
+ * Who may ask the agent for a plan or a reply: admins and
  * members, and guests once they're on the task. Viewers never ask.
  */
 export function canAskAgent(person: AskingPerson, participants: AskingParticipant[]): boolean {

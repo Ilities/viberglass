@@ -12,7 +12,7 @@ export const SETUP_STUB = {
  * Stands in for the outside services setup checks: the test model provider's
  * model list (`VIBERGLASS_FAKE_PROVIDER_URL`) and the GitHub API
  * (`GITHUB_API_URL`). The repository points at the git fixture the fake
- * worker clones, so the first task's research really runs.
+ * worker clones, so the first task's plan really runs.
  */
 export class SetupStubServer {
   private server?: Server;

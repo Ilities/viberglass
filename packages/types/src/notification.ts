@@ -14,7 +14,7 @@ export const NOTIFICATION_KINDS = [
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
 
-const STEP_NOUN: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build' }
+const STEP_NOUN: Record<string, string> = { planning: 'plan', execution: 'build' }
 
 /** The sentence for a notification. `payload.step` names the step where it matters. */
 export function notificationText(kind: NotificationKind, actorName: string | null, taskTitle: string, payload: Record<string, unknown>): string {

@@ -1,4 +1,4 @@
-export type TicketWorkflowPhase = "research" | "planning" | "execution";
+export type TicketWorkflowPhase = "planning" | "execution";
 export type Severity = "low" | "medium" | "high" | "critical";
 
 export interface AuthState {

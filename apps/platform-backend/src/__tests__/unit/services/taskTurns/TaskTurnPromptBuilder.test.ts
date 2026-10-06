@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/102_turn_writes_what_it_was_asked_for";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/103_plan_includes_research";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -17,7 +17,7 @@ class SeededTemplates extends PromptTemplateDAO {
 const builder = new TaskTurnPromptBuilder(new PromptTemplateService(new SeededTemplates()));
 
 function comment(content: string, createdAt: string): TurnComment {
-  return { artifact: "research", comment: phaseComment(content, createdAt) };
+  return { artifact: "plan", comment: phaseComment(content, createdAt) };
 }
 
 function phaseComment(content: string, createdAt: string): PhaseDocumentComment {
@@ -25,7 +25,7 @@ function phaseComment(content: string, createdAt: string): PhaseDocumentComment 
     id: content,
     documentId: "doc",
     ticketId: "t",
-    phase: "research",
+    phase: "planning",
     lineNumber: 3,
     quote: { exact: "uses localStorage", prefix: "", suffix: "" },
     content,
@@ -41,7 +41,7 @@ function phaseComment(content: string, createdAt: string): PhaseDocumentComment 
 function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
   return {
     ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null },
-    documents: { research: "", plan: "" },
+    documents: { plan: "" },
     people: [],
     lastAgentCommit: null,
     summary: "",
@@ -57,7 +57,7 @@ describe("TaskTurnPromptBuilder", () => {
     const { prompt } = await builder.build(
       "p",
       context({
-        documents: { research: "# Research\nThe theme lives in localStorage.", plan: "" },
+        documents: { plan: "# Plan\nThe theme lives in localStorage." },
         since: new Date("2026-10-01T10:00:00Z"),
         earlier: {
           messages: [{ author: "Jussi", body: "OLD MESSAGE the agent answered", at: new Date("2026-10-01T09:00:00Z"), via: "thread" }],
@@ -70,14 +70,15 @@ describe("TaskTurnPromptBuilder", () => {
           pullRequestComments: [],
         },
       }),
-      "research",
+      "plan",
       false,
     );
 
     expect(prompt).toContain('<message from="Maria PM" at="2026-10-01 10:05 UTC">\nCover Safari too\n</message>');
+    expect(prompt).toContain("On the plan:");
     expect(prompt).toContain("Is this per device?");
-    expect(prompt).toContain("Revise the research in RESEARCH.md");
-    expect(prompt).not.toContain("Write the research:");
+    expect(prompt).toContain("Revise the plan in PLAN.md");
+    expect(prompt).not.toContain("Write the plan:");
     // Nothing the agent already has: earlier messages and comments, the task, the documents.
     expect(prompt).not.toContain("OLD MESSAGE");
     expect(prompt).not.toContain("OLD COMMENT");
@@ -90,7 +91,7 @@ describe("TaskTurnPromptBuilder", () => {
     const { prompt, coldStartPrompt } = await builder.build(
       "p",
       context({
-        documents: { research: "# Research\nThe theme lives in localStorage.", plan: "" },
+        documents: { plan: "# Plan\nThe theme lives in localStorage." },
         since: new Date("2026-10-01T10:00:00Z"),
         earlier: {
           messages: [{ author: "Jussi", body: "Start with the header", at: new Date("2026-10-01T09:00:00Z"), via: "thread" }],
@@ -103,11 +104,19 @@ describe("TaskTurnPromptBuilder", () => {
 
     expect(coldStartPrompt.endsWith(prompt)).toBe(true);
     expect(coldStartPrompt).toContain("<title>Dark mode</title>");
-    expect(coldStartPrompt).toContain("<current-research>\n# Research\nThe theme lives in localStorage.\n</current-research>");
+    expect(coldStartPrompt).toContain("<current-plan>\n# Plan\nThe theme lives in localStorage.\n</current-plan>");
     expect(coldStartPrompt).toContain("Start with the header");
     expect(coldStartPrompt).toContain("Still open from before");
+    expect(prompt).toContain("Revise the plan in PLAN.md");
+  });
+
+  it("asks for a plan that starts with what the agent found in the code", async () => {
+    const { prompt, coldStartPrompt } = await builder.build("p", context(), "plan", false);
+
+    expect(prompt).toContain("Write the plan: read the code that matters for this task, then write PLAN.md");
+    expect(prompt).toContain("Start with what you found");
     expect(coldStartPrompt).not.toContain("<current-plan>");
-    expect(prompt).toContain("Write the plan: write PLAN.md");
+    expect(coldStartPrompt).not.toMatch(/research/i);
   });
 
   it("starts cold from the summary, and asks a summarise turn for SUMMARY.md", async () => {
@@ -159,7 +168,7 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).toContain('<plan edited-by="Maria PM">\n# Plan\nStep 1, edited\n</plan>');
     expect(prompt).toContain('<message via="live session" at="2026-10-01 10:05 UTC">\n[Tomi]: what about mobile?\n</message>');
     expect(prompt).toContain("Answer what was asked above.");
-    expect(prompt).not.toMatch(/Write the (research|plan)/);
+    expect(prompt).not.toMatch(/Write the plan/);
   });
 
   it("tells the agent who's on the task, and to ask them rather than guess", async () => {
@@ -171,7 +180,7 @@ describe("TaskTurnPromptBuilder", () => {
           { name: "Tomi", roles: ["owner", "reviewer"] },
         ],
       }),
-      "research",
+      "plan",
       false,
     );
 
@@ -192,7 +201,7 @@ describe("TaskTurnPromptBuilder", () => {
           pullRequestComments: [],
         },
       }),
-      "research",
+      "plan",
       false,
     );
 

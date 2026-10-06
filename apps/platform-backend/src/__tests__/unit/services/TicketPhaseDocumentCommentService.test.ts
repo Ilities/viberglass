@@ -49,7 +49,7 @@ describe("TicketPhaseDocumentCommentService", () => {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
+        phase: "planning",
         lineNumber: 3,
         quote: { exact: "assume X", prefix: "We ", suffix: "." },
         content: "Please verify this assumption.",
@@ -63,14 +63,14 @@ describe("TicketPhaseDocumentCommentService", () => {
     ]);
 
     const service = new TicketPhaseDocumentCommentService();
-    const comments = await service.listComments("ticket-1", "research");
+    const comments = await service.listComments("ticket-1", "planning");
 
     expect(comments).toEqual([
       {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
+        phase: "planning",
         lineNumber: 4,
         quote: { exact: "assume X", prefix: "We ", suffix: "." },
         location: { start: 19, end: 27, line: 4 },
@@ -101,7 +101,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       },
     ]);
 
-    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1", "research");
+    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1", "planning");
 
     expect(comment).toMatchObject({ outdated: true, location: null, lineNumber: 3 });
   });
@@ -186,7 +186,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     const service = new TicketPhaseDocumentCommentService();
 
     await expect(
-      service.createComment("ticket-1", "research", {
+      service.createComment("ticket-1", "planning", {
         lineNumber: 1,
         content: "Question",
       }),
@@ -203,7 +203,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     const service = new TicketPhaseDocumentCommentService();
 
     await expect(
-      service.createComment("ticket-1", "research", {
+      service.createComment("ticket-1", "planning", {
         lineNumber: 2,
         content: "Question",
       }),
@@ -215,7 +215,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "research",
+      phase: "planning",
       lineNumber: 1,
       content: "Open comment",
       status: "open",
@@ -229,7 +229,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "research",
+      phase: "planning",
       lineNumber: 1,
       content: "Open comment",
       status: "resolved",
@@ -241,7 +241,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.updateComment("ticket-1", "research", "comment-1", {
+    await service.updateComment("ticket-1", "planning", "comment-1", {
       status: "resolved",
       actor: "reviewer@example.com",
     });
@@ -256,7 +256,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       }),
     );
     expect(mockRecordActivity).toHaveBeenCalledWith("ticket-1", "comment_status_changed", {
-      step: "research",
+      step: "planning",
       commentId: "comment-1",
       status: "resolved",
     });

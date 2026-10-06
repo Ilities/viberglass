@@ -1,8 +1,8 @@
 /**
  * What a person asks the agent for in a turn. `reply` leaves it to
- * the agent: it answers, and rewrites the research or plan if that's what was asked.
+ * the agent: it answers, and rewrites the plan if that's what was asked.
  */
-export const TASK_TURN_ACTIONS = ['research', 'plan', 'code', 'reply', 'summarise'] as const
+export const TASK_TURN_ACTIONS = ['plan', 'code', 'reply', 'summarise'] as const
 
 export type TaskTurnAction = (typeof TASK_TURN_ACTIONS)[number]
 
@@ -11,7 +11,7 @@ export function isTaskTurnAction(value: unknown): value is TaskTurnAction {
 }
 
 /** The artifacts a turn can produce. */
-export type TaskTurnProduct = 'research' | 'plan' | 'code' | 'summary'
+export type TaskTurnProduct = 'plan' | 'code' | 'summary'
 
 /** What a finished turn did, as the thread shows it. */
 export interface TaskTurnOutcome {

@@ -8,7 +8,6 @@ import {
 
 /** The job a turn runs as. Runs are still listed by kind, so a turn reads as the step it works on. */
 export const TURN_JOB_KIND: Record<TaskTurnAction, JobKind> = {
-  research: "research",
   plan: "planning",
   code: "execution",
   reply: "reply",
@@ -20,7 +19,6 @@ export const TURN_JOB_KIND: Record<TaskTurnAction, JobKind> = {
  * only names what the session started with.
  */
 export function sessionModeFor(action: TaskTurnAction, phase: TicketWorkflowPhase): AgentSessionMode {
-  if (action === "research") return AGENT_SESSION_MODE.RESEARCH;
   if (action === "plan") return AGENT_SESSION_MODE.PLANNING;
   if (action === "code") return AGENT_SESSION_MODE.EXECUTION;
   return phase;
@@ -28,14 +26,12 @@ export function sessionModeFor(action: TaskTurnAction, phase: TicketWorkflowPhas
 
 /** The turn that does a step's work. */
 export const ACTION_FOR_PHASE: Record<TicketWorkflowPhase, TaskTurnAction> = {
-  research: "research",
   planning: "plan",
   execution: "code",
 };
 
 /** What a suggested action posts in the thread when the person adds nothing of their own. */
 export const ACTION_MESSAGE: Record<TaskTurnAction, string> = {
-  research: "Write the research",
   plan: "Write the plan",
   code: "Build it",
   reply: "",

@@ -95,7 +95,7 @@ describe("ticket phase revision routes", () => {
         id: "revision-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
+        phase: "planning",
         content: "First draft",
         source: "manual",
         actor: "author@example.com",
@@ -111,7 +111,7 @@ describe("ticket phase revision routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "research",
+        phase: "planning",
       },
     };
     const res = {
@@ -123,7 +123,7 @@ describe("ticket phase revision routes", () => {
 
     expect(mockTicketPhaseDocumentRevisionService.listRevisions).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
-      "research",
+      "planning",
     );
     expect(res.json).toHaveBeenCalledWith({
       success: true,
@@ -132,7 +132,7 @@ describe("ticket phase revision routes", () => {
           id: "revision-1",
           documentId: "doc-1",
           ticketId: "ticket-1",
-          phase: "research",
+          phase: "planning",
           content: "First draft",
           source: "manual",
           actor: "author@example.com",

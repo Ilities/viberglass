@@ -95,14 +95,14 @@ async function main(): Promise<void> {
     const id = randomUUID();
     runs.push(id);
     return {
-      id, jobKind: "research", tenantId: "smoke-tenant", callbackToken: randomUUID(),
+      id, jobKind: "planning", tenantId: "smoke-tenant", callbackToken: randomUUID(),
       repository: `${process.env.PLATFORM_API_URL}/repo.git`, baseBranch: "main", task,
       context: { ticketId: randomUUID() }, timestamp: Date.now(),
     };
   }
 
   try {
-    const successful = job("Write RESEARCH.md for the Kubernetes smoke test.");
+    const successful = job("Write PLAN.md for the Kubernetes smoke test.");
     const execution = await invoker.invoke(successful, clanker);
     assert.deepEqual(await invoker.invoke(successful, clanker), execution);
     await waitFor(async () => results.has(successful.id), "the worker result callback");
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
     assert(isObjectRecord(result) && result.success === true, `Worker failed: ${JSON.stringify(result)}`);
     await waitFor(async () => (await client.readNamespacedJob({ namespace, name: execution.executionId })).status?.succeeded === 1, "Job completion");
 
-    const cancelled = job("[fake:sleep=60] Write RESEARCH.md.");
+    const cancelled = job("[fake:sleep=60] Write PLAN.md.");
     const cancellation = await invoker.invoke(cancelled, clanker);
     await waitFor(async () => (await client.readNamespacedJob({ namespace, name: cancellation.executionId })).status?.active === 1, "a running worker");
     assert.equal(await stopper.stop(cancelled.id), true);

@@ -54,7 +54,7 @@ export class TaskSteeringService {
   /**
    * Posts the message, stops the turn that's running and starts one that
    * answers it straight away. The new turn does the stopped turn's step unless
-   * the message asks for another: "cover X too" during the research is still research.
+   * the message asks for another: "cover X too" during the plan is still the plan.
    */
   async interrupt(taskId: string, actorId: string, input: AskInput): Promise<AskResult> {
     await this.assertCanSteer(actorId, taskId);

@@ -15,7 +15,7 @@ export interface CallbackResult {
   commitHash?: string;
   pullRequestUrl?: string;
   /** The documents a task turn wrote. */
-  documents?: Partial<Record<"research" | "plan" | "summary", string>>;
+  documents?: Partial<Record<"plan" | "summary", string>>;
   codeDiscarded?: boolean;
   /** Whether the turn continued the harness's session (AcpSessionStart). */
   sessionStart?: { resumed: boolean };

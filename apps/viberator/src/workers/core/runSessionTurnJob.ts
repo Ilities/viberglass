@@ -35,7 +35,6 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       : null;
     const withPushed = (prompt: string | undefined) => (prompt && pushed ? `${pushed}\n\n${prompt}` : prompt);
     const snapshot = materializeArtifacts(repoDir, {
-      research: data.context?.researchDocument,
       plan: data.context?.planDocument,
       summary: data.context?.summaryDocument,
     });

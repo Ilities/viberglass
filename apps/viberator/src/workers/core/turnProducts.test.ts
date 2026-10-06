@@ -23,34 +23,34 @@ const write = (dir: string, name: string, content: string) => fs.writeFileSync(p
 describe("what a turn produced", () => {
   it("finds the documents the agent wrote or revised, not the ones it left alone", async () => {
     const dir = await repository({ "app.js": "console.log(1)\n" });
-    const snapshot = materializeArtifacts(dir, { research: "# Research v1\n", plan: undefined });
-    expect(fs.readFileSync(path.join(dir, "RESEARCH.md"), "utf-8")).toBe("# Research v1\n");
+    const snapshot = materializeArtifacts(dir, { plan: "# Plan v1\n", summary: undefined });
+    expect(fs.readFileSync(path.join(dir, "PLAN.md"), "utf-8")).toBe("# Plan v1\n");
 
-    write(dir, "PLAN.md", "# Plan v1\n");
-    expect(collectArtifacts(dir, snapshot)).toEqual({ plan: "# Plan v1\n" });
+    write(dir, "SUMMARY.md", "# Summary v1\n");
+    expect(collectArtifacts(dir, snapshot)).toEqual({ summary: "# Summary v1\n" });
 
-    write(dir, "RESEARCH.md", "# Research v2\n");
-    expect(collectArtifacts(dir, snapshot)).toEqual({ research: "# Research v2\n", plan: "# Plan v1\n" });
+    write(dir, "PLAN.md", "# Plan v2\n");
+    expect(collectArtifacts(dir, snapshot)).toEqual({ plan: "# Plan v2\n", summary: "# Summary v1\n" });
   });
 
   it("doesn't count an emptied document as a version", async () => {
     const dir = await repository({ "app.js": "1\n" });
-    const snapshot = materializeArtifacts(dir, { research: "# Research\n" });
-    write(dir, "RESEARCH.md", "  \n");
+    const snapshot = materializeArtifacts(dir, { plan: "# Plan\n" });
+    write(dir, "PLAN.md", "  \n");
 
     expect(collectArtifacts(dir, snapshot)).toEqual({});
   });
 
   it("never counts the documents as code, even where the repository tracks them", async () => {
     const dir = await repository({ "app.js": "1\n", "PLAN.md": "the repo's own plan\n" });
-    materializeArtifacts(dir, { research: "# Research\n", plan: "# Our plan\n" });
+    materializeArtifacts(dir, { plan: "# Our plan\n", summary: "# Summary\n" });
     write(dir, "PLAN.md", "# Our plan, revised\n");
 
     await restoreArtifactFiles(dir);
 
     expect(await listCodeChanges(dir)).toEqual([]);
     expect(fs.readFileSync(path.join(dir, "PLAN.md"), "utf-8")).toBe("the repo's own plan\n");
-    expect(fs.existsSync(path.join(dir, "RESEARCH.md"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, "SUMMARY.md"))).toBe(false);
   });
 
   it("lists changed and new files as code, but not the pull request notes the agent leaves", async () => {

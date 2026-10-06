@@ -35,7 +35,7 @@ export interface TaskSituation {
   yourMove: boolean
 }
 
-export type TaskSituationArtifact = 'research' | 'plan' | 'code'
+export type TaskSituationArtifact = 'plan' | 'code'
 
 /** What a task's situation is worked out from; the server gathers it per task. */
 export interface TaskSituationInput {
@@ -68,19 +68,18 @@ export interface SituationViewer {
   isAdmin: boolean
 }
 
-const ARTIFACT_NAME: Record<TaskSituationArtifact, string> = { research: 'Research', plan: 'Plan', code: 'Code' }
+const ARTIFACT_NAME: Record<TaskSituationArtifact, string> = { plan: 'Plan', code: 'Code' }
 
 const WORKING: Record<TaskTurnAction, string> = {
-  research: 'writing the research',
   plan: 'writing the plan',
   code: 'building',
   reply: 'replying',
   summarise: 'summarising',
 }
 
-const REVISING: Partial<Record<TaskTurnAction, string>> = { research: 'revising the research', plan: 'revising the plan', code: 'updating the code' }
+const REVISING: Partial<Record<TaskTurnAction, string>> = { plan: 'revising the plan', code: 'updating the code' }
 
-const ARTIFACT_OF_ACTION: Partial<Record<TaskTurnAction, TaskSituationArtifact>> = { research: 'research', plan: 'plan', code: 'code' }
+const ARTIFACT_OF_ACTION: Partial<Record<TaskTurnAction, TaskSituationArtifact>> = { plan: 'plan', code: 'code' }
 
 const later = (a: string | null | undefined, b: string | null | undefined) => (!a ? false : !b ? true : a > b)
 

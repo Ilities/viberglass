@@ -37,10 +37,10 @@ test("only people on the task, maintainers and admins can ask the agent to build
   const task = await createTask(adminApi, workspace.projectId, "Shorten the greeting.");
   const guest = await inviteGuest(adminApi, workspace.projectId);
 
-  // A member who isn't on the task may ask for research or a plan, but isn't offered the build, and the API refuses it.
+  // A member who isn't on the task may ask for a plan, but isn't offered the build, and the API refuses it.
   await memberPage.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
   const memberThread = memberPage.getByRole("region", { name: "Thread" });
-  await expect(memberThread.getByRole("button", { name: "Write the research" })).toBeVisible();
+  await expect(memberThread.getByRole("button", { name: "Write the plan" })).toBeVisible();
   await expect(memberThread.getByRole("button", { name: "Build it" })).toHaveCount(0);
   const refused = await askToBuild(memberApi, task.id);
   expect(refused.status()).toBe(403);
@@ -51,10 +51,10 @@ test("only people on the task, maintainers and admins can ask the agent to build
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
   const thread = page.getByRole("region", { name: "Thread" });
   await expect(page.getByRole("heading", { name: task.title })).toBeVisible();
-  await expect(thread.getByRole("button", { name: "Write the research" })).toHaveCount(0);
+  await expect(thread.getByRole("button", { name: "Write the plan" })).toHaveCount(0);
   await expect(thread.getByRole("button", { name: "Build it" })).toHaveCount(0);
   expect((await askToBuild(guest.session.api, task.id)).status()).toBe(403);
-  expect((await guest.session.api.post(`/api/tasks/${task.id}/messages`, { data: { body: "", action: "research" } })).status()).toBe(403);
+  expect((await guest.session.api.post(`/api/tasks/${task.id}/messages`, { data: { body: "", action: "plan" } })).status()).toBe(403);
   expect((await (await guest.session.api.get(`/api/tasks/${task.id}`)).json()).data.capabilities).toMatchObject({ canAsk: false, canAskForCode: false });
 
   // On the task, the guest may ask it to build, with nothing approved first; the build runs and is theirs.

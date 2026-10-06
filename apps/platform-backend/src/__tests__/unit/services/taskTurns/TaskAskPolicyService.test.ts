@@ -28,7 +28,7 @@ describe("ask rules", () => {
     expect(canAskForCode(person("lead", "member", "maintainer"), [])).toBe(true);
   });
 
-  it("lets members ask for research and plans on any task they can see, and guests only on tasks they're on", () => {
+  it("lets members ask for plans on any task they can see, and guests only on tasks they're on", () => {
     expect(canAskAgent(person("stranger"), participants)).toBe(true);
     expect(canAskAgent(person("tomi", "guest"), participants)).toBe(true);
     expect(canAskAgent(person("visitor", "guest"), participants)).toBe(false);
@@ -110,11 +110,11 @@ describe("TaskAskPolicyService", () => {
   });
 
   it("refuses a guest who isn't on the task anything", async () => {
-    await expect(service({ role: "guest" }).assertCanAsk("visitor", TASK_ID, "research")).rejects.toMatchObject({ code: "ASK_NOT_ALLOWED" });
+    await expect(service({ role: "guest" }).assertCanAsk("visitor", TASK_ID, "plan")).rejects.toMatchObject({ code: "ASK_NOT_ALLOWED" });
   });
 
   it("lets the system ask for anything but code", async () => {
-    await expect(service().assertCanAsk(null, TASK_ID, "research")).resolves.toBeUndefined();
+    await expect(service().assertCanAsk(null, TASK_ID, "plan")).resolves.toBeUndefined();
     await expect(service().assertCanAsk(null, TASK_ID, "code")).rejects.toMatchObject({ code: "ASK_NO_PERSON" });
   });
 

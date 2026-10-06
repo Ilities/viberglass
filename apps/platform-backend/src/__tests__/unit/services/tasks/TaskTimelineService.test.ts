@@ -14,7 +14,7 @@ function agentTurn(id: string, at: string, jobId: string, outcome: TaskAgentTurn
     id,
     sessionId: "s-1",
     agent: { id: "claude", name: "Claude" },
-    action: "research",
+    action: "plan",
     status: outcome ? "completed" : "running",
     outcome,
     jobId,
@@ -25,7 +25,7 @@ function agentTurn(id: string, at: string, jobId: string, outcome: TaskAgentTurn
 function revision(
   id: string,
   at: string,
-  phase: "research" | "planning",
+  phase: "planning",
   source: "agent" | "manual",
   version: number,
   author: typeof MARIA | null = null,
@@ -79,7 +79,7 @@ describe("TaskTimelineService", () => {
     const thread = await service({
       messages: [{ id: "m-1", at: "2026-10-01T10:05:00.000Z", body: "Which tone fits?" }],
       sessionMessages: [{ id: "turn-1", at: "2026-10-01T10:03:00.000Z", body: "Look at the checkout too" }],
-      revisions: [revision("r-1", "2026-10-01T10:04:00.000Z", "research", "agent", 1)],
+      revisions: [revision("r-1", "2026-10-01T10:04:00.000Z", "planning", "agent", 1)],
       activity: [activity("a-1", "2026-10-01T10:00:00.000Z", "task_created")],
     }).list("t");
 
@@ -88,19 +88,17 @@ describe("TaskTimelineService", () => {
     expect(thread[3]).toMatchObject({ kind: "message", channel: "thread", sessionId: null });
   });
 
-  it("shows each document's versions by number, and credits hand edits to their author", async () => {
+  it("shows the plan's versions by number, and credits hand edits to their author", async () => {
     const thread = await service({
       revisions: [
-        revision("r-1", "2026-10-01T10:00:00.000Z", "research", "agent", 1),
-        revision("r-2", "2026-10-01T10:01:00.000Z", "planning", "agent", 1),
-        revision("r-3", "2026-10-01T10:02:00.000Z", "research", "manual", 2, MARIA),
+        revision("r-1", "2026-10-01T10:00:00.000Z", "planning", "agent", 1),
+        revision("r-2", "2026-10-01T10:01:00.000Z", "planning", "manual", 2, MARIA),
       ],
     }).list("t");
 
     expect(thread).toEqual([
-      expect.objectContaining({ id: "r-1", artifact: "research", version: 1, byAgent: true, author: null }),
-      expect.objectContaining({ id: "r-2", artifact: "plan", version: 1, byAgent: true }),
-      expect.objectContaining({ id: "r-3", artifact: "research", version: 2, byAgent: false, author: MARIA }),
+      expect.objectContaining({ id: "r-1", artifact: "plan", version: 1, byAgent: true, author: null }),
+      expect.objectContaining({ id: "r-2", artifact: "plan", version: 2, byAgent: false, author: MARIA }),
     ]);
   });
 
@@ -122,14 +120,14 @@ describe("TaskTimelineService", () => {
       messages: [{ id: "m-1", at, body: "Go" }],
       activity: [activity("run", at, "run_started")],
       agentTurns: [agentTurn("turn-1", at, "job-9")],
-      revisions: [revision("r-1", at, "research", "agent", 1)],
+      revisions: [revision("r-1", at, "planning", "agent", 1)],
     }).list("t");
 
     expect(thread.map((entry) => entry.kind)).toEqual(["message", "agent_turn", "artifact_version", "event"]);
   });
 
   it("shows the agent's turns, and leaves out the run events a turn already tells", async () => {
-    const outcome = { intent: "Writing the research", reply: "Writing the research\n\nDone.", produced: ["research" as const], codeDiscarded: false, resumed: false };
+    const outcome = { intent: "Writing the plan", reply: "Writing the plan\n\nDone.", produced: ["plan" as const], codeDiscarded: false, resumed: false };
     const thread = await service({
       agentTurns: [agentTurn("turn-1", "2026-10-01T10:01:00.000Z", "job-1", outcome)],
       activity: [
@@ -141,7 +139,7 @@ describe("TaskTimelineService", () => {
     }).list("t");
 
     expect(thread.map((entry) => entry.id)).toEqual(["turn-1", "other", "cancelled"]);
-    expect(thread[0]).toMatchObject({ kind: "agent_turn", agent: { name: "Claude" }, action: "research", outcome, jobId: "job-1", sessionId: "s-1" });
+    expect(thread[0]).toMatchObject({ kind: "agent_turn", agent: { name: "Claude" }, action: "plan", outcome, jobId: "job-1", sessionId: "s-1" });
   });
 
   it("shows the agent's questions after the turn that asked, without the activity that repeats them", async () => {

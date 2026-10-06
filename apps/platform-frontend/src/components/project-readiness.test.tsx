@@ -37,7 +37,7 @@ describe('ProjectReadinessBanner', () => {
     )
 
     expect(await screen.findByText('Automation needs setup')).toBeInTheDocument()
-    expect(screen.getByText('You can submit tasks now. Complete these items before starting research or execution.')).toBeInTheDocument()
+    expect(screen.getByText('You can submit tasks now. Complete these items before asking an agent for a plan or a build.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Fix setup' })).toHaveAttribute('href', '/spaces/shop/settings')
   })
 

@@ -52,7 +52,7 @@ describe('buildRunTranscript', () => {
     const steps = buildRunTranscript([
       event('progress', { text: "Started the agent's session" }),
       event('tool_call_completed', { toolCallId: 'c9', toolName: 'grep', output: '3 matches', success: true }),
-      event('turn_completed', { produced: ['research'] }),
+      event('turn_completed', { produced: ['plan'] }),
     ])
     expect(steps).toEqual([
       { kind: 'note', id: expect.any(String), text: "Started the agent's session" },

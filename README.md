@@ -6,7 +6,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
 [![GitHub stars](https://img.shields.io/github/stars/Ilities/viberglass?style=social)](https://github.com/Ilities/viberglass/stargazers)
 
-**Open-source agent orchestrator that turns tickets into pull requests.** Team members describe bugs or code changes, and AI agents automatically research the codebase, write the fix, and open a PR for review.
+**Open-source agent orchestrator that turns tickets into pull requests.** Team members describe bugs or code changes, and AI agents read the codebase, plan the change, write it, and open a PR for review.
 
 No repository access required to file a ticket. QA engineers, PMs, and customer success teams can submit issues directly. Developers review the PR when it's ready.
 
@@ -16,7 +16,7 @@ No repository access required to file a ticket. QA engineers, PMs, and customer 
 
 ## Features
 ![how-it-works.svg](docs/images/how-it-works.svg)
-- **Multi-phase ticket lifecycle** — tickets progress through Research, Plan, and Execute phases, each driven by an AI agent
+- **Multi-phase ticket lifecycle** — the agent writes a plan from what it finds in the code, then builds it, with people revising each in the ticket's thread
 - **Interactive agent sessions (ACP)** — collaborate with agents in real-time via the built-in session UI
 - **Scheduled tasks (Claws)** — define recurring agent jobs on a cron schedule
 - **Customizable prompt templates** — override system prompts per project for full control over agent behavior
@@ -116,7 +116,7 @@ Once your Clanker is running, go to `/projects` and click **Create Project**. Wi
 
 **Step 5: Create tickets**
 
-Create tickets in the UI or via an integration webhook. Each ticket steps through the Research, Plan, and Execute phases and eventually ends with a pull request in your repository.
+Create tickets in the UI or via an integration webhook. Each ticket gets a plan and then a build, and ends with a pull request in your repository.
 
 <img src="docs/images/ticket-page.png" width="600" />
 

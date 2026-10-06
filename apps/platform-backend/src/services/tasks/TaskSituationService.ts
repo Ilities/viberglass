@@ -44,7 +44,7 @@ interface Dependencies {
 }
 
 const MESSAGE_PREVIEW = 140;
-const ARTIFACT_OF_PHASE = { research: "research", planning: "plan", execution: "code" } as const;
+const ARTIFACT_OF_PHASE = { planning: "plan", execution: "code" } as const;
 const iso = (date: Date) => date.toISOString();
 const newest = (...dates: Array<Date | null | undefined>) =>
   dates.reduce<Date | null>((latest, date) => (date && (!latest || date > latest) ? date : latest), null);

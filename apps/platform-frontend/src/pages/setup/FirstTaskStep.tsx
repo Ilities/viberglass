@@ -47,7 +47,7 @@ export function FirstTaskStep({
         annotations: [],
         autoFixRequested: false,
       })
-      await askAgent(ticket.id, { action: 'research', body: 'Write the research', agentId: clankerId })
+      await askAgent(ticket.id, { action: 'plan', body: 'Write the plan', agentId: clankerId })
       navigate(taskPath(space.slug, ticket))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start the task.")
@@ -59,7 +59,7 @@ export function FirstTaskStep({
     <SetupFrame
       step={5}
       title="Try your first task"
-      intro="Ask for something small. The agent researches it in your repository and writes up what it found for you to review."
+      intro="Ask for something small. The agent reads your repository and writes a plan, with what it found, for you to review."
     >
       <form onSubmit={handleSubmit} className="grid gap-6">
         <SetupError message={error} />

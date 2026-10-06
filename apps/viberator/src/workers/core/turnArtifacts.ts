@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 /** The documents a turn reads and writes, as files in the repository root. */
-export const ARTIFACT_FILES = { research: "RESEARCH.md", plan: "PLAN.md", summary: "SUMMARY.md" } as const;
+export const ARTIFACT_FILES = { plan: "PLAN.md", summary: "SUMMARY.md" } as const;
 
 export type TurnArtifact = keyof typeof ARTIFACT_FILES;
 
@@ -11,7 +11,7 @@ export type TurnDocuments = Partial<Record<TurnArtifact, string>>;
 /** What each file held before the agent ran: the current version, or null when the repository had no such file. */
 export type ArtifactSnapshot = Record<TurnArtifact, string | null>;
 
-const ARTIFACTS: TurnArtifact[] = ["research", "plan", "summary"];
+const ARTIFACTS: TurnArtifact[] = ["plan", "summary"];
 
 function read(filePath: string): string | null {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : null;
@@ -22,7 +22,7 @@ function read(filePath: string): string | null {
  * revises them in place, and keeps them out of any commit.
  */
 export function materializeArtifacts(repoDir: string, current: TurnDocuments): ArtifactSnapshot {
-  const snapshot: ArtifactSnapshot = { research: null, plan: null, summary: null };
+  const snapshot: ArtifactSnapshot = { plan: null, summary: null };
   for (const artifact of ARTIFACTS) {
     const filePath = path.join(repoDir, ARTIFACT_FILES[artifact]);
     const content = current[artifact];

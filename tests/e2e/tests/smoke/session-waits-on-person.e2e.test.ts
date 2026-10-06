@@ -1,9 +1,9 @@
 import {
   createTask,
-  researchDocument,
+  planDocument,
   runStatus,
   sessionStatus,
-  startLiveResearchSession,
+  startLivePlanSession,
 } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
@@ -12,8 +12,8 @@ test("a turn that writes no document leaves it the person's move, who can reply 
   adminPage: page,
   workspace,
 }) => {
-  const task = await createTask(adminApi, workspace.projectId, "Research the greeting function.");
-  const { sessionId, jobId } = await startLiveResearchSession(
+  const task = await createTask(adminApi, workspace.projectId, "Look into the greeting function.");
+  const { sessionId, jobId } = await startLivePlanSession(
     adminApi,
     task.id,
     workspace.clankerId,
@@ -33,9 +33,9 @@ test("a turn that writes no document leaves it the person's move, who can reply 
   const composer = thread.getByRole("textbox", { name: "Write a message" });
   await composer.fill("@");
   await thread.getByRole("option", { name: /Fake Agent/ }).click();
-  await composer.fill(`${await composer.inputValue()}Thanks, now write it up in RESEARCH.md.`);
+  await composer.fill(`${await composer.inputValue()}Thanks, now write it up in PLAN.md.`);
   await thread.getByRole("button", { name: "Post" }).click();
 
-  await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 90_000 }).toContain("now write it up");
+  await expect.poll(() => planDocument(adminApi, task.id), { timeout: 90_000 }).toContain("now write it up");
   await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 10_000 }).toBe("waiting_on_user");
 });

@@ -17,7 +17,7 @@ export function ThreadItem({
   who: string
   isAgent?: boolean
   at: string
-  /** Said after the time, quieter: "to the agent", "asked for the research". */
+  /** Said after the time, quieter: "to the agent", "asked for the plan". */
   note?: React.ReactNode
   label?: string
   children: React.ReactNode

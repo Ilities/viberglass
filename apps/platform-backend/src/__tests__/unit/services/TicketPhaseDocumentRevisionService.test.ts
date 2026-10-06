@@ -32,7 +32,7 @@ describe("TicketPhaseDocumentRevisionService", () => {
         id: "revision-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: TICKET_WORKFLOW_PHASE.RESEARCH,
+        phase: TICKET_WORKFLOW_PHASE.PLANNING,
         content: "Initial draft",
         source: "manual",
         actor: "author@example.com",
@@ -44,19 +44,19 @@ describe("TicketPhaseDocumentRevisionService", () => {
     const service = new TicketPhaseDocumentRevisionService();
     const revisions = await service.listRevisions(
       "ticket-1",
-      TICKET_WORKFLOW_PHASE.RESEARCH,
+      TICKET_WORKFLOW_PHASE.PLANNING,
     );
 
     expect(mockRevisionDAO.listByTicketAndPhase).toHaveBeenCalledWith(
       "ticket-1",
-      TICKET_WORKFLOW_PHASE.RESEARCH,
+      TICKET_WORKFLOW_PHASE.PLANNING,
     );
     expect(revisions).toEqual([
       {
         id: "revision-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: TICKET_WORKFLOW_PHASE.RESEARCH,
+        phase: TICKET_WORKFLOW_PHASE.PLANNING,
         content: "Initial draft",
         source: "manual",
         actor: "author@example.com",

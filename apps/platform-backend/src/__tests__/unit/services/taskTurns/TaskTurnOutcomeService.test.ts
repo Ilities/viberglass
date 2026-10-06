@@ -1,9 +1,9 @@
 import { intentOf, TaskTurnOutcomeService } from "../../../../services/taskTurns/TaskTurnOutcomeService";
 
 const SESSION = { ticketId: "t-1" };
-const TURN = { id: "turn-1", action: "research" as const };
+const TURN = { id: "turn-1", action: "plan" as const };
 
-function setup(streamed: string[] = ["Writing the research: checking the theme store.", "\n\nDone."]) {
+function setup(streamed: string[] = ["Writing the plan: checking the theme store.", "\n\nDone."]) {
   const deps = {
     turns: { update: jest.fn() },
     events: { listAssistantTextByTurn: jest.fn().mockResolvedValue(streamed) },
@@ -22,24 +22,24 @@ function setup(streamed: string[] = ["Writing the research: checking the theme s
 }
 
 describe("TaskTurnOutcomeService", () => {
-  it("saves each document the turn wrote as a version of its own, and records the reply", async () => {
+  it("saves the plan a reply rewrote as a new version, and records the reply", async () => {
     const { deps, service } = setup();
 
     const recorded = await service.record("job-1", SESSION, { id: "turn-1", action: "reply" }, {
       success: true,
-      documents: { research: "# Research", plan: "# Plan" },
+      documents: { plan: "# Plan" },
       resumed: true,
       commitHash: "abc",
     });
 
-    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "research", "# Research", { source: "agent", agentTurnId: "turn-1" });
+    expect(deps.documents.saveDocument).toHaveBeenCalledTimes(1);
     expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "planning", "# Plan", { source: "agent", agentTurnId: "turn-1" });
     expect(deps.turns.update).toHaveBeenCalledWith("turn-1", {
-      contentMarkdown: "Writing the research: checking the theme store.\n\nDone.",
+      contentMarkdown: "Writing the plan: checking the theme store.\n\nDone.",
       contentJson: {
-        intent: "Writing the research: checking the theme store.",
-        reply: "Writing the research: checking the theme store.\n\nDone.",
-        produced: ["research", "plan", "code"],
+        intent: "Writing the plan: checking the theme store.",
+        reply: "Writing the plan: checking the theme store.\n\nDone.",
+        produced: ["plan", "code"],
         codeDiscarded: false,
         resumed: true,
         mentioned: [{ id: "tomi", name: "Tomi Laine" }],
@@ -53,15 +53,15 @@ describe("TaskTurnOutcomeService", () => {
     expect(deps.mentions.createForTurn).toHaveBeenCalledWith("t-1", "turn-1", ["tomi"]);
     // Ended after the documents are saved, so a queued turn reads them.
     expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [
-      { eventType: "turn_completed", payload: { produced: ["research", "plan", "code"] } },
+      { eventType: "turn_completed", payload: { produced: ["plan", "code"] } },
     ]);
-    expect(deps.documents.saveDocument.mock.invocationCallOrder[1]).toBeLessThan(deps.workerEvents.batchIngest.mock.invocationCallOrder[0]);
+    expect(deps.documents.saveDocument.mock.invocationCallOrder[0]).toBeLessThan(deps.workerEvents.batchIngest.mock.invocationCallOrder[0]);
   });
 
   it("records a turn that only answered, and one whose code was thrown away", async () => {
     const { deps, service } = setup(["Answering: it's per device."]);
 
-    const recorded = await service.record("job-1", SESSION, TURN, { success: true, documents: { research: "  " }, codeDiscarded: true });
+    const recorded = await service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "  " }, codeDiscarded: true });
 
     expect(deps.documents.saveDocument).not.toHaveBeenCalled();
     expect(deps.turns.update).toHaveBeenCalledWith("turn-1", {
@@ -107,22 +107,22 @@ describe("TaskTurnOutcomeService", () => {
   });
 
   it("ends a turn that missed the document it was asked for as failed, keeping its code", async () => {
-    const { deps, service } = setup(["Writing the research."]);
+    const { deps, service } = setup(["Writing the plan."]);
 
-    await service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" }, commitHash: "abc", missing: "research" });
+    await service.record("job-1", SESSION, TURN, { success: true, documents: { summary: "# Notes" }, commitHash: "abc", missing: "plan" });
 
     expect(deps.documents.saveDocument).not.toHaveBeenCalled();
     expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [{ eventType: "turn_failed", payload: { produced: ["code"] } }]);
   });
 
-  it("keeps only the document the turn was asked for, not one the agent rewrote on its own", async () => {
+  it("saves the plan a plan turn wrote and mentions the reviewers", async () => {
     const { deps, service } = setup();
 
-    const recorded = await service.record("job-1", SESSION, TURN, { success: true, documents: { research: "# Research", plan: "# Plan" } });
+    const recorded = await service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" } });
 
     expect(deps.documents.saveDocument).toHaveBeenCalledTimes(1);
-    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "research", "# Research", { source: "agent", agentTurnId: "turn-1" });
-    expect(recorded).toEqual({ step: "research", mentioned: ["tomi"] });
+    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "planning", "# Plan", { source: "agent", agentTurnId: "turn-1" });
+    expect(recorded).toEqual({ step: "planning", mentioned: ["tomi"] });
   });
 
   it("keeps no document from a build turn", async () => {
@@ -147,15 +147,15 @@ describe("TaskTurnOutcomeService", () => {
 describe("intentOf", () => {
   it("is the first line the agent wrote, without markdown", () => {
     expect(intentOf("\n\n## **Revising the plan:** adding the `packing slip`\nmore")).toBe("Revising the plan: adding the packing slip");
-    expect(intentOf("- Writing the research")).toBe("Writing the research");
+    expect(intentOf("- Writing the plan")).toBe("Writing the plan");
     expect(intentOf("   ")).toBeNull();
     expect(intentOf("x".repeat(300))).toHaveLength(200);
   });
 
   it("stops at the end of the first sentence, so it never cuts off mid-thought", () => {
     expect(
-      intentOf("Writing the research: I'll read the repo's instructions first. greeting lives in greeting.js:1 — export const greeting = () => 'hello'"),
-    ).toBe("Writing the research: I'll read the repo's instructions first.");
+      intentOf("Writing the plan: I'll read the repo's instructions first. greeting lives in greeting.js:1 — export const greeting = () => 'hello'"),
+    ).toBe("Writing the plan: I'll read the repo's instructions first.");
     // A full stop inside a file name isn't the end of a sentence.
     expect(intentOf("Checking greeting.js before I change it")).toBe("Checking greeting.js before I change it");
   });

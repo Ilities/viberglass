@@ -315,21 +315,21 @@ describe("job result callbacks", () => {
   });
 
   it("fails a turn that came back without the document it was asked for", async () => {
-    const turn = { id: "turn-1", sessionId: "session-1", action: "research" };
+    const turn = { id: "turn-1", sessionId: "session-1", action: "plan" };
     const session = { id: "session-1", ticketId: "ticket-1" };
     mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
     mockAgentSessionDAO.getById.mockResolvedValue(session);
-    mockDocumentCheck.missing.mockResolvedValue("research");
+    mockDocumentCheck.missing.mockResolvedValue("plan");
     const res = response();
 
-    await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, documents: { plan: "# Plan" } }, tenantId: "tenant-1" }, res);
+    await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, documents: { summary: "# Notes" } }, tenantId: "tenant-1" }, res);
 
-    expect(mockDocumentCheck.missing).toHaveBeenCalledWith(turn, { plan: "# Plan" });
-    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "research", documents: { plan: "# Plan" } }));
+    expect(mockDocumentCheck.missing).toHaveBeenCalledWith(turn, { summary: "# Notes" });
+    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "plan", documents: { summary: "# Notes" } }));
     expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
       "job-1",
       "failed",
-      expect.objectContaining({ failureCode: "AGENT_NO_DOCUMENT", errorMessage: "The agent finished without writing the research." }),
+      expect.objectContaining({ failureCode: "AGENT_NO_DOCUMENT", errorMessage: "The agent finished without writing the plan." }),
     );
     expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "failed" });
     expect(mockAutoSummariser.afterTurn).not.toHaveBeenCalled();

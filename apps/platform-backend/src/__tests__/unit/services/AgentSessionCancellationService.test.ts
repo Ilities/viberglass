@@ -10,7 +10,7 @@ function session(overrides: Partial<AgentSession>): AgentSession {
     ticketId: "t",
     ticketTitle: null,
     clankerId: "c",
-    mode: "research",
+    mode: "planning",
     status: "active",
     title: null,
     repository: null,

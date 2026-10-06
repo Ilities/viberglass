@@ -11,7 +11,7 @@ export function checkoutCommands(branch: TaskCodeBranch, taskKey: string): strin
   const git = branch.pushed
     ? `git fetch origin ${branch.branch}\ngit switch ${branch.branch}`
     : `git fetch origin ${branch.baseBranch}\ngit switch -c ${branch.branch} origin/${branch.baseBranch}`
-  return `viberglass checkout ${taskKey}\n\n# or with git, in a clone of ${branch.repositoryUrl}:\n${git}`
+  return `git clone ${branch.repositoryUrl}\n${git}`
 }
 
 interface TaskTakeoverCardProps {

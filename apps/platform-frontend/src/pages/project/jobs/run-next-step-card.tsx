@@ -50,7 +50,7 @@ export function RunNextStepCard({
   documentShownAbove = false,
 }: RunNextStepCardProps) {
   const { user } = useAuth()
-  const [revising, setRevising] = useState<'research' | 'planning' | null>(null)
+  const [revising, setRevising] = useState(false)
   const actions = useRunNextStepActions({ project, ticketId: job.ticketId, clankerId: job.clankerId })
   const taskHref = job.ticketId ? `/spaces/${project}/tasks/${job.ticketId}` : null
   const agentName = job.clanker?.name ?? 'The agent'
@@ -88,8 +88,7 @@ export function RunNextStepCard({
         )
       case 'failed': {
         const guidance = failureGuidance(job.result?.failure, user?.role === 'admin', project)
-        const canRunAgain =
-          guidance.canRetry && (job.jobKind === 'research' || job.jobKind === 'planning') && ticket?.workflowPhase === job.jobKind
+        const canRunAgain = guidance.canRetry && job.jobKind === 'planning' && ticket?.workflowPhase === job.jobKind
         const technicalDetail =
           job.result?.failure?.technicalDetail || job.result?.errorMessage || job.failedReason || 'No technical details were reported.'
         return (
@@ -108,7 +107,7 @@ export function RunNextStepCard({
                   <Button
                     color="brand"
                     disabled={actions.busy !== null}
-                    onClick={() => void actions.runAgain(job.jobKind === 'planning' ? 'planning' : 'research')}
+                    onClick={() => void actions.runAgain()}
                   >
                     {actions.busy === 'retry' ? 'Starting…' : 'Try again'}
                   </Button>
@@ -138,7 +137,7 @@ export function RunNextStepCard({
                   <Button
                     color="brand"
                     disabled={actions.busy !== null}
-                    onClick={() => void actions.runAgain(job.jobKind === 'planning' ? 'planning' : 'research')}
+                    onClick={() => void actions.runAgain()}
                   >
                     {actions.busy === 'retry' ? 'Starting…' : `Run ${kind} again`}
                   </Button>
@@ -176,32 +175,6 @@ export function RunNextStepCard({
             It wrote no document and changed no code. Reply in the thread to carry on.
           </HandoffCard>
         )
-      case 'research_ready':
-        return (
-          <HandoffCard
-            owner="you"
-            eyebrow="Your move · research ready"
-            title="Read the research"
-            actions={
-              <>
-                {job.ticketId && (
-                  <Button color="brand" disabled={actions.busy !== null} onClick={() => void actions.writePlan()}>
-                    {actions.busy === 'plan' ? 'Asking…' : 'Write the plan'}
-                  </Button>
-                )}
-                <Button outline disabled={actions.busy !== null} onClick={() => setRevising('research')}>
-                  Ask for changes
-                </Button>
-              </>
-            }
-          >
-            {documentShownAbove ? (
-              'The research is above. Ask the agent for the plan, or for changes.'
-            ) : (
-              <DocumentPreview preview={step.preview} href={`${taskHref}?tab=research`} />
-            )}
-          </HandoffCard>
-        )
       case 'plan_ready':
         return (
           <HandoffCard
@@ -211,7 +184,7 @@ export function RunNextStepCard({
             actions={
               <>
                 {openTask}
-                <Button outline disabled={actions.busy !== null} onClick={() => setRevising('planning')}>
+                <Button outline disabled={actions.busy !== null} onClick={() => setRevising(true)}>
                   Ask for changes
                 </Button>
               </>
@@ -225,11 +198,7 @@ export function RunNextStepCard({
           </HandoffCard>
         )
       case 'moved_on':
-        return step.phase === 'research' ? (
-          <HandoffCard owner="settled" eyebrow="Research written" title="The task has a plan now" actions={openTask} />
-        ) : (
-          <HandoffCard owner="settled" eyebrow="Plan written" title="The task has a pull request now" actions={openTask} />
-        )
+        return <HandoffCard owner="settled" eyebrow="Plan written" title="The task has a pull request now" actions={openTask} />
       case 'pull_request':
         return (
           <HandoffCard
@@ -276,9 +245,8 @@ export function RunNextStepCard({
           clankers={clankers}
           project={project}
           open
-          mode={revising}
           onClose={() => {
-            setRevising(null)
+            setRevising(false)
             onChanged()
           }}
         />

@@ -9,11 +9,11 @@ describe("AuditRecorder", () => {
 
   it("credits a Slack action to the person who linked that account, and says it came from Slack", async () => {
     await runAsActor({ userId: "maria", slackUserId: "U123" }, () =>
-      audit.record({ action: "run.started", target: { type: "run", id: "job-1" }, details: { step: "research" } }),
+      audit.record({ action: "run.started", target: { type: "run", id: "job-1" }, details: { step: "planning" } }),
     );
 
     expect(log.record).toHaveBeenCalledWith(
-      expect.objectContaining({ actorId: "maria", details: { step: "research", via: "slack", slackUserId: "U123" } }),
+      expect.objectContaining({ actorId: "maria", details: { step: "planning", via: "slack", slackUserId: "U123" } }),
     );
   });
 

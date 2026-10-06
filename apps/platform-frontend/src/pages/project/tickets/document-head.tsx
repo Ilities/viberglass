@@ -5,12 +5,12 @@ import { usePersonName } from '@/hooks/usePeople'
 import { getPhaseDocumentRevisions, type PhaseDocumentRevisionResponse } from '@/service/api/ticket-api'
 import { useEffect, useState } from 'react'
 
-export const DOCUMENT_NAME = { research: 'Research', planning: 'Plan' } as const
+export const DOCUMENT_NAME = { planning: 'Plan' } as const
 
 /** The document's newest version, read again whenever the document changes; nothing while there's no document. */
 export function useLatestRevision(
   ticketId: string,
-  step: 'research' | 'planning',
+  step: 'planning',
   updatedAt: string,
   enabled: boolean
 ): PhaseDocumentRevisionResponse | null {
@@ -43,7 +43,7 @@ export function VersionByline({ revision, updatedAt }: { revision: PhaseDocument
 }
 
 /** "Plan v3": the document's name and the version shown. */
-export function VersionTitle({ step, version }: { step: 'research' | 'planning'; version: number | null }) {
+export function VersionTitle({ step, version }: { step: 'planning'; version: number | null }) {
   return (
     <>
       {DOCUMENT_NAME[step]}
@@ -61,7 +61,7 @@ export function DocumentHead({
   onFullScreen,
   onEdit,
 }: {
-  step: 'research' | 'planning'
+  step: 'planning'
   latest: PhaseDocumentRevisionResponse | null
   updatedAt: string
   onCompare: (version: number) => void

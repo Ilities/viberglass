@@ -53,7 +53,7 @@ describe("TaskSituationService", () => {
   it("says why the agent stopped when its last turn failed", async () => {
     const { deps, service } = setup();
     deps.turns.lastFinished.mockResolvedValue(
-      new Map([["t-1", { status: "failed", at: at("10:00"), failure: { title: "Model key rejected", category: "setup" }, agent: AGENT, intent: "Writing the research" }]]),
+      new Map([["t-1", { status: "failed", at: at("10:00"), failure: { title: "Model key rejected", category: "setup" }, agent: AGENT, intent: "Writing the plan" }]]),
     );
 
     const described = (await service.describe([TASK], viewer("owner"))).get("t-1");
