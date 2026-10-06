@@ -25,11 +25,13 @@ test("workspace plumbing sits under Settings → Advanced, for admins only", asy
 }) => {
   const plumbing = ["Agents & runners", "Connections", "Secrets", "Prompt templates"];
 
-  // The main navigation has no plumbing for anyone; Settings leads to it.
+  // The main navigation has no plumbing for anyone; settings are in the account menu.
   await memberPage.goto("/");
   await expect(memberPage.getByRole("link", { name: "Home", exact: true })).toBeVisible();
   await expect(memberPage.getByRole("link", { name: "Overview", exact: true })).toBeVisible();
-  await memberPage.getByRole("link", { name: "Settings", exact: true }).click();
+  await memberPage.getByRole("button", { name: "Account" }).click();
+  await expect(memberPage.getByRole("menuitem", { name: "Workspace settings" })).toHaveCount(0);
+  await memberPage.getByRole("menuitem", { name: "Notifications" }).click();
   await expect(memberPage).toHaveURL(/\/settings\/notifications$/);
   for (const label of plumbing) {
     await expect(memberPage.getByRole("link", { name: label, exact: true })).toHaveCount(0);
@@ -37,7 +39,8 @@ test("workspace plumbing sits under Settings → Advanced, for admins only", asy
 
   await adminPage.goto("/");
   await expect(adminPage.getByRole("link", { name: "Secrets", exact: true })).toHaveCount(0);
-  await adminPage.getByRole("link", { name: "Settings", exact: true }).click();
+  await adminPage.getByRole("button", { name: "Account" }).click();
+  await adminPage.getByRole("menuitem", { name: "Workspace settings" }).click();
   await expect(adminPage.getByRole("heading", { name: "Advanced" })).toBeVisible();
   for (const label of plumbing) {
     await expect(adminPage.getByRole("link", { name: label, exact: true })).toBeVisible();

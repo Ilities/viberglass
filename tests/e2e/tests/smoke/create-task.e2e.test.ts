@@ -19,5 +19,5 @@ test("creating a task through the form lands on it, in the plan step, with the p
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const taskId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
   expect(await taskPhase(adminApi, taskId)).toBe("planning");
-  await expect(page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Write the plan" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Write the plan" })).toBeVisible();
 });

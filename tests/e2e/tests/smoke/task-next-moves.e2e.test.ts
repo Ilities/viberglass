@@ -22,7 +22,7 @@ test("a task says whose move it is under its title and makes the move: the plan,
   workspace,
 }) => {
   // Each turn sleeps, so the running state can be seen.
-  const task = await createTask(adminApi, workspace.projectId, "Explain greeting.js. [fake:sleep=6]");
+  const task = await createTask(adminApi, workspace.projectId, "Explain greeting.js. [fake:sleep=20]");
   const planningJobId = await startPlan(adminApi, task.id, workspace.clankerId);
 
   // While it runs, the agent has the move and it can be cancelled.
@@ -39,9 +39,9 @@ test("a task says whose move it is under its title and makes the move: the plan,
   // The document the run wrote is on the Plan tab.
   await page.getByRole("tab", { name: /^Plan/ }).click();
   await expect(page.getByText("Written by the fake agent used in end-to-end tests.").first()).toBeVisible();
-  await expect(page.getByRole("tab", { name: /^Plan/ })).toContainText("Written");
+  await expect(page.getByRole("tab", { name: /^Plan/ })).toContainText("Ready");
 
   // The build pushes code, so it starts only when someone asks the agent for it; nothing has to be approved first.
   await expect(page.getByRole("button", { name: /Approve/ })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Build it" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Build it" })).toBeVisible();
 });

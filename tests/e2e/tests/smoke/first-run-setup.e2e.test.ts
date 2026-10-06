@@ -36,7 +36,7 @@ test("a product leader sets up an empty workspace alone and gets a first plan", 
 
     // 2. Repository: the token is checked with GitHub.
     await expect(page.getByRole("heading", { name: "Point at your repository" })).toBeVisible();
-    await page.getByLabel("Repository").fill(SETUP_STUB.repository);
+    await page.getByRole("textbox", { name: "Repository" }).fill(SETUP_STUB.repository);
     await page.getByLabel("Access token").fill(SETUP_STUB.gitHubToken);
     await page.getByRole("button", { name: "Continue" }).click();
 
@@ -93,11 +93,11 @@ test("a new admin can explore the demo workspace first, then remove it and set u
     // The demo loads beside real data, with tasks at every stage.
     await page.getByRole("button", { name: "Explore a demo workspace" }).click();
     await expect(page).toHaveURL(/\/spaces\/demo-acme-storefront$/);
-    await expect(page.getByRole("status")).toContainText("a demo space with sample data");
+    await expect(page.getByRole("status").filter({ hasText: "sample data" })).toContainText("Its tasks don't run agents.");
     // The space is its tasks.
     await page.getByText("Fix rounding in cart totals").click();
     await expect(page.getByRole("heading", { name: "Model quota used up" })).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("a demo space with sample data");
+    await expect(page.getByRole("status").filter({ hasText: "sample data" })).toContainText("Its tasks don't run agents.");
 
     // Removing it leaves an empty workspace, so setup picks up again.
     await page.getByRole("button", { name: "Remove demo" }).click();

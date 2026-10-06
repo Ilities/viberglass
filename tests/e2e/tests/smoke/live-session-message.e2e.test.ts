@@ -23,8 +23,8 @@ test("a message to the agent during its turn reaches it in its next turn", async
   await expect.poll(() => isWorkerContainerRunning(jobId), { timeout: 30_000 }).toBe(true);
 
   // Retry: the container start can abort the first load (ERR_NETWORK_CHANGED).
-  const thread = page.getByRole("region", { name: "Thread" });
-  const composer = thread.getByRole("textbox", { name: "Write a message" });
+  const thread = page.getByRole("region", { name: "Conversation" });
+  const composer = thread.getByRole("combobox", { name: "Write a message" });
   await expect(async () => {
     await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
     await expect(composer).toBeVisible({ timeout: 5_000 });

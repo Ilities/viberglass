@@ -27,5 +27,5 @@ test("a session opens with what the person wrote, which reaches the agent and sh
   // There's no separate session page: the person's message is in the task's thread.
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
   await expect(page.getByRole("heading", { name: task.title })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Thread" }).getByText(opening)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Conversation" }).getByText(opening)).toBeVisible();
 });

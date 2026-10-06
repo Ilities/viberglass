@@ -28,8 +28,8 @@ test("the agent asks the person who asked for the task; it's their move, and ans
   expect(await planDocument(adminApi, task.id)).toBe("");
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
-  await expect(thread.getByRole("listitem", { name: "Fake Agent's question" })).toContainText(`Fake Agent asks ${E2E.member.name}`);
+  const thread = page.getByRole("region", { name: "Conversation" });
+  await expect(thread.getByRole("listitem", { name: "Fake Agent's question" })).toContainText(`asks ${E2E.member.name}`);
   const answer = thread.getByRole("group", { name: "Answer Fake Agent's question" });
   await answer.getByRole("button", { name: "Hi there" }).click();
 

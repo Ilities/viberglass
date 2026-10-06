@@ -7,6 +7,7 @@ import { CommentableDocument } from './commentable-document'
 import type { ApplySuggestion, DocumentComments } from './document-comments'
 import { DocumentHead, useLatestRevision, VersionByline, VersionTitle } from './document-head'
 import { FullScreenReader } from './full-screen-reader'
+import { PlanPartsOutline } from './plan-parts-outline'
 import type { TaskNextMove } from './task-next-move'
 import type { TaskPageData } from './use-task-page'
 
@@ -120,6 +121,7 @@ export function DocumentStep({
         onFullScreen={() => setFullScreen(true)}
         onEdit={canEdit ? () => setDraft(document.content) : undefined}
       />
+      <PlanPartsOutline plan={document.content} />
       <CommentableDocument
         source={document.content}
         comments={comments}

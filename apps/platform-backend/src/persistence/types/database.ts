@@ -227,6 +227,7 @@ export interface ClankerConfigFilesTable {
 }
 
 export interface ClankersTable {
+  deleted_at: Generated<Timestamp | null>;
   id: Generated<string>;
   name: string;
   slug: string;
