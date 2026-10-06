@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { getSetupStatus } from '@/service/api/setup-api'
 import { DemoWorkspaceBanner } from './demo-workspace-banner'
 
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ status: 'authenticated', user: { id: 'a', role: 'admin' } }) }))
@@ -39,5 +40,24 @@ describe('DemoWorkspaceBanner', () => {
     renderAt('/')
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('finds the demo loaded from setup once the person leaves setup', async () => {
+    const status = jest.mocked(getSetupStatus)
+    status.mockClear()
+    function LeaveSetup() {
+      const navigate = useNavigate()
+      return <button onClick={() => navigate('/spaces/demo')}>Explore</button>
+    }
+    render(
+      <MemoryRouter initialEntries={['/setup']}>
+        <LeaveSetup />
+        <DemoWorkspaceBanner />
+      </MemoryRouter>
+    )
+    expect(status).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Explore' }))
+    expect(await screen.findByText(/Its tasks don't run agents/)).toBeInTheDocument()
   })
 })

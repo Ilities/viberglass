@@ -88,6 +88,9 @@ export * from './taskTurn'
 // Where a comment sits in a document
 export * from './documentAnchor'
 
+// A plan's parts, each built as one pull request
+export * from './planParts'
+
 // The workspace audit log
 export * from './auditLog'
 export * from './taskSituation'

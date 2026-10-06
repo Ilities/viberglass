@@ -10,7 +10,7 @@ test("asking the agent for the plan writes a document, with nothing to approve",
   const task = await createTask(adminApi, workspace.projectId, "Explain how greeting.js works.");
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await thread.getByRole("button", { name: "Write the plan" }).click();
 
   // The ask is a message from the person; the agent's turn and the version it wrote follow it.

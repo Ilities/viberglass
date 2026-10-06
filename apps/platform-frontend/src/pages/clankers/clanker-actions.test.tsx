@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
@@ -51,6 +51,19 @@ function renderActions(
 }
 
 describe('ClankerActions', () => {
+  it('shows delete errors instead of silently closing the dialog', async () => {
+    mockedDeleteClanker.mockRejectedValue(new Error('Only workspace admins can delete runners'))
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      renderActions(buildClanker())
+      await userEvent.click(screen.getByRole('button', { name: 'Delete agent runner' }))
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Delete$/ }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('Only workspace admins can delete runners')
+    } finally {
+      errorLog.mockRestore()
+    }
+  })
+
   beforeEach(() => {
     jest.resetAllMocks()
     mockedDeactivateClanker.mockResolvedValue(buildClanker())

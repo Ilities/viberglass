@@ -39,7 +39,7 @@ test("only people on the task, maintainers and admins can ask the agent to build
 
   // A member who isn't on the task may ask for a plan, but isn't offered the build, and the API refuses it.
   await memberPage.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const memberThread = memberPage.getByRole("region", { name: "Thread" });
+  const memberThread = memberPage.getByRole("region", { name: "Conversation" });
   await expect(memberThread.getByRole("button", { name: "Write the plan" })).toBeVisible();
   await expect(memberThread.getByRole("button", { name: "Build it" })).toHaveCount(0);
   const refused = await askToBuild(memberApi, task.id);
@@ -49,7 +49,7 @@ test("only people on the task, maintainers and admins can ask the agent to build
   // A guest who isn't on the task is offered nothing, and can't ask for anything.
   const { context, page } = await signedInPage(browser, guest.session);
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await expect(page.getByRole("heading", { name: task.title })).toBeVisible();
   await expect(thread.getByRole("button", { name: "Write the plan" })).toHaveCount(0);
   await expect(thread.getByRole("button", { name: "Build it" })).toHaveCount(0);
@@ -113,12 +113,12 @@ async function mentionsTheReviewer(
 
   // The plan arrives as the agent's post mentioning the reviewer, in place of a review request.
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Write the plan" }).click();
+  await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Write the plan" }).click();
   await expect.poll(() => planDocument(adminApi, task.id), { timeout: 120_000 }).toContain("Fake Plan");
   // The mention makes it the reviewer's move on Home, and stays so until they answer.
   await expect.poll(() => needsYou(memberApi)).toContain(`${task.title}: Plan v1 ready`);
   await expect(async () => {
     await page.reload();
-    await expect(page.getByRole("region", { name: "Thread" }).getByText(`Asked ${E2E.member.name} to take a look`)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("region", { name: "Conversation" }).getByText(`Asked ${E2E.member.name} to take a look`)).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
 }

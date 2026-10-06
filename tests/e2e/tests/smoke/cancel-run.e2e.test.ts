@@ -14,9 +14,9 @@ test("cancelling a run stops the agent and keeps the run cancelled", async ({
 
   // Starting a container changes the host's network interfaces, and Chromium
   // aborts in-flight loads with ERR_NETWORK_CHANGED, so retry the navigation.
-  const cancelButton = page.getByRole("button", { name: "Cancel run" });
+  const cancelButton = page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Cancel run" });
   await expect(async () => {
-    await page.goto(`/spaces/${workspace.projectSlug}/runs/${jobId}`);
+    await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
     await expect(cancelButton).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   await cancelButton.click();
@@ -39,7 +39,7 @@ test("a run stopped partway keeps the plan it had written, and says who stopped 
   await expect.poll(() => isWorkerContainerRunning(run.jobId), { timeout: 30_000 }).toBe(true);
   await page.waitForTimeout(8_000);
 
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await expect(async () => {
     await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
     await expect(thread.getByRole("button", { name: "Cancel run" })).toBeVisible({ timeout: 5_000 });
@@ -52,10 +52,5 @@ test("a run stopped partway keeps the plan it had written, and says who stopped 
   await page.reload();
   await expect(thread.getByRole("listitem", { name: "Fake Agent's turn" })).toContainText("It kept the plan it had written.");
   await expect(thread.getByRole("button", { name: "Open Plan v1" })).toBeVisible();
-
-  // The stopped container changes the host's network, which can abort a load; retry it.
-  await expect(async () => {
-    await page.goto(`/spaces/${workspace.projectSlug}/runs/${run.jobId}`);
-    await expect(page.getByText("E2E Admin cancelled it here")).toBeVisible({ timeout: 5_000 });
-  }).toPass({ timeout: 30_000 });
+  await expect(thread.getByText("E2E Admin cancelled a run")).toBeVisible();
 });

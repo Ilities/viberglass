@@ -51,7 +51,7 @@ test("a task opens by its key, shows who's on it, and anyone can watch it", asyn
 
   await memberPage.goto(`/spaces/${workspace.projectSlug}/tasks/${key}`);
   await expect(memberPage.getByRole("heading", { name: task.title })).toBeVisible();
-  await expect(memberPage.getByRole("navigation", { name: "Breadcrumb" }).getByText(key, { exact: true })).toBeVisible();
+  await expect(memberPage.getByText(new RegExp(`› ${key}$`))).toBeVisible();
   await memberPage.getByRole("button", { name: "Watch" }).click();
   await expect(memberPage.getByRole("button", { name: "Stop watching" })).toBeVisible();
   expect(await participants(memberApi, task.id)).toContain("watcher:E2E Member");

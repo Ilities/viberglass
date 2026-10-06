@@ -21,6 +21,13 @@ jest.mock("../../persistence/ticketing/TicketDAO", () => ({
   })),
 }));
 
+jest.mock("../../persistence/ticketing/TicketListDAO", () => ({
+  TicketListDAO: jest.fn().mockImplementation(() => ({
+    getTicketsWithFilters: jest.fn().mockResolvedValue({ tickets: [], total: 0 }),
+    getTicketStats: jest.fn().mockResolvedValue({}),
+  })),
+}));
+
 jest.mock("../../persistence/webhook/WebhookDeliveryDAO", () => ({
   WebhookDeliveryDAO: jest.fn().mockImplementation(() => ({
     getPendingDeliveries: jest.fn().mockResolvedValue([]),

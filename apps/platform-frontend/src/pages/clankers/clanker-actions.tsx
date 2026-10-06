@@ -59,12 +59,14 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
   }
 
   async function handleDelete() {
+    setActionError(null)
     setIsDeleting(true)
     try {
       await deleteClanker(clanker.id)
       navigate('/settings/agents')
     } catch (error) {
       console.error('Failed to delete agent:', error)
+      setActionError(error instanceof Error ? error.message : 'Failed to delete agent runner')
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }
@@ -102,7 +104,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
         </DialogDescription>
         <DialogBody>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            All configuration and settings for this agent runner will be permanently removed.
+            This runner will no longer be available for tasks. Past sessions and run history will be retained.
           </p>
         </DialogBody>
         <DialogActions>

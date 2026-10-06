@@ -50,7 +50,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   expect(posted.status()).toBe(201);
   await expect.poll(() => needsYou(designer.api)).toContain(`${task.title}: Discussing`);
   await designer.page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  await designer.page.getByRole("textbox", { name: "Write a message" }).fill("Warm and short. No exclamation marks.");
+  await designer.page.getByRole("combobox", { name: "Write a message" }).fill("Warm and short. No exclamation marks.");
   await designer.page.getByRole("button", { name: "Post" }).click();
   await expect(designer.page.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   // Replying answers the mention, so it's no longer the designer's move.
@@ -68,12 +68,12 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
     await expect(page.getByRole("heading", { name: "Fake Plan" })).toBeVisible();
   }).toPass();
   await selectText(page, "Written by", "tests.");
-  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.getByRole("button", { name: "Comment or suggest" }).click();
   await page.getByRole("dialog", { name: "New comment" }).getByRole("textbox", { name: "Comment" }).fill("Say who writes the copy.");
   await page.getByRole("dialog", { name: "New comment" }).getByRole("button", { name: "Add comment" }).click();
   await expect(page.locator("mark").first()).toBeVisible();
 
-  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Revise the plan with 1 comment" }).click();
+  await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Revise the plan with 1 comment" }).click();
   await expect.poll(async () => {
     const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document.content;
     return plan.includes("Say who writes the copy.");
@@ -82,7 +82,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   // 7. The reviewer is happy with it and asks the agent to build it: that ask is the agreement, under their name.
   await expect(async () => {
     await page.reload();
-    await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Build it" }).click({ timeout: 5_000 });
+    await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Build it" }).click({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   let buildJobId = "";
   await expect.poll(async () => {
@@ -93,16 +93,18 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   await runFinishes(adminApi, buildJobId);
 
   // Every step is attributed in the task's thread.
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await expect(thread.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   for (const sentence of [
     "E2E Admin created the task",
     `E2E Admin asked ${reviewer.name} to review`,
     `Asked ${reviewer.name} to take a look`,
-    `${reviewer.name} commented on the plan: “Written by the fake agent used in end-to-end tests.”`,
     "Revise the plan with 1 comment",
     "Build it",
   ]) {
     await expect(thread.getByText(sentence, { exact: true }).first()).toBeVisible();
   }
+  const reviewerComment = thread.getByRole("listitem", { name: `${reviewer.name}'s comment` });
+  await expect(reviewerComment).toContainText("commented on the plan");
+  await expect(reviewerComment.locator("blockquote")).toContainText("Written by the fake agent used in end-to-end tests.");
 });

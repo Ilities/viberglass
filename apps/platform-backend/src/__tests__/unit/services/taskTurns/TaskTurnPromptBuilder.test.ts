@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/103_plan_includes_research";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/104_plan_in_parts";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";

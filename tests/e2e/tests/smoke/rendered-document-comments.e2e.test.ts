@@ -29,7 +29,7 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
 
   // Select across the bold text, then comment on it.
   await selectText(page, "button", "mobile");
-  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.getByRole("button", { name: "Comment or suggest" }).click();
   const composer = page.getByRole("dialog", { name: "New comment" });
   await composer.getByRole("textbox", { name: "Comment" }).fill("Which button? Checkout or cart?");
   await composer.getByRole("button", { name: "Add comment" }).click();
@@ -56,7 +56,7 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
   expect((await planComments(adminApi, task.id))[0].outdated).toBe(true);
   await expect(async () => {
     await page.reload();
-    await page.getByRole("button", { name: /^Comments/ }).click();
+    await page.locator("summary", { hasText: /^Comments/ }).click();
     await expect(page.getByText("Outdated: the text changed")).toBeVisible();
   }).toPass();
 });

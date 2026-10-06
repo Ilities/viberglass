@@ -13,7 +13,7 @@ test("the owner takes the work over, pushes a commit to the task's branch, hands
   await expect.poll(() => runStatus(adminApi, first.jobId), { timeout: 120_000 }).toBe("completed");
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await thread.getByRole("button", { name: "Take over" }).click();
   const card = thread.getByRole("region", { name: "Taken over" });
   await expect(card).toContainText("E2E Admin is working on it locally");

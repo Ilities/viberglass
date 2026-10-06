@@ -19,13 +19,13 @@ test("the owner interrupts the agent with a new instruction, then pauses it and 
   // Admins own the tasks they create, so they steer them.
   const task = await createTask(adminApi, workspace.projectId, "Explain greeting.js.");
   const url = `/spaces/${workspace.projectSlug}/tasks/${task.id}`;
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
 
   // A slow plan turn, interrupted with a new instruction: it stops, and the next turn has the instruction.
   const first = await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan. [fake:sleep=15]", agentId: workspace.clankerId });
   await expect.poll(() => isWorkerContainerRunning(first.jobId), { timeout: 30_000 }).toBe(true);
   await openTask(page, url, thread.getByRole("button", { name: "Pause the agent" }));
-  await thread.getByRole("textbox", { name: "Write a message" }).fill("Cover the farewell function too.");
+  await thread.getByRole("combobox", { name: "Write a message" }).fill("Cover the farewell function too.");
   await thread.getByRole("button", { name: "Interrupt with this" }).click();
 
   await expect.poll(() => runStatus(adminApi, first.jobId)).toBe("cancelled");
