@@ -15,14 +15,14 @@ export function registerSlashCommandHandler(
 
       if (projects.length === 0) {
         await event.channel.post(
-          "No projects configured. Create a project in Viberator first.",
+          "No spaces yet. Create a space in Viberglass first.",
         );
         return;
       }
 
       if (clankers.length === 0) {
         await event.channel.post(
-          "No clankers configured. Create a clanker in Viberator first.",
+          "No agents yet. Add an agent in Viberglass first.",
         );
         return;
       }
@@ -36,27 +36,27 @@ export function registerSlashCommandHandler(
           children: [
             Select({
               id: "projectId",
-              label: "Project",
-              placeholder: "Select a project",
+              label: "Space",
+              placeholder: "Select a space",
               options: projects.map((p) =>
                 SelectOption({ label: p.name, value: p.id }),
               ),
             }),
             Select({
               id: "clankerId",
-              label: "Clanker",
-              placeholder: "Select a clanker",
+              label: "Agent",
+              placeholder: "Select an agent",
               options: clankers.map((c) =>
                 SelectOption({ label: c.name, value: c.id }),
               ),
             }),
             Select({
               id: "mode",
-              label: "Mode",
-              placeholder: "Select a mode",
+              label: "Start with",
+              placeholder: "A plan or the build",
               options: [
-                SelectOption({ label: "Planning", value: "planning" }),
-                SelectOption({ label: "Execution", value: "execution" }),
+                SelectOption({ label: "A plan", value: "planning" }),
+                SelectOption({ label: "The build", value: "execution" }),
               ],
             }),
             TextInput({

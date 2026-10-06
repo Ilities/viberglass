@@ -1,6 +1,6 @@
 # Slack Integration
 
-Viberglass integrates with Slack via the [Vercel Chat SDK](https://github.com/vercel/chat), allowing users to create tickets, run AI agent jobs, and advance those jobs through research → planning → execution phases — all from a Slack thread.
+Viberglass connects to Slack through the [Vercel Chat SDK](https://github.com/vercel/chat). People can start a task from Slack with `/viberator`, and the task then gets a Slack thread that mirrors its thread in Viberglass. What people write in the Slack thread goes to the task, and what happens on the task (messages from the web, the agent's runs, its questions, the plan, the pull request) is posted back into the thread.
 
 ## Table of Contents
 
@@ -8,8 +8,9 @@ Viberglass integrates with Slack via the [Vercel Chat SDK](https://github.com/ve
 - [Prerequisites](#prerequisites)
 - [Creating the Slack App](#creating-the-slack-app)
 - [Configuration](#configuration)
-- [Architecture](#architecture)
+- [Linking Slack Accounts](#linking-slack-accounts)
 - [Usage](#usage)
+- [Architecture](#architecture)
 - [Troubleshooting](#troubleshooting)
 - [Updating the App](#updating-the-app)
 
@@ -17,35 +18,34 @@ Viberglass integrates with Slack via the [Vercel Chat SDK](https://github.com/ve
 
 The integration provides:
 
-- `/viberator` slash command that opens a modal to create a ticket and launch the first AI agent job
-- Job progress streamed into a Slack thread (documents posted on completion, PR link on execution finish)
-- Approve/Reject buttons posted after each research/planning job for one-click phase advancement
-- Keyword commands in thread @mentions as an alternative path to advance or revise
-- Chained phase execution (e.g. research → planning → execution in one command)
-- Approve/Reject buttons when the agent needs approval mid-run during execution
+- A `/viberator` slash command that opens a form to create a task and ask an agent for a plan or for code.
+- One Slack thread per task started from Slack, kept in step with the task's thread in Viberglass.
+- Thread replies that become messages on the task, asks of the agent (when they mention the bot) or answers to the agent's question.
+- Buttons in the thread: a **Build it** button after a plan, and option buttons on the agent's questions.
+- Slack DMs for people who linked their Slack account (review requests, mentions, assignments, failed runs, questions, expiring credentials). Step and task updates go to the task's thread instead of a DM.
+
+A task works in two steps: the agent writes a plan, then it writes the code. You can start at either step.
 
 ## Prerequisites
 
-- A Slack workspace with admin permissions to install apps
-- The platform backend running and accessible via HTTPS (use ngrok for local dev)
-- At least one project and one clanker configured in Viberator
+- A Slack workspace where you can install apps.
+- The platform backend reachable over HTTPS (use ngrok for local development).
+- At least one space (project) and one agent (clanker) configured in Viberglass.
 
 ## Creating the Slack App
 
 ### Option A: From Manifest (Recommended)
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Click **Create New App** > **From a manifest**
-3. Select your workspace
-4. Paste the contents of `apps/platform-backend/slack-app-manifest.json`
-5. Replace all `YOUR_HOST` values with your actual backend host
-6. Click **Create**
-7. Install the app to your workspace
+1. Go to [api.slack.com/apps](https://api.slack.com/apps).
+2. Click **Create New App** > **From a manifest**.
+3. Select your workspace.
+4. Paste the contents of `apps/platform-backend/slack-app-manifest.json`.
+5. Replace every `YOUR_HOST` with your backend host.
+6. Click **Create**, then install the app to your workspace.
 
 ### Option B: Via Slack API
 
 ```bash
-# Create the app from the manifest file
 curl -X POST https://slack.com/api/apps.manifest.create \
   -H "Authorization: Bearer xoxe-..." \
   -H "Content-Type: application/json" \
@@ -54,209 +54,204 @@ curl -X POST https://slack.com/api/apps.manifest.create \
 
 ### Option C: Manual Setup
 
-1. Create a new app at [api.slack.com/apps](https://api.slack.com/apps) > **From scratch**
-2. **Bot User**: Set display name to "Viberator", enable "Always Online"
-3. **OAuth Scopes** (Bot Token): `commands`, `app_mentions:read`, `chat:write`, `chat:write.public`, `channels:read`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write` (`im:write` and `users:read.email` let Viberglass DM people who linked their Slack account under Settings → Notifications)
-4. **Slash Commands**: Create `/viberator` pointing to `https://{host}/api/webhooks/slack`
-5. **Interactivity**: Enable, set Request URL to `https://{host}/api/webhooks/slack`
-6. **Event Subscriptions**: Enable, set Request URL to `https://{host}/api/webhooks/slack`, subscribe to `app_mention`, `message.channels` and `message.groups`
-7. Install to workspace
+1. Create a new app at [api.slack.com/apps](https://api.slack.com/apps) > **From scratch**.
+2. **Bot User**: set the display name to "Viberator" and enable "Always Online".
+3. **OAuth Scopes** (Bot Token): `commands`, `app_mentions:read`, `chat:write`, `chat:write.public`, `channels:read`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write`. `users:read.email` is used to link accounts by email, `im:write` to send DMs, and `files:write` to attach `plan.md`.
+4. **Slash Commands**: create `/viberator` pointing to `https://{host}/api/webhooks/slack`.
+5. **Interactivity**: enable it and set the Request URL to `https://{host}/api/webhooks/slack`.
+6. **Event Subscriptions**: enable them, set the Request URL to `https://{host}/api/webhooks/slack`, and subscribe to `app_mention`, `message.channels` and `message.groups`.
+7. Install to the workspace.
+
+All three Slack features (slash command, interactivity, events) use the same URL.
 
 ### Collect Credentials
 
-After creating the app:
-
-1. Go to **OAuth & Permissions** > copy the **Bot User OAuth Token** (`xoxb-...`)
-2. Go to **Basic Information** > copy the **Signing Secret**
+1. **OAuth & Permissions** > copy the **Bot User OAuth Token** (`xoxb-...`).
+2. **Basic Information** > copy the **Signing Secret**.
 
 ## Configuration
 
-Add these environment variables to the platform backend:
+Set these on the platform backend:
 
 ```bash
-# Slack Bot Token (from OAuth & Permissions page)
+# Bot User OAuth Token (OAuth & Permissions page)
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 
-# Slack Signing Secret (from Basic Information page)
+# Signing Secret (Basic Information page)
 SLACK_SIGNING_SECRET=your-signing-secret
+
+# Used to build task links posted in Slack, e.g. https://viberglass.example.com
+PLATFORM_FRONTEND_URL=https://your-frontend-host
 ```
 
-The Chat SDK's PostgreSQL state adapter reuses the existing `DATABASE_URL` (or `DB_HOST`/`DB_PORT`/etc.) for persisting thread subscriptions.
+- The Slack adapter is only created when `SLACK_SIGNING_SECRET` is set and not `not-configured`. Without it, `/api/webhooks/slack` answers `503`.
+- `SLACK_BOT_TOKEN` is used by the Chat SDK adapter and by the backend's own Slack calls (account linking and DMs). Slack shows as connected in Viberglass only when both values are set.
+- Without `PLATFORM_FRONTEND_URL`, Slack posts show the task title without a link.
+- The Chat SDK keeps its thread subscriptions in the platform's PostgreSQL database, using the same connection as the rest of the backend.
+- On AWS, both Slack values are read from SSM parameters by the backend ECS task (`infra/platform/components/backend-ecs.ts`).
+
+## Linking Slack Accounts
+
+Each person links their Slack account in Viberglass under **Settings → Notifications**. Viberglass looks up the Slack user with the same email address as their Viberglass account and stores the Slack user ID.
+
+What a linked account allows:
+
+- Messages, mentions, answers and option buttons in a task's thread are done as that Viberglass user. Someone without a linked account gets this reply instead: "Link your Slack account in Viberglass (Settings → Notifications) to take part in tasks from Slack."
+- The `/viberator` form lists only the spaces the linked user can see, and the new task's requester is that user. For someone not linked, the form lists every space and the task has no requester.
+- Asking the agent for code needs a linked account, so the run can be credited to someone. Someone not linked can still start a task with a plan.
+- The usual task permissions apply: only the task's people can ask the agent, and only the task's people, the space's maintainers or a workspace admin can ask it to build.
+
+## Usage
+
+### Starting a Task
+
+1. Invite the bot to a channel: `/invite @Viberator`.
+2. Type `/viberator` in the channel.
+3. Fill in the **Ask the agent** form:
+   - **Space**: the space the task belongs to.
+   - **Agent**: the agent to ask.
+   - **Start with**: **A plan** (the agent writes a plan) or **The build** (the agent writes the code).
+   - **Title**: optional. Defaults to the first line of the message.
+   - **Message**: what you want done. This becomes the task's description.
+4. Click **Ask**.
+
+The bot creates the task, posts `Task: <title>` in the channel (linked to the task), quotes your message in that post's thread, and asks the agent for the plan or the code. That thread is the task's Slack thread from then on.
+
+### Working in the Thread
+
+- **A plain reply** becomes a message on the task, posted as you.
+- **A reply that @mentions the bot** asks the agent, with your message (minus the mention) as the ask.
+- **A reply from the person the agent asked** answers its open question, unless it mentions the bot.
+- **@mentions of other people** become mentions in Viberglass if they have linked accounts. Mentions of people without linked accounts are dropped.
+- **Build it** (after a plan) asks the agent to write the code.
+- **Option buttons** on a question answer it with that option. Up to five options are shown as buttons. You can always answer by replying in the thread.
+
+### What the Bot Posts
+
+| Event on the task | Post in the thread |
+|---|---|
+| Someone writes on the task from the web | `**Name:** message` (messages written in Slack aren't posted again) |
+| A run starts | _The agent is writing the plan…_ / _The agent is building…_ / _The agent is replying…_ |
+| A run finishes | The agent's reply, cut at about 3,000 characters with a link to read the rest in Viberglass |
+| The run produced a plan | `plan.md` attached, then "Reply here to discuss it, mention me to ask for changes, or:" with a **Build it** button |
+| The run produced code | `Pull request: <url>` |
+| The agent asks a question | A card "*Agent* asks *Person*" with the question, option buttons and a note to reply in the thread |
+| Someone answers from the web | _Name answered Agent: answer_ |
+| A run fails | **The plan run failed**: reason (or **The build run failed**) |
+| A run is cancelled | _The run was cancelled._ |
+| The pull request is merged or the task is done | **Done.** |
+
+Changes are posted whatever caused them, the web, Slack or a schedule, so the thread matches the task. Only tasks started with `/viberator` have a Slack thread.
 
 ## Architecture
 
 ```
 Slack workspace
   │
-  ├── /viberator slash command
-  │     ↓
-  │   POST /api/webhooks/slack
-  │     ↓
-  │   Chat SDK Slack adapter (verifies signing secret)
-  │     ↓
-  │   slashCommand handler → opens Modal
-  │     ↓
-  │   modalSubmit handler
-  │     ├── TicketDAO.createTicket()
-  │     ├── TicketPhaseOrchestrationService.advanceAndRun()
-  │     ├── Posts thread root to channel (ticket link + prompt)
-  │     └── TicketJobBridge.startBridge()
-  │           ↓
-  │         Polls JobService every 2s
-  │         On completion: posts document (research/planning) or PR link (execution)
-  │         If chainTo set: auto-advances to next phase via callbacks.advanceAndRun()
+  POST /api/webhooks/slack   (slash command, interactivity and events)
   │
-  ├── @viberator mention in ticket thread
-  │     ↓
-  │   threadMention handler
-  │     ├── resolveTicketAdvance(instruction, currentPhase)
-  │     │     → "advance": advanceAndRunTicketJob()
-  │     │     → "chain":   chainAndRunTicketJob() [e.g. planning→execution]
-  │     │     → (default): runRevisionJob()
-  │     └── TicketJobBridge.startBridge() for follow-up job
+  Chat SDK Slack adapter (verifies the signing secret)
   │
-  ├── ticket_approve_phase / ticket_reject_phase button click
-  │     ↓
-  │   ticketApprovalAction handler
-  │     ├── reject → posts "Rejected by {user}" message (no state change)
-  │     └── approve → advanceAndRunTicketJob() + TicketJobBridge.startBridge()
+  ├── /viberator ─────────────► slashCommand → "Ask the agent" form (callback viberator_launch)
   │
-  └── session_approve / session_reject button click
-        ↓
-      approvalAction handler
-        └── AgentSessionInteractionService.approve()
+  ├── form submitted ─────────► modalSubmit
+  │                               ├── createTicket (requester = linked user)
+  │                               ├── posts "Task: …" and links that thread to the task
+  │                               └── askAgent (plan or code)
+  │
+  ├── message in task thread ─► threadMessage → TaskThreadInbound.receive
+  │                               ├── reply from the person asked → answers the question
+  │                               ├── mentions the bot          → asks the agent
+  │                               └── otherwise                 → message on the task
+  │
+  └── button click ───────────► buttonActions
+                                  ├── task_ask (Build it)       → TaskThreadInbound.ask
+                                  └── question_answer_N         → TaskThreadInbound.answer
+
+Task activity (from anywhere)
+  │
+  TaskSlackMirror (activity listener) → taskMirrorPosts → thread.post(...)
 ```
+
+Everything a Slack user does is run as their linked Viberglass user, with the Slack user ID recorded on the action (it shows up in the audit log). The mirror uses that to skip posting messages and answers that came from Slack.
+
+A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thread, channel, adapter). Thread lookups are cached in memory and survive restarts through the database. If the bot loses a thread subscription after a restart, the next @mention in that thread subscribes it again.
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/chat/bot.ts` | Chat SDK instance with Slack adapter + PG state |
-| `src/chat/index.ts` | Entry point — registers all handlers, wires TicketPhaseOrchestrationService |
-| `src/chat/TicketJobBridge.ts` | Polls job status, posts documents/PR links, chains phases on completion |
-| `src/chat/ticketThreadMap.ts` | DB-backed ticketId ↔ thread mapping (with in-memory cache) |
-| `src/chat/sessionThreadMap.ts` | DB-backed sessionId ↔ thread mapping (legacy session path) |
-| `src/chat/ChatSessionBridgeService.ts` | Polls session events, streams to thread (legacy session path) |
-| `src/services/TicketPhaseOrchestrationService.ts` | Composes workflow/approval/research/planning/execution into a single `advanceAndRun` entry point |
-| `src/persistence/chat/ChatTicketThreadDAO.ts` | DAO for ticket ↔ thread mapping persistence |
-| `src/chat/handlers/slashCommand.ts` | `/viberator` → modal with project/clanker/mode/message |
-| `src/chat/handlers/modalSubmit.ts` | Creates ticket, launches first job, subscribes thread |
-| `packages/chat-slack/src/handlers/threadMention.ts` | Routes @mentions to advance/chain/revise handlers |
-| `packages/chat-slack/src/handlers/approvalAction.ts` | Handles approve/reject button clicks |
-| `slack-app-manifest.json` | Slack app manifest for IaC deployment |
-
-## Usage
-
-### Launching a Job
-
-1. Invite the bot to a channel: `/invite @Viberator`
-2. Type `/viberator` in the channel
-3. Fill in the modal:
-   - **Project**: Select the target project
-   - **Clanker**: Select the agent to use
-   - **Mode**: Research, Planning, or Execution
-   - **Message**: Describe the task
-4. Click **Launch**
-5. The bot creates a ticket, starts the job, and posts a thread with a link to the ticket
-
-### Advancing Phases
-
-#### Approve / Reject Buttons (Primary)
-
-When a research or planning job completes, the bot posts a card in the thread with **Approve** and **Reject** buttons:
-
-- **Approve** — advances to the next phase (research → planning, planning → execution) and starts the follow-up job immediately.
-- **Reject** — posts a "Rejected" message and keeps the current phase open. @mention the bot with feedback to queue a revision job.
-
-#### Keyword Commands (Alternative)
-
-@mention the bot in the thread with a keyword to move to the next phase. Keywords are case-insensitive and trailing/leading punctuation is stripped (so `lgtm!` and `LGTM.` both work).
-
-| Keyword(s) | Current phase | Action |
-|---|---|---|
-| `plan` / `plan it` / `start planning` / `move to planning` | Research | Advance to planning |
-| `lgtm` / `approved` / `looks good` / `approve` | Research | Advance to planning |
-| `next` / `proceed` / `continue` | Research | Advance to planning |
-| `next` / `proceed` / `continue` | Planning | Advance to execution |
-| `execute` / `do it` / `let's go` / `ship it` / `run it` / `go` / `start execution` | Planning | Advance to execution |
-| `lgtm` / `approved` / `looks good` / `approve` | Planning | Advance to execution |
-| `execute` / `do it` / `ship it` / `go` (and similar) | Research | **Chain**: run planning then auto-advance to execution |
-| *(any other text)* | Research or Planning | Revision job with your message as feedback |
-| *(any text)* | Execution | Rejected — execution phase cannot be revised |
-
-### Thread Lifecycle
-
-| Event | Slack message posted |
-|---|---|
-| Job launched | Thread root with ticket link and initial prompt |
-| Research job completes | `research.md` file attachment + "Research complete" card with Approve/Reject buttons |
-| Planning job completes | `planning.md` file attachment + "Planning complete" card with Approve/Reject buttons |
-| Execution job completes | Pull request URL + ticket link |
-| Chain auto-advance | _Advancing to planning…_ (then proceeds automatically) |
-| Job failed | _Job failed. An error occurred during processing._ |
-| Revision queued | _Revision job queued…_ |
-| Phase advanced | _Advancing to {phase}…_ |
-| Chain triggered | _Advancing to {firstPhase} (will auto-continue to {thenPhase})…_ |
-
-### Approvals During Execution
-
-If the agent requests approval mid-run (e.g. before destructive operations), the bot also posts a card with **Approve** and **Reject** buttons directly in the thread. These use different action IDs (`session_approve` / `session_reject`) from the phase-advancement buttons (`ticket_approve_phase` / `ticket_reject_phase`) and are handled independently.
+| `packages/chat-slack/src/index.ts` | `registerSlackHandlers`, registers every handler on the bot |
+| `packages/chat-slack/src/types.ts` | `SlackHandlerServices`, what the backend provides to the handlers |
+| `packages/chat-slack/src/actions.ts` | Button IDs (`task_ask`, `question_answer_0`–`4`) and button values |
+| `packages/chat-slack/src/handlers/slashCommand.ts` | `/viberator` opens the launch form |
+| `packages/chat-slack/src/handlers/modalSubmit.ts` | Creates the task, starts and links its thread, asks the agent |
+| `packages/chat-slack/src/handlers/threadMessage.ts` | Sends messages in a task's thread to the task |
+| `packages/chat-slack/src/handlers/buttonActions.ts` | Build it and option buttons |
+| `apps/platform-backend/src/chat/bot.ts` | Chat SDK instance with the Slack adapter and PostgreSQL state |
+| `apps/platform-backend/src/chat/index.ts` | Wires the handlers to backend services and registers the mirror |
+| `apps/platform-backend/src/chat/TaskThreadInbound.ts` | Does thread messages, asks and answers as the linked user |
+| `apps/platform-backend/src/chat/TaskSlackMirror.ts` | Turns task activity into posts in the task's thread |
+| `apps/platform-backend/src/chat/taskMirrorPosts.ts` | The posts and cards themselves |
+| `apps/platform-backend/src/chat/ticketThreadMap.ts` | Task ↔ thread mapping, with an in-memory cache |
+| `apps/platform-backend/src/chat/platformLinks.ts` | Task links from `PLATFORM_FRONTEND_URL` |
+| `apps/platform-backend/src/api/routes/webhooks/slack.routes.ts` | `POST /api/webhooks/slack`, hands requests to the Chat SDK |
+| `apps/platform-backend/src/api/routes/me.ts` | `POST /api/me/slack-link`, links a Slack account by email |
+| `apps/platform-backend/src/services/notifications/SlackDmChannel.ts` | DMs to linked users |
+| `apps/platform-backend/slack-app-manifest.json` | Slack app manifest |
 
 ## Troubleshooting
 
 ### Bot doesn't respond to `/viberator`
 
-- Verify `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set
-- Check that the slash command URL matches your backend host
-- Ensure the backend is reachable over HTTPS (Slack requires HTTPS)
-- Check backend logs for webhook errors
+- Check that `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set. A `503` from `/api/webhooks/slack` means the signing secret is missing.
+- Check that the slash command URL matches your backend host and is HTTPS.
+- Check the backend logs for "Slack webhook error".
 
-### Modal opens but submit fails
+### The form says there are no projects or clankers
 
-- Verify at least one project and one clanker exist in Viberator
-- Check backend logs for ticket creation or job launch errors
-- Ensure the bot has `chat:write` scope for the target channel
+- Create a space and an agent in Viberglass first.
+- If your Slack account is linked, the form lists only the spaces you can see in Viberglass.
 
-### @mention keywords are not recognised
+### Replies or buttons get "Link your Slack account…"
 
-- The bot strips punctuation and lowercases input — `LGTM!` and `lgtm` are equivalent
-- Execution-phase threads will reject all commands with a message explaining this
-- If no keyword matches, the input is treated as a revision request
+- Link the account under **Settings → Notifications**. The Slack account must use the same email as the Viberglass account.
+
+### Build it is refused
+
+- Asking for code needs a linked account and the right to build on that task (the task's people, the space's maintainers or a workspace admin). The bot posts the reason in the thread.
 
 ### Thread replies are ignored
 
-- The bot must be in the channel (invite with `/invite @Viberator`)
-- Check that `message.channels` event subscription is active
-- Ticket-to-thread mappings are stored in the database; active bridges resume automatically on backend restart
+- The bot must be in the channel (`/invite @Viberator`).
+- Check that the `message.channels` (and `message.groups` for private channels) event subscriptions are active.
+- Only threads of tasks started with `/viberator` are handled. Other threads are ignored.
 
-### PR link never appears in thread
+### Task links are missing from posts
 
-- The execution job must complete successfully and return a `pullRequestUrl` in its result
-- Check backend logs for `TicketJobBridge` poll errors
-- The PR URL is also saved to the ticket so the UI reflects it without a manual refresh
+- Set `PLATFORM_FRONTEND_URL` on the backend.
 
-### "Approval Required" buttons don't work
+### Buttons don't do anything
 
-- Verify Interactivity is enabled in Slack app settings
-- The Request URL must match the webhook URL
-- Check backend logs for action handler errors
+- Check that Interactivity is enabled and its Request URL is `https://{host}/api/webhooks/slack`.
+- Check the backend logs for errors.
 
 ### Local Development with ngrok
 
-```bash
-# Start ngrok tunnel
-ngrok http 8888
+The backend listens on port 8888 by default.
 
-# Use the HTTPS URL from ngrok as your webhook URL
-# Update the Slack app's slash command, interactivity, and event subscription URLs
+```bash
+ngrok http 8888
 ```
+
+Use the ngrok HTTPS URL as the host for the slash command, interactivity and event subscription URLs (`https://<id>.ngrok.app/api/webhooks/slack`).
 
 ## Updating the App
 
 ### Updating the Manifest
 
-1. Edit `apps/platform-backend/slack-app-manifest.json`
-2. Apply via the Slack API:
+1. Edit `apps/platform-backend/slack-app-manifest.json`.
+2. Apply it with the Slack API:
 
 ```bash
 curl -X POST https://slack.com/api/apps.manifest.update \
@@ -264,12 +259,12 @@ curl -X POST https://slack.com/api/apps.manifest.update \
   -H "Content-Type: application/json" \
   -d '{
     "app_id": "YOUR_APP_ID",
-    "manifest": '$(cat apps/platform-backend/slack-app-manifest.json)'
+    "manifest": '"$(cat apps/platform-backend/slack-app-manifest.json)"'
   }'
 ```
 
-Or update manually in the Slack app settings at [api.slack.com/apps](https://api.slack.com/apps).
+Or update it by hand in the app settings at [api.slack.com/apps](https://api.slack.com/apps).
 
 ### Adding New Scopes
 
-If new scopes are added to the manifest, the app must be reinstalled to the workspace for the new scopes to take effect.
+After adding scopes to the manifest, reinstall the app to the workspace so they take effect.

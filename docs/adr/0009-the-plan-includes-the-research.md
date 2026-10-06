@@ -4,6 +4,7 @@
 - **Date:** 2026-10-06
 - **Decider:** Jussi Hallila
 - **Amends:** [ADR 0008](./0008-tasks-are-conversations.md) (kinds of artifact), [ADR 0001](./0001-collaborative-workspace-for-software-companies.md) (the flagship workflow)
+- **Amended by:** [ADR 0010](./0010-building-the-plan-in-parts.md) (building the plan in parts), 2026-10-06
 
 ## Context
 ADR 0008 made research, plan and code kinds of artifact that a task's conversation produces, rather than gates. A task still offered research and a plan as two separate documents, and a team's product task usually went research, then plan, then code.

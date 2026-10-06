@@ -10,10 +10,10 @@ const BASE_MANIFEST = {
   _metadata: { major_version: 2, minor_version: 0 },
   display_information: {
     name: 'Viberator',
-    description: 'Launch and interact with Viberator agent sessions from Slack',
+    description: 'Start tasks and talk to the agent from Slack',
     background_color: '#1a1a2e',
     long_description:
-      'Viberator Slack integration allows you to launch AI agent sessions directly from Slack using the /viberator slash command. Sessions stream their progress into a Slack thread where you can reply to continue the conversation, provide input when the agent asks, and approve or reject actions.',
+      'Viberator Slack integration lets you start tasks from Slack with the /viberator slash command. Each task has a Slack thread that follows it, where you talk to the people on the task, @mention the agent to ask it for something, and answer its questions.',
   },
   features: {
     bot_user: { display_name: 'Viberator', always_online: true },
@@ -21,7 +21,7 @@ const BASE_MANIFEST = {
       {
         command: '/viberator',
         url: 'https://YOUR_HOST/api/webhooks/slack',
-        description: 'Launch an agent session',
+        description: 'Start a task',
         usage_hint: '[message]',
         should_escape: false,
       },
@@ -112,8 +112,7 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
           <Subheading>Install the Viberator Slack app</Subheading>
           <Text className="mt-1.5 text-[var(--gray-9)]">
             Slack is integrated as a workspace-level bot. Use <code>/viberator</code> to create
-            tickets and run AI agent jobs directly from Slack — planning and execution
-            phases are both driven by keyword commands in the thread. A workspace admin sets the bot
+            tasks from Slack, and talk to the agent in each task's thread. A workspace admin sets the bot
             up once; there is nothing to configure per project here.
           </Text>
         </div>
@@ -213,33 +212,32 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
         <Subheading level={3}>4. Use it from Slack</Subheading>
         <Text className="text-[var(--gray-9)]">
           Invite the bot to a channel with <code>/invite @Viberator</code>, then run{' '}
-          <code>/viberator</code> to open the launch modal. Pick a project, clanker, starting phase
-          (planning / execution), and describe the task. Clicking <strong>Launch</strong>{' '}
-          creates a ticket and starts the first job — the bot posts a thread with a link to the
-          ticket and streams progress there.
+          <code>/viberator</code> to open the launch form. Pick a space and an agent, choose whether
+          to start with a plan or go straight to the build, and describe the task. Clicking{' '}
+          <strong>Ask</strong> creates the task and starts its thread in the channel; from then
+          on, that thread is the task's thread.
         </Text>
         <Text className="text-[var(--gray-9)]">
-          Once a job completes, the bot posts an <strong>Approve / Reject</strong> card in the
-          thread. Click <strong>Approve</strong> to advance to the next phase, or{' '}
-          <strong>Reject</strong> to keep the current phase open for revision.
-        </Text>
-        <Text className="text-[var(--gray-9)]">
-          You can also <strong>@mention the bot</strong> with a keyword as an alternative path:
+          The thread follows the task: the agent's replies, the plan as a file, the pull request
+          link, and what people write in Viberglass. In the thread:
         </Text>
         <ul className="list-disc list-inside space-y-1 text-sm text-[var(--gray-11)]">
           <li>
-            <strong>From planning:</strong> <code>execute</code> / <code>ship it</code> /{' '}
-            <code>lgtm</code> / <code>next</code> → advance to execution
+            <strong>@mention the bot</strong> to ask the agent, in your own words
           </li>
           <li>
-            <strong>Any other text</strong> → revision job using your message as feedback
+            <strong>Build it</strong> under a finished plan asks the agent to build it
+          </li>
+          <li>
+            When the agent asks you a question, pick an option or reply in the thread
+          </li>
+          <li>
+            Any other message goes to the task's thread, for the people on the task
           </li>
         </ul>
         <Text className="text-[var(--gray-9)]">
-          Keywords are case-insensitive and punctuation is stripped, so <code>LGTM!</code> and{' '}
-          <code>lgtm.</code> both work. When execution completes the bot posts the pull request link.
-          The same <strong>Approve / Reject</strong> buttons also appear if the agent requests
-          approval mid-run during execution.
+          People take part as their Viberglass account, so each person links their Slack account
+          under <strong>Settings → Notifications</strong> first.
         </Text>
       </div>
 

@@ -2,12 +2,18 @@ import type { Page } from "@playwright/test";
 import { createTask, runStatus, startPlan, taskPhase } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-/** Opens a run's link, which lands on its task; retries loads aborted by a container start (ERR_NETWORK_CHANGED). */
+/**
+ * Opens a run's link, which lands on its task with the run's details open over it, then closes them;
+ * retries loads aborted by a container start (ERR_NETWORK_CHANGED).
+ */
 async function openRun(page: Page, projectSlug: string, jobId: string, taskTitle: string) {
   await expect(async () => {
     await page.goto(`/spaces/${projectSlug}/runs/${jobId}`);
-    await expect(page.getByRole("heading", { name: taskTitle })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("dialog").getByText("Run details")).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Close run details" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: taskTitle })).toBeVisible();
 }
 
 test("a task says whose move it is under its title and makes the move: the plan, then the build", async ({
@@ -30,8 +36,8 @@ test("a task says whose move it is under its title and makes the move: the plan,
   await expect.poll(() => taskPhase(adminApi, task.id)).toBe("planning");
   await openRun(page, workspace.projectSlug, planningJobId, task.title);
   await expect(page.getByLabel("Situation")).toContainText("Your move · Plan v1 ready");
-  // A run's link opens its runs; the document it wrote is on the Document tab.
-  await page.getByRole("button", { name: "Document" }).click();
+  // The document the run wrote is on the Plan tab.
+  await page.getByRole("tab", { name: /^Plan/ }).click();
   await expect(page.getByText("Written by the fake agent used in end-to-end tests.").first()).toBeVisible();
   await expect(page.getByRole("tab", { name: /^Plan/ })).toContainText("Written");
 
