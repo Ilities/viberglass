@@ -442,6 +442,7 @@ export function createBackendEcs(
               { name: "NODE_ENV", value: "production" },
               { name: "PORT", value: containerPort.toString() },
               { name: "AWS_REGION", value: options.config.awsRegion },
+              { name: "VIBERATOR_WORKER_REGISTRY", value: "ghcr.io/ilities" },
               { name: "DB_SSL", value: "true" },
               { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
               {
@@ -502,18 +503,6 @@ export function createBackendEcs(
                 name: "VIBERATOR_ECS_CONTAINER_IMAGE",
                 value: normalizedWorkerImage,
               });
-
-              // Extract ECR registry from image URI for auto-selecting worker images
-              // Example: "123456.dkr.ecr.region.amazonaws.com/repo:tag" -> "123456.dkr.ecr.region.amazonaws.com"
-              const registryMatch = normalizedWorkerImage.match(
-                /^([^\/]+\.dkr\.ecr\.[^\/]+\.amazonaws\.com)/,
-              );
-              if (registryMatch) {
-                envVars.push({
-                  name: "VIBERATOR_WORKER_REGISTRY",
-                  value: registryMatch[1],
-                });
-              }
             }
             if (workerLambdaImage) {
               envVars.push({
