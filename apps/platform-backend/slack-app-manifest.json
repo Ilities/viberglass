@@ -5,9 +5,9 @@
   },
   "display_information": {
     "name": "Viberator",
-    "description": "Launch and interact with Viberator agent sessions from Slack",
+    "description": "Start tasks and talk to the agent from Slack",
     "background_color": "#1a1a2e",
-    "long_description": "Viberator Slack integration allows you to launch AI agent sessions directly from Slack using the /viberator slash command. Sessions stream their progress into a Slack thread where you can reply to continue the conversation, provide input when the agent asks, and approve or reject actions."
+    "long_description": "Viberator Slack integration lets you start tasks from Slack with the /viberator slash command. Each task has a Slack thread that follows it, where you talk to the people on the task, @mention the agent to ask it for something, and answer its questions."
   },
   "features": {
     "bot_user": {
@@ -18,7 +18,7 @@
       {
         "command": "/viberator",
         "url": "https://YOUR_HOST/api/webhooks/slack",
-        "description": "Launch an agent session",
+        "description": "Start a task",
         "usage_hint": "[message]",
         "should_escape": false
       }

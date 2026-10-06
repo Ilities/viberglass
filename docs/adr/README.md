@@ -12,6 +12,7 @@ The living user-journey spec is [`docs/ux/user-journeys-and-personas.md`](../ux/
 | [0004](./0004-naming-space-and-task.md) | Name the core entities "Space" and "Task" | Accepted | 2026-09-23 |
 | [0005](./0005-roles-and-space-visibility.md) | Workspace roles, space roles and space visibility | Accepted | 2026-09-29 |
 | [0006](./0006-agent-questions-and-session-continuity.md) | Agent questions and session continuity | Accepted; amended by 0008 | 2026-09-29 |
-| [0007](./0007-iterating-on-a-task.md) | Iterating on a task: follow-up builds, change requests, reopening | Accepted; amended by 0008, 0009 | 2026-09-30 |
-| [0008](./0008-tasks-are-conversations.md) | Tasks are conversations: one thread, @mention or action to bring the agent in, agreement instead of approval gates | Accepted; artifacts amended by 0009 | 2026-10-01 |
-| [0009](./0009-the-plan-includes-the-research.md) | The plan includes the research: one artifact before code | Accepted | 2026-10-06 |
+| [0007](./0007-iterating-on-a-task.md) | Iterating on a task: follow-up builds, change requests, reopening | Accepted; amended by 0008, 0009, 0010 | 2026-09-30 |
+| [0008](./0008-tasks-are-conversations.md) | Tasks are conversations: one thread, @mention or action to bring the agent in, agreement instead of approval gates | Accepted; amended by 0009, 0010 | 2026-10-01 |
+| [0009](./0009-the-plan-includes-the-research.md) | The plan includes the research: one artifact before code | Accepted; amended by 0010 | 2026-10-06 |
+| [0010](./0010-building-the-plan-in-parts.md) | Building the plan in parts: one pull request per part, built in order | Accepted | 2026-10-06 |

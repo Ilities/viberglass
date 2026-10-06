@@ -72,7 +72,6 @@ export async function up(db: Kysely<any>): Promise<void> {
   await sql`DELETE FROM agent_turns WHERE action = 'research'`.execute(db);
   await sql`DELETE FROM jobs WHERE job_kind = 'research'`.execute(db);
   await sql`DELETE FROM task_activity WHERE payload_json->>'step' = 'research'`.execute(db);
-  await sql`DELETE FROM notifications WHERE payload_json->>'step' = 'research'`.execute(db);
   // A session is the agent's on the task, whatever it was first asked for.
   await sql`UPDATE agent_sessions SET mode = 'planning' WHERE mode = 'research'`.execute(db);
   await sql`UPDATE tickets SET workflow_phase = 'planning' WHERE workflow_phase = 'research'`.execute(db);
