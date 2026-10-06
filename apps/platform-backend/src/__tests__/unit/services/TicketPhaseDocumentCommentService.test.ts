@@ -63,14 +63,13 @@ describe("TicketPhaseDocumentCommentService", () => {
     ]);
 
     const service = new TicketPhaseDocumentCommentService();
-    const comments = await service.listComments("ticket-1", "planning");
+    const comments = await service.listComments("ticket-1");
 
     expect(comments).toEqual([
       {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "planning",
         lineNumber: 4,
         quote: { exact: "assume X", prefix: "We ", suffix: "." },
         location: { start: 19, end: 27, line: 4 },
@@ -101,7 +100,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       },
     ]);
 
-    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1", "planning");
+    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1");
 
     expect(comment).toMatchObject({ outdated: true, location: null, lineNumber: 3 });
   });
@@ -112,7 +111,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     mockCommentDAO.create.mockImplementation(async (input) => ({ ...input, id: "c-1", createdAt: new Date(), updatedAt: new Date(), resolvedAt: null }));
     const quote = { exact: "Second **line**", prefix: "First line\n", suffix: "" };
 
-    const comment = await new TicketPhaseDocumentCommentService().createComment("ticket-1", "planning", { quote, content: "Why bold?" });
+    const comment = await new TicketPhaseDocumentCommentService().createComment("ticket-1", { quote, content: "Why bold?" });
 
     expect(mockCommentDAO.create).toHaveBeenCalledWith(expect.objectContaining({ lineNumber: 2, quote, content: "Why bold?" }));
     expect(comment.location).toEqual({ start: 11, end: 26, line: 2 });
@@ -130,7 +129,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "First line" });
 
     await expect(
-      new TicketPhaseDocumentCommentService().createComment("ticket-1", "planning", {
+      new TicketPhaseDocumentCommentService().createComment("ticket-1", {
         quote: { exact: "Missing", prefix: "", suffix: "" },
         content: "Hm",
       }),
@@ -159,7 +158,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.createComment("ticket-1", "planning", {
+    await service.createComment("ticket-1", {
       lineNumber: 2,
       content: "  Needs more detail  ",
       actor: "reviewer@example.com",
@@ -186,7 +185,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     const service = new TicketPhaseDocumentCommentService();
 
     await expect(
-      service.createComment("ticket-1", "planning", {
+      service.createComment("ticket-1", {
         lineNumber: 1,
         content: "Question",
       }),
@@ -203,7 +202,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     const service = new TicketPhaseDocumentCommentService();
 
     await expect(
-      service.createComment("ticket-1", "planning", {
+      service.createComment("ticket-1", {
         lineNumber: 2,
         content: "Question",
       }),
@@ -241,7 +240,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.updateComment("ticket-1", "planning", "comment-1", {
+    await service.updateComment("ticket-1", "comment-1", {
       status: "resolved",
       actor: "reviewer@example.com",
     });
@@ -293,7 +292,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.updateComment("ticket-1", "planning", "comment-1", {
+    await service.updateComment("ticket-1", "comment-1", {
       status: "open",
     });
 

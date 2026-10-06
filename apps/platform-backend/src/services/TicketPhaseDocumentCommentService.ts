@@ -1,8 +1,7 @@
-import { locateQuote, quoteForLine, type QuoteLocation, type TextQuote } from "@viberglass/types";
+import { locateQuote, quoteForLine, TICKET_WORKFLOW_PHASE, type QuoteLocation, type TextQuote } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
 import {
-  type CommentableTicketWorkflowPhase,
   type PhaseDocumentComment,
   type PhaseDocumentCommentStatus,
   PHASE_DOCUMENT_COMMENT_STATUS,
@@ -14,12 +13,13 @@ import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 const QUOTE_IN_ACTIVITY = 80;
 /** Enough of a comment for the thread to show what was asked; the full text is on the document. */
 const COMMENT_IN_ACTIVITY = 600;
+// Comments are on the plan, the one document a task has.
+const PLAN = TICKET_WORKFLOW_PHASE.PLANNING;
 
 export interface PhaseDocumentCommentView {
   id: string;
   documentId: string;
   ticketId: string;
-  phase: CommentableTicketWorkflowPhase;
   /** Where the comment is in the document now, else the line it was placed on. */
   lineNumber: number;
   quote: TextQuote | null;
@@ -56,14 +56,11 @@ export class TicketPhaseDocumentCommentService {
   private readonly commentDAO = new TicketPhaseDocumentCommentDAO();
   private readonly activity = new TaskActivityRecorder();
 
-  async listComments(
-    ticketId: string,
-    phase: CommentableTicketWorkflowPhase,
-  ): Promise<PhaseDocumentCommentView[]> {
+  async listComments(ticketId: string): Promise<PhaseDocumentCommentView[]> {
     await this.requireTicket(ticketId);
     const [comments, document] = await Promise.all([
-      this.commentDAO.listByTicketAndPhase(ticketId, phase),
-      this.documentDAO.getByTicketAndPhase(ticketId, phase),
+      this.commentDAO.listByTicketAndPhase(ticketId, PLAN),
+      this.documentDAO.getByTicketAndPhase(ticketId, PLAN),
     ]);
     return comments
       .map((comment) => this.toView(comment, document?.content ?? ""))
@@ -72,10 +69,9 @@ export class TicketPhaseDocumentCommentService {
 
   async createComment(
     ticketId: string,
-    phase: CommentableTicketWorkflowPhase,
     input: CreatePhaseDocumentCommentInput,
   ): Promise<PhaseDocumentCommentView> {
-    const document = await this.requireDocumentForComment(ticketId, phase);
+    const document = await this.requireDocumentForComment(ticketId);
     const content = input.content.trim();
     if (!content) {
       throw new Error("Comment content is required");
@@ -90,14 +86,14 @@ export class TicketPhaseDocumentCommentService {
     const comment = await this.commentDAO.create({
       documentId: document.id,
       ticketId,
-      phase,
+      phase: PLAN,
       lineNumber: location.line,
       quote,
       content,
       actor: input.actor,
     });
     await this.activity.recordByCurrentActor(ticketId, "comment_added", {
-      step: phase,
+      step: PLAN,
       quote: quote.exact.slice(0, QUOTE_IN_ACTIVITY),
       commentId: comment.id,
       comment: content.slice(0, COMMENT_IN_ACTIVITY),
@@ -108,7 +104,6 @@ export class TicketPhaseDocumentCommentService {
 
   async updateComment(
     ticketId: string,
-    phase: CommentableTicketWorkflowPhase,
     commentId: string,
     input: UpdatePhaseDocumentCommentInput,
   ): Promise<PhaseDocumentCommentView> {
@@ -116,7 +111,7 @@ export class TicketPhaseDocumentCommentService {
       throw new Error("At least one comment field must be provided");
     }
 
-    const existing = await this.commentDAO.getById(ticketId, phase, commentId);
+    const existing = await this.commentDAO.getById(ticketId, PLAN, commentId);
     if (!existing) {
       throw new Error("Comment not found");
     }
@@ -147,9 +142,9 @@ export class TicketPhaseDocumentCommentService {
       resolvedBy,
     });
     if (updated.status !== existing.status) {
-      await this.activity.recordByCurrentActor(ticketId, "comment_status_changed", { step: phase, commentId, status: updated.status });
+      await this.activity.recordByCurrentActor(ticketId, "comment_status_changed", { step: PLAN, commentId, status: updated.status });
     }
-    const document = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    const document = await this.documentDAO.getByTicketAndPhase(ticketId, PLAN);
 
     return this.toView(updated, document?.content ?? "");
   }
@@ -161,13 +156,10 @@ export class TicketPhaseDocumentCommentService {
     }
   }
 
-  private async requireDocumentForComment(
-    ticketId: string,
-    phase: CommentableTicketWorkflowPhase,
-  ) {
+  private async requireDocumentForComment(ticketId: string) {
     await this.requireTicket(ticketId);
 
-    const document = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    const document = await this.documentDAO.getByTicketAndPhase(ticketId, PLAN);
     if (!document || !document.content.trim()) {
       throw new Error("Cannot comment on an empty document");
     }
@@ -193,7 +185,6 @@ export class TicketPhaseDocumentCommentService {
       id: comment.id,
       documentId: comment.documentId,
       ticketId: comment.ticketId,
-      phase: comment.phase,
       lineNumber: location?.line ?? comment.lineNumber,
       quote: comment.quote,
       location,

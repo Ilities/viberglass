@@ -203,7 +203,7 @@ describe("ticket workflow routes", () => {
     expect(response.body).toEqual({ error: "Ticket not found" });
   });
 
-  it("returns document revisions for GET /:id/phases/:phase/revisions", async () => {
+  it("returns the plan's versions for GET /:id/plan/revisions", async () => {
     mockTicketPhaseDocumentRevisionService.listRevisions.mockResolvedValue([
       {
         id: "revision-1",
@@ -218,7 +218,7 @@ describe("ticket workflow routes", () => {
     ]);
 
     const response = await request(app)
-      .get(`/api/tasks/${TICKET_ID}/phases/planning/revisions`)
+      .get(`/api/tasks/${TICKET_ID}/plan/revisions`)
       .expect(200);
 
     expect(mockTicketPhaseDocumentRevisionService.listRevisions).toHaveBeenCalledWith(
@@ -240,14 +240,6 @@ describe("ticket workflow routes", () => {
         },
       ],
     });
-  });
-
-  it("returns 400 for invalid revision phase params", async () => {
-    const response = await request(app)
-      .get(`/api/tasks/${TICKET_ID}/phases/not-a-phase/revisions`)
-      .expect(400);
-
-    expect(response.body).toEqual({ error: "Invalid workflow phase" });
   });
 
   it("returns one task with its situation and what the caller may do on it", async () => {
@@ -280,6 +272,10 @@ describe("ticket workflow routes", () => {
     ["post", "phases/research/reopen"],
     ["get", "phases/research"],
     ["put", "phases/research/document"],
+    ["get", "phases/planning"],
+    ["put", "phases/planning/document"],
+    ["get", "phases/planning/revisions"],
+    ["get", "phases/planning/comments"],
     ["get", "approvals"],
     ["get", "capabilities"],
   ] as const)("no longer has %s /:id/%s", async (method, path) => {

@@ -43,3 +43,12 @@ export interface BuildPullRequest {
   /** Why the pull request could not be read, when it could not. */
   unavailableReason: string | null
 }
+
+/** One of a task's pull requests: the parts of the plan it builds, on its own branch. */
+export interface TaskPullRequest extends BuildPullRequest {
+  pullRequestUrl: string
+  branch: string
+  firstPart: number
+  /** Null: through the plan's last part. */
+  lastPart: number | null
+}

@@ -19,18 +19,16 @@ import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions
 import { EventEntry, MessageEntry, VersionEntry } from './thread-entries'
 import { summaryFacts } from './thread-summaries'
 
-const ARTIFACT_STEP: Record<TaskArtifactKind, 'planning'> = { plan: 'planning' }
-
 interface TaskThreadProps {
   taskId: string
   /** The task's key (WEB-42), for the command that checks its branch out. */
   taskKey?: string
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
   refreshKey: string
-  /** Opens a document at a version; null opens its current version, where people comment and edit. */
-  onOpenArtifact: (step: 'planning', version: number | null) => void
-  /** Opens a document's comments. */
-  onOpenComments?: (step: 'planning') => void
+  /** Opens the plan at a version; null opens its current version, where people comment and edit. */
+  onOpenArtifact: (version: number | null) => void
+  /** Opens the plan's comments. */
+  onOpenComments?: () => void
   /** The agents a message can ask, the one already on the task first. */
   agents: Mentionable[]
   /** What the suggested actions are worked out from; the latest turn comes from the thread. */
@@ -176,10 +174,7 @@ export function TaskThread({
                 key={entry.id}
                 entry={entry}
                 onOpen={() =>
-                  onOpenArtifact(
-                    ARTIFACT_STEP[entry.artifact],
-                    entry.version === latestVersion.get(entry.artifact) ? null : entry.version
-                  )
+                  onOpenArtifact(entry.version === latestVersion.get(entry.artifact) ? null : entry.version)
                 }
               />
             ) : entry.kind === 'event' && isFullComment(entry) ? (

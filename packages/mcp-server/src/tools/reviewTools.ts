@@ -9,7 +9,7 @@ export class ReviewToolGroup implements ToolGroup {
   register(server: McpServer, services: McpToolServices): void {
     server.tool(
       "task_review",
-      "Get the full review state for a task across all workflow phases (planning, execution). Includes phase documents and inline comments. Nothing is approved: to go on, trigger the next step.",
+      "Get the full review state for a task: its workflow phases, and its plan with inline comments. Nothing is approved: to go on, trigger the next step.",
       ticketReviewSchema,
       async (params) => {
         const state = await services.review.getState(params.taskId);
@@ -32,7 +32,6 @@ export class ReviewToolGroup implements ToolGroup {
       async (params) => {
         const comment = await services.review.addComment(
           params.taskId,
-          params.phase,
           {
             lineNumber: params.lineNumber,
             content: params.content,

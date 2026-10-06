@@ -94,6 +94,10 @@ describe('describeActivity', () => {
     const merged = { kind: 'pull_request_merged' as const, actorType: 'system' as const, actor: null }
     expect(describeActivity(entry({ ...merged, payload: { mergedBy: 'dev-koskinen' } }), nameOf)).toBe('Merged by dev-koskinen')
     expect(describeActivity(entry({ ...merged, payload: {} }), nameOf)).toBe('The pull request was merged')
+    const partMerged = { kind: 'part_merged' as const, actorType: 'system' as const, actor: null }
+    expect(describeActivity(entry({ ...partMerged, payload: { parts: [1], next: 2, mergedBy: 'dev-koskinen' } }), nameOf)).toBe(
+      'Part 1 merged by dev-koskinen; part 2 is next'
+    )
   })
 })
 
@@ -113,9 +117,9 @@ const THREAD: TaskTimelineEntry[] = [
 
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
-  documents: { planning: { content: '# Plan' } },
+  plan: { content: '# Plan' },
   capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
-  newComments: { planning: 1 },
+  newComments: 1,
   agentWorking: false,
 }
 
@@ -207,9 +211,9 @@ describe('TaskThread', () => {
     ])
     const { onOpenArtifact } = renderThread()
     fireEvent.click(await screen.findByRole('button', { name: 'Open Plan v2' }))
-    expect(onOpenArtifact).toHaveBeenLastCalledWith('planning', null)
+    expect(onOpenArtifact).toHaveBeenLastCalledWith(null)
     fireEvent.click(screen.getByRole('button', { name: 'Open Plan v1' }))
-    expect(onOpenArtifact).toHaveBeenLastCalledWith('planning', 1)
+    expect(onOpenArtifact).toHaveBeenLastCalledWith(1)
   })
 
   it("shows the agent's turn: what it set out to do, what it made, and whether it continued its session; what it said is a click away", async () => {
@@ -382,6 +386,6 @@ describe('TaskThread', () => {
     expect(screen.getAllByText('Open')[0]).toBeInTheDocument()
     expect(screen.queryByText(/resolved a comment/)).not.toBeInTheDocument()
     fireEvent.click(within(first).getByRole('button', { name: 'Open in comments' }))
-    expect(onOpenComments).toHaveBeenCalledWith('planning')
+    expect(onOpenComments).toHaveBeenCalled()
   })
 })

@@ -75,7 +75,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
 
   await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Revise the plan with 1 comment" }).click();
   await expect.poll(async () => {
-    const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document.content;
+    const plan = (await (await adminApi.get(`/api/tasks/${task.id}/plan`)).json()).data.document.content;
     return plan.includes("Say who writes the copy.");
   }, { timeout: 90_000 }).toBe(true);
 

@@ -10,6 +10,7 @@ import {
 import { TaskTurnFactsDAO } from "../../persistence/agentSession/TaskTurnFactsDAO";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
+import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TaskTakeoverDAO } from "../../persistence/ticketing/TaskTakeoverDAO";
 import { TaskThreadFactsDAO } from "../../persistence/ticketing/TaskThreadFactsDAO";
 import type { ThreadTaskRow } from "../../persistence/ticketing/TaskThreadListDAO";
@@ -41,6 +42,7 @@ interface Dependencies {
   mentions: Pick<TaskMentionDAO, "listOpen">;
   participants: Pick<TaskParticipantDAO, "listDrivers">;
   takeovers: Pick<TaskTakeoverDAO, "listFor">;
+  pullRequests: Pick<TaskPullRequestDAO, "lastMergedParts">;
 }
 
 const MESSAGE_PREVIEW = 140;
@@ -69,13 +71,14 @@ export class TaskSituationService {
       mentions: new TaskMentionDAO(),
       participants: new TaskParticipantDAO(),
       takeovers: new TaskTakeoverDAO(),
+      pullRequests: new TaskPullRequestDAO(),
       ...deps,
     };
   }
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers] = await Promise.all([
+    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged] = await Promise.all([
       this.deps.turns.running(ids),
       this.deps.turns.paused(ids),
       this.deps.turns.lastFinished(ids),
@@ -87,6 +90,7 @@ export class TaskSituationService {
       this.deps.participants.listDrivers(ids),
       this.deps.thread.mergedBy(ids),
       this.deps.takeovers.listFor(ids),
+      this.deps.pullRequests.lastMergedParts(ids),
     ]);
 
     return new Map(
@@ -120,6 +124,7 @@ export class TaskSituationService {
           openMentions: mentions.get(task.id) ?? [],
           lastMessageAt: lastMessageAt ? iso(lastMessageAt) : null,
           mergedBy: merges.get(task.id) ?? null,
+          partMerged: partsMerged.get(task.id) ?? null,
         };
 
         // The agent's latest turn reads as the last message when it came after what people wrote.

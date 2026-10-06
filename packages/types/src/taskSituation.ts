@@ -61,6 +61,8 @@ export interface TaskSituationInput {
   lastMessageAt: string | null
   /** Who merged the pull request that finished the task, when GitHub said. */
   mergedBy?: string | null
+  /** The last part a merged pull request built, when the plan has parts still to build. */
+  partMerged?: number | null
 }
 
 export interface SituationViewer {
@@ -157,6 +159,10 @@ function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
     return { state: 'discussing', label: 'Discussing', waitingOn: mentionedElseOwner(input), since: input.lastMessageAt }
   }
 
+  if (artifact?.kind === 'code' && input.partMerged) {
+    const part = input.partMerged
+    return { state: 'artifact_ready', label: `Part ${part} merged · build part ${part + 1}`, waitingOn: ownerOnly(input), since: artifact.at }
+  }
   if (artifact?.kind === 'code') return { state: 'pr_open', label: 'PR open', waitingOn: ownerOnly(input), since: artifact.at }
   if (artifact) {
     return {

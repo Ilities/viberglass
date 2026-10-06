@@ -1,6 +1,6 @@
 import type { Selectable } from "kysely";
 import db from "../config/database";
-import type { TaskTurnAction } from "@viberglass/types";
+import type { PartRange, TaskTurnAction } from "@viberglass/types";
 import type { Database, JsonValue } from "../types/database";
 import {
   AGENT_TURN_STATUS,
@@ -30,6 +30,8 @@ export interface AgentTurn {
   action: TaskTurnAction | null;
   /** The thread message a user turn came from; null for messages sent in the live session. */
   taskMessageId: string | null;
+  /** The plan's parts a build was asked for, in a new pull request; null when it continues the open one. */
+  buildParts: PartRange | null;
   startedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -47,6 +49,7 @@ export interface CreateAgentTurnInput {
   userId?: string | null;
   action?: TaskTurnAction | null;
   taskMessageId?: string | null;
+  buildParts?: PartRange | null;
   startedAt?: Date | null;
   completedAt?: Date | null;
 }
@@ -75,6 +78,8 @@ export class AgentTurnDAO {
         user_id: input.userId ?? null,
         action: input.action ?? null,
         task_message_id: input.taskMessageId ?? null,
+        build_first_part: input.buildParts?.first ?? null,
+        build_last_part: input.buildParts?.last ?? null,
         started_at: input.startedAt ?? null,
         completed_at: input.completedAt ?? null,
       })
@@ -205,6 +210,7 @@ export class AgentTurnDAO {
       consumedByTurnId: row.consumed_by_turn_id,
       action: row.action,
       taskMessageId: row.task_message_id,
+      buildParts: row.build_first_part === null ? null : { first: row.build_first_part, last: row.build_last_part },
       startedAt: row.started_at,
       completedAt: row.completed_at,
       createdAt: row.created_at,

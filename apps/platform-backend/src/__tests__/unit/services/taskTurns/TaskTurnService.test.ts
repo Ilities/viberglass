@@ -48,6 +48,7 @@ function turn(overrides: Partial<AgentTurn> = {}): AgentTurn {
     consumedByTurnId: null,
     action: null,
     taskMessageId: null,
+    buildParts: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
@@ -76,6 +77,7 @@ function setup() {
     continuation: {
       launchForPendingMessages: jest.fn().mockResolvedValue({ currentTurn: turn({ id: "a-1", role: "assistant" }), job: { id: "job-1", status: "pending" } }),
     },
+    parts: { resolveBuild: jest.fn().mockResolvedValue({ first: 1, last: null }) },
   };
   return { deps, service: new TaskTurnService(deps) };
 }
@@ -155,6 +157,46 @@ describe("TaskTurnService", () => {
     expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("maria", "t-1", "code", { fromWebhook: undefined });
     expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Build it");
     expect(deps.continuation.launchForPendingMessages).toHaveBeenCalled();
+  });
+
+  it("builds the parts asked for, stored on the ask, and says which in the thread", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockResolvedValue({ first: 2, last: 2 });
+
+    await service.ask("t-1", "maria", { message: "", action: "code", parts: { first: 2, last: 2 } });
+
+    expect(deps.parts.resolveBuild).toHaveBeenCalledWith(expect.objectContaining({ id: "t-1" }), { first: 2, last: 2 });
+    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Build part 2");
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ action: "code", buildParts: { first: 2, last: 2 } }));
+  });
+
+  it("says a build without parts builds the rest, and one continuing the open pull request builds it", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockResolvedValueOnce({ first: 2, last: null }).mockResolvedValueOnce(null);
+
+    await service.ask("t-1", "maria", { message: "", action: "code" });
+    await service.ask("t-1", "maria", { message: "", action: "code" });
+
+    expect(deps.discussion.create).toHaveBeenNthCalledWith(1, "t-1", "maria", "Build the rest");
+    expect(deps.discussion.create).toHaveBeenNthCalledWith(2, "t-1", "maria", "Build it");
+    expect(deps.turns.create).toHaveBeenLastCalledWith(expect.objectContaining({ buildParts: null }));
+  });
+
+  it("refuses a part out of order before posting anything", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockRejectedValue(new Error("Part 1 is next: parts are built in order."));
+
+    await expect(service.ask("t-1", "maria", { message: "", action: "code", parts: { first: 2, last: 2 } })).rejects.toThrow("Part 1 is next");
+    expect(deps.discussion.create).not.toHaveBeenCalled();
+  });
+
+  it("asks nothing of the plan's parts for an ask that isn't a build", async () => {
+    const { deps, service } = setup();
+
+    await service.ask("t-1", "maria", { message: "", action: "plan" });
+
+    expect(deps.parts.resolveBuild).not.toHaveBeenCalled();
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ buildParts: null }));
   });
 
   it("builds for a webhook with nobody asking, posting nothing in the thread", async () => {

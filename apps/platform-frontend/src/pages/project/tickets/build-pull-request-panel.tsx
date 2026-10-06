@@ -2,11 +2,10 @@ import { Badge } from '@/components/badge'
 import { Fact, FactList } from '@/components/fact-list'
 import { ReviewCommentList } from '@/components/review-comment-list'
 import { formatJobStatus } from '@/data'
-import { getBuildPullRequest, type BuildPullRequest } from '@/service/api/build-api'
+import type { BuildPullRequest } from '@/service/api/build-api'
 import type { JobListItem } from '@/service/api/job-api'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
 import { formatRunDuration } from '../jobs/run-facts'
 
 type BadgeColor = 'green' | 'red' | 'blue' | 'zinc'
@@ -24,24 +23,20 @@ function Missing({ children }: { children: ReactNode }) {
 }
 
 /**
- * The build's pull request as GitHub has it now, the builds that went into
- * it, and what reviewers still want changed.
+ * A pull request as GitHub has it now, and what reviewers still want changed;
+ * with `builds`, also the builds that went into it. `pullRequest` is null
+ * while it's being read.
  */
-export function BuildPullRequestPanel({ ticketId, pullRequestUrl, runs }: { ticketId: string; pullRequestUrl: string; runs: JobListItem[] }) {
-  const [pullRequest, setPullRequest] = useState<BuildPullRequest | null>(null)
-  const builds = runs.filter((run) => run.jobKind === 'execution')
-  const latestBuild = builds[0]
-  // Reload when a new build appears or the latest one finishes.
-  const buildKey = latestBuild ? `${latestBuild.jobId}:${latestBuild.status}` : 'none'
-
-  useEffect(() => {
-    getBuildPullRequest(ticketId)
-      .then(setPullRequest)
-      .catch((error: unknown) =>
-        setPullRequest({ pullRequestUrl, details: null, comments: [], unavailableReason: error instanceof Error ? error.message : 'Failed to read the pull request' }),
-      )
-  }, [ticketId, pullRequestUrl, buildKey])
-
+export function BuildPullRequestPanel({
+  pullRequestUrl,
+  pullRequest,
+  builds,
+}: {
+  pullRequestUrl: string
+  pullRequest: BuildPullRequest | null
+  builds?: JobListItem[]
+}) {
+  const latestBuild = builds?.[0]
   const details = pullRequest?.details ?? null
   const state = pullRequest ? pullRequestState(pullRequest) : null
   const comments = pullRequest?.comments ?? []
@@ -92,8 +87,8 @@ export function BuildPullRequestPanel({ ticketId, pullRequestUrl, runs }: { tick
           <Fact label="Commits">{details?.commitCount ?? <Missing>Unknown</Missing>}</Fact>
         </FactList>
 
-        <FactList title="Builds">
-          <Fact label="Builds">{builds.length}</Fact>
+        <FactList title={builds ? 'Builds' : 'Review'}>
+          {builds && <Fact label="Builds">{builds.length}</Fact>}
           {latestBuild && (
             <>
               <Fact label="Last build">

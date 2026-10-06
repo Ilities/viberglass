@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/104_plan_in_parts";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/107_build_plan_parts";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -42,6 +42,7 @@ function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
   return {
     ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null },
     documents: { plan: "" },
+    parts: { building: null, built: null },
     people: [],
     lastAgentCommit: null,
     summary: "",
@@ -147,6 +148,29 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).toContain('<comment kind="thread" author="rev" path="a.ts" line="3">\nRename this\n</comment>');
     expect(prompt).toContain("Change the code as needed.");
     expect(prompt).not.toContain("code changes are thrown away");
+    expect(prompt).not.toContain("This build is");
+  });
+
+  it("tells a build of some parts to build only those, in a pull request of its own", async () => {
+    const { prompt } = await builder.build("p", context({ parts: { building: "part 2, “Show it on the slip”", built: "Part 1" } }), "code", true);
+
+    expect(prompt).toContain(
+      "This build is part 2, “Show it on the slip” of the plan, in a pull request of its own: build only that, and leave the other parts for later builds.",
+    );
+    expect(prompt).not.toContain("This continues the task's branch");
+    expect(prompt).not.toContain("Built already");
+  });
+
+  it("tells a revision of the plan, or a reply, to keep the parts that are built", async () => {
+    const parts = { building: null, built: "Part 1" };
+    const revising = await builder.build("p", context({ documents: { plan: "# Plan" }, parts }), "plan", false);
+    const replying = await builder.build("p", context({ parts }), "reply", false);
+    const building = await builder.build("p", context({ parts }), "code", true);
+
+    const line = "Built already, each in a pull request: Part 1. If you change the plan, keep those parts as they are";
+    expect(revising.prompt).toContain(line);
+    expect(replying.prompt).toContain(line);
+    expect(building.prompt).not.toContain(line);
   });
 
   it("passes on people's edits to a document, and leaves an answer to the agent", async () => {

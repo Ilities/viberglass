@@ -46,6 +46,7 @@ function makeUserTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
     consumedByTurnId: null,
     action: null,
     taskMessageId: "message-1",
+    buildParts: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
@@ -57,6 +58,7 @@ function makeUserTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
 const context: TaskTurnContext = {
   ticket: { title: "Dark mode", description: "Users want it", externalTicketId: null, pullRequestUrl: null },
   documents: { plan: "" },
+  parts: { building: null, built: null },
   people: [],
   lastAgentCommit: null,
   summary: "",
@@ -151,6 +153,28 @@ describe("SessionTurnContinuationService", () => {
     await service.launchForPendingMessages(makeSession());
 
     expect(dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ action: "code", allowCode: true }), expect.any(Function));
+  });
+
+  it("builds the parts the latest build ask named, on the turn, its context and its job", async () => {
+    turns.listUnconsumedUserTurns.mockResolvedValue([
+      makeUserTurn({ id: "u1", action: "code", buildParts: { first: 1, last: 1 } }),
+      makeUserTurn({ id: "u2", action: "code", buildParts: { first: 2, last: 2 } }),
+      makeUserTurn({ id: "u3", action: "reply", buildParts: null }),
+    ]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(turns.create).toHaveBeenCalledWith(expect.objectContaining({ action: "code", buildParts: { first: 2, last: 2 } }));
+    expect(loader.load).toHaveBeenCalledWith(expect.objectContaining({ buildParts: { first: 2, last: 2 } }));
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ buildParts: { first: 2, last: 2 } }), expect.any(Function));
+  });
+
+  it("builds no parts for a turn that isn't a build", async () => {
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn({ action: "plan", buildParts: { first: 2, last: 2 } })]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ buildParts: null }), expect.any(Function));
   });
 
   it("clears the pending request pointer when requested", async () => {

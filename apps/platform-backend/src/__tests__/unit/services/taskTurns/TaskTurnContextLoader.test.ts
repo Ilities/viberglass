@@ -1,6 +1,16 @@
+import type { TaskPlanParts } from "@viberglass/types";
 import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { TaskTurnContextLoader } from "../../../../services/taskTurns/TaskTurnContextLoader";
+
+const PARTS: TaskPlanParts = {
+  parts: [
+    { number: 1, title: "Store it", status: "merged", pullRequestUrl: "https://github.com/a/b/pull/1" },
+    { number: 2, title: "Show it", status: "not_built", pullRequestUrl: null },
+  ],
+  open: null,
+  next: 2,
+};
 
 const TICKET = {
   id: "t",
@@ -25,6 +35,7 @@ function turn(overrides: Partial<AgentTurn>): AgentTurn {
     consumedByTurnId: null,
     action: "plan",
     taskMessageId: null,
+    buildParts: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date("2026-10-01T10:00:00Z"),
@@ -86,6 +97,7 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
         { id: "c", outcome: null },
       ]),
     },
+    parts: { state: jest.fn().mockResolvedValue(PARTS) },
   });
   return { instance, revisions, pullRequest };
 }
@@ -193,5 +205,16 @@ describe("TaskTurnContextLoader", () => {
 
     const context = await instance.load({ ...input, action: "code", ticket: { ...TICKET, pullRequestUrl: "https://github.com/a/b/pull/1" } });
     expect(context.fresh.pullRequestComments).toEqual([review]);
+  });
+
+  it("gives a build of new parts no pull request to continue, and names the parts", async () => {
+    const { instance, pullRequest } = loader();
+    const ticket = { ...TICKET, pullRequestUrl: "https://github.com/a/b/pull/1" };
+
+    const context = await instance.load({ ...input, action: "code", ticket, buildParts: { first: 2, last: 2 } });
+
+    expect(pullRequest.forTask).not.toHaveBeenCalled();
+    expect(context.ticket.pullRequestUrl).toBeNull();
+    expect(context.parts).toEqual({ building: "part 2, “Show it”", built: "Part 1" });
   });
 });

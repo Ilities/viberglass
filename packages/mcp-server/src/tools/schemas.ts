@@ -82,9 +82,6 @@ export const ticketReviewSchema = {
 
 export const ticketReviewCommentSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
-  phase: z
-    .enum(["planning"])
-    .describe("Phase to comment on"),
-  lineNumber: z.number().int().min(1).describe("Line number in the document"),
+  lineNumber: z.number().int().min(1).describe("Line number in the plan"),
   content: z.string().min(1).describe("Comment text"),
 };

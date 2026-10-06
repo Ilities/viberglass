@@ -17,6 +17,7 @@ import { DeploymentStrategyDAO } from "../../persistence/clanker/DeploymentStrat
 import { DemoJobDAO, type FinishedDemoJob } from "../../persistence/demo/DemoJobDAO";
 import { DemoSeedRecordDAO, type DemoEntityType } from "../../persistence/demo/DemoSeedRecordDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
+import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentDAO } from "../../persistence/ticketing/TicketPhaseDocumentDAO";
 import { TicketPhaseRunDAO } from "../../persistence/ticketing/TicketPhaseRunDAO";
@@ -47,10 +48,8 @@ export interface DemoSeederDependencies {
     createClanker(request: CreateClankerRequest): Promise<Clanker>;
     updateStatus(id: string, status: Clanker["status"], message?: string | null): Promise<Clanker>;
   };
-  tickets: {
-    createTicket(request: CreateTicketRequest): Promise<Ticket>;
-    updatePullRequestUrl(id: string, url: string): Promise<void>;
-  };
+  tickets: { createTicket(request: CreateTicketRequest): Promise<Ticket> };
+  pullRequests: Pick<TaskPullRequestDAO, "record">;
   documents: {
     create(ticketId: string, phase: TicketWorkflowPhase): Promise<{ id: string }>;
     updateContent(id: string, content: string, storageUrl: string | null): Promise<void>;
@@ -68,6 +67,7 @@ const defaults = (): DemoSeederDependencies => ({
   strategies: new DeploymentStrategyDAO(),
   clankers: new ClankerDAO(),
   tickets: new TicketDAO(),
+  pullRequests: new TaskPullRequestDAO(),
   documents: new TicketPhaseDocumentDAO(),
   runs: new TicketPhaseRunDAO(),
   jobs: new DemoJobDAO(),
@@ -153,7 +153,7 @@ export class DemoWorkspaceSeeder {
       const created = await this.deps.documents.create(ticket.id, document.phase);
       await this.deps.documents.updateContent(created.id, document.content, null);
     }
-    if (task.pullRequestUrl) await this.deps.tickets.updatePullRequestUrl(ticket.id, task.pullRequestUrl);
+    if (task.pullRequestUrl) await this.deps.pullRequests.record(ticket.id, `viberator/${ticket.key.toLowerCase()}`, task.pullRequestUrl);
     await this.deps.lifecycle.synchronize(ticket.id);
   }
 

@@ -32,6 +32,7 @@ describe("resolveNotifications", () => {
     ["run_failed", { category: "agent" }, [{ userId: "owner", kind: "run_failed_agent" }]],
     ["task_done", {}, [{ userId: "requester", kind: "task_done" }]],
     ["pull_request_merged", { merged: true }, [{ userId: "requester", kind: "task_done" }, { userId: "owner", kind: "task_done" }]],
+    ["part_merged", { parts: [1], next: 2 }, [{ userId: "requester", kind: "part_merged" }, { userId: "owner", kind: "part_merged" }]],
     ["comment_added", {}, []],
     ["question_asked", { userId: "requester", questionId: "q" }, [{ userId: "requester", kind: "question_asked" }]],
     ["question_reminded", { userId: "owner", escalated: true }, [{ userId: "owner", kind: "question_reminder" }]],

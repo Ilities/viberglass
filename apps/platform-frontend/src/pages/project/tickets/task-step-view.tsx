@@ -1,7 +1,7 @@
-import { savePlanningDocument, type PhaseDocumentCommentResponse, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import { savePlan, type PhaseDocumentCommentResponse, type PhaseDocumentResponse } from '@/service/api/ticket-api'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
-import { BuildPullRequestPanel } from './build-pull-request-panel'
+import { BuildPullRequests } from './build-pull-requests'
 import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
 import { DocumentStep } from './document-step'
 import { DocumentVersion } from './document-version'
@@ -24,9 +24,11 @@ interface TaskStepViewProps {
   onView: (view: StepView) => void
   data: TaskPageData
   move: TaskNextMove
-  onDocumentSaved: (step: 'planning', document: PhaseDocumentResponse) => void
-  /** The shown document's open comments made since its latest version, as they change here. */
-  onNewComments: (step: 'planning', count: number) => void
+  onDocumentSaved: (document: PhaseDocumentResponse) => void
+  /** The plan's open comments made since its latest version, as they change here. */
+  onNewComments: (count: number) => void
+  /** Someone asked the agent from the artifact, such as for a part's build. */
+  onAsked: () => void
 }
 
 /** The artifact tabs (Plan, Code) and the panel they show. */
@@ -35,18 +37,17 @@ export const stepPanelId = (step: TaskStep) => `task-artifact-panel-${step}`
 
 /** Puts a suggestion's wording in place of the text it was on, and resolves it. */
 function useApplySuggestion(
-  step: 'planning',
   data: TaskPageData,
   comments: DocumentComments,
   onDocumentSaved: TaskStepViewProps['onDocumentSaved']
 ): ApplySuggestion {
   return async (comment: PhaseDocumentCommentResponse, suggestedText: string) => {
     if (!comment.location) return
-    const source = data.documents[step].content
+    const source = data.plan.content
     const content = source.slice(0, comment.location.start) + suggestedText + source.slice(comment.location.end)
     try {
-      const saved = await savePlanningDocument(data.ticket.id, content)
-      onDocumentSaved(step, saved)
+      const saved = await savePlan(data.ticket.id, content)
+      onDocumentSaved(saved)
       await comments.toggleStatus(comment)
       toast.success('Suggestion applied')
     } catch (error) {
@@ -59,9 +60,7 @@ function useApplySuggestion(
 function BuildStep({ data }: { data: TaskPageData }) {
   const isUpcoming = data.ticket.workflowPhase !== 'execution'
   if (data.ticket.pullRequestUrl) {
-    return (
-      <BuildPullRequestPanel ticketId={data.ticket.id} pullRequestUrl={data.ticket.pullRequestUrl} runs={data.runs} />
-    )
+    return <BuildPullRequests ticketId={data.ticket.id} latestUrl={data.ticket.pullRequestUrl} runs={data.runs} />
   }
   return (
     <p className="py-6 text-sm text-[var(--gray-10)]">
@@ -86,49 +85,48 @@ export function TaskStepView({
   move,
   onDocumentSaved,
   onNewComments,
+  onAsked,
 }: TaskStepViewProps) {
-  const isDocumentStep = step !== 'execution'
-  const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0
-  const documentStep = step === 'execution' ? null : step
-  const comments = useDocumentComments(data.ticket.id, hasDocument ? documentStep : null)
-  const applySuggestion = useApplySuggestion('planning', data, comments, onDocumentSaved)
-  const documentContent = documentStep ? data.documents[documentStep].content : ''
+  const isPlan = step === 'planning'
+  const hasPlan = isPlan && data.plan.content.trim().length > 0
+  const comments = useDocumentComments(data.ticket.id, hasPlan)
+  const applySuggestion = useApplySuggestion(data, comments, onDocumentSaved)
+  const planContent = isPlan ? data.plan.content : ''
   const reloadComments = comments.reload
-  const newCount = documentStep ? countNewComments(comments.comments, data.documents[documentStep].updatedAt) : 0
+  const newCount = isPlan ? countNewComments(comments.comments, data.plan.updatedAt) : 0
 
   // A revision or an edit moves text around: find each comment's text again.
   useEffect(() => {
     void reloadComments()
-  }, [documentContent, reloadComments])
+  }, [planContent, reloadComments])
 
   useEffect(() => {
-    if (documentStep && hasDocument) onNewComments(documentStep, newCount)
-  }, [documentStep, hasDocument, newCount, onNewComments])
+    if (hasPlan) onNewComments(newCount)
+  }, [hasPlan, newCount, onNewComments])
 
   return (
     <div role="tabpanel" id={stepPanelId(step)} aria-labelledby={stepTabId(step)}>
-      {documentStep && version ? (
+      {isPlan && version ? (
         <DocumentVersion
           ticketId={data.ticket.id}
-          step={documentStep}
           version={version}
           comparing={comparing}
           onShowCurrent={() => onView('document')}
         />
-      ) : documentStep ? (
+      ) : isPlan ? (
         <DocumentStep
-          step={documentStep}
           data={data}
           move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
           comments={comments}
           onApplySuggestion={applySuggestion}
           onDocumentSaved={onDocumentSaved}
           onCompare={onCompare}
+          onAsked={onAsked}
         />
       ) : (
         <BuildStep data={data} />
       )}
-      {hasDocument && documentStep && !version && (
+      {hasPlan && !version && (
         <details
           open={view === 'comments'}
           onToggle={(event) => {

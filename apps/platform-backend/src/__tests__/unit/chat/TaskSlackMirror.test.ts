@@ -1,4 +1,5 @@
-import type { TaskActivityKind } from "@viberglass/types";
+import { askValue, parseAskValue } from "@viberglass/chat-slack";
+import type { TaskActivityKind, TaskPlanParts } from "@viberglass/types";
 import type { RecordedActivity } from "../../../services/notifications/NotificationService";
 import type { AgentQuestionRecord } from "../../../persistence/agentSession/AgentQuestionDAO";
 import { TaskSlackMirror } from "../../../chat/TaskSlackMirror";
@@ -36,7 +37,16 @@ function question(overrides: Partial<AgentQuestionRecord> = {}): AgentQuestionRe
   };
 }
 
-function setup(options: { fromSlack?: boolean; thread?: boolean } = {}) {
+const TWO_PARTS: TaskPlanParts = {
+  parts: [
+    { number: 1, title: "Store it", status: "merged", pullRequestUrl: "https://github.com/acme/app/pull/7" },
+    { number: 2, title: "Show it", status: "not_built", pullRequestUrl: null },
+  ],
+  open: null,
+  next: 2,
+};
+
+function setup(options: { fromSlack?: boolean; thread?: boolean; parts?: TaskPlanParts } = {}) {
   const thread = { post: jest.fn().mockResolvedValue(undefined) };
   const deps = {
     threads: { forTask: jest.fn().mockResolvedValue(options.thread === false ? undefined : thread) },
@@ -58,6 +68,7 @@ function setup(options: { fromSlack?: boolean; thread?: boolean } = {}) {
     },
     documents: { getOrCreateDocument: jest.fn().mockResolvedValue({ content: "# Plan\nIt greets." }) },
     tickets: { getSummary: jest.fn().mockResolvedValue({ title: "Greeting", key: "WEB-1", spaceSlug: "web", pullRequestUrl: null }) },
+    parts: { state: jest.fn().mockResolvedValue(options.parts ?? { parts: [], open: null, next: null }) },
     fromSlack: () => options.fromSlack ?? false,
   };
   return { thread, deps, mirror: new TaskSlackMirror(deps) };
@@ -93,6 +104,35 @@ describe("TaskSlackMirror", () => {
     expect(posts[1]).toContain("plan.md");
     expect(posts[2]).toContain("Build it");
     expect(posts[2]).toContain('"t-1|code"');
+  });
+
+  it("offers the plan's first part after a plan in parts", async () => {
+    const parts: TaskPlanParts = { ...TWO_PARTS, parts: TWO_PARTS.parts.map((part) => ({ ...part, status: "not_built", pullRequestUrl: null })), next: 1 };
+    const { thread, mirror } = setup({ parts });
+    await mirror.onActivity(activity("run_finished", { jobId: "job-1", step: "planning" }));
+
+    const card = posted(thread)[2];
+    expect(card).toContain("Build part 1");
+    expect(card).toContain('"t-1|code|1-1"');
+  });
+
+  it("says a part merged and offers the next, without closing anything", async () => {
+    const { thread, mirror } = setup({ parts: TWO_PARTS });
+    await mirror.onActivity(activity("part_merged", { pullRequestUrl: "https://github.com/acme/app/pull/7", parts: [1], next: 2, mergedBy: "dev" }));
+
+    const posts = posted(thread);
+    expect(posts[0]).toBe(JSON.stringify({ markdown: "**Part 1 is merged** by dev." }));
+    expect(posts[1]).toContain("Build part 2");
+    expect(posts[1]).toContain('"t-1|code|2-2"');
+    expect(posts.join("")).not.toContain("Done.");
+  });
+
+  it("reads back the parts an ask button builds", () => {
+    expect(parseAskValue(askValue("t-1", "code", { first: 2, last: 2 }))).toEqual({ ticketId: "t-1", action: "code", parts: { first: 2, last: 2 } });
+    expect(parseAskValue(askValue("t-1", "code", { first: 2, last: null }))).toEqual({ ticketId: "t-1", action: "code", parts: { first: 2, last: null } });
+    expect(parseAskValue(askValue("t-1", "plan"))).toEqual({ ticketId: "t-1", action: "plan" });
+    expect(parseAskValue("t-1|nonsense")).toBeNull();
+    expect(parseAskValue("t-1|code|x-y")).toBeNull();
   });
 
   it("asks the agent's question with its options as buttons", async () => {

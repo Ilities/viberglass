@@ -39,8 +39,8 @@ export interface CommentParams {
 }
 
 
-export interface ReviewPhaseDocument {
-  phase: TicketWorkflowPhase;
+/** The task's plan and its inline comments. */
+export interface ReviewPlan {
   content: string | null;
   comments: Array<{
     id: string;
@@ -59,7 +59,7 @@ export interface ReviewState {
     phase: TicketWorkflowPhase;
     status: "completed" | "current" | "upcoming";
   }>;
-  documents: ReviewPhaseDocument[];
+  plan: ReviewPlan;
 }
 
 export interface ClankerListFilters {
@@ -97,22 +97,8 @@ export interface McpToolServices {
     getState(ticketId: string): Promise<ReviewState>;
     addComment(
       ticketId: string,
-      phase: "planning",
       params: CommentParams,
     ): Promise<{ id: string; lineNumber: number; content: string; status: string }>;
-    listComments(
-      ticketId: string,
-      phase: "planning",
-    ): Promise<
-      Array<{
-        id: string;
-        lineNumber: number;
-        content: string;
-        status: string;
-        actor: string | null;
-        createdAt: string;
-      }>
-    >;
   };
 }
 

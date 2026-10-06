@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import { toErrorFromResponse } from '@/service/api/user-api'
-import type { ApiResponse, TaskCodeBranch, TaskMessage, TaskTimelineEntry, TaskTurnAction } from '@viberglass/types'
+import type { ApiResponse, PartRange, TaskCodeBranch, TaskMessage, TaskTimelineEntry, TaskTurnAction } from '@viberglass/types'
 
 async function read<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), fallback)
@@ -47,7 +47,7 @@ export interface PostedMessage {
 export async function postTaskMessage(
   taskId: string,
   body: string,
-  ask: { action?: TaskTurnAction; agentId?: string } = {}
+  ask: { action?: TaskTurnAction; agentId?: string; parts?: PartRange } = {}
 ): Promise<PostedMessage> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/messages`, {
     method: 'POST',
@@ -62,9 +62,9 @@ export async function postTaskMessage(
 /** Asks the agent for something, as a message from you in the thread. */
 export async function askAgent(
   taskId: string,
-  ask: { action: TaskTurnAction; body?: string; agentId?: string }
+  ask: { action: TaskTurnAction; body?: string; agentId?: string; parts?: PartRange }
 ): Promise<AskedTurn> {
-  const { turn } = await postTaskMessage(taskId, ask.body ?? '', { action: ask.action, agentId: ask.agentId })
+  const { turn } = await postTaskMessage(taskId, ask.body ?? '', { action: ask.action, agentId: ask.agentId, parts: ask.parts })
   if (!turn) throw new Error('The agent was not asked')
   return turn
 }

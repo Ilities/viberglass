@@ -116,10 +116,20 @@ export interface TicketsTable {
   ticket_status: Generated<"open" | "in_progress" | "in_review" | "resolved">;
   workflow_phase: Generated<"planning" | "execution">;
   archived_at: Timestamp | null;
-  pull_request_url: string | null;
   taken_over_by: string | null;
   taken_over_at: Timestamp | null;
-  task_branch: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface TaskPullRequestsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  branch: string;
+  url: string | null;
+  first_part: Generated<number>;
+  /** Null: through the plan's last part. */
+  last_part: number | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -698,6 +708,8 @@ export interface AgentTurnsTable {
   consumed_by_turn_id: string | null;
   action: TaskTurnAction | null;
   task_message_id: string | null;
+  build_first_part: number | null;
+  build_last_part: number | null;
   started_at: Timestamp | null;
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
@@ -774,6 +786,7 @@ export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
   tickets: TicketsTable;
+  task_pull_requests: TaskPullRequestsTable;
   integrations: IntegrationsTable;
   project_integrations: ProjectIntegrationsTable;
   integration_credentials: IntegrationCredentialsTable;

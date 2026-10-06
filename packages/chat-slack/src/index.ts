@@ -6,7 +6,7 @@ import { registerButtonActionHandlers } from "./handlers/buttonActions";
 import type { SlackHandlerServices } from "./types";
 
 export type { SlackHandlerServices, ProjectSummary, ClankerSummary } from "./types";
-export { SLACK_ACTION, MAX_OPTION_BUTTONS, askValue, answerValue } from "./actions";
+export { SLACK_ACTION, MAX_OPTION_BUTTONS, askValue, answerValue, parseAskValue } from "./actions";
 
 /**
  * Register all Slack chat handlers on the given bot instance.

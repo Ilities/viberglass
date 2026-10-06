@@ -88,6 +88,8 @@ export const TASK_ACTIVITY_KINDS = [
   'comment_status_changed',
   'task_done',
   'pull_request_merged',
+  /** A pull request for some of the plan's parts merged, with more parts to build. */
+  'part_merged',
   'question_asked',
   'question_answered',
   'question_reminded',

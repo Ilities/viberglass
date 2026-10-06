@@ -1,5 +1,5 @@
 import type { Router } from "express";
-import { isTaskTurnAction, mentionsAnAgent } from "@viberglass/types";
+import { isPartRange, isTaskTurnAction, mentionsAnAgent } from "@viberglass/types";
 import type { TaskDiscussionService } from "../../../services/tasks/TaskDiscussionService";
 import type { TaskTimelineService } from "../../../services/tasks/TaskTimelineService";
 import type { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
@@ -34,15 +34,19 @@ export function registerTaskDiscussionRoutes(
     const body: unknown = req.body?.body ?? "";
     const action: unknown = req.body?.action;
     const agentId: unknown = req.body?.agentId;
+    const parts: unknown = req.body?.parts;
     if (typeof body !== "string") return res.status(400).json({ error: "body must be a string" });
     if (action !== undefined && !isTaskTurnAction(action)) return res.status(400).json({ error: "Unknown action" });
     if (agentId !== undefined && typeof agentId !== "string") return res.status(400).json({ error: "agentId must be a string" });
+    if (parts !== undefined && (action !== "code" || !isPartRange(parts))) {
+      return res.status(400).json({ error: "parts is a build's { first, last } range of the plan's parts" });
+    }
     try {
       const userId = req.authContext!.user.id;
       if (!action && !agentId && !mentionsAnAgent(body)) {
         return res.status(201).json({ success: true, data: await deps.discussion.post(req.params.id, userId, body) });
       }
-      const asked = await deps.turns.ask(req.params.id, userId, { message: body, action, agentId });
+      const asked = await deps.turns.ask(req.params.id, userId, { message: body, action, agentId, ...(parts !== undefined ? { parts } : {}) });
       res.status(201).json({
         success: true,
         data: await deps.discussion.list(req.params.id),

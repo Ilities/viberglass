@@ -9,7 +9,7 @@ function setup(options: { pushed?: string | null; scm?: boolean } = {}) {
       ),
     },
     takeovers: { get: jest.fn().mockResolvedValue(null), lastBuildBranch: jest.fn().mockResolvedValue(options.pushed ?? null) },
-    namer: { nameFor: jest.fn().mockResolvedValue("viberator/t-1") },
+    namer: { current: jest.fn().mockResolvedValue("viberator/t-1") },
   };
   return { deps, service: new TaskCodeBranchService(deps) };
 }
@@ -24,7 +24,7 @@ describe("TaskCodeBranchService", () => {
       pushed: true,
       takenOver: null,
     });
-    expect(deps.namer.nameFor).toHaveBeenCalledWith("t-1", "t-1");
+    expect(deps.namer.current).toHaveBeenCalledWith("t-1", "t-1");
   });
 
   it("says a branch no build has pushed starts from the base branch", async () => {

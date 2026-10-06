@@ -1,4 +1,4 @@
-import { mentionToken, type TaskTurnAction } from "@viberglass/types";
+import { mentionToken, type PartRange, type TaskTurnAction } from "@viberglass/types";
 import { runAsActor } from "../api/auth/requestActor";
 import { AgentQuestionDAO } from "../persistence/agentSession/AgentQuestionDAO";
 import { UserDAO } from "../persistence/user/UserDAO";
@@ -58,11 +58,11 @@ export class TaskThreadInbound {
   }
 
   /** A step asked for with a button or the launch form. Someone without a linked account can still start one: it asks in no words. */
-  async ask(input: { ticketId: string; slackUserId: string; action: TaskTurnAction; agentId?: string }): Promise<void> {
+  async ask(input: { ticketId: string; slackUserId: string; action: TaskTurnAction; agentId?: string; parts?: PartRange }): Promise<void> {
     const actorId = await this.deps.users.findActiveIdBySlackUserId(input.slackUserId);
     try {
       await runAsActor({ userId: actorId, slackUserId: input.slackUserId }, () =>
-        this.deps.turns.ask(input.ticketId, actorId, { message: "", action: input.action, agentId: input.agentId }),
+        this.deps.turns.ask(input.ticketId, actorId, { message: "", action: input.action, agentId: input.agentId, parts: input.parts }),
       );
     } catch (error) {
       if (!actorId && isTaskAskPolicyError(error)) throw new Error(LINK_SLACK_ACCOUNT);

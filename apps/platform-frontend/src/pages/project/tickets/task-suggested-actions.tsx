@@ -20,7 +20,7 @@ export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAske
   async function ask(suggestion: TaskSuggestion) {
     setAsking(suggestion.label)
     try {
-      await askAgent(taskId, { action: suggestion.action, body: suggestion.label, agentId: suggestion.agentId })
+      await askAgent(taskId, { action: suggestion.action, body: suggestion.label, agentId: suggestion.agentId, parts: suggestion.parts })
       onAsked()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't ask the agent")

@@ -34,7 +34,7 @@ export function CommentEntry({
 }: {
   entry: EventEntry
   status: 'open' | 'resolved'
-  onOpenComments: (step: 'planning') => void
+  onOpenComments: () => void
 }) {
   const { payload, actor } = entry.activity
   const quote = typeof payload.quote === 'string' ? readableQuote(payload.quote) : null
@@ -47,7 +47,7 @@ export function CommentEntry({
       </div>
       <p className="mt-1.5 text-sm whitespace-pre-wrap text-[var(--gray-12)]">{String(payload.comment)}</p>
       {quote && <blockquote className="mt-1.5 line-clamp-2 border-l-2 border-[var(--gray-6)] pl-2 text-xs text-[var(--gray-10)]">{quote}</blockquote>}
-      <Button plain className="mt-1 -ml-2 text-xs" onClick={() => onOpenComments('planning')}>
+      <Button plain className="mt-1 -ml-2 text-xs" onClick={onOpenComments}>
         Open in comments
       </Button>
     </li>

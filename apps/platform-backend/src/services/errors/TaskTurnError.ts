@@ -6,6 +6,8 @@ export const TASK_TURN_ERROR_CODE = {
   NO_AGENT: "NO_AGENT",
   AGENT_NOT_READY: "AGENT_NOT_READY",
   NOTHING_ASKED: "NOTHING_ASKED",
+  /** A part asked for out of order, or while an earlier part's pull request isn't merged. */
+  PART_NOT_NEXT: "PART_NOT_NEXT",
 } as const;
 
 export type TaskTurnErrorCode = (typeof TASK_TURN_ERROR_CODE)[keyof typeof TASK_TURN_ERROR_CODE];
@@ -16,6 +18,7 @@ const STATUS_BY_CODE: Record<TaskTurnErrorCode, number> = {
   NO_AGENT: 409,
   AGENT_NOT_READY: 409,
   NOTHING_ASKED: 400,
+  PART_NOT_NEXT: 409,
 };
 
 /** Asking the agent for a turn on a task; the message is shown as is. */

@@ -40,6 +40,8 @@ export interface TaskTurnContext {
     pullRequestUrl: string | null;
   };
   documents: { plan: string };
+  /** The parts this build covers in a new pull request ("part 2, “Print it on the slip”"), and the parts already built ("Part 1"). */
+  parts: { building: string | null; built: string | null };
   people: TurnPerson[];
   /** The last commit an agent's build pushed to the task's branch; what people pushed since is news to it. */
   lastAgentCommit: string | null;

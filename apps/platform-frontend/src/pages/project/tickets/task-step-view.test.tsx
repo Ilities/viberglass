@@ -6,7 +6,7 @@ import type { TaskPageData } from './use-task-page'
 
 let mockRole = 'viewer'
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', role: mockRole } }) }))
-jest.mock('@/service/api/ticket-api', () => ({ getPhaseDocumentComments: jest.fn().mockResolvedValue([]) }))
+jest.mock('@/service/api/ticket-api', () => ({ getPlanComments: jest.fn().mockResolvedValue([]) }))
 
 const TICKET: Ticket = {
   id: 't-1',
@@ -35,10 +35,11 @@ function renderStep(step: 'planning' | 'execution', capabilities: TaskCapabiliti
     ticket: TICKET,
     clankers: [],
     runs: [],
-    documents: { planning: emptyPlan },
-    newComments: { planning: 0 },
+    plan: emptyPlan,
+    newComments: 0,
     sessions: [],
     capabilities,
+    planParts: null,
   }
   render(
     <MemoryRouter>
@@ -51,6 +52,7 @@ function renderStep(step: 'planning' | 'execution', capabilities: TaskCapabiliti
         move={{ kind: 'start', step: 'planning' }}
         onDocumentSaved={jest.fn()}
         onNewComments={jest.fn()}
+        onAsked={jest.fn()}
       />
     </MemoryRouter>
   )

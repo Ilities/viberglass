@@ -2,17 +2,14 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Timestamp } from '@/components/timestamp'
 import { usePersonName } from '@/hooks/usePeople'
-import { getPhaseDocumentRevisions, type PhaseDocumentRevisionResponse } from '@/service/api/ticket-api'
+import { getPlanRevisions, type PhaseDocumentRevisionResponse } from '@/service/api/ticket-api'
 import { useEffect, useState } from 'react'
 import { FullScreenReader } from './full-screen-reader'
 import { diffLines } from './line-diff'
 import { MarkdownDocument } from './markdown/markdown-document'
 
-const DOCUMENT_NAME = { planning: 'Plan' } as const
-
 interface DocumentVersionProps {
   ticketId: string
-  step: 'planning'
   version: number
   /** Whether it opens compared with the current version. */
   comparing?: boolean
@@ -51,7 +48,6 @@ function Comparison({ before, after }: { before: string; after: string }) {
  */
 export function DocumentVersion({
   ticketId,
-  step,
   version,
   comparing: compareFirst = false,
   onShowCurrent,
@@ -64,18 +60,18 @@ export function DocumentVersion({
   useEffect(() => {
     let cancelled = false
     setRevisions(null)
-    getPhaseDocumentRevisions(ticketId, step)
+    getPlanRevisions(ticketId)
       .then((loaded) => !cancelled && setRevisions(loaded))
       .catch(() => !cancelled && setRevisions([]))
     return () => {
       cancelled = true
     }
-  }, [ticketId, step])
+  }, [ticketId])
 
   if (!revisions) return <p className="py-6 text-sm text-[var(--gray-10)]">Loading version {version}…</p>
   const shown = revisions.find((revision) => revision.version === version)
   const current = revisions.reduce<PhaseDocumentRevisionResponse | null>((latest, revision) => (!latest || revision.version > latest.version ? revision : latest), null)
-  const name = DOCUMENT_NAME[step]
+  const name = 'Plan'
   if (!shown || !current) {
     return (
       <div className="space-y-3 py-6 text-sm text-[var(--gray-10)]">

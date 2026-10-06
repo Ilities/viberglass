@@ -1,4 +1,4 @@
-import { decideTaskNextMove, describeStep, type TaskNextMoveInput } from './task-next-move'
+import { codeProgress, decideTaskNextMove, describeStep, type TaskNextMoveInput } from './task-next-move'
 
 type Run = TaskNextMoveInput['runs'][number]
 const run = (jobKind: Run['jobKind'], status: Run['status'], jobId = `${jobKind}-${status}`): Run => ({ jobId, jobKind, status, failure: null })
@@ -8,7 +8,7 @@ function input(overrides: Partial<TaskNextMoveInput> = {}): TaskNextMoveInput {
   return {
     ticket: { workflowPhase: 'planning', status: 'open', pullRequestUrl: undefined },
     runs: [],
-    documents: {},
+    plan: doc(''),
     workingSession: undefined,
     ...overrides,
   }
@@ -38,12 +38,12 @@ describe('decideTaskNextMove', () => {
   })
 
   it('says a written plan is ready for people, whether an agent or a person wrote it', () => {
-    const plan = input({ ticket: { workflowPhase: 'planning', status: 'in_review', pullRequestUrl: undefined }, documents: { planning: doc('# Plan') } })
+    const plan = input({ ticket: { workflowPhase: 'planning', status: 'in_review', pullRequestUrl: undefined }, plan: doc('# Plan') })
     expect(decideTaskNextMove(plan)).toEqual({ kind: 'ready', step: 'planning' })
   })
 
   it('reports a failed run first, even with an older document in place', () => {
-    const failed = input({ runs: [run('planning', 'failed', 'job-2'), run('planning', 'completed')], documents: { planning: doc('# Old') } })
+    const failed = input({ runs: [run('planning', 'failed', 'job-2'), run('planning', 'completed')], plan: doc('# Old') })
     expect(decideTaskNextMove(failed)).toEqual({ kind: 'failed', step: 'planning', runId: 'job-2', failure: null })
   })
 
@@ -85,5 +85,21 @@ describe('describeStep', () => {
 
   it('marks the build done once the task is', () => {
     expect(describeStep('execution', 'execution', { kind: 'done' }, true)).toEqual({ position: 'done', label: 'Done' })
+  })
+})
+
+describe('codeProgress', () => {
+  const part = (number: number, status: 'not_built' | 'open' | 'merged') => ({ number, title: null, status, pullRequestUrl: null })
+
+  it("says how far a plan in parts has got, and nothing for a plan in one part", () => {
+    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'not_built'), part(3, 'not_built')], open: null, next: 2 })).toBe('1 of 3 parts merged')
+    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'open')], open: { first: 2, last: 2 }, next: null })).toBe('PR open for part 2')
+    expect(codeProgress({ parts: [part(1, 'open')], open: { first: 1, last: null }, next: null })).toBeNull()
+    expect(codeProgress(null)).toBeNull()
+  })
+
+  it('shows on the Code tab in place of "Pull request open"', () => {
+    expect(describeStep('execution', 'execution', { kind: 'pull_request', url: 'u' }, true, '1 of 3 parts merged').label).toBe('1 of 3 parts merged')
+    expect(describeStep('execution', 'execution', { kind: 'working', step: 'execution', runId: null, sessionId: null }, true, '1 of 3 parts merged').label).toBe('Agent working')
   })
 })

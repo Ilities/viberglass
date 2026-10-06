@@ -15,6 +15,7 @@ import { validateUuidParam } from "../middleware/validation";
 import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 import { registerTicketCrudRoutes } from "./tickets/crudRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
+import { TaskPartsService } from "../../services/tasks/TaskPartsService";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
 import { registerDocumentCommentRoutes } from "./tickets/documentCommentRoutes";
 import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
@@ -176,6 +177,7 @@ registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });
 registerTicketExecutionRoutes(router, {
   ticketDAO: ticketService,
   buildPullRequestService,
+  parts: new TaskPartsService(),
 });
 
 const agentSessionDAO = new AgentSessionDAO();

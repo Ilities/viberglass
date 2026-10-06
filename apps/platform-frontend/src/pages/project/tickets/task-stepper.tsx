@@ -10,6 +10,8 @@ interface TaskStepperProps {
   shownStep: TaskStep
   /** Which artifacts exist: a document with content, or a pull request. */
   exists: Record<TaskStep, boolean>
+  /** For a plan in parts, how far its code has got. */
+  codeProgress?: string | null
   onShowStep: (step: TaskStep) => void
 }
 
@@ -26,12 +28,12 @@ function markerClass(position: 'done' | 'current' | 'upcoming', move: TaskNextMo
  * They're options, not stages: either can be asked for at any time, and
  * nothing waits on approval.
  */
-export function TaskStepper({ currentStep, move, shownStep, exists, onShowStep }: TaskStepperProps) {
+export function TaskStepper({ currentStep, move, shownStep, exists, codeProgress = null, onShowStep }: TaskStepperProps) {
   return (
     <div className="space-y-2">
       <div role="tablist" aria-label="Artifacts" className="flex flex-wrap gap-x-6 gap-y-2" onKeyDown={onTabListKeyDown}>
         {TASK_STEPS.map((step) => {
-          const { position, label } = describeStep(step, currentStep, move, exists[step])
+          const { position, label } = describeStep(step, currentStep, move, exists[step], codeProgress)
           const isShown = step === shownStep
           return (
             <button
