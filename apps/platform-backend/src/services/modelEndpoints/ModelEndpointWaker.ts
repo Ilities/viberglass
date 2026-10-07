@@ -1,4 +1,8 @@
-import { modelEndpointHeaders, type ModelEndpoint } from "@viberglass/types";
+import {
+  modelEndpointHeaders,
+  modelEndpointModelsRequest,
+  type ModelEndpoint,
+} from "@viberglass/types";
 import type { ModelDeploymentDAO } from "../../persistence/modelHosting/ModelDeploymentDAO";
 import type { SecretService } from "../SecretService";
 import { ModelEndpointServiceError } from "../errors/ModelEndpointServiceError";
@@ -36,9 +40,10 @@ export class ModelEndpointWaker {
       const key = endpoint.secretId
         ? (await this.secrets.resolveSecretValues([endpoint.secretId])).get(endpoint.secretId)
         : undefined;
-      await this.fetchFn(`${endpoint.baseUrl.replace(/\/+$/, "")}/models`, {
+      const models = modelEndpointModelsRequest(endpoint);
+      await this.fetchFn(models.url, {
         method: "GET",
-        headers: modelEndpointHeaders(endpoint, key),
+        headers: { ...models.headers, ...modelEndpointHeaders(endpoint, key) },
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
       });

@@ -34,7 +34,7 @@ Most providers offer a vLLM image; use the same flags.
 Expect: the model listed.
 
 ### GPU-02 · Endpoint on the GPU
-1. Runner form (OpenCode) → **Add endpoint**: base URL `https://<gpu-url>/v1`, Chat Completions, bearer, the vLLM key; tick **may cold start** if the deployment scales to zero. **Check**.
+1. Settings → Models → Connect a model (or the runner form's Connect a model): base URL `https://<gpu-url>/v1`, Chat Completions, bearer, the vLLM key; tick **may cold start** if the deployment scales to zero. **Check**.
 
 Expect: the model is discovered; the endpoint saved.
 
@@ -76,7 +76,7 @@ Needs: a Verda account **with a positive balance**, a Cloud API credential (clie
 Expect: the account is listed with its client ID; none of its credentials appear under Model keys or Other secrets.
 
 ### DEP-02 · Deploy from a recipe
-1. Settings → Model deployments → **Deploy a model**; pick the account, **From vLLM Recipes**, a model such as `openai/gpt-oss-20b`.
+1. Settings → Models → Deployed models → **Deploy a model**; pick the account, **From vLLM Recipes**, a model such as `openai/gpt-oss-20b`.
 
 Expect: the GPU list holds only GPUs the recipe lists (H100, H200…), with prices; picking one fills the serving arguments, including the tool-call parser.
 
@@ -87,10 +87,12 @@ Expect: the GPU list holds only GPUs the recipe lists (H100, H200…), with pric
 Expect: the row goes from Creating to Idle · scaled to zero; the Verda console shows the deployment with 0–1 replicas.
 
 ### DEP-04 · A run wakes the deployment
-1. Point an OpenCode runner at the deployment's endpoint (Model section → Custom endpoints).
+1. Point an OpenCode runner at the deployment's endpoint (Model section → Workspace models).
 2. Start a research task while the deployment is idle.
 
 Expect: the run shows "Waking …", then completes; the row shows Running during the run and Idle again about five minutes after. Record the wake time.
+
+If the run never wakes, open the deployment's Logs in the Verda console. Replicas that restart every few minutes mean the server crashes on start; the cause is the last Python error before `Engine core initialization failed`. Delete the deployment: Verda bills the GPU while it restarts.
 
 ### DEP-05 · Keep warm, stop, start
 1. Change the mode to **Keep warm**; then **Stop**; start a task on the runner; then **Start**.
@@ -100,7 +102,7 @@ Expect: Keep warm shows the hourly price and a replica stays up. While stopped, 
 ### DEP-06 · Delete
 1. Try deleting while the runner uses it; move the runner to another model; delete.
 
-Expect: the first attempt is refused, naming the runner. After deletion, the Verda console shows no deployment and no `*-hf-token` secret, and the endpoint is gone from the runner form.
+Expect: the first attempt is refused, naming the runner. The second can take about a minute. After deletion, the Verda console shows no deployment and no `*-hf-token` secret, and the endpoint is gone from the runner form.
 
 ## Not available yet
 

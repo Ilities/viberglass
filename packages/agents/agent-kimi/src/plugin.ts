@@ -1,4 +1,5 @@
 import {
+  ModelEndpointConfigEnvironment,
   NoopAgentEndpointEnvironment,
   type AgentEndpointEnvironment,
   type AgentPlugin,
@@ -69,7 +70,13 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
   // Kimi Code CLI keeps everything, its own binary included, in ~/.kimi-code. Resume across
   // containers isn't verified yet: it needs a Kimi key to try.
   stateDirs: [".kimi-code"],
-  stateExcludes: [".kimi-code/bin", ".kimi-code/credentials", ".kimi-code/logs"],
+  // A run on a model endpoint writes config.toml, its key included; the next run writes its own.
+  stateExcludes: [".kimi-code/bin", ".kimi-code/credentials", ".kimi-code/logs", ".kimi-code/config.toml"],
+
+  customEndpoints: {
+    apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"],
+    environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
+  },
 
   endpointEnvironment(ctx): AgentEndpointEnvironment {
     const settings = resolveKimiSettings(ctx.clankerConfig);

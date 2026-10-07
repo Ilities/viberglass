@@ -10,7 +10,9 @@ import { useAuth } from '@/context/auth-context'
 import type { Secret } from '@/service/api/secret-api'
 import { getSecret } from '@/service/api/secret-api'
 import { CalendarIcon, ClockIcon, StackIcon } from '@radix-ui/react-icons'
-import { getAgentLabel, isObjectRecord, type Clanker } from '@viberglass/types'
+import { getAgentLabel, isObjectRecord, type Clanker, type ModelEndpoint } from '@viberglass/types'
+import { listModelEndpoints } from '@/service/api/model-endpoint-api'
+import { TextLink } from '@/components/text'
 import { useCallback, useEffect, useState } from 'react'
 import { RunnerInstructionsAndTools } from './runner-instructions-and-tools'
 import { useParams } from 'react-router-dom'
@@ -107,6 +109,7 @@ export function ClankerDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const [clanker, setClanker] = useState<Clanker | null>(null)
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [endpoints, setEndpoints] = useState<ModelEndpoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const isAdmin = useAuth().user?.role === 'admin'
 
@@ -121,9 +124,12 @@ export function ClankerDetailPage() {
       if (!clankerData) return
 
       const loginSecretId = summarizeRunner(clankerData, []).loginSecretId
+      const endpointList = clankerData.modelEndpoint ? await listModelEndpoints().catch(() => []) : []
+      const endpointSecretId = endpointList.find((endpoint) => endpoint.id === clankerData.modelEndpoint?.endpointId)?.secretId
       const secretIds = [
         ...(clankerData.secretBindings || []).map((binding) => binding.secretId),
         ...(loginSecretId ? [loginSecretId] : []),
+        ...(endpointSecretId ? [endpointSecretId] : []),
       ]
       const secretResults = await Promise.all(
         secretIds.map(async (secretId) => {
@@ -138,6 +144,7 @@ export function ClankerDetailPage() {
 
       setClanker(clankerData)
       setSecrets(secretResults)
+      setEndpoints(endpointList)
     } finally {
       setIsLoading(false)
     }
@@ -181,7 +188,7 @@ export function ClankerDetailPage() {
     )
   }
 
-  const summary = summarizeRunner(clanker, secrets)
+  const summary = summarizeRunner(clanker, secrets, endpoints)
   const status = statusLine(clanker, summary.problem, isAdmin)
   const deploymentConfig = isObjectRecord(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const v1Strategy = isObjectRecord(deploymentConfig?.strategy) ? deploymentConfig.strategy : null
@@ -416,7 +423,12 @@ export function ClankerDetailPage() {
                   <dd className="text-sm text-[var(--gray-12)]">{formatAgent(clanker.agent)}</dd>
                   <dt className="text-sm text-[var(--gray-9)]">Provider</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
-                    {summary.usesChatGptLogin
+                    {summary.endpoint ? (
+                      <>
+                        <TextLink href="/settings/models">{summary.endpoint.name}</TextLink>
+                        <span className="ml-2 font-mono text-xs text-[var(--gray-9)]">{summary.endpoint.host}</span>
+                      </>
+                    ) : summary.usesChatGptLogin
                       ? 'OpenAI (ChatGPT login)'
                       : summary.customEndpoint
                         ? `${summary.providerLabel ?? 'Unknown'} key, sent to a custom endpoint`
@@ -452,7 +464,16 @@ export function ClankerDetailPage() {
                     {summary.usesChatGptLogin ? (
                       'ChatGPT login'
                     ) : clanker.modelEndpoint ? (
-                      'Configured by endpoint'
+                      summary.endpoint?.keyLabel ? (
+                        <>
+                          {summary.endpoint.keyLabel}{' '}
+                          <span className="text-xs text-[var(--gray-9)]">from {summary.endpoint.name}</span>
+                        </>
+                      ) : summary.endpoint ? (
+                        'None: the endpoint takes anonymous requests'
+                      ) : (
+                        "The endpoint's key"
+                      )
                     ) : summary.key ? (
                       <>
                         {summary.key.label} <span className="font-mono text-xs text-[var(--gray-9)]">as {summary.key.envVar}</span>

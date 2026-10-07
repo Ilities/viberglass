@@ -48,6 +48,18 @@ Runner ──picks──▶ Model endpoint ◀──owns── Model deployment 
 
 ---
 
+## Implementation progress (2026-10-07)
+
+- Every harness except Antigravity runs on custom endpoints. Each plugin's `customEndpoints.environment` passes the endpoint to the agent as `MODEL_ENDPOINT_CONFIG`, and the agent writes its harness's own config when it starts, because the key only reaches the environment after the endpoint is resolved:
+  - Claude Code (Anthropic Messages): `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_CUSTOM_HEADERS`, and the model for every role, background and subagent calls included.
+  - Codex (OpenAI Responses only; it dropped Chat Completions): a `config.toml` provider with `env_key` or `env_http_headers`, and no OpenAI sign-in.
+  - Qwen Code: system settings in the run's config directory, which can reference the key as `$MODEL_ENDPOINT_API_KEY`.
+  - Kimi Code: `~/.kimi-code/config.toml`. Mistral Vibe: `VIBE_*` variables.
+  - A harness reads the key from the environment where its own auth matches the endpoint's; otherwise the key goes into a private config file or variable. Config files that hold endpoint settings are left out of saved state.
+- Anthropic-format base URLs leave out `/v1`, as `ANTHROPIC_BASE_URL` does; the model check and wake requests ask `{base}/v1/models` for them.
+- Settings → Models lists connected models (manual endpoints) above deployed models; the runner form lists both under Workspace models.
+- Harness versions stay unpinned except OpenCode and Pi. The ACP adapters bring their own CLI builds (claude-agent-acp pins the Claude Agent SDK; codex-acp nests `@openai/codex`), so those are what actually run.
+
 ## Implementation progress (2026-10-06)
 
 Phases 3 and 4 are built for Verda; phase 2 is replaced by the Bedrock API key path; OVH is not started.
@@ -57,7 +69,7 @@ Phases 3 and 4 are built for Verda; phase 2 is replaced by the Bedrock API key p
 - **Deployments** (`model_deployments`): creating one creates its endpoint (`source = deployment`, bearer auth with the account's inference key, `may_cold_start`) in the same transaction. If saving fails, the cloud deployment is deleted again. Deleting a deployment is refused while runners use it. The cloud's errors reach the admin as HTTP 502 with Verda's message.
 - **Catalog**: `/models.json`, `/{model}.json` and `/{model}/hw/{hw}.json` from recipes.vllm.ai, cached for an hour. The serving arguments are the recipe's `argv` after `vllm serve <model>`, with the recipe's tool-calling flags added if the command lacks them. Recipes only list "verified" hardware (h100, h200, b200…), so Verda's L40S and RTX PRO 6000 are reachable only through the generic form.
 - **Wake and stop**: when a run is dispatched against a deployment endpoint, a stopped deployment fails it at once ("<name> is stopped. Start it or pick another endpoint."). Otherwise, an endpoint that may cold-start gets one `GET /models` so it boots while the worker starts. The worker's existing readiness wait then shows "Waking … ".
-- **UI**: Settings → Model deployments lists each deployment's state, price and runners, with mode changes and Delete. The deploy dialog picks an account, a recipe model or any Hugging Face id, a GPU (filtered to recipe hardware and VRAM, with prices), the serving arguments (one per line) and a name.
+- **UI**: Settings → Models lists connected models (manual endpoints, with the runners using them, edit and remove) above deployed models. Deployed models shows each deployment's state, price and runners, with mode changes and Delete. The deploy dialog picks an account, a recipe model or any Hugging Face id, a GPU (filtered to recipe hardware and VRAM, with prices), the serving arguments (one per line) and a name.
 
 Facts settled with the live Verda API (no GPU spend):
 
@@ -79,6 +91,9 @@ Facts from the second live deployment (Qwen3.8-27B on one L40S, 2026-10-07):
 - The full-precision 27B model (about 54 GB of weights) ran out of memory on the 48 GB L40S while loading its layers, and Verda restarted the replica four times in seven minutes. A crashing replica cycles through the same states as a booting one, so a deployment waking for more than 20 minutes is now shown as failed, and the deploy dialog refuses a GPU smaller than the model's weight files.
 - The official `Qwen/Qwen3.8-27B-FP8` build is 31 GB. The vLLM recipe for Qwen3.8 uses `--tool-call-parser qwen3_xml --reasoning-parser qwen3`, not `hermes`.
 - A run waiting for a cold start was given up after five minutes by the platform's heartbeat check, because the worker waited silently. It now reports progress every minute while it waits.
+- `Qwen/Qwen3.8-27B-FP8` loaded its weights (28.9 GiB) on the L40S, then failed with `max_num_seqs (256) exceeds available Mamba cache blocks (241)`: Qwen3.8 is a hybrid model, and vLLM's default of 256 sequences doesn't fit beside it. Deployments now pass `--max-num-seqs 16`, matching the 16 requests Verda sends one replica, unless the serving arguments set it.
+- Every restart spent about three minutes in torch.compile and CUDA graph capture, because vLLM's compile cache lived outside the scratch disk. `VLLM_CACHE_ROOT` now points at `/data/vllm-cache`.
+- Verda ignores `DELETE …?timeout=0` and answers 408 after 60 s, but finishes deleting anyway. A 408 on delete now counts as deleted.
 
 **Live exit still open:** an OpenCode task on a deployment, a second (cached) wake time, and scale-down, Keep warm, Stop and Delete against the live deployment.
 
@@ -187,7 +202,7 @@ Implementations: `VerdaContainersHost` and `OvhAiDeployHost`. They are wired in 
 
 **UX.**
 
-- The Model deployments page is admin-only, matching the other workspace plumbing.
+- The Models page is admin-only, matching the other workspace plumbing.
 - Each row shows: the model, the cloud, the flavour, the state ("Idle · scaled to zero", "Running", "Kept warm · €2.80/h", "Stopped"), and the runners that use it.
 - Actions: Keep warm, Scale to zero, Stop, Delete. Keep warm shows the hourly price when the cloud exposes it.
 

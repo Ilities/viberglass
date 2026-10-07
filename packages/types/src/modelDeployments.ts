@@ -3,6 +3,8 @@ export type ModelHostKind = 'verda'
 
 export const MODEL_HOST_KINDS: readonly ModelHostKind[] = ['verda']
 
+export const MODEL_HOST_LABELS: Record<ModelHostKind, string> = { verda: 'Verda' }
+
 export function isModelHostKind(value: unknown): value is ModelHostKind {
   return value === 'verda'
 }

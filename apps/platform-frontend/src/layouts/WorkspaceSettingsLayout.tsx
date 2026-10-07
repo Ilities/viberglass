@@ -33,7 +33,7 @@ const WORKSPACE = [
 ]
 
 const ADVANCED = [
-  { name: 'Model deployments', href: '/settings/model-deployments', icon: <CubeIcon /> },
+  { name: 'Models', href: '/settings/models', icon: <CubeIcon /> },
   { name: 'MCP servers', href: '/settings/mcp-servers', icon: <ComponentInstanceIcon /> },
   { name: 'Skills', href: '/settings/skills', icon: <LightningBoltIcon /> },
   { name: 'Prompt templates', href: '/settings/prompt-templates', icon: <FileTextIcon /> },

@@ -65,7 +65,10 @@ describe('Verda container deployments', () => {
         {
           exposed_port: 8000,
           healthcheck: { enabled: true, port: 8000, path: '/health' },
-          entrypoint_overrides: { enabled: true, cmd: ['Qwen/Qwen3-8B', '--tool-call-parser', 'hermes'] },
+          entrypoint_overrides: {
+            enabled: true,
+            cmd: ['Qwen/Qwen3-8B', '--tool-call-parser', 'hermes', '--max-num-seqs', '16'],
+          },
         },
       ],
     })
@@ -114,6 +117,23 @@ describe('Verda container deployments', () => {
   test('treats deleting a deployment that is already gone as done', async () => {
     const { host } = fakeVerda(() => ({ status: 404 }))
     await expect(host.delete(account, 'gone')).resolves.toBeUndefined()
+  })
+
+  test('treats a deletion Verda timed out waiting for as done, since it continues', async () => {
+    const { calls, host } = fakeVerda((call) =>
+      call.path.startsWith('/container-deployments/') ? { status: 408, body: { message: 'Timeout' } } : undefined,
+    )
+    await expect(host.delete(account, 'slow')).resolves.toBeUndefined()
+    expect(calls.some((call) => call.method === 'DELETE' && call.path === '/secrets/slow-hf-token')).toBe(true)
+  })
+
+  test('keeps serving arguments that already limit concurrent sequences', async () => {
+    const { calls, host } = fakeVerda((call) =>
+      call.path === '/container-deployments' ? { body: { endpoint_base_url: 'https://c.verda.com/q' } } : undefined,
+    )
+    await host.create(account, { ...spec, servingArgs: ['--max-num-seqs=8'] })
+    const create = calls.find((call) => call.path === '/container-deployments')
+    expect(JSON.stringify(create?.body)).toContain('"cmd":["Qwen/Qwen3-8B","--max-num-seqs=8"]')
   })
 
   test('reports a deployment missing on Verda as failed', async () => {

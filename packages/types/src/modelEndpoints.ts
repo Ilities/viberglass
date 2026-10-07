@@ -6,6 +6,19 @@ export type ModelApiFormat =
   | "openai-chat"
   | "openai-responses"
   | "anthropic-messages";
+
+export const MODEL_API_FORMATS: readonly ModelApiFormat[] = [
+  "openai-chat",
+  "openai-responses",
+  "anthropic-messages",
+];
+
+export const MODEL_API_FORMAT_LABELS: Record<ModelApiFormat, string> = {
+  "openai-chat": "OpenAI-compatible Chat Completions",
+  "openai-responses": "OpenAI Responses",
+  "anthropic-messages": "Anthropic Messages",
+};
+
 export type ModelEndpointAuth =
   | { scheme: "bearer" }
   | { scheme: "header"; header: string }
@@ -28,6 +41,11 @@ export interface ModelEndpoint extends ModelEndpointInput {
   deploymentId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ModelEndpointView extends ModelEndpoint {
+  /** Names of the runners that use the endpoint. */
+  runners: string[];
 }
 
 export interface ModelEndpointSelection {
@@ -82,6 +100,26 @@ export function modelEndpointHeaders(
   return headers;
 }
 
+/**
+ * The base URL as stored. Anthropic clients add `/v1` themselves, as `ANTHROPIC_BASE_URL`
+ * expects, so an Anthropic-format base URL ending in it would be doubled; the OpenAI
+ * formats keep their API prefix.
+ */
+export function normalizeModelEndpointBaseUrl(baseUrl: string, apiFormat: ModelApiFormat): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, "");
+  return apiFormat === "anthropic-messages" ? trimmed.replace(/\/v1$/, "") : trimmed;
+}
+
+/** Where an endpoint lists its models, and the headers that request needs besides auth. */
+export function modelEndpointModelsRequest(
+  endpoint: Pick<ModelEndpointInput, "baseUrl" | "apiFormat">,
+): { url: string; headers: Record<string, string> } {
+  const base = normalizeModelEndpointBaseUrl(endpoint.baseUrl, endpoint.apiFormat);
+  return endpoint.apiFormat === "anthropic-messages"
+    ? { url: `${base}/v1/models`, headers: { "anthropic-version": "2023-06-01" } }
+    : { url: `${base}/models`, headers: {} };
+}
+
 export function getAgentModelApiFormats(
   agent: AgentType | "",
 ): readonly string[] {
@@ -93,13 +131,21 @@ export function getAgentModelApiFormats(
     : [];
 }
 
+/** Harnesses tried first for an endpoint: those custom endpoints were proven on. */
+const PREFERRED_ENDPOINT_AGENTS: readonly string[] = ["opencode", "pi"];
+
 /**
- * The harness that runs a model endpoint speaking this API format: the first
- * in the catalogue that supports it (OpenCode for Chat Completions, else Pi).
- * Null when no harness here speaks it yet.
+ * The harness that runs a model endpoint speaking this API format: OpenCode for
+ * Chat Completions, else Pi, else any other harness that speaks it. Null when no
+ * harness here speaks it yet.
  */
 export function agentForModelApiFormat(format: ModelApiFormat): AgentType | null {
-  for (const entry of catalog) {
+  const rank = (agent: string) => {
+    const index = PREFERRED_ENDPOINT_AGENTS.indexOf(agent);
+    return index === -1 ? PREFERRED_ENDPOINT_AGENTS.length : index;
+  };
+  const entries = [...catalog].sort((a, b) => rank(a.agent) - rank(b.agent));
+  for (const entry of entries) {
     const formats: readonly string[] = "modelApiFormats" in entry && Array.isArray(entry.modelApiFormats) ? entry.modelApiFormats : [];
     const agent = SUPPORTED_AGENT_TYPES.find((type) => type === entry.agent);
     if (agent && agent !== "fake" && formats.includes(format)) return agent;

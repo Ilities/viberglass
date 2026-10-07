@@ -4,12 +4,10 @@ import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Dropdown, DropdownButton, DropdownDescription, DropdownItem, DropdownLabel, DropdownMenu } from '@/components/dropdown'
-import { EmptyState } from '@/components/empty-state'
-import { Heading } from '@/components/heading'
-import { PageMeta } from '@/components/page-meta'
+import { Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { deleteModelDeployment, listModelDeployments, setModelDeploymentMode } from '@/service/api/model-hosting-api'
-import type { ModelDeploymentMode, ModelDeploymentView } from '@viberglass/types'
+import { MODEL_HOST_LABELS, type ModelDeploymentMode, type ModelDeploymentView } from '@viberglass/types'
 import { ChevronDownIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { deploymentState, formatPrice, isSettling } from './deploymentDisplay'
 import { DeployModelDialog } from './deploy-model-dialog'
@@ -21,7 +19,7 @@ const MODES: Array<{ mode: ModelDeploymentMode; label: string; description: stri
 ]
 
 /** Open-weight models Viberglass runs in the workspace's cloud accounts. */
-export function ModelDeploymentsPage() {
+export function DeployedModelsSection() {
   const [deployments, setDeployments] = useState<ModelDeploymentView[] | null>(null)
   const [deploying, setDeploying] = useState(false)
   const [changing, setChanging] = useState<string | null>(null)
@@ -32,7 +30,7 @@ export function ModelDeploymentsPage() {
       .then(setDeployments)
       .catch((error) => {
         setDeployments((previous) => previous ?? [])
-        toast.error("Couldn't load model deployments", { description: error instanceof Error ? error.message : undefined })
+        toast.error("Couldn't load deployed models", { description: error instanceof Error ? error.message : undefined })
       })
   }, [])
 
@@ -71,41 +69,29 @@ export function ModelDeploymentsPage() {
     }
   }
 
-  const deployButton = (
-    <Button color="brand" onClick={() => setDeploying(true)}>
-      <PlusIcon />
-      Deploy a model
-    </Button>
-  )
-
   return (
-    <>
-      <PageMeta title="Model deployments" />
-      <div className="space-y-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <Heading>Model deployments</Heading>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Open-weight models on GPUs in your own cloud account. Each one is a model endpoint agents pick in their
-              Model section.
-            </p>
-          </div>
-          {deployments !== null && deployments.length > 0 && deployButton}
+    <section className="space-y-3">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <Subheading>Deployed models</Subheading>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Open-weight models Viberglass runs on GPUs in your cloud account. The cloud bills them while they run.
+          </p>
         </div>
+        <Button outline onClick={() => setDeploying(true)}>
+          <PlusIcon />
+          Deploy a model
+        </Button>
+      </div>
 
-        {deployments === null ? (
-          <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">Loading…</div>
-        ) : deployments.length === 0 ? (
-          <EmptyState
-            title="No model deployments yet"
-            description="Deploy a model to a Verda account. It scales to zero when no agent uses it."
-            action={deployButton}
-          />
-        ) : (
+      {deployments === null ? (
+        <div className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Loading…</div>
+      ) : (
+        deployments.length > 0 && (
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeader>Model</TableHeader>
+                <TableHeader>Name</TableHeader>
                 <TableHeader>State</TableHeader>
                 <TableHeader>Used by</TableHeader>
                 <TableHeader />
@@ -121,7 +107,7 @@ export function ModelDeploymentsPage() {
                       {deployment.name}
                       <div className="truncate font-mono text-xs font-normal text-zinc-500 dark:text-zinc-400">{deployment.model}</div>
                       <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                        Verda · {deployment.flavour.gpuCount > 1 ? `${deployment.flavour.gpuCount} × ` : ''}
+                        {MODEL_HOST_LABELS[deployment.host]} · {deployment.flavour.gpuCount > 1 ? `${deployment.flavour.gpuCount} × ` : ''}
                         {deployment.flavour.id}
                         {price && ` · ${price} while running`}
                       </div>
@@ -161,8 +147,8 @@ export function ModelDeploymentsPage() {
               })}
             </TableBody>
           </Table>
-        )}
-      </div>
+        )
+      )}
 
       <DeployModelDialog
         open={deploying}
@@ -177,8 +163,8 @@ export function ModelDeploymentsPage() {
       <Alert open={removing !== null} onClose={() => setRemoving(null)}>
         <AlertTitle>Delete {removing?.name}?</AlertTitle>
         <AlertDescription>
-          The deployment and its endpoint are removed from Verda and Viberglass, and nothing is billed after. A deployment
-          an agent uses can&apos;t be deleted.
+          The deployment is removed from {removing ? MODEL_HOST_LABELS[removing.host] : 'the cloud'} and from Viberglass,
+          and nothing is billed after. A model an agent uses can&apos;t be deleted.
         </AlertDescription>
         <AlertActions>
           <Button outline onClick={() => setRemoving(null)}>
@@ -189,6 +175,6 @@ export function ModelDeploymentsPage() {
           </Button>
         </AlertActions>
       </Alert>
-    </>
+    </section>
   )
 }

@@ -7,7 +7,14 @@ import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { checkModelEndpoint, saveModelEndpoint } from '@/service/api/model-endpoint-api'
 import { createSecret, getSecretStorageDefaults, type Secret } from '@/service/api/secret-api'
-import { isModelApiFormat, isObjectRecord, type ModelEndpoint, type ModelEndpointInput } from '@viberglass/types'
+import {
+  MODEL_API_FORMAT_LABELS,
+  isModelApiFormat,
+  normalizeModelEndpointBaseUrl,
+  isObjectRecord,
+  type ModelEndpoint,
+  type ModelEndpointInput,
+} from '@viberglass/types'
 import { useState } from 'react'
 
 interface Props {
@@ -33,7 +40,8 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
   const [extraHeaders, setExtraHeaders] = useState(JSON.stringify(initial?.extraHeaders ?? {}, null, 2))
   const [mayColdStart, setMayColdStart] = useState(initial?.mayColdStart ?? false)
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const readOnly = initial?.source === 'deployment'
 
@@ -48,7 +56,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
     if (!isModelApiFormat(format)) throw new Error('Choose an API format.')
     return {
       name: name.trim(),
-      baseUrl: baseUrl.trim(),
+      baseUrl: normalizeModelEndpointBaseUrl(baseUrl, format),
       apiFormat: format,
       auth:
         auth === 'header' ? { scheme: 'header', header } : auth === 'none' ? { scheme: 'none' } : { scheme: 'bearer' },
@@ -68,10 +76,12 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
 
   async function perform(check: boolean) {
     setError(null)
-    setMessage('')
+    setCheckResult(null)
     setBusy(true)
+    setChecking(check)
     try {
       const value = input()
+      setBaseUrl(value.baseUrl)
       if (addingKey && auth !== 'none') {
         if (!newKey.trim()) throw new Error('Paste the API key.')
         const defaults = await getSecretStorageDefaults()
@@ -89,16 +99,22 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
       if (check) {
         const result = await checkModelEndpoint(value)
         if (result.discoverySupported) setModels(result.models.join('\n'))
-        setMessage(
+        setCheckResult(
           result.discoverySupported
-            ? `Found ${result.models.length} models.`
-            : 'Model discovery is unavailable. Enter the model IDs below.'
+            ? { ok: true, text: `Connected. Found ${result.models.length} models.` }
+            : {
+                ok: false,
+                text: `${result.detail ?? 'The endpoint lists no models.'} Check the base URL and API format, or enter the model IDs below.`,
+              }
         )
       } else onSaved(await saveModelEndpoint(value, initial?.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the endpoint')
+      const text = err instanceof Error ? err.message : 'Could not save the endpoint'
+      if (check) setCheckResult({ ok: false, text })
+      else setError(text)
     } finally {
       setBusy(false)
+      setChecking(false)
     }
   }
 
@@ -117,35 +133,29 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
           void perform(false)
         }}
       >
-        <DialogTitle>{initial ? 'Edit model endpoint' : 'Add model endpoint'}</DialogTitle>
+        <DialogTitle>{initial ? `Edit ${initial.name}` : 'Connect a model'}</DialogTitle>
         <DialogDescription>
           {readOnly
-            ? 'This endpoint belongs to a deployment. Manage it from the deployment.'
-            : 'Connect a model API that your workspace controls. Other runners can use it too.'}
+            ? 'This model is deployed by Viberglass. Manage it under Settings → Models.'
+            : 'Any OpenAI- or Anthropic-compatible API. Every agent in the workspace can use it.'}
         </DialogDescription>
         <DialogBody>
           <FieldGroup>
-            {error && (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            )}
-            {message && (
-              <p role="status" className="text-sm text-zinc-600 dark:text-zinc-400">
-                {message}
-              </p>
-            )}
             <Field>
               <Label>Name</Label>
               <Input required value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
             </Field>
             <Field>
               <Label>Base URL</Label>
-              <Description>Include the API prefix, such as /v1.</Description>
+              <Description>
+                {format === 'anthropic-messages'
+                  ? 'Leave out /v1: Anthropic clients add it themselves.'
+                  : 'Include the API prefix, such as /v1.'}
+              </Description>
               <Input
                 required
                 type="url"
-                placeholder="https://models.example.com/v1"
+                placeholder={format === 'anthropic-messages' ? 'https://models.example.com' : 'https://models.example.com/v1'}
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 disabled={readOnly}
@@ -156,7 +166,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
               <Select value={format} onChange={setFormat} disabled={readOnly}>
                 {Array.from(new Set([...formats, ...(initial ? [initial.apiFormat] : [])])).map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {isModelApiFormat(value) ? MODEL_API_FORMAT_LABELS[value] : value}
                   </option>
                 ))}
               </Select>
@@ -229,8 +239,16 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
               onClick={() => void perform(true)}
               disabled={busy || readOnly || !baseUrl || !name}
             >
-              Check connection and discover models
+              {checking ? 'Checking…' : 'Check connection and discover models'}
             </Button>
+            {checkResult && (
+              <p
+                role={checkResult.ok ? 'status' : 'alert'}
+                className={`text-sm ${checkResult.ok ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+              >
+                {checkResult.text}
+              </p>
+            )}
             <Field>
               <Label>Model IDs</Label>
               <Description>One per line. You can enter IDs when discovery is unavailable.</Description>
@@ -252,6 +270,11 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
               />
               <Label>May need time to wake up</Label>
             </CheckboxField>
+            {error && (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {error}
+              </p>
+            )}
           </FieldGroup>
         </DialogBody>
         <DialogActions>
@@ -259,7 +282,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
             Cancel
           </Button>
           <Button type="submit" color="brand" disabled={busy || readOnly}>
-            {busy ? 'Saving…' : 'Save endpoint'}
+            {busy ? 'Saving…' : 'Save'}
           </Button>
         </DialogActions>
       </form>

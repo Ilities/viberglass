@@ -24,7 +24,7 @@ For whoever installs and looks after the workspace.
 - [Install with Docker](admin/install-docker.md): try it on one machine, and the first-run setup.
 - [Install on Kubernetes](admin/install-kubernetes.md): the Helm chart, locally and on a managed cluster.
 - [Install on AWS](admin/install-aws.md): the Pulumi stacks.
-- [Agents and models](admin/agents-and-models.md): runners, coding agents, model keys, custom endpoints and model deployments.
+- [Agents and models](admin/agents-and-models.md): runners, coding agents, model keys, and connected and deployed models.
 - [Repositories and integrations](admin/repositories-and-integrations.md): GitHub, issue trackers, custom webhooks and the Slack app.
 - [People and access](admin/people-and-access.md): members, guests, viewers, spaces and invites.
 - [Secrets](admin/secrets.md): where keys and tokens are kept and how runners get them.

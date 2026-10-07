@@ -6,7 +6,7 @@ import { Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { TextLink } from '@/components/text'
 import { deleteModelHostAccount, listModelHostAccounts } from '@/service/api/model-hosting-api'
-import type { ModelHostAccount } from '@viberglass/types'
+import { MODEL_HOST_LABELS, type ModelHostAccount } from '@viberglass/types'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { CloudAccountDialog } from './cloud-account-dialog'
 
@@ -53,7 +53,7 @@ export function CloudAccountsSection() {
         <div>
           <Subheading>Cloud accounts</Subheading>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Where <TextLink href="/settings/model-deployments">model deployments</TextLink> run and are billed.
+            Where <TextLink href="/settings/models">deployed models</TextLink> run and are billed.
           </p>
         </div>
         <Button outline onClick={() => open()}>
@@ -75,7 +75,7 @@ export function CloudAccountsSection() {
               <TableRow key={account.id}>
                 <TableCell className="font-medium text-zinc-950 dark:text-white">
                   {account.name}
-                  <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">Verda</div>
+                  <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">{MODEL_HOST_LABELS[account.host]}</div>
                 </TableCell>
                 <TableCell className="font-mono text-zinc-500 dark:text-zinc-400">{account.clientId}</TableCell>
                 <TableCell>

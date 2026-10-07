@@ -2,6 +2,7 @@ import {
   MODEL_ENDPOINT_KEY_ENV_VAR,
   isObjectRecord,
   modelEndpointHeaders,
+  modelEndpointModelsRequest,
   readWorkerModelEndpoint,
 } from "@viberglass/types";
 
@@ -32,7 +33,8 @@ export async function waitForModelEndpoint(
   if (!endpoint?.mayColdStart) return;
   const started = deps.now();
   const deadline = started + WAIT_MINUTES * MINUTE;
-  const headers = modelEndpointHeaders(endpoint, deps.key);
+  const models = modelEndpointModelsRequest(endpoint);
+  const headers = { ...models.headers, ...modelEndpointHeaders(endpoint, deps.key) };
   await progress(
     "model-waking",
     `Waking ${endpoint.model} on ${endpoint.name}. A cold start can take several minutes; this run waits up to ${WAIT_MINUTES}.`,
@@ -51,7 +53,7 @@ export async function waitForModelEndpoint(
     let status: number | undefined;
     try {
       status = (
-        await deps.fetch(`${endpoint.baseUrl.replace(/\/+$/, "")}/models`, {
+        await deps.fetch(models.url, {
           method: "GET",
           headers,
           redirect: "error",

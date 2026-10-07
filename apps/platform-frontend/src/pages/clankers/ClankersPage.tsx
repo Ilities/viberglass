@@ -10,9 +10,10 @@ import type { Clanker } from '@/data'
 import { PlusIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
 import { listAllSecrets, type Secret } from '@/service/api/secret-api'
-import { getAgentLabel } from '@viberglass/types'
+import { getAgentLabel, type ModelEndpoint } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { summarizeRunner } from './config/runnerSummary'
+import { listModelEndpoints } from '@/service/api/model-endpoint-api'
 import { canStartClanker, StartClankerButton } from './clanker-actions'
 import { useAuth } from '@/context/auth-context'
 import { toast } from 'sonner'
@@ -20,14 +21,20 @@ import { toast } from 'sonner'
 export function ClankersPage() {
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [endpoints, setEndpoints] = useState<ModelEndpoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const isAdmin = useAuth().user?.role === 'admin'
 
   useEffect(() => {
     async function loadData() {
-      const [data, allSecrets] = await Promise.all([getClankersList(), listAllSecrets().catch(() => [])])
+      const [data, allSecrets, allEndpoints] = await Promise.all([
+        getClankersList(),
+        listAllSecrets().catch(() => []),
+        listModelEndpoints().catch(() => []),
+      ])
       setClankers(data)
       setSecrets(allSecrets)
+      setEndpoints(allEndpoints)
       setIsLoading(false)
     }
     loadData()
@@ -73,7 +80,7 @@ export function ClankersPage() {
       ) : (
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {clankers.map((clanker, index) => {
-            const summary = summarizeRunner(clanker, secrets)
+            const summary = summarizeRunner(clanker, secrets, endpoints)
             const startable = isAdmin && canStartClanker(clanker)
             // An admin gets the Start button instead of being told an admin can start it.
             const problem = startable && clanker.status === 'inactive' ? null : clanker.readiness?.problem

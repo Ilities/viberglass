@@ -167,8 +167,9 @@ services:
     volumes:
       # Mount source with cached mode for better performance
       - ./apps/platform-frontend:/app/apps/platform-frontend:cached
-      # Note: packages/types is NOT mounted — image-built dist/ is used directly.
-      # Rebuild image when types change: docker compose build frontend
+      # Vite loads @viberglass/types from source; mounting only src keeps the image's
+      # dist/ and node_modules, so a fresh clone still starts without a build.
+      - ./packages/types/src:/app/packages/types/src:cached
     depends_on:
       backend:
         condition: service_started

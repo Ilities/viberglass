@@ -55,6 +55,13 @@ function fixture() {
 }
 
 describe("workspace model endpoints", () => {
+  test("lists endpoints with the runners that use them", async () => {
+    const { service, dao } = fixture();
+    dao.list.mockResolvedValue([endpoint]);
+    dao.runnersUsing.mockResolvedValue([{ name: "Docs bot", agent: "opencode", model: "qwen" }]);
+    await expect(service.list()).resolves.toEqual([{ ...endpoint, runners: ["Docs bot"] }]);
+  });
+
   test("validates shared auth and rejects credentials in URLs or extra headers", async () => {
     const { service, dao } = fixture();
     await service.create(input);
@@ -212,6 +219,7 @@ describe("workspace model endpoints", () => {
     expect(await checker.check(anonymous)).toEqual({
       models: ["qwen"],
       discoverySupported: false,
+      detail: `Nothing lists models at ${input.baseUrl}/models (HTTP 404).`,
     });
     fetchFn.mockResolvedValue({ status: 401, json: async () => ({}) });
     await expect(checker.check(anonymous)).rejects.toMatchObject({
@@ -220,6 +228,52 @@ describe("workspace model endpoints", () => {
     fetchFn.mockRejectedValue(new Error("secret detail"));
     await expect(checker.check(anonymous)).rejects.toMatchObject({
       code: "MODEL_ENDPOINT_UNREACHABLE",
+    });
+  });
+
+  test("lists an Anthropic-format endpoint's models under /v1, as Anthropic clients do", async () => {
+    const fetchFn = jest.fn(async () => ({
+      status: 200,
+      json: async () => ({ data: [{ id: "glm-5" }] }),
+    }));
+    const checker = new ModelEndpointChecker(
+      { resolveSecretValues: async () => new Map([["key-1", "raw-secret"]]) },
+      fetchFn,
+    );
+    await checker.check({
+      ...input,
+      baseUrl: "https://api.example.com/anthropic/",
+      apiFormat: "anthropic-messages",
+      auth: { scheme: "header", header: "x-api-key" },
+    });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://api.example.com/anthropic/v1/models",
+      expect.objectContaining({
+        headers: expect.objectContaining({ "anthropic-version": "2023-06-01", "x-api-key": "raw-secret" }),
+      }),
+    );
+  });
+
+  test("drops /v1 from an Anthropic-format base URL, since Anthropic clients add it", async () => {
+    const { service, dao } = fixture();
+    await service.create({
+      ...input,
+      baseUrl: "https://opencode.ai/zen/go/v1/",
+      apiFormat: "anthropic-messages",
+    });
+    expect(dao.create).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "https://opencode.ai/zen/go" }),
+    );
+  });
+
+  test("says where it looked when an endpoint lists no models", async () => {
+    const checker = new ModelEndpointChecker(
+      { resolveSecretValues: async () => new Map([["key-1", "raw-secret"]]) },
+      jest.fn(async () => ({ status: 404, json: async () => ({}) })),
+    );
+    await expect(checker.check(input)).resolves.toMatchObject({
+      discoverySupported: false,
+      detail: "Nothing lists models at https://models.example.com/v1/models (HTTP 404).",
     });
   });
 

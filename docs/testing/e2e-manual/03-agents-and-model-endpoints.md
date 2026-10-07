@@ -39,10 +39,10 @@ For each row, run the **harness script** below on a fresh task and record each s
 
 ## Model endpoints (EP)
 
-Endpoints are created inline: the runner form's **Add endpoint** (OpenCode and Pi only), or first-run setup (SETUP-02).
+Endpoints are created under Settings → Models (Connect a model), from the runner form's Connect a model (every agent except Antigravity), or in first-run setup (SETUP-02).
 
 ### EP-01 · Create and discover
-1. Runner form → OpenCode → **Add endpoint**: name, base URL, API Chat Completions, bearer auth, new key, **Check**.
+1. Runner form → OpenCode → Connect a model: name, base URL, API Chat Completions, bearer auth, new key, **Check**.
 
 Expect: models discovered from `GET /models`; saved; offered to any OpenCode or Pi runner.
 

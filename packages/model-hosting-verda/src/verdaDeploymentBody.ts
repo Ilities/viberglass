@@ -5,6 +5,9 @@ const VLLM_PORT = 8000
 /** How long a replica stays up with no requests before the cloud scales it down. */
 const IDLE_SECONDS = 300
 
+/** Requests one replica takes at once; vLLM batches them. */
+const CONCURRENT_REQUESTS = 16
+
 export function verdaScaling(mode: Exclude<ModelDeploymentMode, 'stopped'>) {
   return {
     min_replica_count: mode === 'keep-warm' ? 1 : 0,
@@ -14,7 +17,7 @@ export function verdaScaling(mode: Exclude<ModelDeploymentMode, 'stopped'>) {
     // Covers queueing through a cold start plus a long completion.
     queue_message_ttl_seconds: 1800,
     // vLLM batches concurrent requests; one replica serves several agents.
-    concurrent_requests_per_replica: 16,
+    concurrent_requests_per_replica: CONCURRENT_REQUESTS,
     scaling_triggers: { queue_load: { threshold: 1 } },
   }
 }
@@ -26,6 +29,17 @@ function sharedMemoryMb(gpuCount: number): number {
   return 1024
 }
 
+/**
+ * vLLM reserves cache for 256 sequences by default. A replica never gets more than
+ * CONCURRENT_REQUESTS, and hybrid models such as Qwen3.8 fail to start on a 48 GB GPU
+ * when asked for 256.
+ */
+function withConcurrencyLimit(servingArgs: string[]): string[] {
+  if (servingArgs.some((arg) => arg === '--max-num-seqs' || arg.startsWith('--max-num-seqs=')))
+    return servingArgs
+  return [...servingArgs, '--max-num-seqs', String(CONCURRENT_REQUESTS)]
+}
+
 export function verdaDeploymentBody(
   name: string,
   spec: ModelHostDeploymentSpec,
@@ -34,6 +48,8 @@ export function verdaDeploymentBody(
   const env = [
     // The deployment's scratch disk outlives replicas, so weights download once.
     { name: 'HF_HOME', value_or_reference_to_secret: '/data/hf-cache', type: 'plain' },
+    // So is vLLM's torch.compile cache, which otherwise costs minutes on every start.
+    { name: 'VLLM_CACHE_ROOT', value_or_reference_to_secret: '/data/vllm-cache', type: 'plain' },
     ...(huggingFaceSecretName
       ? [{ name: 'HF_TOKEN', value_or_reference_to_secret: huggingFaceSecretName, type: 'secret' }]
       : []),
@@ -52,7 +68,7 @@ export function verdaDeploymentBody(
         entrypoint_overrides: {
           enabled: true,
           entrypoint: ['vllm', 'serve'],
-          cmd: [spec.model, ...spec.servingArgs],
+          cmd: [spec.model, ...withConcurrencyLimit(spec.servingArgs)],
         },
         env,
         volume_mounts: [

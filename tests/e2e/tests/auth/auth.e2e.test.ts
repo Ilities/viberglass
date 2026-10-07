@@ -186,7 +186,7 @@ test.describe("Authentication E2E Tests", () => {
       await expect(page.getByRole("heading", { name: "Advanced" })).toBeVisible();
       const labels = [
         ...workspaceSettings.map((route) => route.label),
-        "Model deployments",
+        "Models",
         "MCP servers",
         "Skills",
         "Prompt templates",
