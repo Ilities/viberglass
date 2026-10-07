@@ -28,13 +28,21 @@ function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : {}
 }
 
+// The worker checks the repository out under <work dir>/<task-… or job id>/repo.
+const WORKING_COPY = /(?:\/[^\s/'"`]+)*\/(?:task-[^\s/'"`]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/repo(\/|(?![^\s'"`]))/g
+
+/** "src/App.jsx" for the worker's "/tmp/viberator-work/task-…/repo/src/App.jsx": paths as they are in the repository. */
+export function inRepository(value: string): string {
+  return value.replace(WORKING_COPY, (_match, slash: string) => (slash ? '' : '.'))
+}
+
 /** The one input that says what a call did: the command it ran, what it searched for, the file it opened. */
 const DETAIL_KEYS = ['command', 'pattern', 'query', 'url', 'filePath', 'file_path', 'path'] as const
 
 function detailOf(input: Record<string, unknown>): string | null {
   for (const key of DETAIL_KEYS) {
     const value = input[key]
-    if (typeof value === 'string' && value.trim()) return value
+    if (typeof value === 'string' && value.trim()) return inRepository(value)
   }
   return null
 }
@@ -72,12 +80,12 @@ export function buildRunTranscript(events: RunEvent[]): TranscriptStep[] {
         const id = text(payload.toolCallId) || event.id
         const input = record(payload.input)
         const known = tools.get(id)
-        const title = text(payload.toolName) || known?.title || 'Tool call'
+        const title = inRepository(text(payload.toolName)) || known?.title || 'Tool call'
         const update = {
           title,
           toolKind: text(payload.kind) || known?.toolKind || null,
           detail: detailOf(input) ?? known?.detail ?? null,
-          locations: stringList(payload.locations).length > 0 ? stringList(payload.locations) : (known?.locations ?? []),
+          locations: stringList(payload.locations).length > 0 ? stringList(payload.locations).map(inRepository) : (known?.locations ?? []),
         }
         if (known) Object.assign(known, update)
         else {
@@ -93,11 +101,11 @@ export function buildRunTranscript(events: RunEvent[]): TranscriptStep[] {
         const success = payload.success !== false
         const output = success ? text(payload.output) : text(payload.error)
         // A harness can finish a call it never announced.
-        const target = step ?? { kind: 'tool' as const, id: id || event.id, title: text(payload.toolName) || 'Tool call', toolKind: null, detail: null, locations: [], status: 'running' as const, output: '' }
+        const target = step ?? { kind: 'tool' as const, id: id || event.id, title: inRepository(text(payload.toolName)) || 'Tool call', toolKind: null, detail: null, locations: [], status: 'running' as const, output: '' }
         if (!step) steps.push(target)
         target.status = success ? 'done' : 'failed'
         target.output = output
-        const title = text(payload.toolName)
+        const title = inRepository(text(payload.toolName))
         // OpenCode's finished call is titled with what it worked on, which reads better than the tool's name.
         if (title && title !== target.title && !target.detail) target.detail = title
         break

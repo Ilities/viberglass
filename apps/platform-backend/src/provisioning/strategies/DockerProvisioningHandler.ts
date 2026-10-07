@@ -75,18 +75,22 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
 
   async checkAvailability(clanker: Clanker): Promise<AvailabilityResult> {
     const config = getDockerStrategyConfig(clanker);
-    if (!config.containerImage) {
+    // A published image is known before the runner starts; a built one only once it's built.
+    const image =
+      config.containerImage ||
+      (config.provisioningMode === "prebuilt" ? getWorkerImageForClanker(clanker, "docker") : undefined);
+    if (!image) {
       return {
         status: "inactive",
-        statusMessage: "Docker image not configured",
+        statusMessage: "Start the runner to build its image",
       };
     }
 
     try {
-      await this.dockerClient.inspectImage(config.containerImage);
+      await this.dockerClient.inspectImage(image);
       return {
         status: "active",
-        statusMessage: `Docker image ready: ${config.containerImage}`,
+        statusMessage: `Docker image ready: ${image}`,
       };
     } catch (error) {
       const message = getErrorMessage(error, "Docker image not available");

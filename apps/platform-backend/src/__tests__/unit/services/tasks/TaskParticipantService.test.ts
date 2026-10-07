@@ -30,7 +30,8 @@ function setup(options: { canSee: boolean; deactivated?: boolean }) {
     }),
   };
   const activity = { record: jest.fn().mockResolvedValue(undefined) };
-  return { participants, activity, service: new TaskParticipantService({ participants, users, owners, access, activity }) };
+  const mentions = { mentionOnOpenReview: jest.fn().mockResolvedValue(true) };
+  return { participants, activity, mentions, service: new TaskParticipantService({ participants, users, owners, access, activity, mentions }) };
 }
 
 describe("TaskParticipantService", () => {
@@ -47,6 +48,16 @@ describe("TaskParticipantService", () => {
 
     await expect(service.add("task-1", "user-2", "reviewer", "user-1")).rejects.toMatchObject({ code: "PERSON_CANT_SEE_TASK" });
     expect(participants.add).not.toHaveBeenCalled();
+  });
+
+  it("asks a reviewer added later to review what's already waiting, and not a watcher", async () => {
+    const { mentions, service } = setup({ canSee: true });
+
+    await service.add("task-1", "user-2", "reviewer", "user-1");
+    await service.add("task-1", "user-3", "watcher", "user-1");
+
+    expect(mentions.mentionOnOpenReview).toHaveBeenCalledTimes(1);
+    expect(mentions.mentionOnOpenReview).toHaveBeenCalledWith("task-1", "user-2");
   });
 
   it("refuses a deactivated person", async () => {

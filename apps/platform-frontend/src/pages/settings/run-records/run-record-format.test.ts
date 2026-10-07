@@ -101,6 +101,7 @@ describe('formatRunCost', () => {
 
   it('marks an estimate as an estimate', () => {
     expect(formatRunCost(record({ costUsd: 0.7, costProvenance: 'estimated' }))).toEqual({ amount: '$0.70', provenance: 'estimate' })
+    expect(formatRunCost(record({ costUsd: 0, costProvenance: 'estimated' }))).toEqual({ amount: null, provenance: 'not measured' })
   })
 
   it('shows no amount when nothing was measured', () => {

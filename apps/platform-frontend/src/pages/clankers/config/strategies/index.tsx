@@ -42,16 +42,28 @@ export function StrategySpecificFields({
     return null
   }
 
+  const docker = normalizeStrategyName(strategyName) === 'docker'
   return (
     <>
       <Field>
-        <Label>Provisioning Mode</Label>
-        <Description>Choose whether the platform manages resources or you provide your own.</Description>
+        <Label>{docker ? 'Image' : 'Provisioning Mode'}</Label>
+        <Description>
+          {docker
+            ? "Run a published worker image, or build one from this installation's source."
+            : 'Choose whether the platform manages resources or you provide your own.'}
+        </Description>
         <SegmentedControl
-          options={[
-            { value: 'managed', label: 'Managed' },
-            { value: 'prebuilt', label: 'Pre-built' },
-          ]}
+          options={
+            docker
+              ? [
+                  { value: 'prebuilt', label: 'Published image' },
+                  { value: 'managed', label: 'Build from source' },
+                ]
+              : [
+                  { value: 'managed', label: 'Managed' },
+                  { value: 'prebuilt', label: 'Pre-built' },
+                ]
+          }
           value={provisioningMode}
           onChange={(value) => onProvisioningModeChange(toProvisioningMode(value))}
         />

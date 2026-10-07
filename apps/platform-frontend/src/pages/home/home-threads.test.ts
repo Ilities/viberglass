@@ -56,7 +56,18 @@ describe('Home rows', () => {
 
   it('says why a thread needs you', () => {
     expect(needsYouReason(thread({ situation: situation({ kind: 'nobody' }, 'question') }))).toBe('Agent asked you')
-    expect(needsYouReason(thread({ mentionsYou: true, lastMessage: { author: { id: 't', name: 'Tomi Laine' }, text: 'Look', at: 't' } }))).toBe('Tomi mentioned you')
+    expect(needsYouReason(thread({ mentionsYou: true, lastMessage: { author: { id: 'oc', name: 'OpenCode' }, text: 'Plan written', at: 't' } }))).toBe(
+      'Ready for your review',
+    )
+    expect(
+      needsYouReason(
+        thread({
+          situation: situation({ kind: 'nobody' }, 'discussing'),
+          mentionsYou: true,
+          lastMessage: { author: { id: 't', name: 'Tomi Laine' }, text: 'Look', at: 't' },
+        }),
+      ),
+    ).toBe('Tomi mentioned you')
     expect(needsYouReason(thread())).toBe('Your move')
   })
 

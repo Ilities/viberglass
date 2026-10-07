@@ -48,7 +48,7 @@ function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
   return {
     type: 'docker',
     provisioningMode: form.provisioningMode,
-    containerImage: form.provisioningMode === 'prebuilt' ? form.containerImage : undefined,
+    containerImage: form.provisioningMode === 'prebuilt' ? form.containerImage.trim() || undefined : undefined,
   }
 }
 

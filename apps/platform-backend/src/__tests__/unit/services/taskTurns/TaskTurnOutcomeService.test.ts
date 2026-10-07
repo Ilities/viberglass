@@ -3,10 +3,10 @@ import { intentOf, TaskTurnOutcomeService } from "../../../../services/taskTurns
 const SESSION = { ticketId: "t-1" };
 const TURN = { id: "turn-1", action: "plan" as const };
 
-function setup(streamed: string[] = ["Writing the plan: checking the theme store.", "\n\nDone."]) {
+function setup(streamed: string[] = ["Writing the plan: checking the theme store.", "Done."]) {
   const deps = {
     turns: { update: jest.fn() },
-    events: { listAssistantTextByTurn: jest.fn().mockResolvedValue(streamed) },
+    events: { listAssistantMessagesByTurn: jest.fn().mockResolvedValue(streamed) },
     documents: { saveDocument: jest.fn() },
     workerEvents: { batchIngest: jest.fn() },
     mentions: { createForTurn: jest.fn() },

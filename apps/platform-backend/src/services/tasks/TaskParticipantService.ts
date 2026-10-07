@@ -1,4 +1,5 @@
 import type { TaskParticipant, TaskParticipantRole } from "@viberglass/types";
+import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
@@ -12,6 +13,7 @@ interface Dependencies {
   owners: Pick<SpaceOwnershipDAO, "projectIdForTask">;
   access: Pick<SpaceAccessService, "assertCanSee">;
   activity: Pick<TaskActivityRecorder, "record">;
+  mentions: Pick<TaskMentionDAO, "mentionOnOpenReview">;
 }
 
 /** Who is on a task. Only people who can see the task's space can be put on it. */
@@ -25,6 +27,7 @@ export class TaskParticipantService {
       owners: new SpaceOwnershipDAO(),
       access: new SpaceAccessService(),
       activity: new TaskActivityRecorder(),
+      mentions: new TaskMentionDAO(),
       ...deps,
     };
   }
@@ -49,6 +52,8 @@ export class TaskParticipantService {
     }
     await this.assertCanSeeTask(ticketId, userId);
     await this.deps.participants.add(ticketId, userId, role, actorId);
+    // A plan or pull request already waiting for review becomes their move too.
+    if (role === "reviewer") await this.deps.mentions.mentionOnOpenReview(ticketId, userId);
     await this.deps.activity.record(ticketId, { type: "human", userId: actorId }, role === "reviewer" ? "reviewer_added" : "watcher_added", {
       userId,
     });

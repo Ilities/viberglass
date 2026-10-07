@@ -3,11 +3,12 @@ import type { RootContent } from 'mdast'
 import { useMemo, type ReactNode } from 'react'
 import { parseMarkdown, textOffset } from './parseMarkdown'
 
-/** A comment's stretch of the source, shown highlighted. */
+/** A comment's stretch of the source, shown highlighted; or, comparing versions, a stretch added or removed. */
 export interface DocumentHighlight {
   id: string
   start: number
   end: number
+  tone?: 'added' | 'removed'
 }
 
 interface RenderContext {
@@ -51,9 +52,13 @@ function TextRun({ value, node, context }: { value: string; node: RootContent; c
       {sorted.slice(0, -1).map((from, index) => {
         const to = sorted[index + 1]
         const text = exactStart === null ? value : value.slice(from - start, to - start)
-        const ids = context.highlights.filter((highlight) => highlight.start < to && highlight.end > from).map((highlight) => highlight.id)
+        const covering = context.highlights.filter((highlight) => highlight.start < to && highlight.end > from)
+        const ids = covering.map((highlight) => highlight.id)
         const position = { 'data-src-start': from, 'data-src-end': to, 'data-src-approx': exactStart === null ? '' : undefined }
         if (ids.length === 0) return <span key={from} {...position}>{text}</span>
+        const tone = covering[0].tone
+        if (tone === 'added') return <ins key={from} {...position} className="rounded-[2px] bg-[var(--green-a4)] text-[var(--green-12)] no-underline">{text}</ins>
+        if (tone === 'removed') return <del key={from} {...position} className="rounded-[2px] bg-[var(--red-a3)] text-[var(--red-11)]">{text}</del>
         const active = context.activeId !== null && ids.includes(context.activeId)
         return (
           <mark

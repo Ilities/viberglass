@@ -97,9 +97,10 @@ export function StackedLayout({
         <motion.main
           animate={{ paddingLeft: collapsed ? 64 : 256 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0 max-lg:!pl-3"
+          className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0 lg:pt-0 lg:pr-0 lg:pb-0 max-lg:!pl-3"
         >
-          <div className="app-frame grow p-6 lg:p-10">
+          {/* Beside the sidebar the content fills the window; a frame inset from its edges only reads as a card on small screens. */}
+          <div className="app-frame grow p-6 lg:border-0 lg:p-10 lg:shadow-none">
             <div className="mx-auto max-w-screen-2xl">{children}</div>
           </div>
         </motion.main>

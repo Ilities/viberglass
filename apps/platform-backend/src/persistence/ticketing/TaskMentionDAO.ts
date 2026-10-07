@@ -16,6 +16,32 @@ export class TaskMentionDAO {
       .execute();
   }
 
+  /**
+   * Mentions someone on the agent's latest artifact while it still waits on
+   * the people it mentioned, so a reviewer added after it was written is asked too.
+   */
+  async mentionOnOpenReview(ticketId: string, userId: string): Promise<boolean> {
+    const latest = await db
+      .selectFrom("task_mentions")
+      .select("agent_turn_id")
+      .where("ticket_id", "=", ticketId)
+      .where("agent_turn_id", "is not", null)
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .executeTakeFirst();
+    const turnId = latest?.agent_turn_id;
+    if (!turnId) return false;
+    const onTurn = await db
+      .selectFrom("task_mentions")
+      .select(["user_id", "answered_at"])
+      .where("agent_turn_id", "=", turnId)
+      .execute();
+    const stillOpen = onTurn.some((mention) => mention.answered_at === null);
+    if (!stillOpen || onTurn.some((mention) => mention.user_id === userId)) return false;
+    await db.insertInto("task_mentions").values({ ticket_id: ticketId, agent_turn_id: turnId, user_id: userId }).execute();
+    return true;
+  }
+
   /** Answers the person's open mentions on the task without a reply, as "done" does in a chat app. */
   async markDone(ticketId: string, userId: string): Promise<number> {
     const result = await db

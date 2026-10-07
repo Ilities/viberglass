@@ -55,7 +55,7 @@ export function intentOf(reply: string): string | null {
 
 interface Dependencies {
   turns: Pick<AgentTurnDAO, "update">;
-  events: Pick<AgentSessionEventDAO, "listAssistantTextByTurn">;
+  events: Pick<AgentSessionEventDAO, "listAssistantMessagesByTurn">;
   documents: Pick<TicketPhaseDocumentService, "saveDocument">;
   workerEvents: Pick<AgentSessionWorkerEventService, "batchIngest">;
   participants: Pick<TaskParticipantDAO, "list">;
@@ -110,7 +110,10 @@ export class TaskTurnOutcomeService {
     }
     const steps = produced.flatMap((product) => PRODUCT_STEP[product] ?? []);
 
-    const reply = (await this.deps.events.listAssistantTextByTurn(turn.id)).join("").trim();
+    const reply = (await this.deps.events.listAssistantMessagesByTurn(turn.id))
+      .map((message) => message.trim())
+      .filter(Boolean)
+      .join("\n\n");
     const mentioned = steps.length > 0 ? await this.reviewersOf(session.ticketId) : [];
     const outcome: TaskTurnOutcome = {
       intent: intentOf(reply),

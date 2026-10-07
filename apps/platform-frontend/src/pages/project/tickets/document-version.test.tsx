@@ -39,8 +39,9 @@ describe('DocumentVersion', () => {
     render(<DocumentVersion ticketId="t-1" version={1} onShowCurrent={jest.fn()} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Compare with current' }))
-    expect(screen.getByText('Return hello.')).toHaveClass('line-through', { exact: false })
-    expect(screen.getByText('Return Welcome to Acme.')).toBeInTheDocument()
+    // Only the words that changed are marked, in the rendered document.
+    expect(screen.getByText('hello.').tagName).toBe('DEL')
+    expect(screen.getByText('Welcome to Acme.').tagName).toBe('INS')
   })
 
   it('names who edited a version, and leads back to the current document', async () => {
