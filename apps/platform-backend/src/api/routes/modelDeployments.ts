@@ -9,6 +9,7 @@ import {
 import {
   modelDeployments,
   modelRecipes,
+  modelSizes,
 } from "../../services/modelHosting";
 
 const router = express.Router();
@@ -57,6 +58,13 @@ router.get(
       success: true,
       data: await modelRecipes.command(model, req.params.hardware),
     });
+  }),
+);
+router.get(
+  "/model-size/:org/:name",
+  handle(async (req, res) => {
+    const model = recipeModel(req, res);
+    if (model) res.json({ success: true, data: { weightsGb: await modelSizes.weightsGb(model) } });
   }),
 );
 router.post(

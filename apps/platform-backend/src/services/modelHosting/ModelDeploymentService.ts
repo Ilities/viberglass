@@ -14,9 +14,15 @@ import type { ModelHostConnection, ModelHostConnector } from "./ModelHostConnect
 import { ModelHostingError } from "../errors/ModelHostingError";
 import logger from "../../config/logger";
 
-function stripRecord({ externalId: _externalId, ...deployment }: ModelDeploymentRecord) {
+function stripRecord({ externalId: _externalId, wakingSince: _wakingSince, ...deployment }: ModelDeploymentRecord) {
   return deployment;
 }
+
+/**
+ * Longer than any run waits for a model (15 minutes). A deployment still waking
+ * after this is almost always restarting a container that crashes on start.
+ */
+const WAKING_LIMIT_MINUTES = 20;
 
 /** The cloud's refusals (quota, balance, a bad flavour) reach the admin in its own words. */
 async function cloud<T>(action: Promise<T>): Promise<T> {
@@ -38,6 +44,7 @@ export class ModelDeploymentService {
     private readonly deployments: ModelDeploymentDAO,
     private readonly endpoints: Pick<ModelEndpointDAO, "list" | "runnersUsing">,
     private readonly connector: Pick<ModelHostConnector, "connect">,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async list(): Promise<ModelDeploymentView[]> {
@@ -139,11 +146,35 @@ export class ModelDeploymentService {
     { host, credentials }: ModelHostConnection,
     deployment: ModelDeploymentRecord,
   ): Promise<ModelDeploymentStatus> {
+    let status: ModelDeploymentStatus;
     try {
-      return await host.getStatus(credentials, deployment.externalId);
+      status = await host.getStatus(credentials, deployment.externalId);
     } catch (error) {
       return { state: "unknown", detail: error instanceof Error ? error.message : String(error) };
     }
+    return this.withWakingLimit(deployment, status);
+  }
+
+  /** A deployment can't tell a booting replica from a crashing one, so waking too long counts as failed. */
+  private async withWakingLimit(
+    deployment: ModelDeploymentRecord,
+    status: ModelDeploymentStatus,
+  ): Promise<ModelDeploymentStatus> {
+    if (status.state !== "waking") {
+      if (deployment.wakingSince && status.state !== "unknown") await this.deployments.setWakingSince(deployment.id, null);
+      return status;
+    }
+    const since = deployment.wakingSince ?? this.now();
+    if (!deployment.wakingSince) await this.deployments.setWakingSince(deployment.id, since);
+    const minutes = Math.floor((this.now().getTime() - since.getTime()) / 60_000);
+    if (minutes < WAKING_LIMIT_MINUTES) return status;
+    return {
+      state: "failed",
+      detail:
+        `Still not answering after ${minutes} minutes. Its container is probably crashing on start, ` +
+        "for example because the model doesn't fit the GPU. Check the deployment's logs with the cloud, " +
+        "and delete it if it keeps restarting: the GPU is billed while it does.",
+    };
   }
 
   private async connectWithFlavours(accountId: string) {

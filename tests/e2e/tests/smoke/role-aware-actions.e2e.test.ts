@@ -24,7 +24,7 @@ async function expectNoRunnerActions(page: Page, slug: string) {
   // Space settings read as a summary, with no plumbing.
   await page.goto(`/spaces/${slug}/settings`);
   await expect(page.getByRole("heading", { name: "About this space" })).toBeVisible();
-  for (const label of ["Connections", "Agent instructions"]) {
+  for (const label of ["Repository", "Task defaults", "Connections", "Agent instructions"]) {
     await expect(page.getByRole("link", { name: label, exact: true })).toHaveCount(0);
   }
 

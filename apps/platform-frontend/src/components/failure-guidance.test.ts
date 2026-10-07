@@ -34,7 +34,7 @@ describe('failureGuidance', () => {
       true,
       'shop'
     )
-    expect(guidance.fix?.href).toBe('/spaces/shop/settings')
+    expect(guidance.fix?.href).toBe('/spaces/shop/settings/repository')
   })
 
   it('offers a retry, not a setup fix, when the agent failed', () => {

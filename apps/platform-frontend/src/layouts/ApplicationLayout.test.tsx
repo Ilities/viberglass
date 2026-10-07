@@ -128,13 +128,14 @@ function linkNames(drawer: HTMLElement): string[] {
 }
 
 describe('ApplicationLayout navigation', () => {
-  it('shows Home, Overview and the spaces, with settings in the account menu rather than the sidebar', async () => {
+  it('shows Home, Overview, the spaces and, for admins, one Settings entry', async () => {
     renderLayout('/')
     const drawer = await openDrawer()
 
     for (const label of ['Home', 'Overview']) {
       expect(within(drawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
+    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings')
     for (const label of ['Workspace settings', 'Your settings', 'Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
       expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
@@ -169,13 +170,13 @@ describe('ApplicationLayout navigation', () => {
     expect(within(drawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
   })
 
-  it("shows guests and viewers no Runs, Schedules or New space, which they can't use", async () => {
+  it("shows guests and viewers no Runs, Schedules, New space or Settings, which they can't use", async () => {
     for (const role of ['guest', 'viewer'] as const) {
       asRole(role)
       renderLayout('/spaces/viberglass')
       const drawer = await openDrawer()
 
-      for (const label of ['Runs', 'Schedules', 'New space']) {
+      for (const label of ['Runs', 'Schedules', 'New space', 'Settings']) {
         expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
       }
       // The space's settings stay: everyone may read how a space works.

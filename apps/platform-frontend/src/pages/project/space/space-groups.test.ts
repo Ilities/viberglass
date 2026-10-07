@@ -1,4 +1,4 @@
-import { groupOf, groupTasks, matchesSituationFilters, NO_SITUATION_FILTERS, peopleIn } from './space-groups'
+import { groupOf, groupTasks, matchesSituationFilters, NO_SITUATION_FILTERS, peopleIn, statusUnder } from './space-groups'
 import { testTask } from './test-task'
 
 const MARIA = { id: 'maria', name: 'Maria' }
@@ -48,5 +48,13 @@ describe('space groups', () => {
   it("lists the owners and people waited on, for the filters' choices", () => {
     const tasks = [task('1', { waitingOn: { kind: 'people', people: [TOMI] } }, { owner: MARIA }), task('2', {}, { owner: MARIA })]
     expect(peopleIn(tasks)).toEqual({ owners: [MARIA], waitedOn: [TOMI] })
+  })
+
+  it("drops the part of a status its group's heading already says", () => {
+    expect(statusUnder('Not started', 'not_started')).toBeUndefined()
+    expect(statusUnder('PR open', 'pr_open')).toBeUndefined()
+    expect(statusUnder('Failed · Tests broke', 'failed')).toBe('Tests broke')
+    expect(statusUnder('Plan v2 ready', 'waiting')).toBe('Plan v2 ready')
+    expect(statusUnder('Done', undefined)).toBe('Done')
   })
 })

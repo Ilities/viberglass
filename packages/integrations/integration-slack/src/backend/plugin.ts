@@ -5,7 +5,7 @@ import type { SlackConfig } from './types'
 const slackPlugin: IntegrationPlugin<SlackConfig> = {
   id: 'slack',
   label: 'Slack',
-  category: 'ticketing',
+  category: 'chat',
   authTypes: ['token'],
   configFields: [
     { key: 'channelId', label: 'Channel ID', type: 'string', required: true, description: 'Slack channel ID (for example C12345678).' },

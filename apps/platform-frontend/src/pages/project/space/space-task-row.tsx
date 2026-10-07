@@ -5,41 +5,30 @@ import { ListRow, MetaLine } from '@/components/list-panel'
 import { taskPath } from '@/lib/taskPath'
 import { quotedLastMessage, turnLine } from '@/pages/home/home-threads'
 import type { Ticket } from '@viberglass/types'
+import { statusUnder, type SpaceGroup } from './space-groups'
 
 interface SpaceTaskRowProps {
   task: Ticket
   space: string
   /** Set only for people who may archive, who get a checkbox. */
   selection?: { selected: boolean; onToggle: () => void }
-}
-
-/** The row's one action: answer the agent, follow its work, or open the task. */
-function actionFor(task: Ticket, href: string): React.ReactNode {
-  const situation = task.situation
-  if (situation?.yourMove && situation.state === 'question') {
-    return (
-      <Button href={href} color="brand">
-        Answer
-      </Button>
-    )
-  }
-  return (
-    <Button href={href} outline>
-      {situation?.state === 'agent_working' ? 'Open thread' : 'Open'}
-    </Button>
-  )
+  /** The group the row is listed under, whose heading its line needn't repeat. */
+  group?: SpaceGroup
 }
 
 /** One task in a space: where it stands, whose turn it is, who owns it, and its last word. */
-export function SpaceTaskRow({ task, space, selection }: SpaceTaskRowProps) {
+export function SpaceTaskRow({ task, space, selection, group }: SpaceTaskRowProps) {
   const href = taskPath(space, task)
   const situation = task.situation
+  const asked = situation?.yourMove && situation.state === 'question'
   return (
     <ListRow
       label={task.title}
       leading={
         selection && (
-          <Checkbox checked={selection.selected} onChange={selection.onToggle} aria-label={`Select ${task.key}`} />
+          <span className="relative z-10 flex">
+            <Checkbox checked={selection.selected} onChange={selection.onToggle} aria-label={`Select ${task.key}`} />
+          </span>
         )
       }
       taskKey={task.key}
@@ -53,14 +42,20 @@ export function SpaceTaskRow({ task, space, selection }: SpaceTaskRowProps) {
       meta={
         <MetaLine
           parts={[
-            situation?.yourMove && situation.state === 'question' ? 'Agent asked you' : situation?.label,
+            asked ? 'Agent asked you' : statusUnder(situation?.label, group),
             situation && turnLine(situation),
             task.owner && `Owned by ${task.owner.name.split(' ')[0]}`,
             quotedLastMessage(task.lastMessage),
           ]}
         />
       }
-      action={actionFor(task, href)}
+      action={
+        asked && (
+          <Button href={href} color="brand">
+            Answer
+          </Button>
+        )
+      }
     />
   )
 }

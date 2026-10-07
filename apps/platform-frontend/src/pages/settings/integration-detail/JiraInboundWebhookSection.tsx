@@ -159,7 +159,7 @@ export function JiraInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-2 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default space</option>
+                        <option value="">Use the default space linked to this connection</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}

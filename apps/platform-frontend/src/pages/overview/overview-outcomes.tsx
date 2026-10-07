@@ -8,7 +8,7 @@ import type { OverviewTask } from '@viberglass/types'
 export function OverviewOutcomes({ tasks }: { tasks: OverviewTask[] }) {
   return (
     <section aria-labelledby="overview-outcomes" className="mb-8">
-      <SectionHeader id="overview-outcomes" title="Recent outcomes" hint="Done means the outcome is explicit" />
+      <SectionHeader id="overview-outcomes" title="Recent outcomes" />
       {tasks.length === 0 ? (
         <p className="text-sm text-[var(--gray-10)]">Nothing done this week yet.</p>
       ) : (

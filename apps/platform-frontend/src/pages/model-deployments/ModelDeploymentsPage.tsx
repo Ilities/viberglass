@@ -86,11 +86,11 @@ export function ModelDeploymentsPage() {
           <div>
             <Heading>Model deployments</Heading>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Open-weight models on GPUs in your own cloud account. Each one is a model endpoint runners pick in their
+              Open-weight models on GPUs in your own cloud account. Each one is a model endpoint agents pick in their
               Model section.
             </p>
           </div>
-          {deployButton}
+          {deployments !== null && deployments.length > 0 && deployButton}
         </div>
 
         {deployments === null ? (
@@ -133,7 +133,7 @@ export function ModelDeploymentsPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-zinc-500 dark:text-zinc-400">
-                      {deployment.runners.length ? deployment.runners.join(', ') : 'No runner'}
+                      {deployment.runners.length ? deployment.runners.join(', ') : 'No agent'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">
@@ -178,7 +178,7 @@ export function ModelDeploymentsPage() {
         <AlertTitle>Delete {removing?.name}?</AlertTitle>
         <AlertDescription>
           The deployment and its endpoint are removed from Verda and Viberglass, and nothing is billed after. A deployment
-          a runner uses can&apos;t be deleted.
+          an agent uses can&apos;t be deleted.
         </AlertDescription>
         <AlertActions>
           <Button outline onClick={() => setRemoving(null)}>

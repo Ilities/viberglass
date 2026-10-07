@@ -6,8 +6,8 @@ import type { TicketSystem } from './common'
 import type { AuthCredentialType } from './project'
 import type { SecretLocation } from './secret'
 
-// Integration category - SCM (source control), Ticketing (issue tracking), or Inbound (receives events)
-export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound'
+// Integration category - SCM (source control), Ticketing (issue tracking), Inbound (receives events) or Chat
+export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound' | 'chat'
 
 // Integration field types for dynamic forms
 export type IntegrationFieldType =
@@ -77,11 +77,6 @@ export interface ProjectIntegrationLink {
   integrationId: string
   isPrimary: boolean
   createdAt: string
-}
-
-// Project integration link with category information
-export interface ProjectIntegrationLinkWithCategory extends ProjectIntegrationLink {
-  category: IntegrationCategory
 }
 
 // SCM credential stored per integration

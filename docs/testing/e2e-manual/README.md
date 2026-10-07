@@ -18,6 +18,7 @@ The automated Playwright smoke suite (`npm run test:e2e`, specs in `tests/e2e/te
 
 | File | Covers |
 |---|---|
+| [00-clean-machine.md](00-clean-machine.md) | A stranger's first hour from the public docs: local install, first PRs on real repositories, Kubernetes and AWS from nothing, a cold user session |
 | [01-local-core.md](01-local-core.md) | Accounts and people, first-run setup, spaces, tasks and the agent conversation, steering, runners, tools, admin pages, schedules, notifications, resilience |
 | [02-integrations-and-clients.md](02-integrations-and-clients.md) | GitHub (PRs, reviews, merge, webhooks), Jira/Shortcut/custom webhooks, Slack, MCP endpoint, CLI, Chrome extension, run-record export |
 | [03-agents-and-model-endpoints.md](03-agents-and-model-endpoints.md) | Every harness with the credentials available; workspace model endpoints, auth schemes, discovery, cold start |
@@ -72,6 +73,7 @@ Gather these first; tests list which they need. Keep keys outside the repo where
 
 ## Suggested order
 
+0. 00 before a release, on clean machines and accounts.
 1. 01 on L-NEW and L-REV (one to two days with real models).
 2. 03 on L-REV (harness matrix, endpoints), then 04 if a GPU is available.
 3. 02 on L-DEV + TUNNEL (needs the GitHub test repo and Slack app).

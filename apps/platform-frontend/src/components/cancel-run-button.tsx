@@ -13,7 +13,7 @@ export function runningFor(since: string, now = Date.now()): string {
 }
 
 /**
- * A red "Cancel" button that asks for confirmation first. Cancelling stops the
+ * A "Cancel" button that asks for confirmation first; only the confirmation is red. Cancelling stops the
  * agent; the transcript and anything produced so far are kept.
  */
 export function CancelRunButton({
@@ -33,7 +33,7 @@ export function CancelRunButton({
 
   return (
     <>
-      <Button color="red" disabled={isCancelling} onClick={() => setOpen(true)}>
+      <Button outline disabled={isCancelling} onClick={() => setOpen(true)}>
         {isCancelling ? 'Cancelling…' : label}
       </Button>
       <Alert open={open} onClose={setOpen}>

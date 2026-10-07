@@ -19,7 +19,7 @@ jest.mock("../../../persistence/config/database", () => {
   return { __esModule: true, default: { updateTable: () => query, selectFrom: () => query } };
 });
 
-const RESULT = { success: true, changedFiles: [], executionTime: 1, branch: "viberator/t-1", pullRequestUrl: "https://github.com/acme/app/pull/7" };
+const RESULT = { success: true, changedFiles: [], executionTime: 1, branch: "viberglass/t-1", pullRequestUrl: "https://github.com/acme/app/pull/7" };
 
 describe("a finished build's pull request", () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe("a finished build's pull request", () => {
 
     await new JobService().updateJobStatus("job-1", "completed", { result: RESULT });
 
-    expect(mockRecord).toHaveBeenCalledWith("t-1", "viberator/t-1", "https://github.com/acme/app/pull/7");
+    expect(mockRecord).toHaveBeenCalledWith("t-1", "viberglass/t-1", "https://github.com/acme/app/pull/7");
   });
 
   it("isn't recorded for a build that failed", async () => {

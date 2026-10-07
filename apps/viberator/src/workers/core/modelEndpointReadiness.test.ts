@@ -20,7 +20,7 @@ function fixture() {
     }),
     key: "secret",
   };
-  return { deps, progress: jest.fn(async () => {}) };
+  return { deps, progress: jest.fn(async (_step: string, _message: string) => {}) };
 }
 
 test("waits for an idle model before reporting readiness", async () => {
@@ -42,9 +42,22 @@ test("waits for an idle model before reporting readiness", async () => {
     }),
   );
   expect(progress.mock.calls).toEqual([
-    ["model-waking", "Waking qwen on EU endpoint…"],
+    ["model-waking", "Waking qwen on EU endpoint. A cold start can take several minutes; this run waits up to 15."],
     ["model-ready", "qwen is ready"],
   ]);
+});
+
+test("reports every minute while it waits, so the run isn't given up as lost", async () => {
+  const { deps, progress } = fixture();
+  // Ready on the first check after ten minutes.
+  deps.fetch.mockImplementation(async () => ({ status: deps.now() >= 10 * 60_000 ? 200 : 503 }));
+  await waitForModelEndpoint({ resolvedModelEndpoint: endpoint }, progress, deps);
+
+  const stillWaking = progress.mock.calls.filter(([, message]) => String(message).startsWith("Still waking"));
+  expect(stillWaking.map(([, message]) => message)).toEqual(
+    Array.from({ length: 10 }, (_, index) => `Still waking qwen on EU endpoint: ${index + 1} min so far, waiting up to 15.`),
+  );
+  expect(progress).toHaveBeenLastCalledWith("model-ready", "qwen is ready");
 });
 
 test("ordinary endpoints do not wait or make a request", async () => {
@@ -67,6 +80,6 @@ test("fails immediately on authentication errors and times out after fifteen min
   deps.fetch.mockResolvedValue({ status: 503 });
   await expect(
     waitForModelEndpoint({ resolvedModelEndpoint: endpoint }, progress, deps),
-  ).rejects.toThrow("Timed out waiting");
+  ).rejects.toThrow("qwen on EU endpoint didn't wake up within 15 minutes.");
   expect(deps.wait).toHaveBeenCalledTimes(180);
 });

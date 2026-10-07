@@ -299,7 +299,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     <section className="app-frame rounded-lg p-6">
       <div className="flex items-center justify-between">
         <div>
-          <Subheading>Integration Credentials</Subheading>
+          <Subheading>Credentials</Subheading>
           <Text className="text-sm text-[var(--gray-9)]">
             Manage credentials used by projects linked to this {integrationSystem} integration.
           </Text>
@@ -323,7 +323,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
               </div>
               <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">No credentials configured</h3>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Add a credential to enable SCM authentication for linked spaces.
+                Add a credential so linked spaces can reach their repositories.
               </p>
               <Button color="brand" className="mt-4" onClick={handleStartCreate}>
                 Add Credential
@@ -370,7 +370,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                         <SwitchField>
                           <Label>Set as default credential</Label>
                           <Description>
-                            The default credential is automatically selected when configuring SCM for spaces.
+                            Spaces use the default credential unless they pick another.
                           </Description>
                           <Switch checked={editIsDefault} onChange={setEditIsDefault} />
                         </SwitchField>
@@ -581,7 +581,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                   <SwitchField>
                     <Label>Set as default credential</Label>
                     <Description>
-                      The default credential is automatically selected when configuring SCM for spaces.
+                      Spaces use the default credential unless they pick another.
                     </Description>
                     <Switch checked={newCredentialIsDefault} onChange={setNewCredentialIsDefault} />
                   </SwitchField>

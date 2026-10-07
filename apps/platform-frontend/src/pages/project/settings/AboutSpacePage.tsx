@@ -6,13 +6,13 @@ import { getProjectScmConfig } from '@/service/api/project-api'
 import { getSpaceMembers } from '@/service/api/space-member-api'
 import type { ProjectScmConfig, SpaceMember } from '@viberglass/types'
 import { useEffect, useState } from 'react'
-import { ProjectSettingsPage } from './ProjectSettingsPage'
+import { SpaceGeneralPage } from './SpaceGeneralPage'
 
-/** A space's Space tab: the settings for those who maintain it, a summary for everyone else. */
+/** A space's General tab: the settings for those who maintain it, a summary for everyone else. */
 export function SpaceGeneralSettings() {
   const { project } = useProject()
   if (!project) return null
-  return project.viewerAccess?.canMaintain ? <ProjectSettingsPage /> : <AboutSpacePage />
+  return project.viewerAccess?.canMaintain ? <SpaceGeneralPage /> : <AboutSpacePage />
 }
 
 /** What a space is and who runs it, read-only: never the repository credentials or the forms to change it. */

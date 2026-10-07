@@ -39,32 +39,42 @@ export function countNewComments(comments: Array<{ status: string; createdAt: st
 }
 
 /**
- * What to offer next: try a failed turn again, revise with open comments, write
- * what's missing, summarise a thread that has grown, and build, for whoever may
- * ask for code. Nothing has to be approved first: a task can go straight to code.
+ * Trying a failed turn again, with the same agent, offered beside the turn.
+ * None while the agent works, when the setup has to be fixed first, or to
+ * someone who may not ask for what failed.
+ */
+export function retrySuggestion({
+  ticket,
+  capabilities,
+  latestTurn,
+  agentWorking,
+  lastFailure,
+}: Pick<TaskSuggestionInput, 'ticket' | 'capabilities' | 'latestTurn' | 'agentWorking' | 'lastFailure'>): TaskSuggestion | null {
+  if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk || latestTurn?.status !== 'failed') return null
+  if (lastFailure?.category === 'setup' && !lastFailure.retryable) return null
+  if (latestTurn.action === 'code' && !capabilities.canAskForCode) return null
+  // The same agent again: another one may be next on the task, and that isn't what "again" means.
+  return latestTurn.agent
+    ? { action: latestTurn.action, label: `Try again with ${latestTurn.agent.name}`, agentId: latestTurn.agent.id }
+    : { action: latestTurn.action, label: 'Try again' }
+}
+
+/**
+ * What to offer next: revise with open comments, write what's missing,
+ * summarise a thread that has grown, and build, for whoever may ask for code.
+ * Nothing has to be approved first: a task can go straight to code.
  */
 export function suggestTaskActions({
   ticket,
   plan,
   capabilities,
   newComments,
-  latestTurn,
   agentWorking,
-  lastFailure,
   sinceSummary,
   planParts,
 }: TaskSuggestionInput): TaskSuggestion[] {
   if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
   const suggestions: TaskSuggestion[] = []
-  const needsSetupFix = lastFailure?.category === 'setup' && !lastFailure.retryable
-  if (latestTurn?.status === 'failed' && !needsSetupFix && (latestTurn.action !== 'code' || capabilities.canAskForCode)) {
-    // The same agent again: another one may be next on the task, and that isn't what "again" means.
-    suggestions.push(
-      latestTurn.agent
-        ? { action: latestTurn.action, label: `Try again with ${latestTurn.agent.name}`, agentId: latestTurn.agent.id }
-        : { action: latestTurn.action, label: 'Try again' }
-    )
-  }
 
   const hasPlan = plan.content.trim().length > 0
   if (!hasPlan) suggestions.push({ action: 'plan', label: 'Write the plan' })

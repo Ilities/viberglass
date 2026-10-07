@@ -31,13 +31,15 @@ interface TaskComposerProps {
   taskId: string
   /** The agents that can be asked, the one already on the task first. */
   agents: Mentionable[]
+  /** Whether an agent turn is running, so a message waits for it to finish. */
+  agentWorking?: boolean
   /** Whether the person may stop the agent's running turn with their message. */
   canInterrupt?: boolean
   onPosted: () => void
 }
 
 /** Writing in a task's thread, with @mentions of people, and of agents to ask them. */
-export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }: TaskComposerProps) {
+export function TaskComposer({ taskId, agents, agentWorking = false, canInterrupt = false, onPosted }: TaskComposerProps) {
   const { user } = useAuth()
   const [people, setPeople] = useState<Mentionable[]>([])
   const [draft, setDraft] = useState('')
@@ -108,9 +110,6 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
 
   return (
     <div className="relative space-y-2 border-t border-[var(--gray-5)] pt-5">
-      <label htmlFor={`${listId}-input`} className="block text-xs text-[var(--gray-10)]">
-        Message the people on this task
-      </label>
       <textarea
         id={`${listId}-input`}
         aria-label="Write a message"
@@ -126,7 +125,7 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
           setActive(0)
         }}
         rows={4}
-        placeholder="Write a message… Use @ to bring in the agent."
+        placeholder={agents.length > 0 ? 'Write a message… Type @ to ask the agent or bring someone in.' : 'Write a message… Type @ to bring someone in.'}
         className="min-h-[95px] w-full resize-y rounded-[7px] border border-[var(--gray-7)] bg-[var(--gray-1)] p-3 text-sm leading-normal text-[var(--gray-12)] focus:border-[var(--accent-8)] focus:outline-none"
       />
       <ul
@@ -153,22 +152,15 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
             </li>
           ))}
       </ul>
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-xs text-[var(--gray-10)]">
-          Messages stay in the thread.
-          <br />
-          The agent reads them when asked.
-        </p>
-        <div className="flex shrink-0 gap-2">
-          {canInterrupt && (
-            <Button outline disabled={isPosting || draft.trim().length === 0} onClick={() => void post(true)}>
-              Interrupt with this
-            </Button>
-          )}
-          <Button color="brand" disabled={isPosting || draft.trim().length === 0} onClick={() => void post()}>
-            {isPosting ? 'Posting…' : 'Post'}
+      <div className="flex justify-end gap-2">
+        {agentWorking && canInterrupt && (
+          <Button outline disabled={isPosting || draft.trim().length === 0} onClick={() => void post(true)}>
+            Send now and interrupt
           </Button>
-        </div>
+        )}
+        <Button color="brand" disabled={isPosting || draft.trim().length === 0} onClick={() => void post()}>
+          {isPosting ? 'Sending…' : agentWorking ? 'Send after this turn' : 'Send'}
+        </Button>
       </div>
     </div>
   )

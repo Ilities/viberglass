@@ -1,13 +1,11 @@
 import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
-import { Button } from '@/components/button'
 import { Fact, FactList } from '@/components/fact-list'
 import { formatTicketSystem } from '@/lib/formatters'
 import { initialsOf } from '@/lib/initials'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { TaskParticipant, Ticket } from '@viberglass/types'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { TaskPeople } from './task-people'
 import { formatDate, getSeverityBadge } from './ticket-display'
 import { withRole, type TaskParticipants } from './use-task-participants'
@@ -31,18 +29,19 @@ function Person({ person, children }: { person: TaskParticipant; children: React
   )
 }
 
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(window.location.href.split('?')[0])
-    toast.success('Link copied')
-  } catch {
-    toast.error("The link couldn't be copied")
-  }
+/** "Owner Dev": a quiet label, then who. */
+function LineFact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="text-[var(--gray-10)]">{label}</span>
+      <span className="text-[var(--gray-12)]">{children}</span>
+    </span>
+  )
 }
 
 /**
  * Who's on the task in one line: who owns it, who reviews, who watches. The
- * task's details and changing its people are folded under Task details.
+ * task's details and changing its people are folded under Details.
  */
 export function TaskContextLine({ ticket, people }: { ticket: Ticket; people: TaskParticipants }) {
   const severity = getSeverityBadge(ticket.severity)
@@ -55,22 +54,13 @@ export function TaskContextLine({ ticket, people }: { ticket: Ticket; people: Ta
   return (
     <div className="text-xs text-[var(--gray-11)]">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        {owner ? (
-          <Person person={owner}>{firstName(owner)} owns this task</Person>
-        ) : (
-          <span>Nobody owns this task yet</span>
+        <LineFact label="Owner">{owner ? <Person person={owner}>{firstName(owner)}</Person> : 'Nobody yet'}</LineFact>
+        {reviewers.length > 0 && (
+          <LineFact label={reviewers.length === 1 ? 'Reviewer' : 'Reviewers'}>
+            {reviewers.length === 1 ? <Person person={reviewers[0]}>{firstName(reviewers[0])}</Person> : names(reviewers)}
+          </LineFact>
         )}
-        {reviewers.length > 0 &&
-          (reviewers.length === 1 ? (
-            <Person person={reviewers[0]}>{firstName(reviewers[0])} reviews</Person>
-          ) : (
-            <span>{names(reviewers)} review</span>
-          ))}
-        {watchers.length > 0 && (
-          <span>
-            {names(watchers)} {watchers.length === 1 ? 'is' : 'are'} watching
-          </span>
-        )}
+        {watchers.length > 0 && <LineFact label="Watching">{names(watchers)}</LineFact>}
         <button
           type="button"
           aria-expanded={open}
@@ -79,11 +69,8 @@ export function TaskContextLine({ ticket, people }: { ticket: Ticket; people: Ta
           className="flex items-center gap-1 hover:text-[var(--gray-12)]"
         >
           <span aria-hidden>{open ? '▾' : '▸'}</span>
-          Task details · {severity.label} severity · {ticket.category}
+          Details · {severity.label} severity · {ticket.category}
         </button>
-        <Button plain className="text-xs" onClick={() => void copyLink()}>
-          Copy link
-        </Button>
       </div>
       {/* Below the line, not inside it, so opening the details doesn't push the line's other parts around. */}
       {open && (

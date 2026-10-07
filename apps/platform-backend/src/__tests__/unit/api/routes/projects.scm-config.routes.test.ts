@@ -100,7 +100,7 @@ describe("project SCM config routes", () => {
       baseBranch: "main",
       pullRequestRepository: "https://github.com/acme/upstream",
       pullRequestBaseBranch: "develop",
-      branchNameTemplate: "viberator/{{ticketId}}-{{timestamp}}",
+      branchNameTemplate: "viberglass/{{ticketId}}-{{timestamp}}",
       createdAt: "2026-02-10T00:00:00.000Z",
       updatedAt: "2026-02-10T00:00:00.000Z",
     };

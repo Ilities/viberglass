@@ -29,8 +29,10 @@ The redesign says *how* screens should behave. This doc says *what each one is f
 | Who decided to go on, and when | The **message** that asked the agent ("Jussi asked the agent to build it") | — |
 | What the agent did in a turn | The **turn's details**, folded under its message in the thread | The space's Runs page |
 | Who's involved on a task, and which agents | **People** on the task | Owner and whose move on cards |
-| Who's in a space, its defaults and privacy | Space settings › **Members** | The lock icon on private spaces |
-| How a space reaches its repository | Space settings › **Space** | Readiness notice, only while something's missing |
+| Who's in a space | Space settings › Members | The lock icon on private spaces |
+| Whether a space is private | Space settings › General | The lock icon on private spaces |
+| What a new task in a space starts with (agent, owner, reviewers) | Space settings › Task defaults | — |
+| How a space reaches its repository | Space settings › Repository | Readiness notice, only while something's missing |
 | How work is going across the workspace | **Overview** | — |
 | How the workspace runs (agents, connections, secrets…) | **Settings** (admins) | Home's health line for admins, only when something's wrong |
 
@@ -45,7 +47,7 @@ Space ........... "What's happening in this space, and what can I pick up?"
   └ Task ........ "What's been said and made, whose move is it, and what do I say or ask?"
   Space › Runs, Schedules ..... engineers' and automation owners' views of the same space
   Space › Settings ............ "How does this space work?"
-Settings ........ "How is the workspace set up?" (admins) · "How do I want to be told?" (everyone)
+Settings ........ "How is the workspace set up?" (admins) · "How do I want to be told?" (everyone, from the account menu)
 ```
 
 Gone: the workspace **Dashboard** (its job splits into Home and Overview), the **Inbox** page (its job is Home's, Q1), **Pulse** (Q3), the space **Dashboard** and the separate **Tasks** page (the space page is the task list), and the **session** page (a live turn streams into the thread, Q13).
@@ -140,22 +142,24 @@ For: everyone who can see the task. The page is the task's **thread**, with the 
 
 | Tab | Purpose | Maintainers and admins | Everyone else |
 |---|---|---|---|
-| **Space** | Name, repository and branch, how pull requests are opened | edit | **About this space**: a read-only summary (repository, who maintains it), never the SCM or credential form (RM35, RV24) |
-| **Members** | Who's in the space, private or open, the default owner and reviewers | edit | read-only list |
-| **Connections** | Which connections the space uses (tracker, repository) | edit | hidden |
-| **Agent instructions** | What the agent is told in this space (today "Prompt templates") | edit | hidden |
-| Archive / Delete space | Housekeeping | maintainers archive; admins delete | hidden |
-| Auto-fix switch and tags | Start runs on new tasks from a tracker automatically | Move into Connections, next to the tracker it applies to | hidden |
+| General | Name, the private switch, and housekeeping: archive the space, delete it | edit; maintainers archive, admins delete | About: a read-only summary (repository, who sees it, who maintains it), never the SCM or credential form (RM35, RV24) |
+| Repository | Code host, repository address, default branch, access token, issue tracker. Under Advanced: where pull requests go, branch names, and auto-fix (start runs on new tracker issues, and the tags that start one) | edit | hidden |
+| Task defaults | What a new task starts with: the default agent, default owner and default reviewers, and when unanswered questions are chased | edit | hidden |
+| Members | Who's in the space | edit | read-only list |
+| Connections | Which connections the space uses | edit | hidden |
+| Agent instructions | What the agent is told in this space | edit | hidden |
 
 ### 3.7 Settings
 
+Settings is a sidebar entry for admins. Everyone else reaches their own settings, Notifications and API tokens, from the account menu.
+
 | Section | Items | For |
 |---|---|---|
-| **You** | Notifications (Slack link, email); API tokens | everyone; API tokens for admins and members (MCP) |
-| **Workspace** | Members and invites | admins |
-| **Advanced** | Agents & runners, Connections, Secrets, Prompt templates, Run records, Audit log | admins |
+| You | Notifications (Slack link, email); API tokens | everyone; API tokens for admins and members (MCP) |
+| Workspace | Members, Agents, Connections, Secrets | admins |
+| Advanced | Model deployments, MCP servers, Skills, Prompt templates, Run records, Audit log | admins |
 
-Settings opens on Notifications for everyone except admins, who land on Members (RM13, RV26). Advanced pages refuse non-admins in the UI too, not just in the nav (today the routes aren't guarded and a member reaches runner pages from the dashboard, RD35).
+Settings opens on Notifications for everyone except admins, who land on Members (RM13, RV26). Workspace and Advanced pages refuse non-admins in the UI too, not just in the nav: opening one sends a non-admin back to their own settings.
 
 ## 4. Navigation
 
@@ -171,7 +175,7 @@ Spaces
   ▸ Payments 🔒
   + New space            (those who may create one)
 ──────────
-Settings
+Settings                 (admins)
 [avatar] Jussi ▾         Notifications · API tokens · Theme · Sign out
 ```
 
@@ -180,7 +184,7 @@ Settings
 | Home, Overview | The two ways in: my tasks, and the whole picture | Dashboard, Inbox and Pulse go; "Platform" heading goes |
 | Spaces, each expanding in place | Get to a space without losing the rest of the nav (plan §6.1) | Change: today entering a space replaces the sidebar (RA13) |
 | A space's children: Runs, Schedules, Settings | The space's other views | "Dashboard" and "Tasks" merge into the space itself; "Operations" heading goes |
-| Settings | Workspace and personal settings | Keep |
+| Settings | Workspace settings, shown to admins only | Change: members reach their own settings from the avatar menu |
 | Avatar menu | Me: notifications, tokens, theme, sign out | Change: today the name links to Members ("You need an admin role", RD5) and theme and sign-out appear twice (sidebar footer and top bar) |
 | Top bar space switcher | — | **Cut** on desktop: the sidebar does it. Kept on mobile, where the sidebar is hidden |
 | One accent colour | — | Change: today it shifts per space, which makes the same page look like different products |

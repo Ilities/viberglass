@@ -30,6 +30,7 @@ function deployment(mode: ModelDeploymentRecord["mode"]): ModelDeploymentRecord 
     servingArgs: [],
     mode,
     endpointId: endpoint.id,
+    wakingSince: null,
     createdAt: "",
     updatedAt: "",
   };

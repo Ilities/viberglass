@@ -1,391 +1,184 @@
 import { Button } from '@/components/button'
+import { EmptyState } from '@/components/empty-state'
 import { Heading, Subheading } from '@/components/heading'
+import { getIntegrationIcon, type IntegrationIconComponent } from '@/components/integration-visuals'
 import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useProject } from '@/context/project-context'
 import {
+  getAvailableIntegrationTypes,
   getIntegrations,
   getProjectIntegrations,
   linkIntegrationToProject,
   unlinkIntegrationFromProject,
-  type ProjectIntegrationWithDetails,
 } from '@/service/api/integration-api'
-import { CheckCircledIcon, PlusIcon } from '@radix-ui/react-icons'
-import type { Integration, IntegrationSummary } from '@viberglass/types'
+import type { IntegrationCategory } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 
-// Custom icons since they're not in radix-ui
-function LinkIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-  )
+const CATEGORY_LABEL: Record<IntegrationCategory, string> = {
+  scm: 'Code host',
+  ticketing: 'Issue tracker',
+  inbound: 'Webhook',
+  chat: 'Chat',
 }
 
-function LinkBreakIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-      <line x1="4" y1="4" x2="20" y2="20" />
-    </svg>
-  )
-}
-
-interface IntegrationWithLinkStatus extends IntegrationSummary {
+interface SpaceConnection {
+  id: string
+  name: string
+  kind: string
+  Icon: IntegrationIconComponent
   isLinked: boolean
-  linkId?: string
-  isPrimary?: boolean
-  integrationEntityId: string
 }
 
+/** Which of the workspace's connections a space uses. */
 export function ProjectIntegrationsPage() {
-  const { project: projectData, isLoading: isProjectLoading } = useProject()
-  const [integrations, setIntegrations] = useState<IntegrationWithLinkStatus[]>([])
-  const [_availableGlobalIntegrations, setAvailableGlobalIntegrations] = useState<Integration[]>([])
+  const { project, isLoading: isProjectLoading } = useProject()
+  const [connections, setConnections] = useState<SpaceConnection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
 
-  const loadIntegrations = useCallback(async () => {
-    if (!projectData?.id) {
+  const loadConnections = useCallback(async () => {
+    if (!project?.id) {
       setIsLoading(false)
       return
     }
-
     setIsLoading(true)
     setLoadError(null)
-
     try {
-      // Fetch global integrations and project-linked integrations in parallel
-      const [globalIntegrations, projectLinks] = await Promise.all([
+      const [workspaceConnections, links, types] = await Promise.all([
         getIntegrations(),
-        getProjectIntegrations(projectData.id),
+        getProjectIntegrations(project.id),
+        getAvailableIntegrationTypes(),
       ])
-
-      // Create a map of linked integrations for quick lookup
-      const linkedMap = new Map<string, ProjectIntegrationWithDetails>()
-      projectLinks.forEach((link) => {
-        linkedMap.set(link.integration.id, link)
-      })
-
-      // Map global integrations to the format needed for display with link status
-      const mappedIntegrations: IntegrationWithLinkStatus[] = globalIntegrations.map((integration) => {
-        const link = linkedMap.get(integration.id)
-        return {
-          id: integration.system,
-          label: integration.name,
-          category: getCategoryFromSystem(integration.system),
-          description: getDescriptionFromSystem(integration.system),
-          authTypes: ['token'], // Default, will be updated when editing
-          configFields: [],
-          supports: { issues: true },
-          status: 'ready',
-          configStatus: 'configured',
-          isLinked: !!link,
-          linkId: link?.id,
-          isPrimary: link?.isPrimary,
-          integrationEntityId: integration.id,
-        } as IntegrationWithLinkStatus
-      })
-
-      setAvailableGlobalIntegrations(globalIntegrations)
-      setIntegrations(mappedIntegrations)
+      const linkedIds = new Set(links.map((link) => link.integration.id))
+      const typeBySystem = new Map(types.map((type) => [type.id, type]))
+      setConnections(
+        workspaceConnections.map((connection) => {
+          const type = typeBySystem.get(connection.system)
+          return {
+            id: connection.id,
+            name: connection.name,
+            kind: [type?.label ?? connection.system, type ? CATEGORY_LABEL[type.category] : null]
+              .filter(Boolean)
+              .join(' · '),
+            Icon: getIntegrationIcon(connection.system),
+            isLinked: linkedIds.has(connection.id),
+          }
+        })
+      )
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Failed to load integrations')
+      setLoadError(error instanceof Error ? error.message : 'Failed to load connections')
     } finally {
       setIsLoading(false)
     }
-  }, [projectData?.id])
+  }, [project?.id])
 
   useEffect(() => {
-    loadIntegrations()
-  }, [loadIntegrations])
+    void loadConnections()
+  }, [loadConnections])
 
-  const handleLinkIntegration = async (integrationEntityId: string) => {
-    if (!projectData?.id) return
-
-    setActionInProgress(integrationEntityId)
+  async function toggleLink(connection: SpaceConnection) {
+    if (!project?.id) return
+    setActionInProgress(connection.id)
     try {
-      await linkIntegrationToProject(projectData.id, integrationEntityId)
-      await loadIntegrations()
+      if (connection.isLinked) await unlinkIntegrationFromProject(project.id, connection.id)
+      else await linkIntegrationToProject(project.id, connection.id)
+      await loadConnections()
     } catch (error) {
-      console.error('Failed to link integration:', error)
-      setLoadError(error instanceof Error ? error.message : 'Failed to link integration')
+      setLoadError(error instanceof Error ? error.message : 'Failed to change the connection')
     } finally {
       setActionInProgress(null)
     }
   }
 
-  const handleUnlinkIntegration = async (integrationEntityId: string) => {
-    if (!projectData?.id) return
-
-    setActionInProgress(integrationEntityId)
-    try {
-      await unlinkIntegrationFromProject(projectData.id, integrationEntityId)
-      await loadIntegrations()
-    } catch (error) {
-      console.error('Failed to unlink integration:', error)
-      setLoadError(error instanceof Error ? error.message : 'Failed to unlink integration')
-    } finally {
-      setActionInProgress(null)
-    }
-  }
-
-  const linkedCount = integrations.filter((i) => i.isLinked).length
-
-  if (isProjectLoading || isLoading) {
-    return (
-      <>
-        <PageMeta title="Connections" />
-        <div className="space-y-8">
-          <div>
-            <Heading>Connections</Heading>
-            <Text className="mt-2">Loading connections…</Text>
-          </div>
-        </div>
-      </>
-    )
-  }
+  const linked = connections.filter((connection) => connection.isLinked)
+  const available = connections.filter((connection) => !connection.isLinked)
 
   return (
     <>
       <PageMeta title="Connections" />
-      <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <Heading>Connections</Heading>
-          <Text className="mt-2">
-            Choose which of the workspace's connections this space uses: its code host, and any issue tracker tasks sync with.
-          </Text>
-        </div>
-
-        {loadError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
-            {loadError}
-          </div>
-        )}
-
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-            <div className="text-2xl font-semibold text-zinc-950 dark:text-white">{linkedCount}</div>
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">Linked</div>
-          </div>
-          <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-            <div className="text-2xl font-semibold text-zinc-950 dark:text-white">
-              {integrations.length - linkedCount}
-            </div>
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">Available to Link</div>
-          </div>
-          <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-            <div className="text-2xl font-semibold text-zinc-950 dark:text-white">
-              {linkedCount > 0 ? 'Ready' : 'None'}
-            </div>
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">Status</div>
-          </div>
-        </div>
-
-        {/* Create New Integration Link */}
-        <section className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-6 dark:border-white/10 dark:bg-zinc-900">
-          <div className="flex items-center justify-between">
-            <div>
-              <Subheading className="text-base">Need a new integration?</Subheading>
-              <Text className="mt-1 text-sm">
-                Create a new integration in global settings, then link it to this space.
-              </Text>
-            </div>
-            <Button href="/settings/connections" color="brand">
-              <PlusIcon className="mr-2 size-4" />
-              Create Integration
-            </Button>
-          </div>
-        </section>
-
-        {/* Available Integrations */}
-        <section>
-          <Subheading>Available Integrations</Subheading>
-          <Text className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            These integrations have been configured globally and can be linked to this space.
-          </Text>
-
-          {integrations.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-              <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No integrations available</h3>
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                No integrations have been configured yet. Create one in global settings first.
-              </p>
-              <div className="mt-6">
-                <Button href="/settings/connections" color="brand">
-                  <PlusIcon className="mr-2 size-4" />
-                  Create Integration
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {integrations.map((integration) => (
-                <IntegrationLinkCard
-                  key={integration.id}
-                  integration={integration}
-                  onLink={() => handleLinkIntegration(integration.integrationEntityId)}
-                  onUnlink={() => handleUnlinkIntegration(integration.integrationEntityId)}
-                  isLoading={actionInProgress === integration.integrationEntityId}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+      <div className="flex items-center justify-between gap-4">
+        <Heading>Connections</Heading>
+        <Button outline href="/settings/connections">
+          Create connection
+        </Button>
       </div>
+
+      {loadError && (
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+          {loadError}
+        </div>
+      )}
+
+      {isProjectLoading || isLoading ? (
+        <Text className="mt-6">Loading connections…</Text>
+      ) : connections.length === 0 ? (
+        <div className="mt-6">
+          <EmptyState
+            title="No connections yet"
+            action={
+              <Button color="brand" href="/settings/connections">
+                Create connection
+              </Button>
+            }
+          />
+        </div>
+      ) : (
+        <div className="mt-8 space-y-10">
+          {linked.length > 0 && (
+            <ConnectionList
+              title="Linked"
+              connections={linked}
+              actionInProgress={actionInProgress}
+              onToggle={toggleLink}
+            />
+          )}
+          {available.length > 0 && (
+            <ConnectionList
+              title="Available connections"
+              connections={available}
+              actionInProgress={actionInProgress}
+              onToggle={toggleLink}
+            />
+          )}
+        </div>
+      )}
     </>
   )
 }
 
-// Helper component for integration link cards
-interface IntegrationLinkCardProps {
-  integration: IntegrationWithLinkStatus
-  onLink: () => void
-  onUnlink: () => void
-  isLoading: boolean
-}
-
-function IntegrationLinkCard({ integration, onLink, onUnlink, isLoading }: IntegrationLinkCardProps) {
+function ConnectionList({
+  title,
+  connections,
+  actionInProgress,
+  onToggle,
+}: {
+  title: string
+  connections: SpaceConnection[]
+  actionInProgress: string | null
+  onToggle: (connection: SpaceConnection) => void
+}) {
   return (
-    <div
-      className={`group relative flex flex-col rounded-xl border p-6 shadow-sm transition-all ${
-        integration.isLinked
-          ? 'border-brand-burnt-orange/30 bg-white dark:border-brand-burnt-orange/30 dark:bg-zinc-900'
-          : 'border-zinc-950/10 bg-white dark:border-white/10 dark:bg-zinc-900'
-      }`}
-    >
-      {/* Status Badge */}
-      <div className="absolute top-4 right-4">
-        {integration.isLinked ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-            <CheckCircledIcon className="size-3" />
-            Linked
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-            Not Linked
-          </span>
-        )}
-      </div>
-
-      {/* Icon */}
-      <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-zinc-50 text-zinc-900 dark:bg-zinc-800 dark:text-white">
-        <IntegrationIcon system={integration.id} />
-      </div>
-
-      {/* Content */}
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-zinc-950 dark:text-white">{integration.label}</h3>
-          {integration.category === 'scm' ? (
-            <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-              SCM
-            </span>
-          ) : integration.category === 'inbound' ? (
-            <span className="rounded bg-teal-100 px-1.5 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/30 dark:text-teal-400">
-              Inbound
-            </span>
-          ) : (
-            <span className="rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-              Ticketing
-            </span>
-          )}
-        </div>
-        <p className="mt-2 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">{integration.description}</p>
-      </div>
-
-      {/* Actions */}
-      <div className="mt-4 flex items-center gap-2">
-        {integration.isLinked ? (
-          <Button
-            outline
-            size="small"
-            onClick={onUnlink}
-            disabled={isLoading}
-            className="w-full border-red-600 text-red-600 hover:bg-red-50"
-          >
-            <LinkBreakIcon className="mr-2 h-4 w-4" />
-            {isLoading ? 'Unlinking...' : 'Unlink'}
-          </Button>
-        ) : (
-          <Button color="brand" size="small" onClick={onLink} disabled={isLoading} className="w-full">
-            <LinkIcon className="mr-2 h-4 w-4" />
-            {isLoading ? 'Linking...' : 'Link to Space'}
-          </Button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Helper to get category from system type
-function getCategoryFromSystem(system: string): 'scm' | 'ticketing' | 'inbound' {
-  const scmSystems = ['github', 'gitlab', 'bitbucket']
-  const inboundSystems = ['custom']
-  if (scmSystems.includes(system)) return 'scm'
-  if (inboundSystems.includes(system)) return 'inbound'
-  return 'ticketing'
-}
-
-// Helper to get description from system type
-function getDescriptionFromSystem(system: string): string {
-  const descriptions: Record<string, string> = {
-    github: 'Native GitHub Issues integration with webhook support and PR linking.',
-    gitlab: 'GitLab Issues integration with CI/CD pipeline connectivity.',
-    bitbucket: 'Atlassian Bitbucket issue tracking for teams using Bitbucket Git.',
-    jira: 'Create and sync issues with Atlassian Jira. Supports Jira Cloud and Server.',
-    linear: 'Streamlined issue tracking with Linear. Perfect for modern product teams.',
-    monday: 'Work operating system for issue and project management.',
-    shortcut: 'Project management for software teams (formerly Clubhouse).',
-    slack: 'Send notifications and create issues directly from Slack channels.',
-    custom: 'Receive tasks from any external system via a simple JSON webhook.',
-  }
-  return descriptions[system] || `${system} integration`
-}
-
-// Simple icon component
-function IntegrationIcon({ system }: { system: string }) {
-  const colors: Record<string, string> = {
-    github: 'bg-gray-900 text-white',
-    gitlab: 'bg-orange-500 text-white',
-    bitbucket: 'bg-blue-500 text-white',
-    jira: 'bg-blue-600 text-white',
-    linear: 'bg-purple-500 text-white',
-    monday: 'bg-yellow-500 text-white',
-    shortcut: 'bg-green-500 text-white',
-    slack: 'bg-pink-500 text-white',
-    custom: 'bg-gray-500 text-white',
-  }
-
-  const firstLetter = system.charAt(0).toUpperCase()
-
-  return (
-    <div
-      className={`flex size-8 items-center justify-center rounded font-bold ${colors[system] || 'bg-gray-500 text-white'}`}
-    >
-      {firstLetter}
-    </div>
+    <section>
+      <Subheading>{title}</Subheading>
+      <ul className="mt-3 divide-y divide-zinc-950/5 rounded-xl border border-zinc-950/10 dark:divide-white/5 dark:border-white/10">
+        {connections.map((connection) => {
+          const busy = actionInProgress === connection.id
+          return (
+            <li key={connection.id} className="flex items-center gap-4 px-4 py-3">
+              <connection.Icon className="size-5 shrink-0 text-zinc-700 dark:text-zinc-300" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-zinc-950 dark:text-white">{connection.name}</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">{connection.kind}</p>
+              </div>
+              <Button outline disabled={busy} onClick={() => onToggle(connection)}>
+                {connection.isLinked ? (busy ? 'Unlinking…' : 'Unlink') : busy ? 'Linking…' : 'Link'}
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }

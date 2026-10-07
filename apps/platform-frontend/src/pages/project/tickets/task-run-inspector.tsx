@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { buildLogTimeline } from '@/components/agent-log-model'
-import { LogViewer } from '@/components/log-viewer'
+import { failureHeadline } from '@/components/failure-guidance'
 import { formatJobStatus } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { Cross2Icon } from '@radix-ui/react-icons'
@@ -38,7 +38,7 @@ function InspectorSection({ title, open, onToggle, children }: {
 
 function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string | null }) {
   const { job, error, isLoading, isPolling, refetch } = useJobStatus(jobId)
-  const initialSection: RunTab = linkedTab === 'prompt' || linkedTab === 'log' || linkedTab === 'record' ? linkedTab : 'activity'
+  const initialSection: RunTab = linkedTab === 'prompt' || linkedTab === 'record' ? linkedTab : 'activity'
   const [openSections, setOpenSections] = useState<RunTab[]>([initialSection])
   const summary = useMemo(() => summariseAgentWork(buildLogTimeline(job?.logs ?? [])), [job?.logs])
   const actions = describeAgentWork(summary)
@@ -57,7 +57,8 @@ function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string 
   const duration = formatRunDuration(job.processedAt, job.finishedAt)
   const codexPrompt = job.status === 'active' ? resolveCodexDeviceAuthPrompt(job.progressUpdates ?? [], job.progress) : null
   const lastMessage = summary.messages.at(-1)
-  const failure = job.result?.errorMessage || job.failedReason
+  const failure = job.status === 'failed' ? failureHeadline(job.result?.failure) : null
+  const technicalDetail = job.result?.failure?.technicalDetail || job.result?.errorMessage || job.failedReason
 
   return (
     <div className="p-5">
@@ -72,7 +73,12 @@ function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string 
       </dl>
       <div className="mb-5 text-xs text-[var(--gray-10)]"><TurnRunFacts jobId={jobId} /></div>
       {error && <p role="alert" className="mb-4 text-xs text-red-700 dark:text-red-400">Updates unavailable: {error.message}</p>}
-      {failure && <p role="alert" className="mb-5 text-sm whitespace-pre-wrap text-red-700 dark:text-red-400">{failure}</p>}
+      {failure && (
+        <div role="alert" className="mb-5 text-sm">
+          <p className="font-semibold text-red-700 dark:text-red-400">{failure.title}</p>
+          <p className="mt-1 text-[var(--gray-11)]">{failure.summary}</p>
+        </div>
+      )}
       {codexPrompt && <div className="mb-5"><CodexDeviceAuthCard prompt={codexPrompt} /></div>}
       {(lastMessage || actions.length > 0) && (
         <section className="mb-5 space-y-2">
@@ -87,10 +93,10 @@ function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string 
       <InspectorSection title="Prompt" open={openSections.includes('prompt')} onToggle={(open) => toggle('prompt', open)}>
         <RunPrompt job={job} />
       </InspectorSection>
-      <InspectorSection title="Logs" open={openSections.includes('log')} onToggle={(open) => toggle('log', open)}>
-        <LogViewer logs={job.logs ?? []} isConnected={isPolling} />
-      </InspectorSection>
       <InspectorSection title="Technical details" open={openSections.includes('record')} onToggle={(open) => toggle('record', open)}>
+        {technicalDetail && (
+          <pre className="mb-4 overflow-auto font-mono text-xs whitespace-pre-wrap text-[var(--gray-11)]">{technicalDetail}</pre>
+        )}
         <RunRecordPanel jobId={jobId} compact />
       </InspectorSection>
     </div>

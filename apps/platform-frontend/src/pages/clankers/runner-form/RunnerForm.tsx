@@ -199,7 +199,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         modelEndpoint: endpointState.selection,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save agent runner')
+      setError(err instanceof Error ? err.message : 'Failed to save the agent')
       setIsSubmitting(false)
     }
   }

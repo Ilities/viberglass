@@ -56,8 +56,10 @@ describe('ClankerActions', () => {
     const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {})
     try {
       renderActions(buildClanker())
-      await userEvent.click(screen.getByRole('button', { name: 'Delete agent runner' }))
-      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Delete$/ }))
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /Actions/ }))
+      await user.click(await screen.findByRole('menuitem', { name: /Delete agent/ }))
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Delete$/ }))
       expect(await screen.findByRole('alert')).toHaveTextContent('Only workspace admins can delete runners')
     } finally {
       errorLog.mockRestore()

@@ -86,6 +86,7 @@ export function RunLog({ job, isPolling }: { job: Pick<JobStatus, 'jobId' | 'sta
   if (!live && steps.length === 0) return workerLog
 
   const tools = toolCallCount(steps)
+  const lines = (job.logs ?? []).length
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)]">
@@ -115,8 +116,8 @@ export function RunLog({ job, isPolling }: { job: Pick<JobStatus, 'jobId' | 'sta
         )}
       </div>
       <details>
-        <summary className="cursor-pointer text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">
-          Worker log · {(job.logs ?? []).length} lines
+        <summary className="cursor-pointer text-sm font-medium text-[var(--gray-11)] hover:text-[var(--gray-12)]">
+          Worker log <span className="font-normal text-[var(--gray-10)]">· {lines} line{lines === 1 ? '' : 's'}</span>
         </summary>
         <div className="mt-2">{workerLog}</div>
       </details>

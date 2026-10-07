@@ -17,39 +17,29 @@ const ALL_SPACES = 'all'
 const LISTS: Array<{
   key: Exclude<OverviewGroup, 'doneThisWeek'>
   title: string
-  hint: string
   empty: string
-  action: string
   badged?: boolean
 }> = [
   {
     key: 'needsAttention',
     title: 'Needs attention',
-    hint: 'Each task has a named next move',
     empty: 'Nothing is failed, paused, asking, or waiting long.',
-    action: 'Open thread',
     badged: true,
   },
   {
     key: 'liveNow',
-    title: 'Live now',
-    hint: 'Not counted twice in the lists below',
+    title: 'Agent working',
     empty: 'No agent is working right now.',
-    action: 'Follow',
   },
   {
     key: 'waiting',
     title: 'Waiting on people',
-    hint: 'Someone’s move, for less than a day',
     empty: 'Nothing is waiting on anyone.',
-    action: 'Open',
   },
   {
     key: 'notStarted',
     title: 'Not started',
-    hint: 'Nothing asked for yet',
     empty: 'Every task has been started.',
-    action: 'Open',
   },
 ]
 

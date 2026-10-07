@@ -153,7 +153,7 @@ export class DemoWorkspaceSeeder {
       const created = await this.deps.documents.create(ticket.id, document.phase);
       await this.deps.documents.updateContent(created.id, document.content, null);
     }
-    if (task.pullRequestUrl) await this.deps.pullRequests.record(ticket.id, `viberator/${ticket.key.toLowerCase()}`, task.pullRequestUrl);
+    if (task.pullRequestUrl) await this.deps.pullRequests.record(ticket.id, `viberglass/${ticket.key.toLowerCase()}`, task.pullRequestUrl);
     await this.deps.lifecycle.synchronize(ticket.id);
   }
 

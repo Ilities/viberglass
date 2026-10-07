@@ -29,8 +29,13 @@ function setupFixFor(code: string, project: string, runner?: FailedRunner): { la
     case JOB_FAILURE_CODE.RUNNER_UNAVAILABLE:
       return runner ? { label: `Check ${runner.name}`, href: `/settings/agents/${runner.slug}` } : { label: 'Check agent runners', href: '/settings/agents' }
     default:
-      return { label: 'Fix repository settings', href: `/spaces/${project}/settings` }
+      return { label: 'Fix repository settings', href: `/spaces/${project}/settings/repository` }
   }
+}
+
+/** What happened, in a few words and in a sentence anyone can read, before any technical detail. */
+export function failureHeadline(failure: JobFailure | null | undefined): { title: string; summary: string } {
+  return { title: failure?.title ?? 'Run failed', summary: failure?.summary ?? 'The run stopped before it could finish.' }
 }
 
 /**
@@ -39,8 +44,7 @@ function setupFixFor(code: string, project: string, runner?: FailedRunner): { la
  * in Viberglass itself say so instead of blaming the person's setup.
  */
 export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolean, project: string, runner?: FailedRunner): FailureGuidance {
-  const title = failure?.title ?? 'Run failed'
-  const summary = failure?.summary ?? 'The run stopped before it could finish.'
+  const { title, summary } = failureHeadline(failure)
 
   switch (failure?.category) {
     case 'setup':

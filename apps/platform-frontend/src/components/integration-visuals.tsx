@@ -30,17 +30,17 @@ const INTEGRATION_STATUS_CONFIG: Record<
 > = {
   configured: {
     icon: CheckCircledIcon,
-    label: 'Configured',
+    label: 'Connected',
     color: 'green',
   },
   not_configured: {
     icon: CircleIcon,
-    label: 'Not Configured',
+    label: 'Not set up',
     color: 'zinc',
   },
   stub: {
     icon: ExclamationTriangleIcon,
-    label: 'Coming Soon',
+    label: 'Coming soon',
     color: 'amber',
   },
 }
@@ -49,20 +49,24 @@ const INTEGRATION_CATEGORY_CONFIG: Record<
   IntegrationCategory,
   {
     label: string
-    color: 'blue' | 'teal' | 'purple'
+    color: 'blue' | 'teal' | 'purple' | 'pink'
   }
 > = {
   scm: {
-    label: 'SCM',
+    label: 'Code host',
     color: 'blue',
   },
   inbound: {
-    label: 'Inbound',
+    label: 'Webhook',
     color: 'teal',
   },
   ticketing: {
-    label: 'Ticketing',
+    label: 'Issue tracker',
     color: 'purple',
+  },
+  chat: {
+    label: 'Chat',
+    color: 'pink',
   },
 }
 

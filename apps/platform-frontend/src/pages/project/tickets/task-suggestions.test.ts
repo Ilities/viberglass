@@ -1,5 +1,5 @@
 import type { PartRange, TaskPlanParts, TaskPlanPartStatus } from '@viberglass/types'
-import { buildSuggestions, countNewComments, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
+import { buildSuggestions, countNewComments, retrySuggestion, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
 
 const doc = (content: string) => ({ content })
 
@@ -37,23 +37,27 @@ describe('suggestTaskActions', () => {
   it('offers nothing to someone who may not ask, and no build retry to someone who may not ask for code', () => {
     expect(labels({ capabilities: { canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false } })).toEqual([])
     expect(labels({ capabilities: null })).toEqual([])
-    expect(labels({ latestTurn: { action: 'code', status: 'failed' } })).not.toContain('Try again')
+    expect(retrySuggestion(input({ latestTurn: { action: 'code', status: 'failed' } }))).toBeNull()
   })
 
-  it('offers to try a failed turn again first, asking for the same thing', () => {
-    expect(suggestTaskActions(input({ latestTurn: { action: 'plan', status: 'failed' } }))[0]).toEqual({ action: 'plan', label: 'Try again' })
+  it('offers to try a failed turn again, asking for the same thing, apart from the other suggestions', () => {
+    const failed = input({ latestTurn: { action: 'plan', status: 'failed' } })
+    expect(retrySuggestion(failed)).toEqual({ action: 'plan', label: 'Try again' })
+    expect(suggestTaskActions(failed).map((suggestion) => suggestion.label)).not.toContain('Try again')
+    expect(retrySuggestion(input({ latestTurn: { action: 'plan', status: 'cancelled' } }))).toBeNull()
+    expect(retrySuggestion(input({ latestTurn: { action: 'plan', status: 'failed' }, agentWorking: true }))).toBeNull()
   })
 
   it('tries again with the agent whose turn failed', () => {
     const latestTurn = { action: 'plan' as const, status: 'failed', agent: { id: 'qwen', name: 'Qwen' } }
-    expect(suggestTaskActions(input({ latestTurn }))[0]).toEqual({ action: 'plan', label: 'Try again with Qwen', agentId: 'qwen' })
+    expect(retrySuggestion(input({ latestTurn }))).toEqual({ action: 'plan', label: 'Try again with Qwen', agentId: 'qwen' })
   })
 
   it("doesn't offer to try again when the setup has to be fixed first", () => {
     const failed = { latestTurn: { action: 'plan' as const, status: 'failed' } }
-    expect(labels({ ...failed, lastFailure: { category: 'setup', retryable: false } })).not.toContain('Try again')
-    expect(labels({ ...failed, lastFailure: { category: 'setup', retryable: true } })).toContain('Try again')
-    expect(labels({ ...failed, lastFailure: { category: 'agent', retryable: true } })).toContain('Try again')
+    expect(retrySuggestion(input({ ...failed, lastFailure: { category: 'setup', retryable: false } }))).toBeNull()
+    expect(retrySuggestion(input({ ...failed, lastFailure: { category: 'setup', retryable: true } }))).not.toBeNull()
+    expect(retrySuggestion(input({ ...failed, lastFailure: { category: 'agent', retryable: true } }))).not.toBeNull()
   })
 
   it('offers nothing while the agent works, or once the task is done', () => {

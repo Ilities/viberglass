@@ -77,9 +77,22 @@ describe('TaskRunInspector', () => {
     expect(mockGetJob).toHaveBeenCalledTimes(2)
   })
 
-  it('shows the failure even when the linked section is collapsed', async () => {
+  it('shows why the run failed first, and the raw error under technical details', async () => {
+    const failure = {
+      code: 'AGENT_UNRESPONSIVE', title: 'Agent stopped responding', summary: 'The agent stopped sending updates.',
+      category: 'platform' as const, retryable: true, technicalDetail: 'Job failed: No heartbeat received within grace period',
+    }
+    mockGetJob.mockResolvedValue({ ...JOB, status: 'failed', result: { success: false, failure } })
+    inspect('prompt')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Agent stopped responding')
+    expect(screen.queryByText(/No heartbeat/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Technical details', { selector: 'summary' }))
+    expect(await screen.findByText(/No heartbeat received/)).toBeInTheDocument()
+  })
+
+  it('shows a failure without a known reason as a failed run', async () => {
     mockGetJob.mockResolvedValue({ ...JOB, status: 'failed', result: { success: false, errorMessage: 'Observer crashed' } })
     inspect('prompt')
-    expect(await screen.findByRole('alert')).toHaveTextContent('Observer crashed')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Run failed')
   })
 })

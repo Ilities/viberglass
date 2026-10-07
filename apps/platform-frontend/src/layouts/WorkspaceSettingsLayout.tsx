@@ -1,34 +1,52 @@
 import { SettingsNav, type SettingsNavSection } from '@/components/settings-nav'
 import { useAuth } from '@/context/auth-context'
 import { isRunner } from '@/lib/roles'
+import {
+  BarChartIcon,
+  BellIcon,
+  ComponentInstanceIcon,
+  CounterClockwiseClockIcon,
+  CubeIcon,
+  FileTextIcon,
+  IdCardIcon,
+  LightningBoltIcon,
+  Link2Icon,
+  LockClosedIcon,
+  PersonIcon,
+  RocketIcon,
+} from '@radix-ui/react-icons'
+import type { ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 
-function section(pathname: string, heading: string, items: Array<{ name: string; href: string }>, intro?: string) {
+function section(pathname: string, heading: string, items: Array<{ name: string; href: string; icon: ReactNode }>) {
   return {
     heading,
-    intro,
     items: items.map((item) => ({ ...item, current: pathname.startsWith(item.href) })),
   }
 }
 
-const ADVANCED = [
-  { name: 'Agents & runners', href: '/settings/agents' },
-  { name: 'Model deployments', href: '/settings/model-deployments' },
-  { name: 'MCP servers', href: '/settings/mcp-servers' },
-  { name: 'Skills', href: '/settings/skills' },
-  { name: 'Connections', href: '/settings/connections' },
-  { name: 'Secrets', href: '/settings/secrets' },
-  { name: 'Prompt templates', href: '/settings/prompt-templates' },
-  { name: 'Run records', href: '/settings/run-records' },
-  { name: 'Audit log', href: '/settings/audit-log' },
+const WORKSPACE = [
+  { name: 'Members', href: '/settings/members', icon: <PersonIcon /> },
+  { name: 'Agents', href: '/settings/agents', icon: <RocketIcon /> },
+  { name: 'Connections', href: '/settings/connections', icon: <Link2Icon /> },
+  { name: 'Secrets', href: '/settings/secrets', icon: <LockClosedIcon /> },
 ]
 
-const ADMIN_ONLY = [...ADVANCED.map((item) => item.href), '/settings/members']
+const ADVANCED = [
+  { name: 'Model deployments', href: '/settings/model-deployments', icon: <CubeIcon /> },
+  { name: 'MCP servers', href: '/settings/mcp-servers', icon: <ComponentInstanceIcon /> },
+  { name: 'Skills', href: '/settings/skills', icon: <LightningBoltIcon /> },
+  { name: 'Prompt templates', href: '/settings/prompt-templates', icon: <FileTextIcon /> },
+  { name: 'Run records', href: '/settings/run-records', icon: <BarChartIcon /> },
+  { name: 'Audit log', href: '/settings/audit-log', icon: <CounterClockwiseClockIcon /> },
+]
+
+const ADMIN_ONLY = [...WORKSPACE, ...ADVANCED].map((item) => item.href)
 
 /**
  * Workspace settings. Everyone has their own (notifications, and API tokens
- * for those who run agents); admins also have the workspace's members and,
- * under Advanced, the plumbing setup chose defaults for.
+ * for those who run agents); admins also have the workspace's members, agents,
+ * connections and secrets, and under Advanced the rest of the plumbing.
  */
 export function WorkspaceSettingsLayout() {
   const pathname = useLocation().pathname
@@ -40,18 +58,13 @@ export function WorkspaceSettingsLayout() {
 
   const sections: SettingsNavSection[] = [
     section(pathname, 'You', [
-      { name: 'Notifications', href: '/settings/notifications' },
-      ...(isRunner(user?.role) ? [{ name: 'API tokens', href: '/settings/api-tokens' }] : []),
+      { name: 'Notifications', href: '/settings/notifications', icon: <BellIcon /> },
+      ...(isRunner(user?.role) ? [{ name: 'API tokens', href: '/settings/api-tokens', icon: <IdCardIcon /> }] : []),
     ]),
     ...(isAdmin
       ? [
-          section(pathname, 'Workspace', [{ name: 'Members', href: '/settings/members' }]),
-          section(
-            pathname,
-            'Advanced',
-            ADVANCED,
-            'How agents run, where credentials live, and what each run recorded. Setup picked defaults; change them here.',
-          ),
+          section(pathname, 'Workspace', WORKSPACE),
+          section(pathname, 'Advanced', ADVANCED),
         ]
       : []),
   ]

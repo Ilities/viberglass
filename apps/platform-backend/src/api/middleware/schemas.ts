@@ -140,6 +140,7 @@ export const updateProjectSchema = Joi.object({
   primaryScmIntegrationId: Joi.string().uuid().allow(null).optional(),
   isPrivate: Joi.boolean().optional(),
   defaultOwnerId: Joi.string().uuid().allow(null).optional(),
+  defaultAgentId: Joi.string().uuid().allow(null).optional(),
   defaultReviewerIds: Joi.array().items(Joi.string().uuid()).max(20).optional(),
   questionReminderHours: Joi.number().integer().min(1).max(168).optional(),
 });

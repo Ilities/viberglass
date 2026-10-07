@@ -7,10 +7,10 @@ describe("buildFeatureBranchName", () => {
       "ticket-42",
       "SC-77",
       "clanker-9",
-      "viberator/{{ ticket }}/{{ original_ticket }}/{{ clanker }}",
+      "viberglass/{{ ticket }}/{{ original_ticket }}/{{ clanker }}",
     );
 
-    expect(branch).toBe("viberator/ticket-42/SC-77/clanker-9");
+    expect(branch).toBe("viberglass/ticket-42/SC-77/clanker-9");
   });
 
   test("falls back to default template when template is empty", () => {
@@ -22,7 +22,7 @@ describe("buildFeatureBranchName", () => {
       null,
     );
 
-    // Default template is viberator/{{ ticketId }}, which falls back to jobId
-    expect(branch).toBe("viberator/job_123");
+    // Default template is viberglass/{{ ticketId }}, which falls back to jobId
+    expect(branch).toBe("viberglass/job_123");
   });
 });

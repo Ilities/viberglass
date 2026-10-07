@@ -14,15 +14,16 @@ interface TaskFailureNoticeProps {
 }
 
 /**
- * Why the agent's last run failed, who can fix it, and what to do next, until
- * something happens after it. Admins also see what the agent reported.
+ * A failure trying again won't get past, such as a setup problem: who can fix
+ * it and where, until something happens after it. Failures worth retrying are
+ * shown on the failed turn itself, with its retry and run details.
  */
 export function TaskFailureNotice({ move, project, runner }: TaskFailureNoticeProps) {
   const { user } = useAuth()
   if (move.kind !== 'failed') return null
   const isAdmin = user?.role === 'admin'
   const guidance = failureGuidance(move.failure ?? undefined, isAdmin, project, runner)
-  const detail = move.failure?.technicalDetail?.trim()
+  if (guidance.canRetry) return null
   return (
     <HandoffCard
       owner="problem"
@@ -37,16 +38,7 @@ export function TaskFailureNotice({ move, project, runner }: TaskFailureNoticePr
       }
     >
       <p>{guidance.summary}</p>
-      <p className="mt-1 text-[var(--gray-10)]">
-        {guidance.canRetry ? 'Ask the agent to try again below, with instructions if it needs them, or take the work over.' : guidance.nextStep}
-      </p>
-      <p className="mt-1 text-[var(--gray-10)]">What was asked stays in the thread, so trying again asks for the same thing.</p>
-      {isAdmin && detail && (
-        <details className="mt-3 text-xs">
-          <summary className="cursor-pointer text-[var(--gray-11)]">What the agent reported</summary>
-          <pre className="mt-2 max-h-48 overflow-auto rounded border border-[var(--gray-5)] bg-[var(--gray-2)] p-2 whitespace-pre-wrap text-[var(--gray-11)]">{detail}</pre>
-        </details>
-      )}
+      <p className="mt-1 text-[var(--gray-10)]">{guidance.nextStep}</p>
     </HandoffCard>
   )
 }

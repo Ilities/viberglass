@@ -1,5 +1,5 @@
 import type { ModelDeploymentView } from '@viberglass/types'
-import { deploymentState, parseServingArgs, recipeHardwareFor, withGpuCount } from './deploymentDisplay'
+import { deploymentState, formatServingArgs, parseServingArgs, recipeHardwareFor, withGpuCount } from './deploymentDisplay'
 
 const deployment: ModelDeploymentView = {
   id: 'd',
@@ -27,13 +27,25 @@ describe('deployment display', () => {
     expect(deploymentState({ ...deployment, status: { state: 'failed', detail: 'quota' } }).color).toBe('red')
   })
 
-  it('reads one argument per line, keeping spaces inside values', () => {
-    expect(parseServingArgs('--speculative-config\n{"a": 1}\n\n  --max-model-len  \n32768')).toEqual([
+  it('reads one option per line, splitting the flag from a value that keeps its spaces', () => {
+    expect(
+      parseServingArgs('--speculative-config {"a": 1}\n\n  --enable-auto-tool-choice  \n--max-model-len\n32768\n--tool-call-parser   qwen3-xml'),
+    ).toEqual([
       '--speculative-config',
       '{"a": 1}',
+      '--enable-auto-tool-choice',
       '--max-model-len',
       '32768',
+      '--tool-call-parser',
+      'qwen3-xml',
     ])
+  })
+
+  it('lays out each flag with its value, and reads that layout back unchanged', () => {
+    const args = ['--enable-auto-tool-choice', '--tool-call-parser', 'qwen3-xml', '--kv-cache-dtype=fp8', '--speculative-config', '{"a": 1}']
+    const text = formatServingArgs(args)
+    expect(text).toBe('--enable-auto-tool-choice\n--tool-call-parser qwen3-xml\n--kv-cache-dtype=fp8\n--speculative-config {"a": 1}')
+    expect(parseServingArgs(text)).toEqual(args)
   })
 
   it('matches tensor parallelism to the GPU count', () => {

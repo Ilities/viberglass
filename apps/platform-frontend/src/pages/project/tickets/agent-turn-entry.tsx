@@ -90,8 +90,16 @@ function CancelTurn({ jobId, startedAt }: { jobId: string; startedAt: string }) 
   )
 }
 
+interface AgentTurnEntryProps {
+  entry: AgentTurn
+  run?: JobListItem
+  summaryVersion?: number
+  /** Trying a failed turn again, shown with its failure. */
+  retry?: React.ReactNode
+}
+
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, run, summaryVersion }: { entry: AgentTurn; run?: JobListItem; summaryVersion?: number }) {
+export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnEntryProps) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
@@ -135,7 +143,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion }: { entry: AgentTur
             Working on it…{' '}
             {runLink && (
               <Link href={runLink} className="underline">
-                Watch
+                Live log
               </Link>
             )}
           </p>
@@ -144,14 +152,12 @@ export function AgentTurnEntry({ entry, run, summaryVersion }: { entry: AgentTur
         </div>
       )}
       {entry.status === 'failed' && (
-        <p className="text-red-700 dark:text-red-400">
-          This turn failed.{' '}
-          {runLink && (
-            <Link href={runLink} className="underline">
-              See what happened
-            </Link>
-          )}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-red-700 dark:text-red-400" title={run?.failure?.summary}>
+            {run?.failure?.title ?? 'This turn failed'}
+          </p>
+          {retry}
+        </div>
       )}
       {entry.status === 'cancelled' && (
         <p className="text-[var(--gray-11)]">

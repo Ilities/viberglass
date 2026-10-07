@@ -40,9 +40,6 @@ export function NextStepsChecklist() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-zinc-950 dark:text-white">Next steps</h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Engineers can fine-tune agents and connections in Workspace settings → Advanced.
-          </p>
         </div>
         <Button plain onClick={dismiss}>
           Dismiss

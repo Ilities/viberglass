@@ -36,12 +36,12 @@ export function AgentInstructionsField({ agentInstructions, onAgentInstructionsC
           Upload .md
         </Button>
       </div>
-      <Description>Main instruction file used to guide this agent runner.</Description>
+      <Description>Main instruction file used to guide this agent.</Description>
       <Textarea
         rows={8}
         value={agentInstructions}
         onChange={(event) => onAgentInstructionsChange(event.target.value)}
-        placeholder="Describe how this agent runner should behave..."
+        placeholder="Describe how this agent should behave..."
         className="font-mono"
       />
     </Field>

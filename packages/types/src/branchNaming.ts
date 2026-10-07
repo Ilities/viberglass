@@ -5,7 +5,7 @@ export function buildFeatureBranchName(
   clankerId: string | undefined,
   template: string | null | undefined,
 ): string {
-  const defaultTemplate = `viberator/{{ ticketId }}`;
+  const defaultTemplate = `viberglass/{{ ticketId }}`;
   const effectiveTemplate =
     template && template.trim().length > 0 ? template : defaultTemplate;
 
@@ -27,7 +27,7 @@ export function buildFeatureBranchName(
     (_match, token: keyof typeof replacements) => replacements[token],
   );
   const sanitized = sanitizeBranchName(rendered);
-  return sanitized || `viberator/${jobId}`;
+  return sanitized || `viberglass/${jobId}`;
 }
 
 function sanitizeBranchName(candidate: string): string {

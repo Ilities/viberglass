@@ -30,7 +30,7 @@ export function IntegrationsPage() {
           }))
         )
       } catch (error) {
-        setLoadError(error instanceof Error ? error.message : 'Failed to load integrations')
+        setLoadError(error instanceof Error ? error.message : 'Failed to load connections')
       }
       setIsLoading(false)
     }
@@ -66,8 +66,7 @@ export function IntegrationsPage() {
         <div>
           <Heading>Connections</Heading>
           <Text className="mt-2 text-[var(--gray-9)]">
-            The workspace&apos;s connections to code hosts, issue trackers and chat. Each space picks which of them it uses in its
-            own settings.
+            Code hosts, issue trackers and chat the workspace is connected to. Each space picks the ones it uses.
           </Text>
         </div>
 

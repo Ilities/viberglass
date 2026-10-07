@@ -34,6 +34,7 @@ import {
   IntegrationDetailLoadingState,
   IntegrationDetailNotFoundState,
 } from './integration-detail/IntegrationDetailStates'
+import { ConnectionNameSection } from './integration-detail/ConnectionNameSection'
 import { CreateIntegrationPrompt } from './integration-detail/CreateIntegrationPrompt'
 import { RemoveIntegrationSection } from './integration-detail/RemoveIntegrationSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
@@ -165,7 +166,7 @@ export function IntegrationDetailPage() {
           return
         }
 
-        setLoadError(error instanceof Error ? error.message : 'Failed to load integration')
+        setLoadError(error instanceof Error ? error.message : 'Failed to load the connection')
         setIntegrationType(null)
         setExistingIntegration(null)
       } finally {
@@ -396,7 +397,7 @@ export function IntegrationDetailPage() {
             config,
           })
         : await createIntegration({
-            name: `${integrationType.label} Integration`,
+            name: integrationType.label,
             system: integrationSystem,
             config,
           })
@@ -420,7 +421,7 @@ export function IntegrationDetailPage() {
       if (!existingIntegration) {
         setTestResult({
           success: false,
-          message: 'Save the integration first to test the connection',
+          message: 'Save the connection first to test it',
         })
         return
       }
@@ -448,7 +449,7 @@ export function IntegrationDetailPage() {
         <div className="flex items-center gap-4">
           <Button href="/settings/connections" plain>
             <ArrowLeftIcon className="h-4 w-4" />
-            Back to Connections
+            Back to connections
           </Button>
         </div>
 
@@ -472,12 +473,12 @@ export function IntegrationDetailPage() {
 
         <div className="app-frame rounded-lg p-8 text-center border-warning-200 dark:border-warning-900/50">
           <StatusIcon className="mx-auto h-12 w-12 text-warning-500" />
-          <h2 className="mt-4 text-lg font-semibold text-warning-900 dark:text-warning-400">Coming Soon</h2>
+          <h2 className="mt-4 text-lg font-semibold text-warning-900 dark:text-warning-400">Coming soon</h2>
           <p className="mt-2 text-[var(--gray-9)]">
-            The {integrationType.label} integration is currently under development. Check back soon!
+            The {integrationType.label} connection isn&apos;t available yet.
           </p>
           <Button href="/settings/connections" color="brand" className="mt-6">
-            Back to Connections
+            Back to connections
           </Button>
         </div>
       </div>
@@ -492,7 +493,7 @@ export function IntegrationDetailPage() {
       <div className="flex items-center gap-4">
         <Button href="/settings/connections" plain>
           <ArrowLeftIcon className="h-4 w-4" />
-          Back to Connections
+          Back to connections
         </Button>
       </div>
 
@@ -526,6 +527,10 @@ export function IntegrationDetailPage() {
         />
       ) : (
       <>
+      {existingIntegration && (
+        <ConnectionNameSection integration={existingIntegration} onRenamed={setExistingIntegration} />
+      )}
+
       {/* Auth setup section (e.g. Slack install guide) */}
       {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
 

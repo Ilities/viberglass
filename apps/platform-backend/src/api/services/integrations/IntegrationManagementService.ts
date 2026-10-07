@@ -47,7 +47,7 @@ export class IntegrationManagementService {
     if (plugin.status === "stub") {
       throw new IntegrationRouteServiceError(
         400,
-        "Integration is not available yet",
+        "This connection isn't available yet",
       );
     }
 
@@ -83,7 +83,7 @@ export class IntegrationManagementService {
     const users = await this.usageDAO.listProjectsUsing(integrationId);
     if (users.length > 0) {
       const names = users.map((user) => user.projectName).join(", ");
-      const message = `This integration is used by ${names}. Remove it from ${users.length === 1 ? "that project" : "those projects"} first.`;
+      const message = `This connection is used by ${names}. Remove it from ${users.length === 1 ? "that space" : "those spaces"} first.`;
       throw new IntegrationRouteServiceError(409, message, {
         error: message,
         projects: users,
@@ -118,7 +118,7 @@ export class IntegrationManagementService {
     if (plugin.status === "stub") {
       throw new IntegrationRouteServiceError(
         400,
-        "Integration is not available yet",
+        "This connection isn't available yet",
       );
     }
 

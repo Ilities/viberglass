@@ -73,6 +73,13 @@ Facts from the first live deployment (Qwen3-Coder-30B-A3B FP8 on one RTX PRO 600
 - While a replica boots, the deployment reports `unhealthy` and the replica goes `unavailable` → `imagepulling` → `unavailable`. Replica states therefore decide "waking" before the deployment status can mean "failed".
 - The first cold start took 577 s: about 40 s waiting for a free GPU, 3 min pulling the vLLM image, and the rest downloading the 31 GB of weights and loading them. That is inside the worker's 15-minute wait, but not by much. Warm, a tool call returned in 0.4 s with `--tool-call-parser qwen3_coder`.
 
+Facts from the second live deployment (Qwen3.8-27B on one L40S, 2026-10-07):
+
+- Verda may report `SchedulingFailed` ("no nodes available for the selected instance type") a few times before a replica gets a GPU. That is waiting, not failure.
+- The full-precision 27B model (about 54 GB of weights) ran out of memory on the 48 GB L40S while loading its layers, and Verda restarted the replica four times in seven minutes. A crashing replica cycles through the same states as a booting one, so a deployment waking for more than 20 minutes is now shown as failed, and the deploy dialog refuses a GPU smaller than the model's weight files.
+- The official `Qwen/Qwen3.8-27B-FP8` build is 31 GB. The vLLM recipe for Qwen3.8 uses `--tool-call-parser qwen3_xml --reasoning-parser qwen3`, not `hermes`.
+- A run waiting for a cold start was given up after five minutes by the platform's heartbeat check, because the worker waited silently. It now reports progress every minute while it waits.
+
 **Live exit still open:** an OpenCode task on a deployment, a second (cached) wake time, and scale-down, Keep warm, Stop and Delete against the live deployment.
 
 ## Implementation progress (2026-10-04)

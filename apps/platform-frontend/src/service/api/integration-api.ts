@@ -6,6 +6,7 @@ import type {
   CreateIntegrationCredentialRequest,
   CreateIntegrationRequest,
   Integration,
+  IntegrationCategory,
   IntegrationCredential,
   IntegrationFieldType,
   IntegrationSummary,
@@ -232,7 +233,7 @@ export async function setPrimaryIntegration(
 export interface AvailableIntegrationType {
   id: TicketSystem
   label: string
-  category: 'scm' | 'ticketing' | 'inbound'
+  category: IntegrationCategory
   description: string
   authTypes: AuthCredentialType[]
   configFields: Array<{

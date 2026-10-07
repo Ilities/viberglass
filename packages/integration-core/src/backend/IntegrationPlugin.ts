@@ -1,11 +1,12 @@
 import type {
   AuthCredentialType,
   AuthCredentials,
+  IntegrationCategory,
   TicketSystem,
 } from '@viberglass/types'
 import type { PMIntegration } from './types'
 
-export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound'
+export type { IntegrationCategory }
 
 export type IntegrationFieldType =
   | 'string'

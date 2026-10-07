@@ -74,7 +74,7 @@ export function NotificationSettingsPage() {
             <section className="space-y-2">
               <Subheading>Slack</Subheading>
               {!channels.slackAvailable ? (
-                <Text>Slack isn't connected to this workspace. An admin can connect it under Workspace settings → Connections.</Text>
+                <Text>Slack isn't connected to this workspace. An admin can connect it under Settings → Connections.</Text>
               ) : channels.slackLinked ? (
                 <div className="flex items-center gap-3">
                   <Text>Linked. You get DMs for review requests, mentions, new tasks you own and failed runs.</Text>

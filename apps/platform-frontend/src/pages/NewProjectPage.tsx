@@ -1,183 +1,100 @@
 import { Button } from '@/components/button'
-import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
-import { Heading } from '@/components/heading'
+import { Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
+import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
-import { Select } from '@/components/select'
-import { Switch, SwitchField } from '@/components/switch'
 import { getErrorMessage } from '@/lib/project-form'
-import {
-  getAvailableIntegrationTypes,
-  getIntegrationCredentials,
-  getIntegrations,
-  linkIntegrationToProject,
-} from '@/service/api/integration-api'
-import {
-  createProject,
-  updateProject,
-  upsertProjectScmConfig,
-  type CreateProjectRequest,
-} from '@/service/api/project-api'
-import type { IntegrationCredential, TicketSystem } from '@viberglass/types'
-import { useEffect, useMemo, useState } from 'react'
+import { IssueTrackerField } from '@/pages/project/settings/IssueTrackerField'
+import { NO_SELECTION, RepositoryFields, type ConnectionOption } from '@/pages/project/settings/RepositoryFields'
+import { SpaceAdvancedSettings } from '@/pages/project/settings/SpaceAdvancedSettings'
+import { useWorkspaceConnections } from '@/pages/project/settings/useWorkspaceConnections'
+import { linkIntegrationToProject } from '@/service/api/integration-api'
+import { createProject, updateProject, upsertProjectScmConfig } from '@/service/api/project-api'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const NONE_OPTION = '__none__'
+const WORKSPACE_CONNECTIONS = '/settings/connections'
 
 function normalizeOptionalText(value: string): string | null {
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
 }
 
-interface IntegrationOption {
-  id: string
-  name: string
-  system: TicketSystem
-  category: 'scm' | 'ticketing' | 'inbound'
+function findOption(options: ConnectionOption[], id: string): ConnectionOption | undefined {
+  return options.find((option) => option.id === id)
 }
 
 export function NewProjectPage() {
   const navigate = useNavigate()
-
-  const [autoFixEnabled, setAutoFixEnabled] = useState(false)
+  const [name, setName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Track created project so a failed integration step can be retried without re-creating
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null)
-  const [createdProjectSlug, setCreatedProjectSlug] = useState<string | null>(null)
+  // Kept so a failed repository step can be retried without creating the space twice.
+  const [created, setCreated] = useState<{ id: string; slug: string } | null>(null)
 
-  const [allIntegrations, setAllIntegrations] = useState<IntegrationOption[]>([])
-  const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(true)
-  const [integrationLoadError, setIntegrationLoadError] = useState<string | null>(null)
-
-  const [ticketingIntegrationId, setTicketingIntegrationId] = useState<string>(NONE_OPTION)
-  const [scmIntegrationId, setScmIntegrationId] = useState<string>(NONE_OPTION)
-
-  const [sourceRepository, setSourceRepository] = useState('')
-  const [baseBranch, setBaseBranch] = useState('main')
+  const [trackerId, setTrackerId] = useState<string>(NO_SELECTION)
+  const [codeHostId, setCodeHostId] = useState<string>(NO_SELECTION)
+  const [repositoryAddress, setRepositoryAddress] = useState('')
+  const [defaultBranch, setDefaultBranch] = useState('main')
   const [pullRequestRepository, setPullRequestRepository] = useState('')
   const [pullRequestBaseBranch, setPullRequestBaseBranch] = useState('')
   const [branchNameTemplate, setBranchNameTemplate] = useState('')
-  const [integrationCredentialId, setIntegrationCredentialId] = useState<string>(NONE_OPTION)
-  const [integrationCredentials, setIntegrationCredentials] = useState<IntegrationCredential[]>([])
-  const [isLoadingCredentials, setIsLoadingCredentials] = useState(false)
-  const [credentialsError, setCredentialsError] = useState<string | null>(null)
+  const [tokenId, setTokenId] = useState<string>(NO_SELECTION)
+  const [autoFixEnabled, setAutoFixEnabled] = useState(false)
+  const [autoFixTags, setAutoFixTags] = useState('')
 
-  const ticketingIntegrations = useMemo(
-    () => allIntegrations.filter((i) => i.category !== 'scm' && i.category !== 'inbound'),
-    [allIntegrations]
-  )
-  const scmIntegrations = useMemo(() => allIntegrations.filter((i) => i.category === 'scm'), [allIntegrations])
+  const connections = useWorkspaceConnections(codeHostId)
 
-  useEffect(() => {
-    let isActive = true
-    async function load() {
-      setIsLoadingIntegrations(true)
-      setIntegrationLoadError(null)
-      try {
-        const [availableTypes, integrations] = await Promise.all([getAvailableIntegrationTypes(), getIntegrations()])
-        if (!isActive) return
-        const categoryBySystem = new Map(availableTypes.map((t) => [t.id, t.category]))
-        setAllIntegrations(
-          integrations.map((i) => ({
-            id: i.id,
-            name: i.name,
-            system: i.system,
-            category: categoryBySystem.get(i.system) ?? 'ticketing',
-          }))
-        )
-      } catch (err) {
-        if (isActive) setIntegrationLoadError(err instanceof Error ? err.message : 'Failed to load integrations')
-      } finally {
-        if (isActive) setIsLoadingIntegrations(false)
-      }
-    }
-    void load()
-    return () => {
-      isActive = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (scmIntegrationId === NONE_OPTION) {
-      setIntegrationCredentials([])
-      setIntegrationCredentialId(NONE_OPTION)
-      setCredentialsError(null)
-      return
-    }
-    let isActive = true
-    async function load() {
-      setIsLoadingCredentials(true)
-      setCredentialsError(null)
-      try {
-        const creds = await getIntegrationCredentials(scmIntegrationId)
-        if (isActive) setIntegrationCredentials(creds)
-      } catch (err) {
-        if (isActive) {
-          setIntegrationCredentials([])
-          setCredentialsError(err instanceof Error ? err.message : 'Failed to load credentials')
-        }
-      } finally {
-        if (isActive) setIsLoadingCredentials(false)
-      }
-    }
-    void load()
-    return () => {
-      isActive = false
-    }
-  }, [scmIntegrationId])
+  function changeCodeHost(id: string) {
+    setCodeHostId(id)
+    setTokenId(NO_SELECTION)
+  }
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSubmitting(true)
     setError(null)
-    const formData = new FormData(event.currentTarget)
     try {
-      // Create the project only if not already created (allows retry after integration failure)
-      let projectId = createdProjectId
-      let projectSlug = createdProjectSlug
-      if (!projectId || !projectSlug) {
-        const projectData: CreateProjectRequest = {
-          name: formData.get('name') as string,
+      let space = created
+      if (!space) {
+        const project = await createProject({
+          name: name.trim(),
           autoFixEnabled,
-          autoFixTags: ((formData.get('auto_fix_tags') as string) || '')
+          autoFixTags: autoFixTags
             .split(',')
             .map((tag) => tag.trim())
             .filter(Boolean),
-        }
-        const project = await createProject(projectData)
-        projectId = project.id
-        projectSlug = project.slug
-        setCreatedProjectId(projectId)
-        setCreatedProjectSlug(projectSlug)
+        })
+        space = { id: project.id, slug: project.slug }
+        setCreated(space)
       }
 
-      const selectedTicketing = ticketingIntegrations.find((i) => i.id === ticketingIntegrationId)
-      if (selectedTicketing) {
-        await linkIntegrationToProject(projectId, selectedTicketing.id, true)
-        await updateProject(projectId, { primaryTicketingIntegrationId: selectedTicketing.id })
+      const tracker = findOption(connections.trackers, trackerId)
+      if (tracker) {
+        await linkIntegrationToProject(space.id, tracker.id, true)
+        await updateProject(space.id, { primaryTicketingIntegrationId: tracker.id })
       }
 
-      if (scmIntegrationId !== NONE_OPTION) {
-        const selectedScm = scmIntegrations.find((i) => i.id === scmIntegrationId)
-        if (!selectedScm) throw new Error('Select a valid SCM integration')
-        if (!sourceRepository.trim())
-          throw new Error('Source repository is required when an SCM integration is selected')
-        await linkIntegrationToProject(projectId, selectedScm.id, true)
-        await upsertProjectScmConfig(projectId, {
-          integrationId: selectedScm.id,
-          sourceRepository: sourceRepository.trim(),
-          baseBranch: normalizeOptionalText(baseBranch) || 'main',
+      if (codeHostId !== NO_SELECTION) {
+        const codeHost = findOption(connections.codeHosts, codeHostId)
+        if (!codeHost) throw new Error('Choose a code host, or choose None.')
+        if (!repositoryAddress.trim())
+          throw new Error('Enter the repository address, e.g. https://github.com/acme/storefront, or choose None.')
+        await linkIntegrationToProject(space.id, codeHost.id, true)
+        await upsertProjectScmConfig(space.id, {
+          integrationId: codeHost.id,
+          sourceRepository: repositoryAddress.trim(),
+          baseBranch: normalizeOptionalText(defaultBranch) || 'main',
           pullRequestRepository: normalizeOptionalText(pullRequestRepository),
           pullRequestBaseBranch: normalizeOptionalText(pullRequestBaseBranch),
           branchNameTemplate: normalizeOptionalText(branchNameTemplate),
-          integrationCredentialId: integrationCredentialId !== NONE_OPTION ? integrationCredentialId : null,
+          integrationCredentialId: tokenId !== NO_SELECTION ? tokenId : null,
         })
       }
 
-      navigate(`/spaces/${projectSlug}`)
+      navigate(`/spaces/${space.slug}`)
     } catch (err) {
       setError(getErrorMessage(err, 'An unexpected error occurred'))
     } finally {
@@ -187,18 +104,18 @@ export function NewProjectPage() {
 
   return (
     <>
-      <PageMeta title="New Space" />
+      <PageMeta title="New space" />
       <div className="mx-auto max-w-4xl">
-        <Heading>Create New Space</Heading>
+        <Heading>Create space</Heading>
 
-        {error && (
+        {(error || connections.loadError) && (
           <div className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {error}
-            {createdProjectId && (
+            {error ?? connections.loadError}
+            {created && (
               <p className="mt-1">
-                The project was created. You can also{' '}
-                <Link href={`/spaces/${createdProjectSlug}/settings/general`} className="font-medium underline">
-                  configure integrations in project settings
+                The space was created. You can also{' '}
+                <Link href={`/spaces/${created.slug}/settings/repository`} className="font-medium underline">
+                  finish setting up its repository
                 </Link>
                 .
               </p>
@@ -206,231 +123,73 @@ export function NewProjectPage() {
           </div>
         )}
 
-        <form className="mt-8" onSubmit={handleCreate}>
-          <Fieldset>
+        <form className="mt-8" onSubmit={(event) => void handleCreate(event)}>
+          <Fieldset disabled={isSubmitting}>
             <FieldGroup className="space-y-8">
               <Field>
-                <Label>Space Name</Label>
-                <Description>What should we call this space?</Description>
-                <Input name="name" placeholder="e.g. My Awesome App" required disabled={!!createdProjectId} />
+                <Label>Name</Label>
+                <Input
+                  name="name"
+                  placeholder="e.g. Web shop"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                  disabled={created !== null}
+                />
               </Field>
 
-              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
-                <div className="mb-4">
-                  <Label className="text-base">Ticketing Integration</Label>
-                  <Description>Select which integration to use for bug tracking.</Description>
+              <section>
+                <Subheading>Repository</Subheading>
+                <div className="mt-6 space-y-8">
+                  <RepositoryFields
+                    codeHosts={connections.codeHosts}
+                    codeHostId={codeHostId}
+                    onCodeHostChange={changeCodeHost}
+                    isLoadingCodeHosts={connections.isLoading}
+                    connectionsHref={WORKSPACE_CONNECTIONS}
+                    repositoryAddress={repositoryAddress}
+                    onRepositoryAddressChange={setRepositoryAddress}
+                    defaultBranch={defaultBranch}
+                    onDefaultBranchChange={setDefaultBranch}
+                    tokens={connections.tokens}
+                    tokenId={tokenId}
+                    onTokenChange={setTokenId}
+                    isLoadingTokens={connections.isLoadingTokens}
+                    tokensError={connections.tokensError}
+                  />
+
+                  <IssueTrackerField
+                    trackers={connections.trackers}
+                    value={trackerId}
+                    onChange={setTrackerId}
+                    isLoading={connections.isLoading}
+                    connectionsHref={WORKSPACE_CONNECTIONS}
+                  />
+
+                  <SpaceAdvancedSettings
+                    hasRepository={codeHostId !== NO_SELECTION}
+                    defaultBranch={defaultBranch}
+                    pullRequestRepository={pullRequestRepository}
+                    onPullRequestRepositoryChange={setPullRequestRepository}
+                    pullRequestBaseBranch={pullRequestBaseBranch}
+                    onPullRequestBaseBranchChange={setPullRequestBaseBranch}
+                    branchNameTemplate={branchNameTemplate}
+                    onBranchNameTemplateChange={setBranchNameTemplate}
+                    autoFixEnabled={autoFixEnabled}
+                    onAutoFixEnabledChange={setAutoFixEnabled}
+                    autoFixTags={autoFixTags}
+                    onAutoFixTagsChange={setAutoFixTags}
+                    taskKeyExample="WEB-12"
+                  />
                 </div>
-
-                {integrationLoadError ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
-                    {integrationLoadError}
-                  </div>
-                ) : isLoadingIntegrations ? (
-                  <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-                    Loading integrations...
-                  </div>
-                ) : (
-                  <Field>
-                    <Select
-                      value={ticketingIntegrationId}
-                      onChange={(v) => {
-                        if (v !== '') setTicketingIntegrationId(v)
-                      }}
-                      disabled={ticketingIntegrations.length === 0}
-                    >
-                      <option value={NONE_OPTION}>
-                        {ticketingIntegrations.length === 0
-                          ? 'No integrations configured — use Viberglass as ticketing system'
-                          : 'Use Viberglass as ticketing system (no external integration)'}
-                      </option>
-                      {ticketingIntegrations.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name} ({i.system})
-                        </option>
-                      ))}
-                    </Select>
-                    {ticketingIntegrations.length === 0 && (
-                      <Description className="mt-2">
-                        You can use Viberglass as your sole ticketing system, or{' '}
-                        <Link href="/settings/connections" className="text-brand-burnt-orange hover:underline">
-                          create an integration
-                        </Link>{' '}
-                        first to sync tickets externally.
-                      </Description>
-                    )}
-                  </Field>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
-                <div className="mb-4">
-                  <Label className="text-base">SCM Execution</Label>
-                  <Description>Configure the repository and branch strategy used by agent runners.</Description>
-                </div>
-
-                <FieldGroup className="space-y-4">
-                  <Field>
-                    <Label>SCM Integration</Label>
-                    <Select
-                      value={scmIntegrationId}
-                      onChange={(v) => {
-                        if (v !== '') setScmIntegrationId(v)
-                      }}
-                      disabled={isLoadingIntegrations || scmIntegrations.length === 0}
-                    >
-                      <option value={NONE_OPTION}>{scmIntegrations.length === 0 ? 'No code connection yet' : 'Select a connection…'}</option>
-                      {scmIntegrations.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name} ({i.system})
-                        </option>
-                      ))}
-                    </Select>
-                    {!isLoadingIntegrations && scmIntegrations.length === 0 && (
-                      <Description className="mt-2">
-                        <Link href="/settings/connections" className="text-brand-burnt-orange hover:underline">
-                          Create a GitHub, GitLab, or Bitbucket integration
-                        </Link>{' '}
-                        to enable SCM configuration.
-                      </Description>
-                    )}
-                  </Field>
-
-                  <Field>
-                    <Label>Source Repository</Label>
-                    <Description>Repository used by agent runners when executing runs.</Description>
-                    <Input
-                      placeholder="https://github.com/org/repo"
-                      value={sourceRepository}
-                      onChange={(e) => setSourceRepository(e.target.value)}
-                      disabled={scmIntegrationId === NONE_OPTION}
-                    />
-                  </Field>
-
-                  <Field>
-                    <Label>Base Branch</Label>
-                    <Description>Default branch used as merge target and checkout base.</Description>
-                    <Input
-                      placeholder="main"
-                      value={baseBranch}
-                      onChange={(e) => setBaseBranch(e.target.value)}
-                      disabled={scmIntegrationId === NONE_OPTION}
-                    />
-                  </Field>
-
-                  <Field>
-                    <Label>Pull Request Repository (Optional)</Label>
-                    <Description>Override PR destination repository. Leave empty to use source repository.</Description>
-                    <Input
-                      placeholder="https://github.com/org/repo"
-                      value={pullRequestRepository}
-                      onChange={(e) => setPullRequestRepository(e.target.value)}
-                      disabled={scmIntegrationId === NONE_OPTION}
-                    />
-                  </Field>
-
-                  <Field>
-                    <Label>Pull Request Base Branch (Optional)</Label>
-                    <Description>Override PR base branch. Leave empty to use base branch.</Description>
-                    <Input
-                      placeholder="main"
-                      value={pullRequestBaseBranch}
-                      onChange={(e) => setPullRequestBaseBranch(e.target.value)}
-                      disabled={scmIntegrationId === NONE_OPTION}
-                    />
-                  </Field>
-
-                  <Field>
-                    <Label>Branch Name Template (Optional)</Label>
-                    <Description>
-                      Template for fix branch names. Placeholders: <code>{'{{ ticket }}'}</code>,{' '}
-                      <code>{'{{ original_ticket }}'}</code>, <code>{'{{ clanker }}'}</code>.
-                    </Description>
-                    <Input
-                      placeholder="viberator/{{ ticket }}"
-                      value={branchNameTemplate}
-                      onChange={(e) => setBranchNameTemplate(e.target.value)}
-                      disabled={scmIntegrationId === NONE_OPTION}
-                    />
-                  </Field>
-
-                  <Field>
-                    <Label>Integration Credential (Recommended)</Label>
-                    <Description>
-                      Select a credential for SCM authentication. Managed in{' '}
-                      <Link
-                        href={
-                          scmIntegrationId !== NONE_OPTION
-                            ? `/settings/connections/${scmIntegrationId}`
-                            : '/settings/connections'
-                        }
-                        className="text-brand-burnt-orange hover:underline"
-                      >
-                        integration settings
-                      </Link>
-                      .
-                    </Description>
-                    <Select
-                      value={integrationCredentialId}
-                      onChange={(v) => {
-                        if (v !== '') setIntegrationCredentialId(v)
-                      }}
-                      disabled={scmIntegrationId === NONE_OPTION || isLoadingCredentials}
-                    >
-                      <option value={NONE_OPTION}>
-                        {isLoadingCredentials ? 'Loading credentials...' : 'Select a credential'}
-                      </option>
-                      {integrationCredentials.map((cred) => (
-                        <option key={cred.id} value={cred.id}>
-                          {cred.name}
-                          {cred.isDefault ? ' (default)' : ''}
-                        </option>
-                      ))}
-                    </Select>
-                    {credentialsError && (
-                      <Description className="mt-2 text-red-600 dark:text-red-400">{credentialsError}</Description>
-                    )}
-                    {!isLoadingCredentials &&
-                      integrationCredentials.length === 0 &&
-                      scmIntegrationId !== NONE_OPTION &&
-                      !credentialsError && (
-                        <Description className="mt-2">
-                          No credentials configured. Create one in{' '}
-                          <Link
-                            href={`/settings/connections/${scmIntegrationId}`}
-                            className="text-brand-burnt-orange hover:underline"
-                          >
-                            integration settings
-                          </Link>
-                          .
-                        </Description>
-                      )}
-                  </Field>
-                </FieldGroup>
-              </div>
-
-              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
-                <SwitchField>
-                  <Label className="text-base">Enable Auto-fix</Label>
-                  <Description>Allow AI to automatically suggest and create PRs for bug reports.</Description>
-                  <Switch name="auto_fix_enabled" checked={autoFixEnabled} onChange={setAutoFixEnabled} />
-                </SwitchField>
-                {autoFixEnabled && (
-                  <Field className="mt-4">
-                    <Label>Auto-fix Tags</Label>
-                    <Description>
-                      Comma-separated tags to trigger automatic fixes (e.g. &quot;bug, high-priority&quot;).
-                    </Description>
-                    <Input name="auto_fix_tags" placeholder="bug, fix-requested" />
-                  </Field>
-                )}
-              </div>
+              </section>
 
               <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
                 <Button outline href="/">
                   Cancel
                 </Button>
                 <Button type="submit" color="brand" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : createdProjectId ? 'Finish Setup' : 'Create Space'}
+                  {isSubmitting ? 'Creating…' : created ? 'Finish setup' : 'Create space'}
                 </Button>
               </div>
             </FieldGroup>

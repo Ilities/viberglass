@@ -56,5 +56,9 @@ export const deleteModelDeployment = (id: string) => act(`/model-deployments/${i
 
 export const listModelRecipes = () => request<ModelRecipeSummary[]>('/model-deployments/recipes')
 export const getModelRecipe = (model: string) => request<ModelRecipe>(`/model-deployments/recipes/${model}`)
+/** Gigabytes of weight files on Hugging Face; null when it can't be told. */
+export const getModelWeightsGb = (model: string) =>
+  request<{ weightsGb: number | null }>(`/model-deployments/model-size/${model}`).then((size) => size.weightsGb)
+
 export const getModelRecipeCommand = (model: string, hardware: string) =>
   request<ModelRecipeCommand>(`/model-deployments/recipes/${model}/hardware/${encodeURIComponent(hardware)}`)

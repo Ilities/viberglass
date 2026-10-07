@@ -101,7 +101,7 @@ describe('HomePage', () => {
     const mention = within(needsYou).getByRole('listitem', { name: 'Task 1' })
     expect(within(mention).getByText('Tomi mentioned you')).toBeInTheDocument()
     expect(within(mention).getByText('“Have a look”')).toBeInTheDocument()
-    expect(within(mention).getByRole('link', { name: 'Open thread' })).toHaveAttribute(
+    expect(within(mention).getByRole('link', { name: 'Task 1' })).toHaveAttribute(
       'href',
       '/spaces/web/tasks/WEB-1'
     )

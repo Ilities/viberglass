@@ -18,7 +18,7 @@ test("the owner takes the work over, pushes a commit to the task's branch, hands
   const card = thread.getByRole("region", { name: "Taken over" });
   await expect(card).toContainText("E2E Admin is working on it locally");
   // No build has pushed the branch yet, so it starts from the base branch.
-  const branch = `viberator/${task.id}`;
+  const branch = `viberglass/${task.id}`;
   await expect(card.getByLabel("Checkout commands")).toContainText(`git switch -c ${branch} origin/main`);
   await expect.poll(() => needsYou(adminApi)).toContain(`${task.title}: Taken over locally`);
 

@@ -24,15 +24,14 @@ function renderMenu(role: WorkspaceRole) {
 }
 
 describe('AccountMenu', () => {
-  it("gives admins the workspace's settings next to their own", () => {
+  it("keeps admins to their own settings; the workspace's are in the sidebar", () => {
     renderMenu('admin')
-    expect(screen.getByRole('menuitem', { name: 'Workspace settings' })).toHaveAttribute('href', '/settings/members')
+    expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Notifications' })).toBeInTheDocument()
   })
 
-  it('keeps everyone else to their own settings', () => {
+  it('gives members their own settings', () => {
     renderMenu('member')
-    expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Notifications' })).toHaveAttribute('href', '/settings/notifications')
   })
 })

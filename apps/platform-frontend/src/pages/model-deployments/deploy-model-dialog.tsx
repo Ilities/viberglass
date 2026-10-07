@@ -8,13 +8,14 @@ import { Radio, RadioField, RadioGroup } from '@/components/radio'
 import { Select } from '@/components/select'
 import { Text } from '@/components/text'
 import { Textarea } from '@/components/textarea'
-import { createModelDeployment, getModelRecipeCommand } from '@/service/api/model-hosting-api'
+import { createModelDeployment, getModelRecipeCommand, getModelWeightsGb } from '@/service/api/model-hosting-api'
 import { CloudAccountDialog } from '@/pages/secrets/cloud-account-dialog'
 import type { ModelHostFlavour } from '@viberglass/types'
-import { flavourLabel, GENERIC_SERVING_ARGS, parseServingArgs, recipeHardwareFor, withGpuCount } from './deploymentDisplay'
+import { flavourLabel, formatServingArgs, GENERIC_SERVING_ARGS, parseServingArgs, recipeHardwareFor, withGpuCount } from './deploymentDisplay'
 import { useDeployOptions, useModelRecipe } from './useDeployOptions'
 
 const NONE = 'none'
+const HUGGING_FACE_ID = /^[\w.-]+\/[\w.-]+$/
 
 function flavourKey(flavour: ModelHostFlavour): string {
   return `${flavour.id}:${flavour.gpuCount}`
@@ -38,6 +39,7 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
   const [addingAccount, setAddingAccount] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingArgs, setLoadingArgs] = useState(false)
+  const [weightsGb, setWeightsGb] = useState<number | null>(null)
 
   const { accounts, setAccounts, recipes, flavours, flavourError } = useDeployOptions(open, accountId)
   const recipeModel = open && source === 'recipe' && recipes.some((recipe) => recipe.model === model) ? model : null
@@ -61,6 +63,23 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
     if (!nameEdited) setName(model.split('/').pop() ?? '')
   }, [model, nameEdited])
 
+  // Recipes already only offer GPUs big enough; any other model is checked against its weight files.
+  useEffect(() => {
+    setWeightsGb(null)
+    const id = model.trim()
+    if (!open || source !== 'custom' || !HUGGING_FACE_ID.test(id)) return
+    let current = true
+    const timer = setTimeout(() => {
+      getModelWeightsGb(id)
+        .then((size) => current && setWeightsGb(size))
+        .catch(() => undefined)
+    }, 500)
+    return () => {
+      current = false
+      clearTimeout(timer)
+    }
+  }, [model, open, source])
+
   const choices = useMemo(() => {
     if (!flavours) return []
     if (source === 'custom') return flavours
@@ -72,11 +91,12 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
     )
   }, [flavours, recipe, source])
   const flavour = choices.find((choice) => flavourKey(choice) === selectedFlavour)
+  const tooBig = Boolean(flavour && weightsGb !== null && weightsGb > flavour.vramGb)
 
   useEffect(() => {
     if (!flavour) return
     if (source === 'custom') {
-      setArgsText((previous) => previous || GENERIC_SERVING_ARGS.join('\n'))
+      setArgsText((previous) => previous || formatServingArgs(GENERIC_SERVING_ARGS))
       return
     }
     const hardware = recipe ? recipeHardwareFor(flavour, recipe.hardware) : null
@@ -84,7 +104,7 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
     let current = true
     setLoadingArgs(true)
     getModelRecipeCommand(recipeModel, hardware)
-      .then((command) => current && setArgsText(withGpuCount(command.servingArgs, flavour.gpuCount).join('\n')))
+      .then((command) => current && setArgsText(formatServingArgs(withGpuCount(command.servingArgs, flavour.gpuCount))))
       .catch((error) => current && toast.error("Couldn't read the recipe", { description: error instanceof Error ? error.message : undefined }))
       .finally(() => current && setLoadingArgs(false))
     return () => {
@@ -207,11 +227,17 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
                       </option>
                     ))}
                   </Select>
+                  {tooBig && flavour && (
+                    <Description className="text-red-600 dark:text-red-400">
+                      The model&apos;s weights are {weightsGb} GB and this GPU has {flavour.vramGb} GB, so it can&apos;t load.
+                      Pick a bigger GPU, or a smaller build of the model such as an FP8 one.
+                    </Description>
+                  )}
                 </Field>
 
                 <Field>
                   <Label>Serving arguments</Label>
-                  <Description>Passed to vllm serve after the model, one per line.</Description>
+                  <Description>Passed to vllm serve after the model, one option per line.</Description>
                   <Textarea
                     className="font-mono"
                     rows={5}
@@ -223,7 +249,7 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
 
                 <Field>
                   <Label>Name</Label>
-                  <Description>Runners pick the model by this name.</Description>
+                  <Description>Agents pick the model by this name.</Description>
                   <Input
                     value={name}
                     onChange={(event) => {
@@ -241,7 +267,7 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
             <Button outline onClick={onClose} disabled={saving}>
               Cancel
             </Button>
-            <Button color="brand" type="submit" disabled={saving || !flavour || loadingArgs || !accountId}>
+            <Button color="brand" type="submit" disabled={saving || !flavour || loadingArgs || !accountId || tooBig}>
               {saving ? 'Deploying…' : 'Deploy'}
             </Button>
           </DialogActions>

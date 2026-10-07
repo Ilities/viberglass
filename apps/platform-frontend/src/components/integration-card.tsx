@@ -47,21 +47,20 @@ export function IntegrationCard({
   // Card links to first instance if configured, or to create new page
   const cardHref = firstInstanceId ? `${basePath}/${firstInstanceId}` : `${basePath}/new/${integration.system}`
 
-  // Always use the integration type label as the main title (e.g., "GitHub", "Shortcut")
-  // This avoids showing date-based names as the primary identifier
   const cardTitle = integration.label
-
-  const cardAction =
-    integration.configStatus === 'configured'
-      ? hasMultipleInstances
-        ? 'View All'
-        : 'Manage'
-      : integration.configStatus === 'stub'
-        ? 'View'
-        : 'Configure'
+  const instanceName = singleInstance && singleInstance.name !== integration.label ? singleInstance.name : null
 
   const configurationStatus = isConfigured ?? integration.configStatus === 'configured'
   const isStub = integration.configStatus === 'stub'
+
+  const cardAction =
+    configurationStatus
+      ? hasMultipleInstances
+        ? 'View all'
+        : 'Manage'
+      : integration.configStatus === 'stub'
+        ? 'View'
+        : 'Set up'
 
   return (
     <div
@@ -99,8 +98,7 @@ export function IntegrationCard({
           </Badge>
         </div>
 
-        {/* Show single instance name as subtitle (even if it's date-based, it's now secondary) */}
-        {singleInstance && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{singleInstance.name}</p>}
+        {instanceName && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{instanceName}</p>}
 
         <p className="mt-2 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">{integration.description}</p>
       </Link>
@@ -125,7 +123,7 @@ export function IntegrationCard({
             href={`${basePath}/new/${integration.system}`}
             className="mt-2 flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium text-brand-burnt-orange transition-colors hover:bg-brand-burnt-orange/10"
           >
-            <span>+ Add new</span>
+            <span>+ Add another</span>
           </Link>
         </div>
       )}

@@ -14,15 +14,14 @@ import { NextAgentLine } from './next-agent-line'
 import { OpenQuestions, QuestionEntry } from './question-entry'
 import { PinnedSummary, SummaryEntry } from './summary-entry'
 import { TaskComposer, type Mentionable } from './task-composer'
-import { TaskSuggestedActions } from './task-suggested-actions'
-import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
-import { EventEntry, MessageEntry, VersionEntry } from './thread-entries'
+import { RetryTurnButton, TaskSuggestedActions } from './task-suggested-actions'
+import { retrySuggestion, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
+import { EventEntry, FoldedAttempts, MessageEntry, VersionEntry } from './thread-entries'
+import { attemptsLabel, foldAttempts } from './thread-folds'
 import { summaryFacts } from './thread-summaries'
 
 interface TaskThreadProps {
   taskId: string
-  /** The task's key (WEB-42), for the command that checks its branch out. */
-  taskKey?: string
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
   refreshKey: string
   /** Opens the plan at a version; null opens its current version, where people comment and edit. */
@@ -59,7 +58,6 @@ interface TaskThreadProps {
 /** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
 export function TaskThread({
   taskId,
-  taskKey = '',
   refreshKey,
   onOpenArtifact,
   onOpenComments = () => undefined,
@@ -118,6 +116,7 @@ export function TaskThread({
   const agentWorking =
     suggestionInput.agentWorking || latestTurn?.status === 'queued' || latestTurn?.status === 'running'
   const summaries = summaryFacts(entries)
+  const retry = retrySuggestion({ ...suggestionInput, agentWorking, latestTurn })
   const suggestions = suggestTaskActions({
     ...suggestionInput,
     agentWorking,
@@ -134,6 +133,38 @@ export function TaskThread({
     load()
     onAsked()
   }
+
+  const renderEntry = (entry: TaskTimelineEntry) =>
+    entry.kind === 'message' ? (
+      <MessageEntry key={entry.id} entry={entry} />
+    ) : entry.kind === 'agent_turn' ? (
+      <AgentTurnEntry
+        key={entry.id}
+        entry={entry}
+        run={runs.find((run) => run.jobId === entry.jobId)}
+        summaryVersion={summaries.versionByTurn.get(entry.id)}
+        retry={retry && entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />}
+      />
+    ) : entry.kind === 'question' ? (
+      <QuestionEntry key={entry.id} entry={entry} answerBelow={canPost} />
+    ) : entry.kind === 'summary' ? (
+      <SummaryEntry key={entry.id} entry={entry} />
+    ) : entry.kind === 'artifact_version' ? (
+      <VersionEntry
+        key={entry.id}
+        entry={entry}
+        onOpen={() => onOpenArtifact(entry.version === latestVersion.get(entry.artifact) ? null : entry.version)}
+      />
+    ) : entry.kind === 'event' && isFullComment(entry) ? (
+      <CommentEntry
+        key={entry.id}
+        entry={entry}
+        status={statuses.get(String(entry.activity.payload.commentId)) ?? 'open'}
+        onOpenComments={onOpenComments}
+      />
+    ) : (
+      <EventEntry key={entry.id} entry={entry} nameOf={nameOf} />
+    )
 
   return (
     <section
@@ -160,32 +191,13 @@ export function TaskThread({
         </p>
       ) : (
         <ol className="space-y-6">
-          {shown.map((entry) =>
-            entry.kind === 'message' ? (
-              <MessageEntry key={entry.id} entry={entry} />
-            ) : entry.kind === 'agent_turn' ? (
-              <AgentTurnEntry key={entry.id} entry={entry} run={runs.find((run) => run.jobId === entry.jobId)} summaryVersion={summaries.versionByTurn.get(entry.id)} />
-            ) : entry.kind === 'question' ? (
-              <QuestionEntry key={entry.id} entry={entry} answerBelow={canPost} />
-            ) : entry.kind === 'summary' ? (
-              <SummaryEntry key={entry.id} entry={entry} />
-            ) : entry.kind === 'artifact_version' ? (
-              <VersionEntry
-                key={entry.id}
-                entry={entry}
-                onOpen={() =>
-                  onOpenArtifact(entry.version === latestVersion.get(entry.artifact) ? null : entry.version)
-                }
-              />
-            ) : entry.kind === 'event' && isFullComment(entry) ? (
-              <CommentEntry
-                key={entry.id}
-                entry={entry}
-                status={statuses.get(String(entry.activity.payload.commentId)) ?? 'open'}
-                onOpenComments={onOpenComments}
-              />
+          {foldAttempts(shown, retry && latestTurn ? latestTurn.id : null).map((row) =>
+            row.kind === 'entry' ? (
+              renderEntry(row.entry)
             ) : (
-              <EventEntry key={entry.id} entry={entry} nameOf={nameOf} />
+              <FoldedAttempts key={row.id} label={attemptsLabel(row.turns)} latestAt={row.turns[row.turns.length - 1].at}>
+                {row.entries.map(renderEntry)}
+              </FoldedAttempts>
             )
           )}
         </ol>
@@ -194,7 +206,6 @@ export function TaskThread({
       {notice}
       <AgentSteering
         taskId={taskId}
-        taskKey={taskKey}
         refreshKey={refreshKey}
         agentWorking={agentWorking}
         paused={paused}
@@ -209,10 +220,7 @@ export function TaskThread({
       )}
       {canPost && mentionsYou && (
         <div className="flex items-center justify-between gap-4 text-sm text-[var(--gray-11)]">
-          <p>
-            You were mentioned here. Reply below, or acknowledge it if there&apos;s nothing to say; the task stays as it
-            is.
-          </p>
+          <p>You were mentioned here.</p>
           <MarkMentionDone taskId={taskId} onDone={onAsked} />
         </div>
       )}
@@ -220,7 +228,8 @@ export function TaskThread({
         <TaskComposer
           taskId={taskId}
           agents={canAsk ? agents : []}
-          canInterrupt={canSteer && agentWorking}
+          agentWorking={agentWorking}
+          canInterrupt={canSteer}
           onPosted={posted}
         />
       )}
