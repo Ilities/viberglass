@@ -3,11 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-10-01
 - **Decider:** Jussi Hallila
-- **Amends:** [ADR 0003](./0003-product-leader-as-primary-persona.md) (who the users are), [ADR 0006](./0006-agent-questions-and-session-continuity.md) (sessions), [ADR 0007](./0007-iterating-on-a-task.md) (iterating), and decision D4 / the approval policy (`docs/ux/phase-2-3-handover.md` §2.7)
+- **Amends:** [ADR 0003](./0003-product-leader-as-primary-persona.md) (who the users are), [ADR 0006](./0006-agent-questions-and-session-continuity.md) (sessions), [ADR 0007](./0007-iterating-on-a-task.md) (iterating), and the approval policy
 - **Amended by:** [ADR 0009](./0009-the-plan-includes-the-research.md) (the plan includes the research), 2026-10-06; [ADR 0010](./0010-building-the-plan-in-parts.md) (done is every part merged), 2026-10-06
 
 ## Context
-The plan so far treats a task as a pipeline with gates. One person asks, the agent writes a document, an eligible person approves, and the next step runs. People talk about the task on the side: in a Discussion the agent never reads, in comments it reads only when someone asks for changes, and in live sessions on a separate page. The returning-visit walkthrough (`docs/ux/appendix-returning-visit.md`) found that nobody could tell whose move it was, or which of those channels reached the agent.
+The plan so far treats a task as a pipeline with gates. One person asks, the agent writes a document, an eligible person approves, and the next step runs. People talk about the task on the side: in a Discussion the agent never reads, in comments it reads only when someone asks for changes, and in live sessions on a separate page. A walkthrough of returning visits found that nobody could tell whose move it was, or which of those channels reached the agent.
 
 That isn't how Viberglass is used. Its real users are:
 - **Software teams** (product owners, engineers, QA) who iterate on one task **together** to plan and implement it.

@@ -23,8 +23,14 @@ interface IntegrationCredentialSectionProps {
   integrationSystem: string
 }
 
-// Credential type is now automatically determined by the integration
-// For SCM integrations (GitHub, GitLab, Bitbucket), credentials are always tokens
+/** Connections whose credential is a token, and what Viberglass uses it for. */
+const TOKEN_USE: Record<string, string> = {
+  github: "Spaces use it to clone, push and open pull requests, and to comment on linked issues.",
+  gitlab: 'Spaces use it to clone, push and open merge requests.',
+  bitbucket: 'Spaces use it to clone, push and open pull requests.',
+  jira: "Viberglass uses it to comment on the Jira issues tasks are linked to. Use an API token of the account set as the bot.",
+  shortcut: "Viberglass uses it to comment on the Shortcut stories tasks are linked to. Use an API token of the member set as the bot.",
+}
 
 const LOCATION_OPTIONS: Array<{ value: SecretLocation; label: string; helper: string }> = [
   {
@@ -79,9 +85,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const [editIsDefault, setEditIsDefault] = useState(false)
   const [editSecretValue, setEditSecretValue] = useState('')
 
-  const isScmIntegration = useMemo(() => {
-    return ['github', 'gitlab', 'bitbucket'].includes(integrationSystem)
-  }, [integrationSystem])
+  const tokenUse = TOKEN_USE[integrationSystem]
 
   // Get secrets not already linked to this integration
   const availableSecrets = useMemo(() => {
@@ -291,7 +295,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     return secret?.name || 'Unknown'
   }
 
-  if (!isScmIntegration) {
+  if (!tokenUse) {
     return null
   }
 
@@ -301,7 +305,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
         <div>
           <Subheading>Credentials</Subheading>
           <Text className="text-sm text-[var(--gray-9)]">
-            Manage credentials used by projects linked to this {integrationSystem} integration.
+            {tokenUse} The default credential is used unless a space picks another.
           </Text>
         </div>
         {!isCreating && (
@@ -323,7 +327,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
               </div>
               <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">No credentials configured</h3>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Add a credential so linked spaces can reach their repositories.
+                Add a token for this connection to use.
               </p>
               <Button color="brand" className="mt-4" onClick={handleStartCreate}>
                 Add Credential

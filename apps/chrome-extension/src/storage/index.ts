@@ -4,9 +4,6 @@ const KEYS = {
   AUTH: "viberglass_auth",
   PLATFORM_URL: "viberglass_platform_url",
   APP_URL: "viberglass_app_url",
-  DEFAULT_PROJECT: "viberglass_default_project",
-  DEFAULT_CLANKER: "viberglass_default_clanker",
-  DEFAULT_PHASE: "viberglass_default_phase",
   SCREENSHOT: "viberglass_screenshot",
   RECORDING: "viberglass_recording",
   FORM_STATE: "viberglass_form_state",
@@ -47,33 +44,6 @@ export async function setAppUrl(url: string): Promise<void> {
   await getStorage().set({ [KEYS.APP_URL]: url });
 }
 
-export async function getDefaultProject(): Promise<string | null> {
-  const result = await getStorage().get(KEYS.DEFAULT_PROJECT);
-  return result[KEYS.DEFAULT_PROJECT] ?? null;
-}
-
-export async function setDefaultProject(projectId: string): Promise<void> {
-  await getStorage().set({ [KEYS.DEFAULT_PROJECT]: projectId });
-}
-
-export async function getDefaultClanker(): Promise<string | null> {
-  const result = await getStorage().get(KEYS.DEFAULT_CLANKER);
-  return result[KEYS.DEFAULT_CLANKER] ?? null;
-}
-
-export async function setDefaultClanker(clankerId: string): Promise<void> {
-  await getStorage().set({ [KEYS.DEFAULT_CLANKER]: clankerId });
-}
-
-export async function getDefaultPhase(): Promise<string | null> {
-  const result = await getStorage().get(KEYS.DEFAULT_PHASE);
-  return result[KEYS.DEFAULT_PHASE] ?? null;
-}
-
-export async function setDefaultPhase(phase: string): Promise<void> {
-  await getStorage().set({ [KEYS.DEFAULT_PHASE]: phase });
-}
-
 export async function getScreenshot(): Promise<string | null> {
   const result = await getStorage().get(KEYS.SCREENSHOT);
   return result[KEYS.SCREENSHOT] ?? null;
@@ -102,12 +72,11 @@ export async function clearAllCapture(): Promise<void> {
 
 export interface FormState {
   projectId: string;
-  clankerId: string;
-  phase: string;
+  agentId: string;
   title: string;
   description: string;
   severity: string;
-  autoRun: boolean;
+  writePlan: boolean;
 }
 
 export async function getFormState(): Promise<FormState | null> {

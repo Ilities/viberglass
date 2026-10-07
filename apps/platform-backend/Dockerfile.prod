@@ -1,6 +1,6 @@
 # Production Dockerfile for Viberator Backend
 # Multi-stage build for minimal image size and optimal performance
-# Build context: Monorepo root (/home/jussi/Development/viberator)
+# Build context: monorepo root
 #
 # Stage 1 (pkg-files): extract all package manifests without listing them manually
 # Stage 2 (builder):   compile; tsup inlines @viberglass/* into server.js
@@ -117,8 +117,10 @@ RUN chown nodejs:nodejs /app
 USER nodejs
 
 # Set environment
+ARG VIBERGLASS_VERSION=0.0.0
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV VIBERGLASS_VERSION=${VIBERGLASS_VERSION}
 
 # Expose the application port
 EXPOSE 3000

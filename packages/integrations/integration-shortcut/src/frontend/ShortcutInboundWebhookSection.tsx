@@ -4,10 +4,11 @@ import { Text } from '@viberglass/platform-ui'
 import { DeliveryHistoryTable } from '@viberglass/integration-core/frontend'
 import type { IntegrationInboundWebhookConfig, IntegrationWebhookDelivery } from '@viberglass/integration-core/frontend'
 import { CopyIcon } from '@radix-ui/react-icons'
-import { useTicketUrlBuilder } from '@viberglass/integration-core/frontend'
+import { TrackerConversationSettings, useTicketUrlBuilder } from '@viberglass/integration-core/frontend'
 
 interface ShortcutInboundWebhookSectionProps {
-  autoExecute: boolean
+  planNewIssues: boolean
+  botUsername: string
   deliveries: IntegrationWebhookDelivery[]
   hasInboundChanges: boolean
   inboundEvents: string[]
@@ -21,7 +22,8 @@ interface ShortcutInboundWebhookSectionProps {
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
   selectedInboundConfigId: string | null
   showSecret: boolean
-  onAutoExecuteChange: (value: boolean) => void
+  onPlanNewIssuesChange: (value: boolean) => void
+  onBotUsernameChange: (value: string) => void
   onCopyWebhookSecret: () => void
   onCopyWebhookUrl: (url: string) => void
   onCreateInboundWebhook: () => void
@@ -45,17 +47,23 @@ const SHORTCUT_INBOUND_EVENT_OPTIONS: Array<{
   {
     value: 'story_created',
     label: 'Story created',
-    description: 'Create a Viberator ticket when a new Shortcut story is created.',
+    description: 'Creates a task linked to the story.',
+  },
+  {
+    value: 'story_updated',
+    label: 'Story updated',
+    description: "Updates the linked task's title and description.",
   },
   {
     value: 'comment_created',
     label: 'Comment created',
-    description: 'Process Shortcut comments for bot-triggered follow-up fixes.',
+    description: "Posts the comment in the linked task's thread; mentioning the bot asks the agent.",
   },
 ]
 
 export function ShortcutInboundWebhookSection({
-  autoExecute,
+  planNewIssues,
+  botUsername,
   deliveries,
   hasInboundChanges,
   inboundEvents,
@@ -69,7 +77,8 @@ export function ShortcutInboundWebhookSection({
   selectedInboundConfig,
   selectedInboundConfigId,
   showSecret,
-  onAutoExecuteChange,
+  onPlanNewIssuesChange,
+  onBotUsernameChange,
   onCopyWebhookSecret,
   onCopyWebhookUrl,
   onCreateInboundWebhook,
@@ -96,7 +105,7 @@ export function ShortcutInboundWebhookSection({
       </div>
       <Subheading>Shortcut Inbound Webhook</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Configure inbound Shortcut events that create Viberglass tickets and optionally auto-run jobs.
+        Link Shortcut stories to tasks: new stories create tasks, and comments and updates go both ways.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -105,16 +114,16 @@ export function ShortcutInboundWebhookSection({
           <li>
             In Shortcut, open Settings {'>'} Integrations {'>'} Webhooks and create a webhook.
           </li>
-          <li>Use the webhook URL below and enable the same story/comment events selected in this section.</li>
+          <li>Use the webhook URL below. Shortcut sends story and comment changes to it.</li>
           <li>Set the signing secret below and send it as `X-Shortcut-Signature: sha256=&lt;hmac&gt;`.</li>
           <li>Use a Shortcut Project ID filter when possible to keep inbound routing deterministic.</li>
         </ol>
       </div>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
-        <p className="text-sm font-medium text-[var(--gray-12)]">Project scope</p>
+        <p className="text-sm font-medium text-[var(--gray-12)]">Space scope</p>
         <p className="mt-1 text-xs text-[var(--gray-9)]">
-          Each inbound config can map events to a Viberglass project and optionally pin routing to a Shortcut project ID.
+          Each inbound config can map events to a Viberglass space and optionally pin routing to a Shortcut project ID.
         </p>
       </div>
 
@@ -151,7 +160,7 @@ export function ShortcutInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label htmlFor="shortcutInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Viberglass project
+                        Viberglass space
                       </label>
                       <select
                         id="shortcutInboundProjectId"
@@ -159,7 +168,7 @@ export function ShortcutInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default project</option>
+                        <option value="">Use the default space linked to this connection</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}
@@ -185,7 +194,7 @@ export function ShortcutInboundWebhookSection({
                       className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                     />
                     <p className="mt-1.5 text-xs text-[var(--gray-9)]">
-                      Used to match inbound events to the correct integration config when multiple projects are linked.
+                      Used to match inbound events to the correct integration config when multiple spaces are linked.
                     </p>
                   </div>
 
@@ -255,17 +264,19 @@ export function ShortcutInboundWebhookSection({
                     </div>
                   </div>
 
+                  <TrackerConversationSettings
+                    tracker="Shortcut"
+                    item="story"
+                    idPrefix="shortcut"
+                    planNewIssues={planNewIssues}
+                    onPlanNewIssuesChange={onPlanNewIssuesChange}
+                    botUsername={botUsername}
+                    onBotUsernameChange={onBotUsernameChange}
+                    botUsernameHint="The Shortcut mention name whose @mention in a comment asks the agent, usually the member the connection's API token belongs to."
+                    botUsernamePlaceholder="e.g. viberglass"
+                  />
+
                   <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="shortcutAutoExecute"
-                      checked={autoExecute}
-                      onChange={(event) => onAutoExecuteChange(event.target.checked)}
-                      className="text-[var(--accent-9)] focus:ring-[var(--accent-9)] h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)]"
-                    />
-                    <label htmlFor="shortcutAutoExecute" className="text-sm text-[var(--gray-12)]">
-                      Auto-execute jobs after matching Shortcut inbound events
-                    </label>
                     {hasInboundChanges && (
                       <Button color="brand" size="small" onClick={onSaveWebhook} disabled={isSavingWebhook}>
                         {isSavingWebhook ? 'Saving...' : 'Save inbound settings'}

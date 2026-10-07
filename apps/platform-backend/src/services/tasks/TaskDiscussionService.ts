@@ -55,4 +55,23 @@ export class TaskDiscussionService {
     await this.deps.activity.record(ticketId, { type: "human", userId: authorId }, "message_posted", { messageId, mentioned });
     return messageId;
   }
+
+  /**
+   * Posts a comment from a linked tracker issue: as the matching person when
+   * there's one, otherwise under the name the tracker gave. Returns its id.
+   */
+  async createFromTracker(ticketId: string, from: { userId: string | null; name: string; source: string }, body: string): Promise<string> {
+    const text = body.trim().slice(0, MAX_BODY);
+    if (!text) throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.MESSAGE_INVALID, "The comment is empty.");
+    const messageId = await this.deps.messages.create({
+      ticketId,
+      authorId: from.userId,
+      body: text,
+      mentionedUserIds: [],
+      external: { source: from.source, authorName: from.userId ? null : from.name },
+    });
+    const actor = from.userId ? { type: "human" as const, userId: from.userId } : { type: "system" as const };
+    await this.deps.activity.record(ticketId, actor, "message_posted", { messageId, mentioned: [], source: from.source });
+    return messageId;
+  }
 }

@@ -19,7 +19,7 @@ Coding agents are good at writing code. They're bad at knowing what your company
 4. The agent builds it and opens a GitHub pull request for engineering's usual review. Large plans can be built in parts, with a PR per part.
 5. The PR is merged and the task closes. Anyone can ask for another round on the same task; it keeps its conversation and its branch.
 
-An engineer can step in at any point: pause the agent, take over its branch locally with `viberglass checkout`, and hand it back.
+An engineer can step in at any point: pause the agent, take over its branch locally with `viberglass checkout` (`npm install -g viberglass`), and hand it back.
 
 ## Features
 
@@ -80,7 +80,7 @@ Open http://localhost:3000. The first visit creates the administrator account, t
 
 There's also an "Explore a demo workspace" option on setup's first screen, with sample tasks and no keys needed.
 
-> This compose file is for trying Viberglass on your own machine. It runs the development servers and uses fixed database and encryption keys. Don't expose it to a network. For a shared installation, use [Kubernetes](#kubernetes) or [AWS](#aws).
+> This compose file is for trying Viberglass on your own machine. It runs the development servers and uses fixed database and encryption keys. Don't expose it to a network. For a shared installation, use [one server](#one-server), [Kubernetes](#kubernetes) or [AWS](#aws).
 
 The backend runs database migrations on startup. Optional services (Mailpit for email, Langfuse for traces) and Slack setup are in [local development](docs/local-development.md).
 
@@ -108,6 +108,17 @@ Agent credentials are stored as workspace secrets (encrypted in the database, or
 
 ## Deployment
 
+### One server
+
+[`docker-compose.prod.yml`](docker-compose.prod.yml) runs the published images on one Linux server, with the database password and encryption keys from `.env` and optional HTTPS through Caddy:
+
+```bash
+cp .env.production.example .env   # fill in the address, password and keys
+docker compose -f docker-compose.prod.yml --profile https up -d
+```
+
+The steps, backups and upgrades are in [Install with Docker](docs/guide/admin/install-docker.md#on-a-server).
+
 ### Kubernetes
 
 A Helm chart in [`infra/kubernetes/chart`](infra/kubernetes/chart) installs the backend, frontend and migrations; each agent run is a Kubernetes Job. Bring PostgreSQL, S3-compatible storage, an ingress and TLS, or use the bundled PostgreSQL and MinIO for a local cluster:
@@ -117,7 +128,7 @@ python3 infra/kubernetes/scripts/local.py
 ```
 
 - [Local Kubernetes](docs/local-kubernetes.md): prerequisites, port forwards and a full-platform smoke test.
-- [Kubernetes deployment](docs/kubernetes-deployment.md): building images, external database and storage, ingress, secrets and upgrades.
+- [Kubernetes deployment](docs/kubernetes-deployment.md): the published images, external database and storage, ingress, secrets and upgrades.
 - [OVHcloud plan](docs/kubernetes-ovh-deployment-plan.md): the managed-cluster target we're validating against.
 
 ### AWS
@@ -139,7 +150,7 @@ Runners on ECS or Lambda are created under Settings → Agents & runners; the pl
 
 Every agent runs in a worker image: a shared base plus one harness.
 
-- Docker and Kubernetes use the public images on GHCR (`ghcr.io/ilities/viberator-worker-<agent>`, `linux/amd64` and `linux/arm64`), published by `publish-worker-images` on pushes to `main` and on releases. Set `VIBERATOR_WORKER_REGISTRY` empty to use images you built locally.
+- Docker and Kubernetes use the public images on GHCR (`ghcr.io/ilities/viberator-worker-<agent>`, `linux/amd64` and `linux/arm64`), published by `publish-worker-images` on pushes to `main` and on releases. The backend and frontend images (`viberglass-backend`, `viberglass-frontend`) are published the same way by `publish-platform-images`. Set `VIBERATOR_WORKER_REGISTRY` empty to use images you built locally.
 - AWS pulls from ECR. The `deploy-viberators` workflow pushes them, or by hand:
 
 ```bash

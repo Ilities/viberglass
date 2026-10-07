@@ -4,18 +4,26 @@ The chart is in [`infra/kubernetes/chart`](../infra/kubernetes/chart). It deploy
 
 ## Production prerequisites
 
-Provision a cluster, a container registry, PostgreSQL, S3-compatible storage, an ingress controller, DNS/TLS, and optionally SMTP. Use a NetworkPolicy-capable CNI. Publish backend, frontend, and chosen worker images built from the same revision; use immutable tags or digests. The frontend is a static Vite build served by nginx, which proxies `/api` to the backend. The chart sets `PLATFORM_PUBLIC_API_URL` for browser media links and keeps `PLATFORM_API_URL` internal for worker callbacks. No separate browser API hostname is needed.
+Provision a cluster, PostgreSQL, S3-compatible storage, an ingress controller, DNS/TLS, and optionally SMTP. Use a NetworkPolicy-capable CNI. The frontend is a static Vite build served by nginx, which proxies `/api` to the backend. The chart sets `PLATFORM_PUBLIC_API_URL` for browser media links and keeps `PLATFORM_API_URL` internal for worker callbacks. No separate browser API hostname is needed.
 
-Build paths:
+Images are published to GHCR for linux/amd64 and linux/arm64 on every change to `main` and on each release:
+
+| Image | Repository |
+| --- | --- |
+| Backend | `ghcr.io/ilities/viberglass-backend` |
+| Frontend | `ghcr.io/ilities/viberglass-frontend` |
+| Workers | `ghcr.io/ilities/viberator-worker-<agent>` (the agent catalog's names) |
+
+Each is tagged with the release (for example `v1.0.0`), the commit SHA and `latest`. Use the same release tag for all three, and pin it rather than following `latest`. The chart's default worker repositories follow the agent catalog; `workers.registry` and `workers.imageTag` resolve them, and explicit runner images override the catalog default.
+
+To run your own builds instead, build and push each image from the same revision to your registry:
 
 ```bash
-docker build -f apps/platform-backend/Dockerfile.prod -t YOUR_REGISTRY/backend:REVISION .
-docker build -f apps/platform-frontend/Dockerfile.prod -t YOUR_REGISTRY/frontend:REVISION .
-docker build -f infra/workers/docker/base/base-worker.Dockerfile -t YOUR_REGISTRY/worker-base:REVISION .
-docker build -f infra/workers/docker/generated/opencode.Dockerfile --build-arg BASE_IMAGE=YOUR_REGISTRY/worker-base:REVISION -t YOUR_REGISTRY/viberator-worker-opencode:REVISION .
+docker build -f apps/platform-backend/Dockerfile.prod -t YOUR_REGISTRY/viberglass-backend:REVISION .
+docker build -f apps/platform-frontend/Dockerfile.prod -t YOUR_REGISTRY/viberglass-frontend:REVISION .
+docker build -f infra/workers/docker/base/base-worker.Dockerfile -t YOUR_REGISTRY/viberator-base-worker:REVISION .
+docker build -f infra/workers/docker/generated/opencode.Dockerfile --build-arg BASE_IMAGE=YOUR_REGISTRY/viberator-base-worker:REVISION -t YOUR_REGISTRY/viberator-worker-opencode:REVISION .
 ```
-
-Publish through your registry workflow. The chart's default worker repositories follow the agent catalog (`viberator-worker-*`); `workers.registry` and `workers.imageTag` resolve them. Explicit Clanker images override the catalog default. Build additional agent variants before offering them to users.
 
 ## Secrets and values
 
@@ -33,15 +41,14 @@ Example non-secret values:
 
 ```yaml
 backend:
-  image: registry.example/backend:REVISION
+  image: ghcr.io/ilities/viberglass-backend:v1.0.0
 frontend:
-  image: registry.example/frontend:REVISION
+  image: ghcr.io/ilities/viberglass-frontend:v1.0.0
 publicUrl: https://viberglass.example.com
 workers:
   namespace: viberglass-workers
-  registry: registry.example
-  imageTag: REVISION
-  imagePullSecrets: [registry-auth]
+  registry: ghcr.io/ilities
+  imageTag: v1.0.0
 database:
   host: postgres.example.internal
   name: viberglass
@@ -53,8 +60,6 @@ storage:
   region: YOUR_SIGNING_REGION
   bucket: viberglass
   forcePathStyle: true
-imagePullSecrets:
-  - name: registry-auth
 ingress:
   enabled: true
   className: nginx
@@ -64,7 +69,7 @@ ingress:
       secretName: viberglass-tls
 ```
 
-Create registry pull Secrets independently in **both namespaces**. `imagePullSecrets` serves app and migration Pods; `workers.imagePullSecrets` names Secrets in the worker namespace. For private Git, private object storage, or internal telemetry, add allowed destinations to `networkPolicy.workerExtraEgress` using Kubernetes NetworkPolicy egress rules. Public HTTP(S)/SSH and cluster DNS/backend storage are allowed by default. Service endpoints must be reachable from nodes/Pods, and database network access must be allowed by the provider.
+The published images are public and need no pull Secret. For a private registry, create pull Secrets independently in both namespaces: `imagePullSecrets` serves app and migration Pods, and `workers.imagePullSecrets` names Secrets in the worker namespace. For private Git, private object storage, or internal telemetry, add allowed destinations to `networkPolicy.workerExtraEgress` using Kubernetes NetworkPolicy egress rules. Public HTTP(S)/SSH and cluster DNS/backend storage are allowed by default. Service endpoints must be reachable from nodes/Pods, and database network access must be allowed by the provider.
 
 ```bash
 helm upgrade --install viberglass infra/kubernetes/chart --namespace viberglass -f production-values.yaml --wait --wait-for-jobs --timeout 10m

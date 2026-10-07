@@ -10,7 +10,7 @@ import type {
 import { CopyIcon } from '@radix-ui/react-icons'
 
 interface InboundWebhookSectionProps {
-  autoExecute: boolean
+  planNewIssues: boolean
   deliveries: IntegrationWebhookDelivery[]
   hasInboundChanges: boolean
   inboundWebhooks: IntegrationInboundWebhookConfig[]
@@ -22,7 +22,7 @@ interface InboundWebhookSectionProps {
   selectedInboundConfigId: string | null
   showCustomPayloadHelp: boolean
   showSecret: boolean
-  onAutoExecuteChange: (value: boolean) => void
+  onPlanNewIssuesChange: (value: boolean) => void
   onCopyWebhookUrl: (url: string) => void
   onCreateInboundWebhook: () => void
   onDeleteInboundWebhook: () => void
@@ -44,7 +44,7 @@ const CUSTOM_PAYLOAD_EXAMPLE = `{
 }`
 
 export function InboundWebhookSection({
-  autoExecute,
+  planNewIssues,
   deliveries,
   hasInboundChanges,
   inboundWebhooks,
@@ -56,7 +56,7 @@ export function InboundWebhookSection({
   selectedInboundConfigId,
   showCustomPayloadHelp,
   showSecret,
-  onAutoExecuteChange,
+  onPlanNewIssuesChange,
   onCopyWebhookUrl,
   onCreateInboundWebhook,
   onDeleteInboundWebhook,
@@ -158,13 +158,13 @@ export function InboundWebhookSection({
                   <div className="flex items-center gap-3 pt-2">
                     <input
                       type="checkbox"
-                      id="autoExecute"
-                      checked={autoExecute}
-                      onChange={(e) => onAutoExecuteChange(e.target.checked)}
+                      id="planNewIssues"
+                      checked={planNewIssues}
+                      onChange={(e) => onPlanNewIssuesChange(e.target.checked)}
                       className="h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)] text-[var(--accent-9)] focus:ring-[var(--accent-9)]"
                     />
-                    <label htmlFor="autoExecute" className="text-sm text-[var(--gray-12)]">
-                      Auto-execute fixes on inbound events
+                    <label htmlFor="planNewIssues" className="text-sm text-[var(--gray-12)]">
+                      Write the plan for new tasks
                     </label>
                     {hasInboundChanges && (
                       <Button color="brand" size="small" onClick={onSaveWebhook} disabled={isSavingWebhook}>

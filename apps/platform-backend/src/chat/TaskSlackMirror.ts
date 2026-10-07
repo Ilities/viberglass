@@ -73,7 +73,7 @@ export class TaskSlackMirror implements ActivityListener {
     switch (kind) {
       case "message_posted": {
         const message = this.deps.fromSlack() ? null : await this.deps.messages.getById(text(payload.messageId) ?? "");
-        return message ? [messagePost(message.author?.name ?? "Someone", message.body)] : [];
+        return message ? [messagePost(message.author?.name ?? message.externalAuthor?.name ?? "Someone", message.body)] : [];
       }
       case "run_started":
         return [runStartedPost(step)];

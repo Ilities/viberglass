@@ -8,6 +8,7 @@ import {
   validateRegister,
 } from "../middleware/validation";
 import logger from "../../config/logger";
+import { ForgotPasswordService } from "../../services/people/ForgotPasswordService";
 import { requireAuth } from "../middleware/authentication";
 import { buildAuthResponse } from "../auth/authResponse";
 import { isAuthEnabled } from "../auth/config";
@@ -24,6 +25,7 @@ import {
 const router = express.Router();
 const userDao = new UserDAO();
 const sessionDao = new UserSessionDAO();
+const forgotPassword = new ForgotPasswordService();
 
 router.post("/register", validateRegister, async (req, res) => {
   try {
@@ -157,12 +159,14 @@ router.post("/logout", async (req, res) => {
   }
 });
 
-router.post("/forgot-password", validateForgotPassword, async (req, res) => {
+router.post("/forgot-password", validateForgotPassword, (req, res) => {
   const email = normalizeEmail(req.body.email as string);
-  logger.info("Password reset requested", { email });
+  // Not awaited: answering as fast for unknown addresses as for known ones keeps accounts from showing.
+  void forgotPassword.request(email);
   res.status(202).json({
     success: true,
     message: "If the email exists, a reset link will be sent.",
+    emailEnabled: forgotPassword.canEmail(),
   });
 });
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Viberglass",
   "version": "1.0.0",
-  "description": "Capture bugs and kick off AI-powered research, planning, and execution workflows",
+  "description": "Create Viberglass tasks from any page, with a screenshot, a recording and the page's context, and ask an agent to write the plan",
   "permissions": ["activeTab", "tabCapture", "storage", "scripting", "offscreen"],
   "host_permissions": ["<all_urls>"],
   "action": {

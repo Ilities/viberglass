@@ -27,12 +27,9 @@ Targets for launch: local install to the first task's plan in under 15 minutes o
 
 Found while rewriting the README (2026-10-07). Record whether each still holds.
 
-- The quick-start compose is the development stack. `docker-compose.yml` builds the dev Dockerfiles from source, runs Vite and the backend with hot reload and debug logging, mounts the Docker socket and the source tree, and hardcodes the database password and both encryption keys. The README now says not to expose it, but a self-hoster who wants a small always-on install has no production compose file. `Dockerfile.prod` exists for the backend and frontend.
-- Backend and frontend images aren't published. `publish-worker-images` publishes worker images only. The Helm chart's backend and frontend `image` values are empty, so every Kubernetes install starts by building and pushing two images.
 - Pull requests are GitHub-only. `GitService` calls `api.github.com`. The GitLab, Bitbucket, Linear and Monday integration packages are stubs. The README no longer claims GitLab.
-- The AWS deploy workflows are broken. `pulumi-*.yml` watch a missing `infrastructure/` folder; deploy by hand ([05-aws.md](05-aws.md#known-issues)).
 - Password reset only logs the request; resets are admin-issued links.
-- Stale visuals. `docs/images/how-it-works.svg` shows ClickUp, Monday, Teams, Discord, Gemini CLI and a separate research step. `docs/infographic.html` (and its PNG) shows the research step. The step screenshots use the old Clanker pages. All are out of the README now; a demo video or GIF and new screenshots are needed.
+- No visuals. The old diagram, infographic and screenshots were removed; a demo video or GIF and new screenshots are needed.
 - License loose ends. `apps/platform-frontend/LICENSE.md` is an unfilled Apache 2.0 template. If it's there for vendored components (`components/ai-elements` comes from Vercel's Apache-licensed AI Elements), move it next to them with a notice saying what it covers. Otherwise remove it. The app has no link to its source; AGPL section 13 asks a modified version to offer one to its network users, so a "Source" link (e.g. in the user menu) makes that easy for people who fork it.
 - `security@viberglass.io` is the reporting address in SECURITY.md. Send it a test mail before launch.
 

@@ -42,8 +42,6 @@ export function NewProjectPage() {
   const [pullRequestBaseBranch, setPullRequestBaseBranch] = useState('')
   const [branchNameTemplate, setBranchNameTemplate] = useState('')
   const [tokenId, setTokenId] = useState<string>(NO_SELECTION)
-  const [autoFixEnabled, setAutoFixEnabled] = useState(false)
-  const [autoFixTags, setAutoFixTags] = useState('')
 
   const connections = useWorkspaceConnections(codeHostId)
 
@@ -59,14 +57,7 @@ export function NewProjectPage() {
     try {
       let space = created
       if (!space) {
-        const project = await createProject({
-          name: name.trim(),
-          autoFixEnabled,
-          autoFixTags: autoFixTags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-        })
+        const project = await createProject({ name: name.trim() })
         space = { id: project.id, slug: project.slug }
         setCreated(space)
       }
@@ -175,10 +166,6 @@ export function NewProjectPage() {
                     onPullRequestBaseBranchChange={setPullRequestBaseBranch}
                     branchNameTemplate={branchNameTemplate}
                     onBranchNameTemplateChange={setBranchNameTemplate}
-                    autoFixEnabled={autoFixEnabled}
-                    onAutoFixEnabledChange={setAutoFixEnabled}
-                    autoFixTags={autoFixTags}
-                    onAutoFixTagsChange={setAutoFixTags}
                     taskKeyExample="WEB-12"
                   />
                 </div>

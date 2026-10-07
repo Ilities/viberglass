@@ -1,5 +1,6 @@
 # Pulumi Dev Deployment Workflow
-# Automatically deploys infrastructure changes to dev on main merge
+# Deploys infrastructure changes to dev on merge to main: base, workers, then
+# platform. State is in the S3 backend (infra/README.md).
 
 name: Pulumi Deploy (Dev)
 
@@ -8,7 +9,12 @@ on:
     branches:
       - main
     paths:
-      - 'infrastructure/**'
+      - 'infra/base/**'
+      - 'infra/platform/**'
+      - 'infra/workers/*.ts'
+      - 'infra/workers/package.json'
+      - 'infra/workers/Pulumi*.yaml'
+      - '.github/workflows/pulumi-deploy-dev.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,11 +25,15 @@ concurrency:
   group: pulumi-deploy-dev
   cancel-in-progress: false
 
+env:
+  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL || 's3://viberglass-pulumi-state' }}
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
 jobs:
   deploy:
     name: Deploy Infrastructure to Dev
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment:
       name: dev
 
@@ -41,27 +51,57 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          cache: npm
 
       - name: Install Pulumi CLI
         uses: pulumi/setup-pulumi@v3
 
-      - name: Install infrastructure dependencies
-        working-directory: infrastructure
-        run: npm ci
+      # The platform stack's config holds account-specific values and isn't committed.
+      - name: Write platform stack config
+        env:
+          STACK_CONFIG: ${{ secrets.PULUMI_PLATFORM_CONFIG_DEV }}
+        run: |
+          if [ -z "$STACK_CONFIG" ]; then
+            echo "::error::Set the PULUMI_PLATFORM_CONFIG_DEV secret to the contents of infra/platform/Pulumi.dev.yaml"
+            exit 1
+          fi
+          printf '%s\n' "$STACK_CONFIG" > infra/platform/Pulumi.dev.yaml
 
-      - name: Run Pulumi up (dev stack)
+      # Base first: workers and platform read its outputs. Platform reads the workers stack's.
+      - name: Install base dependencies
+        working-directory: infra/base
+        run: npm install --no-audit --no-fund
+
+      - name: Pulumi up (base)
         uses: pulumi/actions@v6
         with:
           command: up
           stack-name: dev
-          work-dir: infrastructure
+          work-dir: infra/base
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
           diff: true
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-      - name: Upload stack outputs
-        if: always()
-        run: |
-          echo "Dev stack deployment completed"
-          echo "Check Pulumi Cloud for full stack outputs: https://app.pulumi.com/"
+      - name: Install workers dependencies
+        working-directory: infra/workers
+        run: npm install --no-audit --no-fund
+
+      - name: Pulumi up (workers)
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: dev
+          work-dir: infra/workers
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
+          diff: true
+
+      - name: Install platform dependencies
+        working-directory: infra/platform
+        run: npm install --no-audit --no-fund
+
+      - name: Pulumi up (platform)
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: dev
+          work-dir: infra/platform
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
+          diff: true

@@ -91,7 +91,8 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function requestPasswordReset(email: string): Promise<void> {
+/** Asks for a reset link; says whether this installation emails them, or an admin has to hand one out. */
+export async function requestPasswordReset(email: string): Promise<{ emailEnabled: boolean }> {
   const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/forgot-password`, {
     method: 'POST',
     headers: {
@@ -105,4 +106,6 @@ export async function requestPasswordReset(email: string): Promise<void> {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.error || error.message || 'Failed to request password reset')
   }
+  const body: unknown = await response.json().catch(() => null)
+  return { emailEnabled: typeof body === 'object' && body !== null && 'emailEnabled' in body && body.emailEnabled === true }
 }

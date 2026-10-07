@@ -19,7 +19,8 @@ export function useWorkspaceConnections(codeHostId: string) {
       .then(([types, connections]) => {
         if (!isActive) return
         const typeBySystem = new Map(types.map((type) => [type.id, type]))
-        const options = connections.map((connection) => {
+        const working = connections.filter((connection) => typeBySystem.get(connection.system)?.status !== 'stub')
+        const options = working.map((connection) => {
           const type = typeBySystem.get(connection.system)
           return {
             id: connection.id,

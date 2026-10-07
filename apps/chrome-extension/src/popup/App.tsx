@@ -162,7 +162,7 @@ export function App() {
               Viberglass
             </span>
           </div>
-          <p className="text-xs text-gray-500 mb-4">Sign in to capture bugs</p>
+          <p className="text-xs text-gray-500 mb-4">Sign in to create tasks from any page</p>
           <button
             onClick={() =>
               chrome.tabs.create({

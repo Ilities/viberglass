@@ -26,7 +26,7 @@ export interface WebhookConfig {
   secretPath: string | null;
   webhookSecretEncrypted: string | null;
   allowedEvents: string[];
-  autoExecute: boolean;
+  planNewIssues: boolean;
   botUsername: string | null;
   labelMappings: JsonObject;
   active: boolean;
@@ -46,7 +46,7 @@ export interface CreateWebhookConfigDTO {
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
   allowedEvents?: string[];
-  autoExecute?: boolean;
+  planNewIssues?: boolean;
   botUsername?: string | null;
   labelMappings?: JsonObject;
   active?: boolean;
@@ -64,7 +64,7 @@ export interface UpdateWebhookConfigDTO {
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
   allowedEvents?: string[];
-  autoExecute?: boolean;
+  planNewIssues?: boolean;
   botUsername?: string | null;
   labelMappings?: JsonObject;
   active?: boolean;
@@ -90,7 +90,7 @@ export class WebhookConfigDAO {
         secret_path: dto.secretPath ?? null,
         webhook_secret_encrypted: dto.webhookSecretEncrypted ?? null,
         allowed_events: sql<string[]>`${JSON.stringify(dto.allowedEvents ?? [])}::jsonb`,
-        auto_execute: dto.autoExecute ?? false,
+        plan_new_issues: dto.planNewIssues ?? false,
         bot_username: dto.botUsername ?? null,
         label_mappings: sql<JsonObject>`${JSON.stringify(dto.labelMappings ?? {})}::jsonb`,
         active: dto.active ?? true,
@@ -136,7 +136,7 @@ export class WebhookConfigDAO {
     if (updates.allowedEvents !== undefined) {
       updateData.allowed_events = sql<string[]>`${JSON.stringify(updates.allowedEvents)}::jsonb`;
     }
-    if (updates.autoExecute !== undefined) updateData.auto_execute = updates.autoExecute;
+    if (updates.planNewIssues !== undefined) updateData.plan_new_issues = updates.planNewIssues;
     if (updates.botUsername !== undefined) updateData.bot_username = updates.botUsername;
     if (updates.labelMappings !== undefined) {
       updateData.label_mappings = sql<JsonObject>`${JSON.stringify(updates.labelMappings)}::jsonb`;
@@ -322,7 +322,7 @@ export class WebhookConfigDAO {
         ? String(row.webhook_secret_encrypted)
         : null,
       allowedEvents: row.allowed_events as string[],
-      autoExecute: Boolean(row.auto_execute),
+      planNewIssues: Boolean(row.plan_new_issues),
       botUsername: row.bot_username ? String(row.bot_username) : null,
       labelMappings:
         typeof row.label_mappings === "string"

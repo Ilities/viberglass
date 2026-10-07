@@ -1,4 +1,4 @@
-import { useTicketUrlBuilder } from '@viberglass/integration-core/frontend'
+import { TrackerConversationSettings, useTicketUrlBuilder } from '@viberglass/integration-core/frontend'
 import { Button } from '@viberglass/platform-ui'
 import { Subheading } from '@viberglass/platform-ui'
 import { Text } from '@viberglass/platform-ui'
@@ -10,9 +10,10 @@ import type {
 import { CopyIcon } from '@radix-ui/react-icons'
 
 interface GitHubInboundWebhookSectionProps {
-  autoExecute: boolean
+  planNewIssues: boolean
+  botUsername: string
   deliveries: IntegrationWebhookDelivery[]
-  githubAutoExecuteMode: 'matching_events' | 'label_gated'
+  githubPlanNewIssuesMode: 'matching_events' | 'label_gated'
   githubRequiredLabels: string[]
   hasInboundChanges: boolean
   inboundEvents: string[]
@@ -26,8 +27,9 @@ interface GitHubInboundWebhookSectionProps {
   selectedInboundProjectId: string | null
   selectedInboundProviderProjectId: string | null
   showSecret: boolean
-  onAutoExecuteChange: (value: boolean) => void
-  onGitHubAutoExecuteModeChange: (mode: 'matching_events' | 'label_gated') => void
+  onPlanNewIssuesChange: (value: boolean) => void
+  onBotUsernameChange: (value: string) => void
+  onGitHubPlanNewIssuesModeChange: (mode: 'matching_events' | 'label_gated') => void
   onGitHubRequiredLabelsChange: (labels: string[]) => void
   onCopyWebhookSecret: () => void
   onCopyWebhookUrl: (url: string) => void
@@ -52,12 +54,17 @@ const GITHUB_INBOUND_EVENT_OPTIONS: Array<{
   {
     value: 'issues.opened',
     label: 'Issue opened',
-    description: 'Create tickets when a new issue is opened.',
+    description: 'Creates a task linked to the issue.',
+  },
+  {
+    value: 'issues.edited',
+    label: 'Issue edited',
+    description: "Updates the linked task's title and description.",
   },
   {
     value: 'issue_comment.created',
     label: 'Issue comment created',
-    description: 'Process follow-up comments on existing issues.',
+    description: "Posts the comment in the linked task's thread; mentioning the bot asks the agent.",
   },
 ]
 
@@ -74,9 +81,10 @@ function parseGitHubRequiredLabelsInput(value: string): string[] {
 }
 
 export function GitHubInboundWebhookSection({
-  autoExecute,
+  planNewIssues,
+  botUsername,
   deliveries,
-  githubAutoExecuteMode,
+  githubPlanNewIssuesMode,
   githubRequiredLabels,
   hasInboundChanges,
   inboundEvents,
@@ -90,8 +98,9 @@ export function GitHubInboundWebhookSection({
   selectedInboundProjectId,
   selectedInboundProviderProjectId,
   showSecret,
-  onAutoExecuteChange,
-  onGitHubAutoExecuteModeChange,
+  onPlanNewIssuesChange,
+  onBotUsernameChange,
+  onGitHubPlanNewIssuesModeChange,
   onGitHubRequiredLabelsChange,
   onCopyWebhookSecret,
   onCopyWebhookUrl,
@@ -120,7 +129,7 @@ export function GitHubInboundWebhookSection({
       </div>
       <Subheading>GitHub Inbound Webhook</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Configure GitHub repository webhooks to ingest issues and comments into Viberator.
+        Link GitHub issues to tasks: new issues create tasks, and comments and updates go both ways.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -128,14 +137,14 @@ export function GitHubInboundWebhookSection({
         <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-[var(--gray-9)]">
           <li>Open your repository in GitHub and navigate to Settings {'>'} Webhooks.</li>
           <li>Use the webhook URL below as the Payload URL and set content type to `application/json`.</li>
-          <li>Set the webhook secret below and enable only the inbound events selected in this section.</li>
+          <li>Set the webhook secret below. Under events, choose Issues and Issue comments.</li>
         </ol>
       </div>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
         <p className="text-sm font-medium text-[var(--gray-12)]">Inbound routing scope</p>
         <p className="mt-1 text-xs text-[var(--gray-9)]">
-          Map each inbound config to a Viberglass project and GitHub repository (`owner/repo`) to keep routing deterministic.
+          Map each inbound config to a Viberglass space and GitHub repository (`owner/repo`) to keep routing deterministic.
         </p>
       </div>
 
@@ -172,7 +181,7 @@ export function GitHubInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label htmlFor="githubInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Viberglass project
+                        Viberglass space
                       </label>
                       <select
                         id="githubInboundProjectId"
@@ -180,7 +189,7 @@ export function GitHubInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default project</option>
+                        <option value="">Use the default space linked to this connection</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}
@@ -278,59 +287,59 @@ export function GitHubInboundWebhookSection({
                     </div>
                   </div>
 
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="githubAutoExecute"
-                        checked={autoExecute}
-                        onChange={(event) => onAutoExecuteChange(event.target.checked)}
-                        className="text-[var(--accent-9)] focus:ring-[var(--accent-9)] h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)]"
-                      />
-                      <label htmlFor="githubAutoExecute" className="text-sm text-[var(--gray-12)]">
-                        Auto-execute fixes after matching GitHub inbound events
-                      </label>
-                    </div>
-
-                    <div>
-                      <label htmlFor="githubAutoExecuteMode" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Auto-execute policy
-                      </label>
-                      <select
-                        id="githubAutoExecuteMode"
-                        value={githubAutoExecuteMode}
-                        onChange={(event) =>
-                          onGitHubAutoExecuteModeChange(
-                            event.target.value === 'label_gated' ? 'label_gated' : 'matching_events'
-                          )
-                        }
-                        disabled={!autoExecute}
-                        className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <option value="matching_events">Run on matching inbound events</option>
-                        <option value="label_gated">Only run when issue has configured labels</option>
-                      </select>
-                    </div>
-
-                    {autoExecute && githubAutoExecuteMode === 'label_gated' && (
-                      <div>
-                        <label htmlFor="githubRequiredLabels" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                          Required issue labels
-                        </label>
-                        <input
-                          id="githubRequiredLabels"
-                          type="text"
-                          value={githubRequiredLabels.join(', ')}
-                          onChange={(event) => onGitHubRequiredLabelsChange(parseGitHubRequiredLabelsInput(event.target.value))}
-                          placeholder="e.g. autofix, ai-fix"
-                          className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
-                        />
-                        <p className="mt-1.5 text-xs text-[var(--gray-9)]">
-                          A job runs only if at least one configured label is present on the GitHub issue.
-                        </p>
+                  <TrackerConversationSettings
+                    tracker="GitHub"
+                    idPrefix="github"
+                    planNewIssues={planNewIssues}
+                    onPlanNewIssuesChange={onPlanNewIssuesChange}
+                    botUsername={botUsername}
+                    onBotUsernameChange={onBotUsernameChange}
+                    botUsernameHint="The GitHub login whose @mention in a comment asks the agent, such as the account the connection's token belongs to."
+                    botUsernamePlaceholder="e.g. acme-viberglass"
+                  >
+                    {planNewIssues && (
+                      <div className="space-y-3 pl-7">
+                        <div>
+                          <label htmlFor="githubPlanNewIssuesMode" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
+                            Which new issues
+                          </label>
+                          <select
+                            id="githubPlanNewIssuesMode"
+                            value={githubPlanNewIssuesMode}
+                            onChange={(event) =>
+                              onGitHubPlanNewIssuesModeChange(
+                                event.target.value === 'label_gated' ? 'label_gated' : 'matching_events'
+                              )
+                            }
+                            className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
+                          >
+                            <option value="matching_events">Every new issue</option>
+                            <option value="label_gated">Only issues with the label</option>
+                          </select>
+                        </div>
+                        {githubPlanNewIssuesMode === 'label_gated' && (
+                          <div>
+                            <label htmlFor="githubRequiredLabels" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
+                              Labels
+                            </label>
+                            <input
+                              id="githubRequiredLabels"
+                              type="text"
+                              value={githubRequiredLabels.join(', ')}
+                              onChange={(event) => onGitHubRequiredLabelsChange(parseGitHubRequiredLabelsInput(event.target.value))}
+                              placeholder="e.g. viberglass"
+                              className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
+                            />
+                            <p className="mt-1.5 text-xs text-[var(--gray-9)]">
+                              The agent writes the plan for a new issue that has at least one of these labels. Other issues still get a task.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
+                  </TrackerConversationSettings>
 
+                  <div className="pt-2">
                     {hasInboundChanges && (
                       <Button color="brand" size="small" onClick={onSaveWebhook} disabled={isSavingWebhook}>
                         {isSavingWebhook ? 'Saving...' : 'Save inbound settings'}

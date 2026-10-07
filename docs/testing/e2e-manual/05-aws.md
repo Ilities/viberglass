@@ -1,6 +1,6 @@
 # 05 · AWS deployment
 
-Deploys the three Pulumi stacks (base, platform, workers) to a dev environment in eu-west-1, then exercises the product on ECS and Lambda compute. The existing walkthrough [../../operations/aws-first-run-walkthrough.md](../../operations/aws-first-run-walkthrough.md) is the base for the product part.
+Deploys the three Pulumi stacks (base, platform, workers) to a dev environment in eu-west-1, then exercises the product on ECS and Lambda compute.
 
 ## Contents
 
@@ -17,8 +17,6 @@ Found in the code on 2026-10-05. Record whether each still happens.
 
 | # | Issue | Where it shows |
 |---|---|---|
-| K1 | `pulumi-deploy-*.yml` and `pulumi-preview.yml` point at a missing `infrastructure/` folder and use Pulumi Cloud, not the S3 backend | Deploy infra by hand (AWS-01 – AWS-05) |
-| K2 | `infra/setup-pulumi-state.sh` creates the bucket in eu-west-1 without `LocationConstraint` | AWS-00 |
 | K3 | Without `apiDomain` + `appDomain` + `route53ZoneId`, the HTTPS Amplify app calls an `http://` ALB and the `secure` session cookie is cross-site: login likely fails | AWS-07 |
 | K4 | Managed ECS task definitions and invoker overrides don't pass `AWS_S3_BUCKET`, so conversation state falls back to the task's `/tmp` | AWS-13 |
 | K5 | `assignPublicIp` defaults to DISABLED and isn't passed from the workers stack; in `standard` network mode (no NAT) workers have no egress | AWS-12 |
@@ -33,7 +31,7 @@ Found in the code on 2026-10-05. Record whether each still happens.
 
 1. Tools: AWS CLI v2 signed in to the target account, Pulumi CLI, Node 24, Docker with buildx (amd64 builds).
 2. A Route53 hosted zone; choose `api.dev.<domain>` and `app.dev.<domain>` under one registrable domain (K3).
-3. Pulumi state: run `infra/setup-pulumi-state.sh` (if it fails on K2, create the bucket with `--create-bucket-configuration LocationConstraint=eu-west-1`), then `pulumi login s3://viberglass-pulumi-state`.
+3. Pulumi state: run `infra/setup-pulumi-state.sh`, then `pulumi login s3://viberglass-pulumi-state`.
 4. Create `infra/platform/Pulumi.dev.yaml` from the example; set `viberglass:baseStack`, `apiDomain`, `appDomain`, `route53ZoneId`, optionally `emailDomain`/`emailFrom`, and `amplifyGithubAccessToken` (secret).
 5. Create the GitHub deploy role and OIDC provider per [../../operations/github-actions-role.md](../../operations/github-actions-role.md); set `AWS_ROLE_ARN` in the GitHub `dev` environment.
 

@@ -20,7 +20,9 @@ export interface LinkProjectIntegrationInput {
 export interface UpsertInboundWebhookConfigInput {
   projectId?: string | null
   allowedEvents?: string[]
-  autoExecute?: boolean
+  planNewIssues?: boolean
+  /** The tracker account whose mention in a comment asks the agent. */
+  botUsername?: string | null
   webhookSecret?: string
   generateSecret?: boolean
   providerProjectId?: string | null

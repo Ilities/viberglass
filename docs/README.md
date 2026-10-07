@@ -6,8 +6,6 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 
 | Document | Description |
 |----------|-------------|
-| [ux/v1-review/README.md](ux/v1-review/README.md) | Pre-1.0 UX assessment, screenshots, mockups and prioritized fixes |
-| [ux/v1-review/personas/README.md](ux/v1-review/personas/README.md) | User-facing guide baseline for seven personas |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and design |
 | [DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md) | Secret management for deployments |
 | [../README.md](../README.md) | Quick start and overview |

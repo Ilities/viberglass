@@ -40,7 +40,7 @@ export function DeliveryHistoryTable({
               <tr>
                 <th className="px-3 py-2">Event</th>
                 <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Ticket</th>
+                <th className="px-3 py-2">Task</th>
                 <th className="px-3 py-2">Time</th>
                 <th className="px-3 py-2"></th>
               </tr>

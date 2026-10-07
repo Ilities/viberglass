@@ -111,8 +111,8 @@ const THREAD: TaskTimelineEntry[] = [
     activity: { id: 'e-1', ticketId: 't-1', actorType: 'human', actor: MARIA, kind: 'task_created', payload: {}, createdAt: '2026-10-01T10:00:00Z' },
   },
   { kind: 'artifact_version', id: 'v-1', at: '2026-10-01T10:05:00Z', artifact: 'plan', version: 1, author: null, byAgent: true },
-  { kind: 'message', id: 'm-1', at: '2026-10-01T10:06:00Z', author: MARIA, body: 'Looks right to me', channel: 'thread', sessionId: null },
-  { kind: 'message', id: 'm-2', at: '2026-10-01T10:07:00Z', author: MARIA, body: 'Check the checkout too', channel: 'session', sessionId: 's-1' },
+  { kind: 'message', id: 'm-1', at: '2026-10-01T10:06:00Z', author: MARIA, externalAuthor: null, body: 'Looks right to me', channel: 'thread', sessionId: null },
+  { kind: 'message', id: 'm-2', at: '2026-10-01T10:07:00Z', author: MARIA, externalAuthor: null, body: 'Check the checkout too', channel: 'session', sessionId: 's-1' },
 ]
 
 const SUGGESTION_INPUT = {
@@ -291,14 +291,14 @@ describe('TaskThread', () => {
   })
 
   it('folds failed attempts in a row, with the retries between them, into one row that opens in place', async () => {
-    const retry = (id: string): TaskTimelineEntry => ({ kind: 'message', id, at: '2026-10-01T10:09:00Z', author: MARIA, body: 'Try again with Claude', channel: 'thread', sessionId: null })
+    const retry = (id: string): TaskTimelineEntry => ({ kind: 'message', id, at: '2026-10-01T10:09:00Z', author: MARIA, externalAuthor: null, body: 'Try again with Claude', channel: 'thread', sessionId: null })
     mockTimeline.mockResolvedValue([
       agentTurn({ id: 'a', status: 'failed', outcome: null }),
       retry('r-1'),
       agentTurn({ id: 'b', status: 'cancelled', outcome: null }),
       retry('r-2'),
       agentTurn({ id: 'c', status: 'failed', outcome: null }),
-      { kind: 'message', id: 'm-9', at: '2026-10-01T10:10:00Z', author: MARIA, body: 'Use the staging data', channel: 'thread', sessionId: null },
+      { kind: 'message', id: 'm-9', at: '2026-10-01T10:10:00Z', author: MARIA, externalAuthor: null, body: 'Use the staging data', channel: 'thread', sessionId: null },
       agentTurn({ id: 'd', status: 'completed' }),
     ])
     renderThread()

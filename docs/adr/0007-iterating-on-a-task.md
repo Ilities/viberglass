@@ -6,7 +6,7 @@
 - **Amended by:** [ADR 0008](./0008-tasks-are-conversations.md) (tasks are conversations), 2026-10-01; [ADR 0009](./0009-the-plan-includes-the-research.md) (no separate research), 2026-10-06; [ADR 0010](./0010-building-the-plan-in-parts.md) (a pull request per part), 2026-10-06
 
 ## Context
-A task ran research, plan and build once each. Once research or the plan was approved nothing reopened it, and a second build failed: it started a fresh branch from the base branch and pushed, without force, to the task's branch `viberglass/<task>`, which the first build had already pushed. When the plan's approval was withdrawn the task stayed in the build step, so the next build was refused. The UX contract (`docs/SUBMITTER_UX_CONTRACT.md`) describes a linear journey, and nothing described iterating on it.
+A task ran research, plan and build once each. Once research or the plan was approved nothing reopened it, and a second build failed: it started a fresh branch from the base branch and pushed, without force, to the task's branch `viberglass/<task>`, which the first build had already pushed. When the plan's approval was withdrawn the task stayed in the build step, so the next build was refused. The product described a linear journey, and nothing described iterating on it.
 
 ## Decision
 - **A build after the first continues the task's branch.** The worker checks out `viberglass/<task>` when origin has it, and the agent works on top of the earlier builds. Its commit fast-forwards the branch, so the same pull request gains a commit per build. With a branch template that names a branch per run, each run still gets its own branch and pull request.

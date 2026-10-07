@@ -46,19 +46,56 @@ export function isSettling(deployment: ModelDeploymentView): boolean {
   return deployment.status.state === 'creating' || deployment.status.state === 'waking'
 }
 
+/** Splits one line the way a shell would: on spaces, keeping quoted text together. */
+function lineTokens(line: string): string[] {
+  const tokens: string[] = []
+  let index = 0
+  while (index < line.length) {
+    while (/\s/.test(line[index] ?? '')) index++
+    if (index >= line.length) break
+    // An unquoted JSON value, as vLLM's config flags take, runs to the end of the line.
+    if (line[index] === '{' || line[index] === '[') {
+      tokens.push(line.slice(index).trim())
+      break
+    }
+    let token = ''
+    let quoted = false
+    while (index < line.length && !/\s/.test(line[index])) {
+      const char = line[index]
+      if (char === '"' || char === "'") {
+        const end = line.indexOf(char, index + 1)
+        const close = end === -1 ? line.length : end
+        token += line.slice(index + 1, close)
+        quoted = true
+        index = close + 1
+      } else {
+        token += char
+        index++
+      }
+    }
+    // A comma left between arguments separates them; it's never part of a flag or value.
+    tokens.push(quoted ? token : token.replace(/,+$/, ''))
+  }
+  return tokens.filter((token) => token !== '')
+}
+
 /**
- * Serving arguments are edited one option per line: a flag, then its value after the first
- * space. The value keeps any further spaces, so JSON configs need no quoting.
+ * Reads serving arguments as typed or pasted: one option per line, all on one line, or
+ * a whole `vllm serve <model> …` command, whose prefix and model are dropped.
  */
 export function parseServingArgs(text: string): string[] {
-  return text
+  const tokens = text
+    .replace(/\\\r?\n/g, ' ')
     .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const match = /^(-\S*)\s+(.+)$/.exec(line)
-      return match ? [match[1], match[2]] : [line]
-    })
+    .flatMap(lineTokens)
+  if (tokens[0] === 'vllm' && tokens[1] === 'serve') return tokens.slice(tokens[2]?.startsWith('-') ? 2 : 3)
+  return tokens
+}
+
+/** An argument as typed: quoted when it has spaces, except a JSON value, which reads to the line's end. */
+function typedArg(arg: string): string {
+  if (!/\s/.test(arg) || /^[{[]/.test(arg)) return arg
+  return arg.includes("'") ? `"${arg}"` : `'${arg}'`
 }
 
 /** Lays arguments out for editing, each flag on one line with its value. */
@@ -67,8 +104,8 @@ export function formatServingArgs(args: string[]): string {
   for (const arg of args) {
     const previous = lines.at(-1)
     const awaitsValue = previous !== undefined && /^-[^\s=]*$/.test(previous)
-    if (awaitsValue && !arg.startsWith('-')) lines[lines.length - 1] = `${previous} ${arg}`
-    else lines.push(arg)
+    if (awaitsValue && !arg.startsWith('-')) lines[lines.length - 1] = `${previous} ${typedArg(arg)}`
+    else lines.push(typedArg(arg))
   }
   return lines.join('\n')
 }

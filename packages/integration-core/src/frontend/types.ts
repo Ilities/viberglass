@@ -25,7 +25,8 @@ export interface IntegrationInboundWebhookConfig {
   providerProjectId: string | null
   projectId: string | null
   active: boolean
-  autoExecute: boolean
+  planNewIssues: boolean
+  botUsername: string | null
   inboundEvents: string[]
   labelMappings: Record<string, unknown> | null
   events: string[]
@@ -42,7 +43,10 @@ export interface IntegrationProject {
 
 // Props shared by all inbound webhook sections (GitHub, Jira, Shortcut, Custom, etc.)
 export interface InboundWebhookSectionProps {
-  autoExecute: boolean
+  /** Whether the agent writes the plan for each new issue; off, the task waits to be asked. */
+  planNewIssues: boolean
+  /** The tracker account whose mention in a comment asks the agent. */
+  botUsername: string
   deliveries: IntegrationWebhookDelivery[]
   hasInboundChanges: boolean
   inboundEvents: string[]
@@ -57,12 +61,13 @@ export interface InboundWebhookSectionProps {
   selectedInboundProviderProjectId: string | null
   showSecret: boolean
   // GitHub-specific optional fields
-  githubAutoExecuteMode?: 'matching_events' | 'label_gated'
+  githubPlanNewIssuesMode?: 'matching_events' | 'label_gated'
   githubRequiredLabels?: string[]
-  onGitHubAutoExecuteModeChange?: (mode: 'matching_events' | 'label_gated') => void
+  onGitHubPlanNewIssuesModeChange?: (mode: 'matching_events' | 'label_gated') => void
   onGitHubRequiredLabelsChange?: (labels: string[]) => void
   // Callbacks
-  onAutoExecuteChange: (value: boolean) => void
+  onPlanNewIssuesChange: (value: boolean) => void
+  onBotUsernameChange: (value: string) => void
   onCopyWebhookSecret: () => void
   onCopyWebhookUrl: (url: string) => void
   onCreateInboundWebhook: () => void

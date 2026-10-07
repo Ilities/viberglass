@@ -157,7 +157,7 @@ async function ensureOffscreenDocument(): Promise<void> {
     await chrome.offscreen.createDocument({
       url: chrome.runtime.getURL("offscreen.html"),
       reasons: [chrome.offscreen.Reason.USER_MEDIA],
-      justification: "Record tab video for bug reports",
+      justification: "Record the tab for a task",
     });
   }
 }

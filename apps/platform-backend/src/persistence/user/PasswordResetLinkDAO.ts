@@ -8,7 +8,7 @@ export interface OpenResetLink {
 
 export class PasswordResetLinkDAO {
   /** Creates a link and retires the user's earlier open ones, so only the newest works. */
-  async create(input: { userId: string; tokenHash: string; expiresAt: Date; createdBy: string }): Promise<void> {
+  async create(input: { userId: string; tokenHash: string; expiresAt: Date; createdBy: string | null }): Promise<void> {
     await db.transaction().execute(async (trx) => {
       await trx
         .updateTable("password_reset_links")

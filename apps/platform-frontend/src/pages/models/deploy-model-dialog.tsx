@@ -237,7 +237,7 @@ export function DeployModelDialog({ open, onClose, onCreated }: DeployModelDialo
 
                 <Field>
                   <Label>Serving arguments</Label>
-                  <Description>Passed to vllm serve after the model, one option per line.</Description>
+                  <Description>Passed to vllm serve after the model. One option per line, or paste a whole vllm serve command.</Description>
                   <Textarea
                     className="font-mono"
                     rows={5}

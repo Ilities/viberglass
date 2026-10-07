@@ -51,7 +51,7 @@ describe("custom webhook routes", () => {
       provider: "custom",
       active: true,
       webhookSecretEncrypted: secret,
-      autoExecute: false,
+      planNewIssues: false,
       projectId: "project-1",
     } as any);
     mockDeliveryDAO.checkDeliveryExists.mockResolvedValue(false);
@@ -106,7 +106,7 @@ describe("custom webhook routes", () => {
       provider: "custom",
       active: true,
       webhookSecretEncrypted: "custom-secret",
-      autoExecute: false,
+      planNewIssues: false,
       projectId: "project-1",
     } as any);
 

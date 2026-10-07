@@ -65,7 +65,7 @@ export function Options() {
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Frontend app URL (used for ticket links)
+            Frontend app URL (used for links to tasks)
           </p>
         </div>
 

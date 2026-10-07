@@ -15,7 +15,9 @@ import { WebhookSecretService } from "./WebhookSecretService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectIntegrationLinkDAO } from "../persistence/integrations";
 import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
-import { WebhookBuildRequester } from "./WebhookBuildRequester";
+import { WebhookPlanRequester } from "./WebhookPlanRequester";
+import { TrackerIssueInbound } from "../services/trackers/TrackerIssueInbound";
+import { AgentQuestionAnswerService } from "../services/questions/AgentQuestionAnswerService";
 import { createDefaultInboundEventProcessorResolver } from "./InboundEventProcessorResolver";
 import { WebhookConfigResolver } from "./WebhookConfigResolver";
 import { createDefaultProviderWebhookPolicyResolver } from "./ProviderWebhookPolicyResolver";
@@ -76,9 +78,17 @@ export function getWebhookService(): WebhookService {
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
     const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
+    const taskTurns = new TaskTurnService();
+    const planner = new WebhookPlanRequester(taskTurns);
+    const issues = new TrackerIssueInbound({
+      turns: taskTurns,
+      answers: new AgentQuestionAnswerService({ asker: taskTurns }),
+      planner,
+    });
     const inboundProcessorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO,
-      new WebhookBuildRequester(new TaskTurnService()),
+      planner,
+      issues,
       projectIntegrationLinkDAO,
     );
 

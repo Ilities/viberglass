@@ -4,6 +4,7 @@ import type {
   IntegrationCategory,
   TicketSystem,
 } from '@viberglass/types'
+import type { TrackerCommenter } from './TrackerCommenter'
 import type { PMIntegration } from './types'
 
 export type { IntegrationCategory }
@@ -49,6 +50,8 @@ export interface IntegrationPlugin<Config = object> {
   configFields: IntegrationFieldDefinition[]
   supports: IntegrationSupport
   createIntegration(config: AuthCredentials & Config): PMIntegration
+  /** For trackers: posts back to the issues their tasks are linked to, with the connection's credentials. */
+  createCommenter?(config: AuthCredentials & Config): TrackerCommenter
   status?: 'ready' | 'stub'
   webhookProvider?: string
   defaultInboundEvents?: string[]

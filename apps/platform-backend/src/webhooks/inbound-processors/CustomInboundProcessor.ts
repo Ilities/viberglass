@@ -11,6 +11,7 @@ import type {
 } from '../InboundEventProcessorResolver';
 import type { ParsedWebhookEvent, ProviderType } from '../WebhookProvider';
 import type { TicketDAO } from '../../persistence/ticketing/TicketDAO';
+import type { WebhookPlanRequester } from '../WebhookPlanRequester';
 import type { Severity, TicketMetadata, Annotation } from '@viberglass/types';
 
 interface CustomTicketPayload {
@@ -25,7 +26,10 @@ interface CustomTicketPayload {
 export class CustomInboundProcessor implements InboundEventProcessor {
   readonly provider: ProviderType | 'default' = 'custom';
 
-  constructor(private ticketDAO: TicketDAO) {}
+  constructor(
+    private ticketDAO: TicketDAO,
+    private planner: Pick<WebhookPlanRequester, 'request'>,
+  ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
     return event.provider === 'custom';
@@ -68,7 +72,7 @@ export class CustomInboundProcessor implements InboundEventProcessor {
       }),
       annotations: [] as Annotation[],
       ticketSystem: 'custom',
-      autoFixRequested: config.autoExecute,
+      autoFixRequested: false,
     });
     result.ticketId = ticket.id;
 
@@ -77,6 +81,10 @@ export class CustomInboundProcessor implements InboundEventProcessor {
         externalTicketId: payload.externalId || undefined,
         externalTicketUrl: payload.url || undefined,
       });
+    }
+
+    if (config.planNewIssues) {
+      result.jobId = await this.planner.request(ticket.id);
     }
 
     return result;

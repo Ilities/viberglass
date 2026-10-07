@@ -67,7 +67,7 @@ export function RepositoryFields(props: RepositoryFieldsProps) {
         {noCodeHosts ? (
           <Description className="mt-2">
             <Link href={props.connectionsHref} className="text-[var(--accent-11)] underline underline-offset-2">
-              Link GitHub, GitLab or Bitbucket
+              Connect GitHub
             </Link>{' '}
             to work on code.
           </Description>

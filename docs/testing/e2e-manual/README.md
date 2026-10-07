@@ -31,8 +31,8 @@ The automated Playwright smoke suite (`npm run test:e2e`, specs in `tests/e2e/te
 
 | ID | What | How to get it |
 |---|---|---|
-| **L-REV** | Local review instance with fixtures (people, spaces, tasks, 14 runners) | http://localhost:3200; `python3 docs/ux/v1-review/harness/instance.py status\|restart` |
-| **L-NEW** | Local empty instance (no users) | http://localhost:3201; `python3 .tmp/ux-fresh/instance.py status\|restart`; reset steps in [../../ux/v1-review/MANUAL-TESTING.md](../../ux/v1-review/MANUAL-TESTING.md#resetting) |
+| **L-REV** | Local review instance with fixtures (people, spaces, tasks, 14 runners) | http://localhost:3200; `python3 tests/manual-harness/instance.py status\|restart` |
+| **L-NEW** | Local empty instance (no users) | http://localhost:3201; `python3 .tmp/ux-fresh/instance.py status\|restart`; reset steps in [tests/manual-harness](../../../tests/manual-harness/README.md#starting-the-empty-instance-over) |
 | **L-DEV** | The docker compose dev stack | `docker compose up -d` → http://localhost:3000, API :8888; see [../local-development.md](../../local-development.md) |
 | **TUNNEL** | A public HTTPS URL to a local backend, for webhooks and Slack | `cloudflared tunnel --url http://localhost:8888` (or ngrok); set `PLATFORM_API_URL`/webhook URLs to it |
 | **AWS-DEV** | The AWS dev deployment | [05-aws.md](05-aws.md) |
@@ -90,10 +90,8 @@ Found while reading the code for this suite (2026-10-05). Check them first; seve
 - **Kubernetes** support was merged into `main` on 2026-10-05 (the merge commit may still be pending); its migration is now `101_kubernetes_deployment_strategy`. Clusters installed from the old branch must be recreated. See [06-kubernetes.md](06-kubernetes.md#k8s-00-merge-gate).
 - **GPU deployments created by Viberglass** (Verda/OVH ModelHost) and **Bedrock role auth** are not built. Only hand-made endpoints are testable.
 - **AWS**:
-  - The infra workflows (`pulumi-*.yml`) point at a missing `infrastructure/` folder, so deploy infra by hand.
   - Login over HTTPS likely needs `apiDomain` + `appDomain` + `route53ZoneId`.
   - Managed ECS workers don't get `AWS_S3_BUCKET`, so conversation state may not survive between turns.
-  - `deploy-backend-prod.yml` smoke steps are stale.
   - Details are in [05-aws.md](05-aws.md#known-issues).
 - **Password reset email**: `/forgot-password` only logs the request; resets are admin-issued links.
 

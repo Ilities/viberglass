@@ -414,7 +414,7 @@ export interface WebhookProviderConfigsTable {
   secret_path: string | null;
   webhook_secret_encrypted: string | null;
   allowed_events: Generated<string[]>;
-  auto_execute: Generated<boolean>;
+  plan_new_issues: Generated<boolean>;
   bot_username: string | null;
   label_mappings: Generated<JsonObject>;
   active: Generated<boolean>;
@@ -513,8 +513,21 @@ export interface TaskMessagesTable {
   ticket_id: string;
   author_id: string | null;
   body_markdown: string;
+  external_author_name: string | null;
+  external_source: string | null;
   created_at: Generated<Timestamp>;
   edited_at: Timestamp | null;
+}
+
+export interface TaskIssueLinksTable {
+  ticket_id: string;
+  provider: string;
+  issue_key: string;
+  issue_url: string | null;
+  integration_id: string | null;
+  webhook_config_id: string | null;
+  api_base_url: string | null;
+  created_at: Generated<Timestamp>;
 }
 
 export interface TaskMentionsTable {
@@ -821,6 +834,7 @@ export interface Database {
   task_participants: TaskParticipantsTable;
   task_messages: TaskMessagesTable;
   task_mentions: TaskMentionsTable;
+  task_issue_links: TaskIssueLinksTable;
   task_reads: TaskReadsTable;
   task_summaries: TaskSummariesTable;
   task_activity: TaskActivityTable;

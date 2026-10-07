@@ -1,4 +1,4 @@
-import { useTicketUrlBuilder } from '@viberglass/integration-core/frontend'
+import { TrackerConversationSettings, useTicketUrlBuilder } from '@viberglass/integration-core/frontend'
 import { Button } from '@viberglass/platform-ui'
 import { Subheading } from '@viberglass/platform-ui'
 import { Text } from '@viberglass/platform-ui'
@@ -10,7 +10,8 @@ import type {
 import { CopyIcon } from '@radix-ui/react-icons'
 
 interface JiraInboundWebhookSectionProps {
-  autoExecute: boolean
+  planNewIssues: boolean
+  botUsername: string
   deliveries: IntegrationWebhookDelivery[]
   hasInboundChanges: boolean
   inboundEvents: string[]
@@ -24,7 +25,8 @@ interface JiraInboundWebhookSectionProps {
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
   selectedInboundConfigId: string | null
   showSecret: boolean
-  onAutoExecuteChange: (value: boolean) => void
+  onPlanNewIssuesChange: (value: boolean) => void
+  onBotUsernameChange: (value: string) => void
   onCopyWebhookSecret: () => void
   onCopyWebhookUrl: (url: string) => void
   onCreateInboundWebhook: () => void
@@ -48,22 +50,23 @@ const JIRA_INBOUND_EVENT_OPTIONS: Array<{
   {
     value: 'issue_created',
     label: 'Issue created',
-    description: 'Create new Viberator tickets when new Jira issues are created.',
+    description: 'Creates a task linked to the issue.',
   },
   {
     value: 'issue_updated',
     label: 'Issue updated',
-    description: 'Process Jira issue updates, including issue comment actions.',
+    description: "Updates the linked task's title and description.",
   },
   {
     value: 'comment_created',
     label: 'Comment created',
-    description: 'Process new Jira issue comments as inbound updates.',
+    description: "Posts the comment in the linked task's thread; mentioning the bot asks the agent.",
   },
 ]
 
 export function JiraInboundWebhookSection({
-  autoExecute,
+  planNewIssues,
+  botUsername,
   deliveries,
   hasInboundChanges,
   inboundEvents,
@@ -77,7 +80,8 @@ export function JiraInboundWebhookSection({
   selectedInboundConfig,
   selectedInboundConfigId,
   showSecret,
-  onAutoExecuteChange,
+  onPlanNewIssuesChange,
+  onBotUsernameChange,
   onCopyWebhookSecret,
   onCopyWebhookUrl,
   onCreateInboundWebhook,
@@ -98,23 +102,23 @@ export function JiraInboundWebhookSection({
     <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
       <Subheading>Jira Inbound Webhook</Subheading>
       <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Configure Jira webhooks to ingest issue and comment activity into Viberator.
+        Link Jira issues to tasks: new issues create tasks, and comments and updates go both ways.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
         <p className="text-sm font-medium text-[var(--gray-12)]">Jira setup steps</p>
         <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-[var(--gray-9)]">
           <li>In Jira, open Settings {'>'} System {'>'} Webhooks and add a new webhook.</li>
-          <li>Use the webhook URL below and select the same inbound events enabled in this section.</li>
+          <li>Use the webhook URL below, and select the events Issue created, Issue updated and Comment created.</li>
           <li>Optionally set Jira project filtering with the project key below to keep routing deterministic.</li>
           <li>Set and rotate the webhook secret below for request signature verification.</li>
         </ol>
       </div>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
-        <p className="text-sm font-medium text-[var(--gray-12)]">Inbound project scope</p>
+        <p className="text-sm font-medium text-[var(--gray-12)]">Inbound space scope</p>
         <p className="mt-1 text-xs text-[var(--gray-9)]">
-          Each inbound config can map events to a Viberglass project and optionally pin routing to a Jira project key.
+          Each inbound config can map events to a Viberglass space and optionally pin routing to a Jira project key.
         </p>
       </div>
 
@@ -151,7 +155,7 @@ export function JiraInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label htmlFor="jiraInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Viberglass project
+                        Viberglass space
                       </label>
                       <select
                         id="jiraInboundProjectId"
@@ -159,7 +163,7 @@ export function JiraInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-2 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default project</option>
+                        <option value="">Use the default space linked to this connection</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}
@@ -257,17 +261,18 @@ export function JiraInboundWebhookSection({
                     </div>
                   </div>
 
+                  <TrackerConversationSettings
+                    tracker="Jira"
+                    idPrefix="jira"
+                    planNewIssues={planNewIssues}
+                    onPlanNewIssuesChange={onPlanNewIssuesChange}
+                    botUsername={botUsername}
+                    onBotUsernameChange={onBotUsernameChange}
+                    botUsernameHint="The Jira account whose @mention in a comment asks the agent: its account ID, or its username on Jira Data Center. Usually the account the connection's API token belongs to."
+                    botUsernamePlaceholder="e.g. 5b10ac8d82e05b22cc7d4ef5"
+                  />
+
                   <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <input
-                      type="checkbox"
-                      id="jiraAutoExecute"
-                      checked={autoExecute}
-                      onChange={(event) => onAutoExecuteChange(event.target.checked)}
-                      className="h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)] text-[var(--accent-9)] focus:ring-[var(--accent-9)]"
-                    />
-                    <label htmlFor="jiraAutoExecute" className="text-sm text-[var(--gray-12)]">
-                      Auto-execute fixes after matching Jira inbound events
-                    </label>
                     {hasInboundChanges && (
                       <Button color="brand" size="small" onClick={onSaveWebhook} disabled={isSavingWebhook}>
                         {isSavingWebhook ? 'Saving...' : 'Save inbound settings'}

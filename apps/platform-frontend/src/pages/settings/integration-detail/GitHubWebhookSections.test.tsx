@@ -1,7 +1,7 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps, ReactElement } from 'react'
-import { GitHubInboundWebhookSection } from './GitHubInboundWebhookSection'
+import { GitHubInboundWebhookSection } from '@viberglass/integration-github/frontend'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -11,9 +11,10 @@ function createInboundProps(
   overrides: Partial<ComponentProps<typeof GitHubInboundWebhookSection>> = {}
 ): ComponentProps<typeof GitHubInboundWebhookSection> {
   return {
-    autoExecute: true,
+    planNewIssues: true,
+    botUsername: '',
     deliveries: [],
-    githubAutoExecuteMode: 'matching_events',
+    githubPlanNewIssuesMode: 'matching_events',
     githubRequiredLabels: [],
     hasInboundChanges: false,
     inboundEvents: ['issues.opened'],
@@ -30,8 +31,9 @@ function createInboundProps(
     selectedInboundProjectId: null,
     selectedInboundProviderProjectId: 'acme/repo',
     showSecret: false,
-    onAutoExecuteChange: jest.fn(),
-    onGitHubAutoExecuteModeChange: jest.fn(),
+    onPlanNewIssuesChange: jest.fn(),
+    onBotUsernameChange: jest.fn(),
+    onGitHubPlanNewIssuesModeChange: jest.fn(),
     onGitHubRequiredLabelsChange: jest.fn(),
     onCopyWebhookSecret: jest.fn(),
     onCopyWebhookUrl: jest.fn(),
@@ -51,20 +53,21 @@ function createInboundProps(
 }
 
 describe('GitHub webhook sections', () => {
-  it('renders inbound routing and label-gated auto-execute controls', () => {
+  it('renders inbound routing, the plan setting limited to labelled issues, and the bot account', () => {
     renderWithTheme(
       <GitHubInboundWebhookSection
         {...createInboundProps({
-          githubAutoExecuteMode: 'label_gated',
+          planNewIssues: true,
+          githubPlanNewIssuesMode: 'label_gated',
           githubRequiredLabels: ['autofix'],
           inboundWebhooks: [
             {
               id: 'inbound-1',
               integrationId: 'test-integration-id',
-              provider: 'github',
               webhookUrl: '/api/webhooks/github',
               events: ['issues.opened'],
-              autoExecute: true,
+              planNewIssues: true,
+              botUsername: null,
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
@@ -73,7 +76,7 @@ describe('GitHub webhook sections', () => {
               inboundEvents: [],
               labelMappings: {
                 github: {
-                  autoExecuteMode: 'label_gated',
+                  planNewIssuesMode: 'label_gated',
                   requiredLabels: ['autofix'],
                 },
               },
@@ -84,10 +87,10 @@ describe('GitHub webhook sections', () => {
           selectedInboundConfig: {
             id: 'inbound-1',
             integrationId: 'test-integration-id',
-            provider: 'github',
             webhookUrl: '/api/webhooks/github',
             events: ['issues.opened'],
-            autoExecute: true,
+            planNewIssues: true,
+            botUsername: null,
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',
@@ -96,7 +99,7 @@ describe('GitHub webhook sections', () => {
             inboundEvents: [],
             labelMappings: {
               github: {
-                autoExecuteMode: 'label_gated',
+                planNewIssuesMode: 'label_gated',
                 requiredLabels: ['autofix'],
               },
             },
@@ -112,25 +115,29 @@ describe('GitHub webhook sections', () => {
     expect(screen.getByText('Inbound routing scope')).toBeInTheDocument()
     expect(screen.getByLabelText('Viberglass space')).toBeInTheDocument()
     expect(screen.getByLabelText('GitHub repository (`owner/repo`)')).toBeInTheDocument()
-    expect(screen.getByLabelText('Auto-execute policy')).toBeInTheDocument()
-    expect(screen.getByLabelText('Required issue labels')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Write the plan for new issues/)).toBeChecked()
+    expect(screen.getByLabelText('Which new issues')).toHaveValue('label_gated')
+    expect(screen.getByLabelText('Labels')).toBeInTheDocument()
+    expect(screen.getByLabelText('Bot account')).toBeInTheDocument()
+    expect(screen.queryByText(/auto-execute/i)).not.toBeInTheDocument()
   })
 
-  it('parses required labels for label-gated auto-execute', async () => {
+  it('parses the labels that limit which new issues get a plan', async () => {
     const onGitHubRequiredLabelsChange = jest.fn()
 
     renderWithTheme(
       <GitHubInboundWebhookSection
         {...createInboundProps({
-          githubAutoExecuteMode: 'label_gated',
+          planNewIssues: true,
+          githubPlanNewIssuesMode: 'label_gated',
           inboundWebhooks: [
             {
               id: 'inbound-1',
               integrationId: 'test-integration-id',
-              provider: 'github',
               webhookUrl: '/api/webhooks/github',
               events: ['issues.opened'],
-              autoExecute: true,
+              planNewIssues: true,
+              botUsername: null,
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
@@ -145,10 +152,10 @@ describe('GitHub webhook sections', () => {
           selectedInboundConfig: {
             id: 'inbound-1',
             integrationId: 'test-integration-id',
-            provider: 'github',
             webhookUrl: '/api/webhooks/github',
             events: ['issues.opened'],
-            autoExecute: true,
+            planNewIssues: true,
+            botUsername: null,
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',
@@ -165,9 +172,9 @@ describe('GitHub webhook sections', () => {
       />
     )
 
-    const requiredLabelsInput = screen.getByLabelText('Required issue labels')
-    fireEvent.change(requiredLabelsInput, { target: { value: 'autofix, AI-FIX' } })
+    const labelsInput = screen.getByLabelText('Labels')
+    fireEvent.change(labelsInput, { target: { value: 'viberglass, Needs-Plan' } })
 
-    expect(onGitHubRequiredLabelsChange).toHaveBeenLastCalledWith(['autofix', 'ai-fix'])
+    expect(onGitHubRequiredLabelsChange).toHaveBeenLastCalledWith(['viberglass', 'needs-plan'])
   })
 })

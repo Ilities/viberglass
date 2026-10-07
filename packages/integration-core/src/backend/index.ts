@@ -11,3 +11,5 @@ export type {
 export { IntegrationRegistry } from './IntegrationRegistry'
 export type { AutoFixDetectionConfig, CustomFieldMapping, PMIntegration } from './types'
 export { UnimplementedIntegration } from './UnimplementedIntegration'
+export type { TrackerCommenter, TrackerIssue } from './TrackerCommenter'
+export { isViberglassComment, VIBERGLASS_COMMENT_MARK, withViberglassMark } from './TrackerCommenter'

@@ -15,7 +15,7 @@ export function ForgotPasswordPage() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState<{ emailEnabled: boolean } | null>(null)
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -38,8 +38,7 @@ export function ForgotPasswordPage() {
     }
 
     try {
-      await requestPasswordReset(email)
-      setIsSubmitted(true)
+      setSubmitted(await requestPasswordReset(email))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to request reset.')
     } finally {
@@ -59,10 +58,16 @@ export function ForgotPasswordPage() {
           {error}
         </div>
       )}
-      {isSubmitted && !error && (
-        <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-          If the email exists, a reset link is on the way.
-        </div>
+      {submitted && !error && (
+        submitted.emailEnabled ? (
+          <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+            If the email exists, a reset link is on the way.
+          </div>
+        ) : (
+          <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+            This installation doesn&apos;t send email. Ask an admin for a reset link: they can make one under Settings, Members.
+          </div>
+        )
       )}
       <Field>
         <Label>Email</Label>

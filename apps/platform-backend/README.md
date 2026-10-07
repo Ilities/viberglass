@@ -1,11 +1,10 @@
 # Platform Backend
 
-Backend service for project/ticket orchestration, worker execution, integrations, webhooks, and secret management.
+Backend service for spaces and tasks, agent turns, worker execution, integrations, webhooks, and secret management.
 
 ## Documentation
-- Architecture: [docs/architecture.md](./docs/architecture.md)
-- Refactor backlog: [docs/refactor-backlog.md](./docs/refactor-backlog.md)
-- Contributor map: [docs/contributor-map.md](./docs/contributor-map.md)
+- Architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
+- Decisions: [docs/adr](../../docs/adr/)
 
 ## Quick Start
 

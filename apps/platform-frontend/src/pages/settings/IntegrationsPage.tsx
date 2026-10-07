@@ -56,7 +56,6 @@ export function IntegrationsPage() {
     integration.configStatus === 'configured' || (integration.system === 'slack' && slackBotConfigured)
   const connected = integrations.filter(inUse)
   const available = integrations.filter((integration) => !inUse(integration) && integration.configStatus === 'not_configured')
-  const later = integrations.filter((integration) => !inUse(integration) && integration.configStatus === 'stub')
 
   return (
     <>
@@ -96,14 +95,6 @@ export function IntegrationsPage() {
           </section>
         )}
 
-        {later.length > 0 && (
-          <details>
-            <summary className="cursor-pointer text-sm text-[var(--gray-10)]">Not available yet ({later.length})</summary>
-            <div className="mt-4">
-              <IntegrationGrid integrations={later} />
-            </div>
-          </details>
-        )}
       </div>
     </>
   )

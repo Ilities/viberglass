@@ -2,7 +2,7 @@ import { Theme } from '@radix-ui/themes'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps, ReactElement } from 'react'
-import { ShortcutInboundWebhookSection } from './ShortcutInboundWebhookSection'
+import { ShortcutInboundWebhookSection } from '@viberglass/integration-shortcut/frontend'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -12,7 +12,8 @@ function createInboundProps(
   overrides: Partial<ComponentProps<typeof ShortcutInboundWebhookSection>> = {}
 ): ComponentProps<typeof ShortcutInboundWebhookSection> {
   return {
-    autoExecute: false,
+    planNewIssues: false,
+    botUsername: '',
     deliveries: [],
     hasInboundChanges: false,
     inboundEvents: ['story_created'],
@@ -29,7 +30,8 @@ function createInboundProps(
     selectedInboundConfig: null,
     selectedInboundConfigId: null,
     showSecret: false,
-    onAutoExecuteChange: jest.fn(),
+    onPlanNewIssuesChange: jest.fn(),
+    onBotUsernameChange: jest.fn(),
     onCopyWebhookSecret: jest.fn(),
     onCopyWebhookUrl: jest.fn(),
     onCreateInboundWebhook: jest.fn(),
@@ -57,10 +59,10 @@ describe('Shortcut webhook sections', () => {
             {
               id: 'inbound-1',
               integrationId: 'test-integration-id',
-              provider: 'shortcut',
               webhookUrl: '/api/webhooks/shortcut',
               events: ['story_created'],
-              autoExecute: false,
+              planNewIssues: false,
+              botUsername: null,
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
@@ -75,10 +77,10 @@ describe('Shortcut webhook sections', () => {
           selectedInboundConfig: {
             id: 'inbound-1',
             integrationId: 'test-integration-id',
-            provider: 'shortcut',
             webhookUrl: '/api/webhooks/shortcut',
             events: ['story_created'],
-            autoExecute: false,
+            planNewIssues: false,
+            botUsername: null,
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',
@@ -112,10 +114,10 @@ describe('Shortcut webhook sections', () => {
             {
               id: 'inbound-1',
               integrationId: 'test-integration-id',
-              provider: 'shortcut',
               webhookUrl: '/api/webhooks/shortcut',
               events: ['story_created'],
-              autoExecute: false,
+              planNewIssues: false,
+              botUsername: null,
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
@@ -130,10 +132,10 @@ describe('Shortcut webhook sections', () => {
           selectedInboundConfig: {
             id: 'inbound-1',
             integrationId: 'test-integration-id',
-            provider: 'shortcut',
             webhookUrl: '/api/webhooks/shortcut',
             events: ['story_created'],
-            autoExecute: false,
+            planNewIssues: false,
+            botUsername: null,
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',

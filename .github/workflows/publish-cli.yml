@@ -1,0 +1,61 @@
+# Publishes the viberglass CLI (packages/cli) to npm when a release tag is pushed.
+# The tag sets the version: pushing v1.2.0 publishes viberglass@1.2.0.
+
+name: Publish CLI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 1.2.0'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+jobs:
+  publish:
+    name: Build and publish to npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build types
+        run: npm run build -w @viberglass/types
+
+      - name: Test
+        run: npm run test -w viberglass -- --maxWorkers=2
+
+      - name: Build
+        run: npm run build -w viberglass
+
+      - name: Set version
+        working-directory: packages/cli
+        env:
+          VERSION: ${{ inputs.version || github.ref_name }}
+        run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+
+      - name: Include the license
+        run: cp LICENSE packages/cli/LICENSE
+
+      - name: Publish
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public

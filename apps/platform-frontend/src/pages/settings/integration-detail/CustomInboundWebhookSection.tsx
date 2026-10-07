@@ -9,7 +9,7 @@ import { DeliveryHistoryTable } from './DeliveryHistoryTable'
 import { useTicketUrlBuilder } from './deliveryUtils'
 
 interface CustomInboundWebhookSectionProps {
-  autoExecute: boolean
+  planNewIssues: boolean
   deliveries: IntegrationWebhookDelivery[]
   hasInboundChanges: boolean
   inboundActive: boolean
@@ -22,7 +22,7 @@ interface CustomInboundWebhookSectionProps {
   selectedInboundConfigId: string | null
   selectedProjectId: string | null
   showSecret: boolean
-  onAutoExecuteChange: (value: boolean) => void
+  onPlanNewIssuesChange: (value: boolean) => void
   onCopyWebhookSecret: () => void
   onCopyWebhookUrl: (url: string) => void
   onCreateInboundWebhook: (projectId: string | null) => void
@@ -87,7 +87,7 @@ NODE
 `
 
 export function CustomInboundWebhookSection({
-  autoExecute,
+  planNewIssues,
   deliveries,
   hasInboundChanges,
   inboundActive,
@@ -100,7 +100,7 @@ export function CustomInboundWebhookSection({
   selectedInboundConfigId,
   selectedProjectId,
   showSecret,
-  onAutoExecuteChange,
+  onPlanNewIssuesChange,
   onCopyWebhookSecret,
   onCopyWebhookUrl,
   onCreateInboundWebhook,
@@ -297,13 +297,13 @@ export function CustomInboundWebhookSection({
                     <label className="flex items-center gap-3">
                       <input
                         type="checkbox"
-                        id="customInboundAutoExecute"
-                        checked={autoExecute}
-                        onChange={(event) => onAutoExecuteChange(event.target.checked)}
+                        id="customInboundPlanNewIssues"
+                        checked={planNewIssues}
+                        onChange={(event) => onPlanNewIssuesChange(event.target.checked)}
                         className="h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)] text-[var(--accent-9)] focus:ring-[var(--accent-9)]"
                       />
                       <span className="text-sm text-[var(--gray-12)]">
-                        Auto-execute fixes for accepted inbound events
+                        Write the plan for the tasks it creates
                       </span>
                     </label>
                   </div>

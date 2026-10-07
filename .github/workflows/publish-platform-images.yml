@@ -1,0 +1,102 @@
+# Publishes the backend and frontend images self-hosters run to GHCR, next to
+# the worker images (publish-worker-images.yml): the production compose file
+# and the Helm chart pull them, so an install doesn't start by building them.
+#
+# Each architecture builds natively and pushes `<sha>-<arch>`. The last job
+# joins both architectures under `latest`, `<sha>` and, on a release, its tag.
+name: Publish Platform Images (GHCR)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/platform-backend/**'
+      - 'apps/platform-frontend/**'
+      - 'packages/**'
+      - '!packages/agent-core/**'
+      - '!packages/agents/**'
+      - '!packages/cli/**'
+      - '!packages/evals/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/publish-platform-images.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-platform-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.image.name }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: viberglass-backend
+            dockerfile: apps/platform-backend/Dockerfile.prod
+          - name: viberglass-frontend
+            dockerfile: apps/platform-frontend/Dockerfile.prod
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Name the registry
+        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          build-args: |
+            VIBERGLASS_VERSION=${{ github.event.release.tag_name || github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ matrix.image.name }}:${{ github.sha }}-${{ matrix.arch }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.arch }}
+
+  manifests:
+    name: Tag ${{ matrix.image }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [viberglass-backend, viberglass-frontend]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Join architectures and tag
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME"
+          tags=(-t "$IMAGE:$GITHUB_SHA" -t "$IMAGE:latest")
+          if [ -n "$RELEASE_TAG" ]; then
+            tags+=(-t "$IMAGE:$RELEASE_TAG")
+          fi
+          docker buildx imagetools create "${tags[@]}" \
+            "$IMAGE:$GITHUB_SHA-amd64" \
+            "$IMAGE:$GITHUB_SHA-arm64"

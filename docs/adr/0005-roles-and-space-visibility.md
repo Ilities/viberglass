@@ -5,7 +5,7 @@
 - **Decider:** Jussi Hallila
 
 ## Context
-Phase 2 adds people: invites, space membership, participants and approvals. Today `users.role` is admin or member, any member can approve, and space membership (`user_projects`) exists but is stale and enforced nowhere (`docs/ux/phase-2-3-handover.md` §2.2–2.3). The role and visibility model has to be settled before invites and membership are built. These are decisions D1, D2, D3 and D6 in that handover.
+Phase 2 adds people: invites, space membership, participants and approvals. Today `users.role` is admin or member, any member can approve, and space membership (`user_projects`) exists but is stale and enforced nowhere. The role and visibility model has to be settled before invites and membership are built.
 
 ## Decision
 - **Workspace roles: Admin, Member, Guest, Viewer.**

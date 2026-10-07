@@ -2,7 +2,7 @@ import { Theme } from '@radix-ui/themes'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps, ReactElement } from 'react'
-import { JiraInboundWebhookSection } from './JiraInboundWebhookSection'
+import { JiraInboundWebhookSection } from '@viberglass/integration-jira/frontend'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -12,7 +12,8 @@ function createInboundProps(
   overrides: Partial<ComponentProps<typeof JiraInboundWebhookSection>> = {}
 ): ComponentProps<typeof JiraInboundWebhookSection> {
   return {
-    autoExecute: false,
+    planNewIssues: false,
+    botUsername: '',
     deliveries: [],
     hasInboundChanges: false,
     inboundEvents: ['issue_created'],
@@ -29,7 +30,8 @@ function createInboundProps(
     selectedInboundConfig: null,
     selectedInboundConfigId: null,
     showSecret: false,
-    onAutoExecuteChange: jest.fn(),
+    onPlanNewIssuesChange: jest.fn(),
+    onBotUsernameChange: jest.fn(),
     onCopyWebhookSecret: jest.fn(),
     onCopyWebhookUrl: jest.fn(),
     onCreateInboundWebhook: jest.fn(),
@@ -56,10 +58,10 @@ describe('Jira webhook sections', () => {
             {
               id: 'inbound-1',
               integrationId: 'test-integration-id',
-              provider: 'jira',
               webhookUrl: '/api/webhooks/jira',
               events: ['issue_created'],
-              autoExecute: false,
+              planNewIssues: false,
+              botUsername: null,
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
@@ -74,10 +76,10 @@ describe('Jira webhook sections', () => {
           selectedInboundConfig: {
             id: 'inbound-1',
             integrationId: 'test-integration-id',
-            provider: 'jira',
             webhookUrl: '/api/webhooks/jira',
             events: ['issue_created'],
-            autoExecute: false,
+            planNewIssues: false,
+            botUsername: null,
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',
@@ -111,10 +113,10 @@ describe('Jira webhook sections', () => {
             {
               id: 'inbound-1',
               integrationId: 'test-integration-id',
-              provider: 'jira',
               webhookUrl: '/api/webhooks/jira',
               events: ['issue_created'],
-              autoExecute: false,
+              planNewIssues: false,
+              botUsername: null,
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
@@ -129,10 +131,10 @@ describe('Jira webhook sections', () => {
           selectedInboundConfig: {
             id: 'inbound-1',
             integrationId: 'test-integration-id',
-            provider: 'jira',
             webhookUrl: '/api/webhooks/jira',
             events: ['issue_created'],
-            autoExecute: false,
+            planNewIssues: false,
+            botUsername: null,
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',
@@ -152,5 +154,47 @@ describe('Jira webhook sections', () => {
     const commentToggle = screen.getByRole('checkbox', { name: /Comment created/ })
     await user.click(commentToggle)
     expect(onToggleInboundEvent).toHaveBeenCalledWith('comment_created', true)
+  })
+
+  it('sets whether new issues get a plan and which account a comment mentions to ask the agent', async () => {
+    const user = userEvent.setup()
+    const onPlanNewIssuesChange = jest.fn()
+    const onBotUsernameChange = jest.fn()
+    const config = {
+      id: 'inbound-1',
+      integrationId: 'test-integration-id',
+      webhookUrl: '/api/webhooks/jira',
+      events: ['issue_created'],
+      planNewIssues: false,
+      botUsername: null,
+      active: true,
+      hasSecret: true,
+      webhookSecret: 'secret',
+      providerProjectId: null,
+      projectId: null,
+      inboundEvents: [],
+      labelMappings: null,
+      createdAt: '2026-02-10T00:00:00.000Z',
+      updatedAt: '2026-02-10T00:00:00.000Z',
+    }
+
+    renderWithTheme(
+      <JiraInboundWebhookSection
+        {...createInboundProps({
+          inboundWebhooks: [config],
+          selectedInboundConfig: config,
+          selectedInboundConfigId: 'inbound-1',
+          onPlanNewIssuesChange,
+          onBotUsernameChange,
+        })}
+      />
+    )
+
+    expect(screen.getByText(/Comments on the issue appear in the task's thread/)).toBeInTheDocument()
+    await user.click(screen.getByLabelText(/Write the plan for new issues/))
+    expect(onPlanNewIssuesChange).toHaveBeenCalledWith(true)
+    await user.type(screen.getByLabelText('Bot account'), 'v')
+    expect(onBotUsernameChange).toHaveBeenCalledWith('v')
+    expect(screen.queryByText(/auto-execute/i)).not.toBeInTheDocument()
   })
 })

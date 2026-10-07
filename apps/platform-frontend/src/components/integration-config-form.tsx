@@ -150,35 +150,6 @@ export function IntegrationConfigForm({
     }
   }
 
-  const SupportItem = ({
-    label,
-    supported,
-  }: {
-    label: string
-    supported?: boolean
-  }) => (
-    <div className={`flex items-center gap-2 ${supported ? 'text-[var(--gray-11)]' : 'text-[var(--gray-8)]'}`}>
-      {supported ? (
-        <svg className="size-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-            clipRule="evenodd"
-          />
-        </svg>
-      ) : (
-        <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-            clipRule="evenodd"
-          />
-        </svg>
-      )}
-      <span className="text-sm">{label}</span>
-    </div>
-  )
-
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Configuration Fields Section */}
@@ -214,24 +185,6 @@ export function IntegrationConfigForm({
           </Fieldset>
         </section>
       )}
-
-      {/* Features Section */}
-      <section className="app-frame rounded-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          </div>
-          <Text className="text-base font-semibold text-[var(--gray-12)]">Supported Features</Text>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <SupportItem label="Issue Creation" supported={integration.supports.issues} />
-          <SupportItem label="Webhooks" supported={integration.supports.webhooks} />
-          <SupportItem label="Pull Requests" supported={integration.supports.pullRequests} />
-        </div>
-      </section>
 
       {/* Test Result */}
       {testResult && (
