@@ -26,7 +26,8 @@ export function serializeInboundWebhookConfig(
     id: string;
     provider: WebhookProvider;
     allowedEvents: string[];
-    autoExecute: boolean;
+    planNewIssues: boolean;
+    botUsername: string | null;
     active: boolean;
     webhookSecretEncrypted: string | null;
     providerProjectId: string | null;
@@ -45,7 +46,8 @@ export function serializeInboundWebhookConfig(
         ? `/api/webhooks/${config.provider}/${config.id}`
         : `/api/webhooks/${config.provider}`,
     events: config.allowedEvents,
-    autoExecute: config.autoExecute,
+    planNewIssues: config.planNewIssues,
+    botUsername: config.botUsername,
     active: config.active,
     hasSecret: Boolean(config.webhookSecretEncrypted),
     webhookSecret: includeSecret,

@@ -28,10 +28,11 @@ The full walkthrough, with checks and cleanup, is in [Run Viberglass locally on 
 You provide:
 
 - A cluster with a NetworkPolicy-capable network plugin, an ingress controller, and DNS and TLS for your address.
-- A container registry. Build and push the backend, frontend and worker images from the same revision; the chart doesn't come with published backend and frontend images.
 - PostgreSQL.
 - S3-compatible object storage with a bucket, reachable from the cluster and from browsers.
 - Optionally, an SMTP server for email.
+
+The backend, frontend and worker images are published to `ghcr.io/ilities` for each release; use the same release tag for all of them. To use images you build yourself, push them to your own registry instead.
 
 Create the app and worker namespaces, then the secrets the chart reads: the database password and the two encryption keys in the app namespace, and the storage credentials in both. Generate strong, independent encryption keys and keep copies somewhere safe; without them, stored credentials can't be read. Write a values file with your images, address, database, storage and ingress, then:
 

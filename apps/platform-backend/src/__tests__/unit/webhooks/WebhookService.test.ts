@@ -21,7 +21,7 @@ function createConfig(provider: ProviderName): WebhookConfig {
     secretPath: null,
     webhookSecretEncrypted: `${provider}-secret`,
     allowedEvents: ["*"],
-    autoExecute: false,
+    planNewIssues: false,
     botUsername: null,
     labelMappings: {},
     active: true,
@@ -272,11 +272,15 @@ describe("WebhookService", () => {
     };
     const ticketDAO = {
       createTicket: jest.fn().mockResolvedValue({ id: "ticket-1" }),
-      findLatestShortcutStoryTicketByStoryId: jest.fn().mockResolvedValue(null),
       updateTicket: jest.fn().mockResolvedValue(undefined),
     };
-    const builds = {
+    const planner = {
       request: jest.fn().mockResolvedValue("job-1"),
+    };
+    const issues = {
+      opened: jest.fn().mockResolvedValue({ ticketId: "ticket-1" }),
+      edited: jest.fn().mockResolvedValue({ ticketId: "ticket-1" }),
+      commented: jest.fn().mockResolvedValue({ ticketId: "ticket-1" }),
     };
     const projectIntegrationLinkDAO = {
       getIntegrationProjects: jest.fn().mockResolvedValue([]),
@@ -285,7 +289,8 @@ describe("WebhookService", () => {
     // Create the processor resolver with the mocked dependencies
     const processorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO as any,
-      builds,
+      planner,
+      issues,
       projectIntegrationLinkDAO as any,
     );
     const configResolver = new WebhookConfigResolver(configDAO as any);
@@ -329,7 +334,8 @@ describe("WebhookService", () => {
         deduplication,
         secretService,
         ticketDAO,
-        builds,
+        planner,
+        issues,
         projectIntegrationLinkDAO,
       },
     };
@@ -419,10 +425,10 @@ describe("WebhookService", () => {
     );
   });
 
-  it("creates Shortcut ticket and prefers config project linkage", async () => {
+  it("opens a task for a new Shortcut story in the configured space", async () => {
     const config = createConfig("shortcut");
     config.allowedEvents = ["story_created"];
-    config.autoExecute = false;
+    config.planNewIssues = false;
     config.projectId = "project-from-config";
 
     const event: ParsedWebhookEvent = {
@@ -465,17 +471,20 @@ describe("WebhookService", () => {
     );
 
     expect(result.status).toBe("processed");
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+    expect(mocks.issues.opened).toHaveBeenCalledWith(
+      { provider: "shortcut", projectId: "project-from-config", integrationId: "integration-1", webhookConfigId: "cfg-shortcut" },
       expect.objectContaining({
-        projectId: "project-from-config",
+        key: "777",
+        url: "https://app.shortcut.com/acme/story/777",
         title: "Shortcut story",
-        autoFixRequested: false,
+        description: "Story body",
+        severity: "medium",
+        plan: false,
       }),
     );
-    expect(mocks.builds.request).not.toHaveBeenCalled();
   });
 
-  it("creates Shortcut ticket using integration-linked project when config project is missing", async () => {
+  it("opens the task in the connection's linked space when the config has none", async () => {
     const linkedProjectId = "11111111-1111-4111-8111-111111111111";
     const config = createConfig("shortcut");
     config.allowedEvents = ["story_created"];
@@ -533,15 +542,13 @@ describe("WebhookService", () => {
     expect(mocks.projectIntegrationLinkDAO.getIntegrationProjects).toHaveBeenCalledWith(
       "integration-1",
     );
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: linkedProjectId,
-        title: "Shortcut story linked project",
-      }),
+    expect(mocks.issues.opened).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: linkedProjectId }),
+      expect.objectContaining({ title: "Shortcut story linked project" }),
     );
   });
 
-  it("updates existing Shortcut ticket for story_updated events", async () => {
+  it("updates the linked task from a Shortcut story update", async () => {
     const config = createConfig("shortcut");
     config.allowedEvents = ["story_updated"];
     config.projectId = "project-from-config";
@@ -573,9 +580,7 @@ describe("WebhookService", () => {
       event,
       config,
     });
-    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue({
-      id: "ticket-shortcut-777",
-    });
+    mocks.issues.edited.mockResolvedValue({ ticketId: "ticket-shortcut-777" });
 
     const result = await service.processWebhook(
       {
@@ -593,24 +598,14 @@ describe("WebhookService", () => {
       ticketId: "ticket-shortcut-777",
       jobId: undefined,
     });
-    expect(mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId).toHaveBeenCalledWith(
-      "project-from-config",
-      "777",
-    );
-    expect(mocks.ticketDAO.updateTicket).toHaveBeenCalledWith(
-      "ticket-shortcut-777",
-      expect.objectContaining({
-        title: "Shortcut story updated",
-        description: "Updated body from Shortcut",
-        severity: "high",
-        category: "bug",
-        externalTicketId: "777",
-        externalTicketUrl: "https://app.shortcut.com/acme/story/777",
-      }),
-    );
+    expect(mocks.issues.edited).toHaveBeenCalledWith(expect.objectContaining({ provider: "shortcut", projectId: "project-from-config" }), {
+      key: "777",
+      title: "Shortcut story updated",
+      description: "Updated body from Shortcut",
+    });
   });
 
-  it("ignores Shortcut story_updated when no matching Viberglass ticket exists", async () => {
+  it("ignores a Shortcut story update when no task is linked to the story", async () => {
     const config = createConfig("shortcut");
     config.allowedEvents = ["story_updated"];
     config.projectId = "project-from-config";
@@ -639,7 +634,7 @@ describe("WebhookService", () => {
       event,
       config,
     });
-    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue(null);
+    mocks.issues.edited.mockResolvedValue({ ignoredReason: "No task is linked to the shortcut issue '999'" });
 
     const result = await service.processWebhook(
       {
@@ -653,8 +648,9 @@ describe("WebhookService", () => {
     );
 
     expect(result.status).toBe("ignored");
-    expect(result.reason).toBe("No Viberglass ticket found for Shortcut story '999'");
-    expect(mocks.ticketDAO.updateTicket).not.toHaveBeenCalled();
+    expect(result.reason).toBe("No task is linked to the shortcut issue '999'");
+    // A story update without its name leaves the title as it is.
+    expect(mocks.issues.edited).toHaveBeenCalledWith(expect.anything(), { key: "999", title: undefined, description: "Updated body from Shortcut" });
   });
 
   it("uses Jira signature headers consistently for verification", async () => {
@@ -854,10 +850,10 @@ describe("WebhookService", () => {
     expect(providerFixture.verifySignature).not.toHaveBeenCalled();
   });
 
-  it("creates Jira ticket for issue_created and prefers config project linkage", async () => {
+  it("opens a task for a new Jira issue in the configured space", async () => {
     const config = createConfig("jira");
     config.allowedEvents = ["issue_created"];
-    config.autoExecute = false;
+    config.planNewIssues = false;
     config.projectId = "project-from-config";
     config.providerProjectId = "OPS";
 
@@ -879,17 +875,20 @@ describe("WebhookService", () => {
     );
 
     expect(result.status).toBe("processed");
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+    expect(mocks.issues.opened).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "jira", projectId: "project-from-config" }),
       expect.objectContaining({
-        projectId: "project-from-config",
+        key: "OPS-42",
         title: "Login outage",
-        autoFixRequested: false,
+        description: "Production login endpoint returns 500",
+        author: { name: "Alice Reporter", email: null },
+        severity: "high",
+        plan: false,
       }),
     );
-    expect(mocks.builds.request).not.toHaveBeenCalled();
   });
 
-  it("creates Jira ticket and job for bot-triggered comment_created flow", async () => {
+  it("passes a Jira comment that mentions the bot to the linked task as an ask", async () => {
     const config = createConfig("jira");
     config.allowedEvents = ["comment_created"];
     config.botUsername = "viberator";
@@ -900,6 +899,7 @@ describe("WebhookService", () => {
       event,
       config,
     });
+    mocks.issues.commented.mockResolvedValue({ ticketId: "ticket-1", jobId: "job-1" });
 
     const result = await service.processWebhook(
       {
@@ -916,16 +916,16 @@ describe("WebhookService", () => {
       ticketId: "ticket-1",
       jobId: "job-1",
     });
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Login outage",
-        autoFixRequested: true,
-      }),
-    );
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
+    expect(mocks.issues.commented).toHaveBeenCalledWith(expect.objectContaining({ provider: "jira" }), {
+      issueKey: "OPS-42",
+      author: { name: "Bob Commenter", email: null },
+      body: "fix this now",
+      mentionsBot: true,
+    });
+    expect(mocks.ticketDAO.createTicket).not.toHaveBeenCalled();
   });
 
-  it("ignores unsupported Jira issue actions with explicit reason", async () => {
+  it("updates the linked task from a Jira issue update", async () => {
     const config = createConfig("jira");
     config.allowedEvents = ["*"];
     config.providerProjectId = "OPS";
@@ -947,10 +947,13 @@ describe("WebhookService", () => {
       { providerName: "jira" },
     );
 
-    expect(result.status).toBe("ignored");
-    expect(result.reason).toContain("issue_updated.issue_assigned");
-    expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
-    expect(mocks.ticketDAO.createTicket).not.toHaveBeenCalled();
+    expect(result.status).toBe("processed");
+    // An update without the description field leaves the description alone.
+    expect(mocks.issues.edited).toHaveBeenCalledWith(expect.objectContaining({ provider: "jira" }), {
+      key: "OPS-99",
+      title: "Assignment change",
+      description: undefined,
+    });
   });
 
   it("resolves Jira config from issue key project prefix when metadata lacks project IDs", async () => {
@@ -987,10 +990,10 @@ describe("WebhookService", () => {
     );
   });
 
-  it("creates GitHub ticket for issues.opened and links to config project deterministically", async () => {
+  it("opens a task for a new GitHub issue, keyed by repository and number", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issues.opened"];
-    config.autoExecute = false;
+    config.planNewIssues = false;
     config.projectId = "project-from-config";
 
     const event = createGitHubIssuesEvent("opened");
@@ -1011,20 +1014,23 @@ describe("WebhookService", () => {
     );
 
     expect(result.status).toBe("processed");
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+    expect(mocks.issues.opened).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "github", projectId: "project-from-config" }),
       expect.objectContaining({
-        projectId: "project-from-config",
+        key: "github-project-1#123",
+        url: "https://github.com/acme/repo/issues/123",
         title: "Fix login bug",
-        autoFixRequested: false,
+        description: "Login fails after reset",
+        severity: "high",
+        plan: false,
       }),
     );
-    expect(mocks.builds.request).not.toHaveBeenCalled();
   });
 
-  it("asks for a build automatically on issues.opened when autoExecute is enabled", async () => {
+  it("has the plan written for a new GitHub issue when the connection plans new issues", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issues.opened"];
-    config.autoExecute = true;
+    config.planNewIssues = true;
 
     const event = createGitHubIssuesEvent("opened");
     const { service, mocks } = createHarness({
@@ -1032,6 +1038,7 @@ describe("WebhookService", () => {
       event,
       config,
     });
+    mocks.issues.opened.mockResolvedValue({ ticketId: "ticket-1", jobId: "job-1" });
 
     const result = await service.processWebhook(
       {
@@ -1048,16 +1055,16 @@ describe("WebhookService", () => {
       ticketId: "ticket-1",
       jobId: "job-1",
     });
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
+    expect(mocks.issues.opened).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ plan: true }));
   });
 
-  it("skips GitHub auto-execute when label-gated policy does not match issue labels", async () => {
+  it("doesn't plan a new GitHub issue without one of the label-gated labels", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issues.opened"];
-    config.autoExecute = true;
+    config.planNewIssues = true;
     config.labelMappings = {
       github: {
-        autoExecuteMode: "label_gated",
+        planNewIssuesMode: "label_gated",
         requiredLabels: ["autofix"],
       },
     };
@@ -1080,21 +1087,16 @@ describe("WebhookService", () => {
     );
 
     expect(result.status).toBe("processed");
-    expect(mocks.builds.request).not.toHaveBeenCalled();
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        autoFixRequested: false,
-      }),
-    );
+    expect(mocks.issues.opened).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ plan: false }));
   });
 
-  it("asks for a build when the label-gated policy matches the issue's labels", async () => {
+  it("plans a new GitHub issue that has one of the label-gated labels", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issues.opened"];
-    config.autoExecute = true;
+    config.planNewIssues = true;
     config.labelMappings = {
       github: {
-        autoExecuteMode: "label_gated",
+        planNewIssuesMode: "label_gated",
         requiredLabels: ["high"],
       },
     };
@@ -1105,6 +1107,7 @@ describe("WebhookService", () => {
       event,
       config,
     });
+    mocks.issues.opened.mockResolvedValue({ ticketId: "ticket-1", jobId: "job-1" });
 
     const result = await service.processWebhook(
       {
@@ -1121,15 +1124,10 @@ describe("WebhookService", () => {
       ticketId: "ticket-1",
       jobId: "job-1",
     });
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        autoFixRequested: true,
-      }),
-    );
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
+    expect(mocks.issues.opened).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ plan: true }));
   });
 
-  it("creates ticket and job for bot-triggered issue_comment.created flow", async () => {
+  it("passes a GitHub comment that mentions the bot to the linked task as an ask", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issue_comment.created"];
     config.botUsername = "viberator";
@@ -1140,6 +1138,7 @@ describe("WebhookService", () => {
       event,
       config,
     });
+    mocks.issues.commented.mockResolvedValue({ ticketId: "ticket-1", jobId: "job-1" });
 
     const result = await service.processWebhook(
       {
@@ -1156,13 +1155,12 @@ describe("WebhookService", () => {
       ticketId: "ticket-1",
       jobId: "job-1",
     });
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Fix login bug",
-        autoFixRequested: true,
-      }),
-    );
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
+    expect(mocks.issues.commented).toHaveBeenCalledWith(expect.objectContaining({ provider: "github" }), {
+      issueKey: "github-project-1#123",
+      author: { name: "alice", email: null },
+      body: "fix this please",
+      mentionsBot: true,
+    });
   });
 
   it("ignores disallowed GitHub events with delivery diagnostics", async () => {

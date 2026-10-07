@@ -350,14 +350,14 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       id: "cfg-github-1",
       provider: "github",
       allowedEvents: ["issues.opened"],
-      autoExecute: true,
+      planNewIssues: true,
       active: true,
       webhookSecretEncrypted: "secret-1",
       providerProjectId: "acme/repo",
       projectId: "project-1",
       labelMappings: {
         github: {
-          autoExecuteMode: "label_gated",
+          planNewIssuesMode: "label_gated",
           requiredLabels: ["autofix", "ai-fix"],
         },
       },
@@ -369,12 +369,12 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       .post("/api/integrations/int-github/webhooks/inbound")
       .send({
         allowedEvents: ["issues.opened"],
-        autoExecute: true,
+        planNewIssues: true,
         providerProjectId: "acme/repo",
         projectId: "project-1",
         labelMappings: {
           github: {
-            autoExecuteMode: "label_gated",
+            planNewIssuesMode: "label_gated",
             requiredLabels: ["Autofix", "AI-FIX"],
           },
         },
@@ -388,7 +388,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         projectId: "project-1",
         labelMappings: {
           github: {
-            autoExecuteMode: "label_gated",
+            planNewIssuesMode: "label_gated",
             requiredLabels: ["autofix", "ai-fix"],
           },
         },
@@ -409,7 +409,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         providerProjectId: "acme/repo",
         labelMappings: {
           github: {
-            autoExecuteMode: "label_gated",
+            planNewIssuesMode: "label_gated",
             requiredLabels: ["autofix", "ai-fix"],
           },
         },
@@ -428,7 +428,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         id: "cfg-custom-2",
         provider: "custom",
         allowedEvents: ["ticket_created"],
-        autoExecute: true,
+        planNewIssues: true,
         active: false,
         webhookSecretEncrypted: "secret-2",
         createdAt: new Date("2026-02-09T10:00:00.000Z"),
@@ -438,7 +438,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         id: "cfg-custom-1",
         provider: "custom",
         allowedEvents: ["ticket_created"],
-        autoExecute: false,
+        planNewIssues: false,
         active: true,
         webhookSecretEncrypted: "secret-1",
         createdAt: new Date("2026-02-09T09:00:00.000Z"),
@@ -448,7 +448,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         id: "cfg-github-noise",
         provider: "github",
         allowedEvents: ["issues.opened"],
-        autoExecute: false,
+        planNewIssues: false,
         active: true,
         webhookSecretEncrypted: "secret-gh",
         createdAt: new Date("2026-02-09T08:00:00.000Z"),
@@ -492,7 +492,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         id: "cfg-custom-1",
         provider: "custom",
         allowedEvents: ["ticket_created"],
-        autoExecute: false,
+        planNewIssues: false,
         active: true,
         webhookSecretEncrypted: "secret-1",
         createdAt: new Date("2026-02-09T10:00:00.000Z"),
@@ -502,7 +502,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         id: "cfg-custom-2",
         provider: "custom",
         allowedEvents: ["ticket_created"],
-        autoExecute: true,
+        planNewIssues: true,
         active: true,
         webhookSecretEncrypted: "secret-2",
         createdAt: new Date("2026-02-09T11:00:00.000Z"),
@@ -521,7 +521,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       .post("/api/integrations/int-custom/webhooks/inbound")
       .send({
         allowedEvents: ["ticket_created"],
-        autoExecute: true,
+        planNewIssues: true,
         webhookSecret: "secret-2",
       })
       .expect(201);
@@ -574,7 +574,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       id: "cfg-custom-1",
       provider: "custom",
       allowedEvents: ["ticket_created"],
-      autoExecute: false,
+      planNewIssues: false,
       active: false,
       webhookSecretEncrypted: "secret-1",
       createdAt: new Date("2026-02-09T10:00:00.000Z"),

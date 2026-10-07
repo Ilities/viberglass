@@ -1,10 +1,6 @@
 import { apiRequest } from "./client";
 import { getAuth, getPlatformUrl } from "@/storage";
-import type {
-  CreateTicketPayload,
-  TicketResponse,
-  TicketWorkflowPhase,
-} from "@/types";
+import type { CreateTicketPayload, TicketResponse } from "@/types";
 
 export async function createTicket(
   payload: CreateTicketPayload,
@@ -46,7 +42,7 @@ export async function createTicket(
   });
 
   if (!response.ok) {
-    let message = "Failed to create ticket";
+    let message = "Failed to create the task";
     try {
       const body = await response.json();
       if (body.error) message = body.error;
@@ -63,20 +59,11 @@ export async function createTicket(
   return response.json();
 }
 
-const PHASE_ACTION: Record<TicketWorkflowPhase, "plan" | "code"> = {
-  planning: "plan",
-  execution: "code",
-};
-
-/** Asks the agent for the step's work in the task's thread, as the person signed in. */
-export async function runPhase(
-  ticketId: string,
-  phase: TicketWorkflowPhase,
-  clankerId: string,
-): Promise<void> {
-  await apiRequest(`/api/tasks/${ticketId}/messages`, {
+/** Asks an agent to write the task's plan, as the person signed in; without an agent, the space's default does it. */
+export async function askForPlan(taskId: string, agentId?: string): Promise<void> {
+  await apiRequest(`/api/tasks/${taskId}/messages`, {
     method: "POST",
-    body: JSON.stringify({ body: "", action: PHASE_ACTION[phase], agentId: clankerId }),
+    body: JSON.stringify({ body: "", action: "plan", ...(agentId ? { agentId } : {}) }),
   });
 }
 

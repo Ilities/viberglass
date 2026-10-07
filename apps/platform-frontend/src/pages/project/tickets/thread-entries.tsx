@@ -8,13 +8,24 @@ import { ThreadItem } from './thread-item'
 
 const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { plan: 'Plan' }
 
-/** What someone wrote in the thread, or to the agent in its session. */
+const TRACKER_NAME: Record<string, string> = { jira: 'Jira', shortcut: 'Shortcut', github: 'GitHub' }
+
+/** "on Jira": where a message from a linked tracker issue was written. */
+export function trackerNote(source: string | null | undefined): string | undefined {
+  if (!source) return undefined
+  return `on ${TRACKER_NAME[source] ?? source}`
+}
+
+/** What someone wrote in the thread, or to the agent in its session; a comment on a linked tracker issue says where. */
 export function MessageEntry({ entry }: { entry: Extract<TaskTimelineEntry, { kind: 'message' }> }) {
+  const outsider = !entry.author && entry.externalAuthor !== null
+  const note = entry.channel === 'session' ? 'to the agent' : trackerNote(entry.source ?? entry.externalAuthor?.source)
   return (
     <ThreadItem
-      who={entry.author?.name ?? 'Someone'}
+      who={entry.author?.name ?? entry.externalAuthor?.name ?? 'Someone'}
+      outsider={outsider}
       at={entry.at}
-      note={entry.channel === 'session' ? 'to the agent' : undefined}
+      note={note}
     >
       <MessageBody body={entry.body} />
     </ThreadItem>

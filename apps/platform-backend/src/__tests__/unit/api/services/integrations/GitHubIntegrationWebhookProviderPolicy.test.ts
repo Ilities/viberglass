@@ -18,7 +18,7 @@ describe("GitHubIntegrationWebhookProviderPolicy", () => {
       }),
     ).toEqual({
       github: {
-        autoExecuteMode: "matching_events",
+        planNewIssuesMode: "matching_events",
       },
     });
   });
@@ -27,13 +27,13 @@ describe("GitHubIntegrationWebhookProviderPolicy", () => {
     expect(
       policy.normalizeInboundLabelMappings({
         github: {
-          autoExecuteMode: "label_gated",
+          planNewIssuesMode: "label_gated",
           requiredLabels: ["Autofix", "AI-FIX", "autofix"],
         },
       }),
     ).toEqual({
       github: {
-        autoExecuteMode: "label_gated",
+        planNewIssuesMode: "label_gated",
         requiredLabels: ["autofix", "ai-fix"],
       },
     });
@@ -42,7 +42,7 @@ describe("GitHubIntegrationWebhookProviderPolicy", () => {
   it("throws for label-gated mode without labels", () => {
     expect(() =>
       policy.normalizeInboundLabelMappings({
-        autoExecuteMode: "label_gated",
+        planNewIssuesMode: "label_gated",
         labels: [],
       }),
     ).toThrow(IntegrationRouteServiceError);

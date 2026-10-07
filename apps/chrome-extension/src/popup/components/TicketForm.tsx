@@ -4,16 +4,12 @@ import type {
   CaptureState,
   Project,
   Clanker,
-  TicketWorkflowPhase,
   Severity,
   TicketMetadata,
 } from "@/types";
 import { listProjects, listClankers } from "@/api/projects";
-import { createTicket, runPhase } from "@/api/tickets";
+import { askForPlan, createTicket } from "@/api/tickets";
 import {
-  getDefaultProject,
-  getDefaultClanker,
-  getDefaultPhase,
   getFormState,
   setFormState,
   clearRecording,
@@ -30,11 +26,6 @@ interface Props {
   onLogout: () => void;
   onClearCapture: () => void;
 }
-
-const PHASES: { value: TicketWorkflowPhase; label: string }[] = [
-  { value: "planning", label: "Planning" },
-  { value: "execution", label: "Execution" },
-];
 
 const SEVERITIES: { value: Severity; label: string; color: string }[] = [
   { value: "low", label: "Low", color: "bg-gray-100 text-gray-700" },
@@ -53,12 +44,11 @@ export function TicketForm({
   const [projects, setProjects] = useState<Project[]>([]);
   const [clankers, setClankers] = useState<Clanker[]>([]);
   const [projectId, setProjectId] = useState("");
-  const [clankerId, setClankerId] = useState("");
-  const [phase, setPhase] = useState<TicketWorkflowPhase>("planning");
+  const [agentId, setAgentId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Severity>("medium");
-  const [autoRun, setAutoRun] = useState(true);
+  const [writePlan, setWritePlan] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [projectsError, setProjectsError] = useState("");
@@ -78,21 +68,11 @@ export function TicketForm({
       const saved = await getFormState();
       if (saved) {
         setProjectId(saved.projectId || "");
-        setClankerId(saved.clankerId || "");
-        if (saved.phase) setPhase(saved.phase as TicketWorkflowPhase);
+        setAgentId(saved.agentId || "");
         if (saved.title) setTitle(saved.title);
         if (saved.description) setDescription(saved.description);
         if (saved.severity) setSeverity(saved.severity as Severity);
-        if (saved.autoRun !== undefined) setAutoRun(saved.autoRun);
-      } else {
-        const [dp, dc, dph] = await Promise.all([
-          getDefaultProject(),
-          getDefaultClanker(),
-          getDefaultPhase(),
-        ]);
-        if (dp) setProjectId(dp);
-        if (dc) setClankerId(dc);
-        if (dph) setPhase(dph as TicketWorkflowPhase);
+        if (saved.writePlan !== undefined) setWritePlan(saved.writePlan);
       }
       formSyncedRef.current = true;
     }
@@ -101,20 +81,19 @@ export function TicketForm({
 
   useEffect(() => {
     if (!formSyncedRef.current) return;
-    setFormState({ projectId, clankerId, phase, title, description, severity, autoRun });
-  }, [projectId, clankerId, phase, title, description, severity, autoRun]);
+    setFormState({ projectId, agentId, title, description, severity, writePlan });
+  }, [projectId, agentId, title, description, severity, writePlan]);
 
   useEffect(() => {
     if (projectId) {
       listClankers(projectId)
         .then((clankers) => {
           setClankers(clankers);
-          if (clankers.length === 1) setClankerId(clankers[0].id);
         })
         .catch(() => setClankers([]));
     } else {
       setClankers([]);
-      setClankerId("");
+      setAgentId("");
     }
   }, [projectId]);
 
@@ -122,7 +101,7 @@ export function TicketForm({
     setTitle("");
     setDescription("");
     setSeverity("medium");
-    setAutoRun(true);
+    setWritePlan(true);
     await clearAllCapture();
     onClearCapture();
   }, [onClearCapture]);
@@ -162,7 +141,8 @@ export function TicketForm({
             message: `${ne.method} ${ne.url} → ${ne.status}`,
             timestamp: ne.timestamp,
           })),
-          pageUrl: capture.pageMetadata.url,
+          // The backend refuses an empty address; pages like the new tab have none.
+          pageUrl: capture.pageMetadata.url || undefined,
           referrer: capture.pageMetadata.referrer || undefined,
           timestamp: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -171,12 +151,12 @@ export function TicketForm({
         const result = await createTicket(
           {
             projectId,
-            title: title || capture.pageMetadata.title || "Bug report",
+            title: title || capture.pageMetadata.title || "New task",
             description:
               description ||
-              `Captured from ${capture.pageMetadata.url}`,
+              (capture.pageMetadata.url ? `Captured from ${capture.pageMetadata.url}` : "Captured with the Viberglass extension"),
             severity,
-            category: "bug",
+            category: "General",
             metadata,
             annotations: capture.annotations,
             autoFixRequested: false,
@@ -193,26 +173,26 @@ export function TicketForm({
         const spaceSlug = projects.find((p) => p.id === projectId)?.slug;
         const ticketUrl = spaceSlug ? `${appUrl}/spaces/${spaceSlug}/tasks/${ticketId}` : appUrl;
 
-        if (autoRun && clankerId) {
-          await runPhase(ticketId, phase, clankerId);
+        if (writePlan) {
+          await askForPlan(ticketId, agentId || undefined);
         }
 
         setSuccess({ ticketId, ticketUrl });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create ticket");
+        setError(err instanceof Error ? err.message : "Failed to create the task");
       } finally {
         setLoading(false);
       }
     },
     [
       projectId,
-      clankerId,
+      agentId,
       title,
       description,
       severity,
-      phase,
-      autoRun,
+      writePlan,
       capture,
+      projects,
     ],
   );
 
@@ -226,9 +206,9 @@ export function TicketForm({
             </svg>
           </div>
           <h2 className="text-sm font-semibold text-gray-900">Task created</h2>
-          {autoRun && clankerId && (
+          {writePlan && (
             <p className="text-xs text-gray-500 mt-1">
-              {phase.charAt(0).toUpperCase() + phase.slice(1)} phase started
+              The agent is writing the plan.
             </p>
           )}
         </div>
@@ -322,17 +302,17 @@ export function TicketForm({
           )}
         </div>
 
-        {clankers.length > 0 && (
+        {writePlan && clankers.length > 1 && (
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Agent
             </label>
             <select
-              value={clankerId}
-              onChange={(e) => setClankerId(e.target.value)}
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
             >
-              <option value="">Select agent</option>
+              <option value="">The space's default agent</option>
               {clankers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -350,7 +330,7 @@ export function TicketForm({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Bug description..."
+            placeholder="What should change?"
             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange"
           />
         </div>
@@ -362,7 +342,7 @@ export function TicketForm({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Steps to reproduce, expected vs actual behavior..."
+            placeholder="What you want done or answered, and anything that helps"
             rows={3}
             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange resize-none"
           />
@@ -391,33 +371,17 @@ export function TicketForm({
             </div>
           </div>
 
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Phase
-            </label>
-            <select
-              value={phase}
-              onChange={(e) => setPhase(e.target.value as TicketWorkflowPhase)}
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
-            >
-              {PHASES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            checked={autoRun}
-            onChange={(e) => setAutoRun(e.target.checked)}
+            checked={writePlan}
+            onChange={(e) => setWritePlan(e.target.checked)}
             className="w-3.5 h-3.5 rounded border-gray-300 text-brand-burnt-orange focus:ring-brand-burnt-orange"
           />
           <span className="text-xs text-gray-700">
-            Auto-run {phase} pipeline
+            Ask the agent to write the plan
           </span>
         </label>
 
@@ -432,7 +396,7 @@ export function TicketForm({
           disabled={loading || !projectId}
           className="w-full py-2 px-4 text-sm font-medium text-white bg-brand-burnt-orange rounded-md hover:bg-brand-golden-brass disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? "Creating..." : "Create ticket"}
+          {loading ? "Creating…" : "Create task"}
         </button>
       </form>
     </div>

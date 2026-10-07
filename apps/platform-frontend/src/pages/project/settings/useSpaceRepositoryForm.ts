@@ -53,9 +53,6 @@ function trackerOf(project: Project, trackers: LinkedConnection[]): string {
 
 /** State, loading and saving for a space's repository, issue tracker and advanced settings. */
 export function useSpaceRepositoryForm(project: Project | null) {
-  const [autoFixEnabled, setAutoFixEnabled] = useState(false)
-  const [autoFixTags, setAutoFixTags] = useState('')
-
   const [linked, setLinked] = useState<LinkedConnection[]>([])
   const [trackerId, setTrackerId] = useState<string>(NO_SELECTION)
   const [codeHostId, setCodeHostId] = useState<string>(NO_SELECTION)
@@ -94,8 +91,6 @@ export function useSpaceRepositoryForm(project: Project | null) {
 
   useEffect(() => {
     if (!project) return
-    setAutoFixEnabled(Boolean(project.autoFixEnabled))
-    setAutoFixTags(project.autoFixTags?.join(', ') ?? '')
     setError(null)
     setSuccess(null)
   }, [project])
@@ -208,8 +203,6 @@ export function useSpaceRepositoryForm(project: Project | null) {
 
   function reset() {
     if (!project) return
-    setAutoFixEnabled(Boolean(project.autoFixEnabled))
-    setAutoFixTags(project.autoFixTags?.join(', ') ?? '')
     setTrackerId(trackerOf(project, trackers))
     const primaryCodeHost = codeHosts.find((codeHost) => codeHost.id === project.primaryScmIntegrationId)
     applyScmConfig(initialScmConfig, primaryCodeHost?.id ?? NO_SELECTION)
@@ -224,14 +217,9 @@ export function useSpaceRepositoryForm(project: Project | null) {
     setError(null)
     setSuccess(null)
     try {
-      const updated = await updateProject(project.id, {
+      await updateProject(project.id, {
         primaryTicketingIntegrationId: trackers.find((tracker) => tracker.id === trackerId)?.id ?? null,
         primaryScmIntegrationId: codeHostId !== NO_SELECTION ? codeHostId : null,
-        autoFixEnabled,
-        autoFixTags: autoFixTags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
       })
 
       if (codeHostId !== NO_SELECTION) {
@@ -257,8 +245,6 @@ export function useSpaceRepositoryForm(project: Project | null) {
       }
 
       setSuccess('Saved.')
-      setAutoFixEnabled(Boolean(updated.autoFixEnabled))
-      setAutoFixTags(updated.autoFixTags?.join(', ') ?? '')
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Failed to save the repository settings'))
     } finally {
@@ -285,10 +271,6 @@ export function useSpaceRepositoryForm(project: Project | null) {
     setPullRequestBaseBranch,
     branchNameTemplate,
     setBranchNameTemplate,
-    autoFixEnabled,
-    setAutoFixEnabled,
-    autoFixTags,
-    setAutoFixTags,
     tokens,
     tokenId,
     setTokenId,

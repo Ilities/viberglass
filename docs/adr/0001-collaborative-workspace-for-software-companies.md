@@ -6,7 +6,7 @@
 - **Amended by:** [ADR 0009](./0009-the-plan-includes-the-research.md) (the flagship workflow is Plan → Build → PR), 2026-10-06
 
 ## Context
-Viberglass started as "tickets in, pull requests out". A beta user couldn't tell what the product was for, and argued that the software-only framing was baked in too deep. The UX audit (`docs/ux/user-journeys-and-personas.md`) proposed choosing between a general collaborative AI workspace and a narrower developer tool.
+Viberglass started as "tickets in, pull requests out". A beta user couldn't tell what the product was for, and argued that the software-only framing was baked in too deep. A UX audit proposed choosing between a general collaborative AI workspace and a narrower developer tool.
 
 ## Decision
 Viberglass is a **collaborative workspace where people and AI agents work together on objectives**, aimed at **software companies**. **Git is the backing substrate for now:** every workspace works against repositories, and agent output lands in git (branches, PRs, committed documents).

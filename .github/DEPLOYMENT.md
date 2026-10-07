@@ -121,6 +121,10 @@ For each environment (`dev`, `staging`, `prod`):
 | `AWS_ROLE_ARN` | dev/staging/prod | `arn:aws:iam::111111111111:role/ViberatorDeployRole` | IAM role creation (via Pulumi or AWS Console) |
 | `AMPLIFY_APP_ID` | dev/staging/prod | `d1234567890abc` | AWS Amplify Console → App → General Settings |
 | `AMPLIFY_BRANCH` | dev/staging/prod | `main` | Amplify branch listing (optional, defaults to environment name) |
+| `PULUMI_CONFIG_PASSPHRASE` | repository | the stacks' passphrase | The passphrase the stacks were created with (`encryptionsalt` in `Pulumi.<stack>.yaml`) |
+| `PULUMI_PLATFORM_CONFIG_DEV`, `PULUMI_PLATFORM_CONFIG_PROD` | repository | contents of `infra/platform/Pulumi.<stack>.yaml` | The platform stack's config, which isn't committed |
+
+The Pulumi workflows (`pulumi-preview.yml`, `pulumi-deploy-dev.yml`, `pulumi-deploy-prod.yml`) use the S3 state backend, `s3://viberglass-pulumi-state` unless the repository variable `PULUMI_BACKEND_URL` names another.
 
 **Getting AWS_ROLE_ARN:**
 
@@ -357,7 +361,7 @@ See: **[docs/DEPLOYMENT_SECRETS.md](../docs/DEPLOYMENT_SECRETS.md)**
 ## Related Documentation
 
 - **[Deployment Secrets Management](../docs/DEPLOYMENT_SECRETS.md)** - Complete secret setup guide
-- **[Infrastructure README](../infrastructure/README.md)** - Pulumi infrastructure components
+- **[Infrastructure README](../infra/README.md)** - Pulumi infrastructure components
 - **[AWS ECS Setup Guide](../docs/AWS_ECS_SETUP.md)** - Backend infrastructure details
 - **[Local Development Guide](../docs/LOCAL_DEVELOPMENT.md)** - Local setup instructions
 - **[Phase 12: Secret Management](../.planning/phases/12-secret-management/)** - Implementation details

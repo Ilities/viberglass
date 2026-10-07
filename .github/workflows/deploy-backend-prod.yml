@@ -39,7 +39,7 @@ jobs:
     if: github.event.inputs.confirm == 'YES'
     environment:
       name: prod
-      url: https://${{ env.ECS_CLUSTER }}.elb.${{ env.AWS_REGION }}.amazonaws.com
+      url: ${{ steps.get-api.outputs.api_url }}
 
     steps:
       - name: Checkout repository
@@ -131,22 +131,18 @@ jobs:
             --services "${{ env.ECS_SERVICE }}"
           echo "ECS service is stable"
 
-      - name: Get ALB endpoint
-        id: get-alb
+      - name: Get API address
+        id: get-api
         run: |
-          # Get ALB DNS from SSM or ECS service
-          ALB_DNS=$(aws ssm get-parameter \
-            --name "/viberglass/prod/alb/dns" \
+          # The platform stack stores the API's public address, ending in /api.
+          API_ADDRESS=$(aws ssm get-parameter \
+            --name "/viberglass/prod/frontend/apiUrl" \
             --query Parameter.Value \
-            --output text 2>/dev/null || echo "")
-
-          if [ -z "$ALB_DNS" ]; then
-            echo "Warning: ALB DNS not found in SSM, using cluster name"
-            ALB_DNS="${{ env.ECS_CLUSTER }}.elb.${{ env.AWS_REGION }}.amazonaws.com"
-          fi
-
-          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
-          echo "API_URL=https://$ALB_DNS" >> $GITHUB_ENV
+            --output text)
+          API_URL="${API_ADDRESS%/}"
+          API_URL="${API_URL%/api}"
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
 
       - name: Verify backend health endpoint
         run: |
@@ -168,24 +164,21 @@ jobs:
         run: |
           echo "Testing critical API endpoints..."
 
-          # Test projects endpoint (should return 200 or 401, not 5xx)
-          PROJECT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/projects" \
-            -H "X-Tenant-Id: smoke-test")
-
-          if [[ "$PROJECT_STATUS" =~ ^(200|401|403)$ ]]; then
-            echo "✅ Projects endpoint responding: $PROJECT_STATUS"
+          # Public: answers without signing in, and needs the database.
+          SETUP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/auth/setup-status")
+          if [ "$SETUP_STATUS" = "200" ]; then
+            echo "✅ Setup status endpoint responding: $SETUP_STATUS"
           else
-            echo "❌ Projects endpoint returned unexpected status: $PROJECT_STATUS"
+            echo "❌ Setup status endpoint returned unexpected status: $SETUP_STATUS"
             exit 1
           fi
 
-          # Test API version endpoint
-          VERSION_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/version")
-
-          if [[ "$VERSION_STATUS" =~ ^(200)$ ]]; then
-            echo "✅ Version endpoint responding: $VERSION_STATUS"
+          # Signed-in only: refuses an anonymous request rather than failing.
+          SPACES_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/spaces")
+          if [ "$SPACES_STATUS" = "401" ]; then
+            echo "✅ Spaces endpoint requires sign-in: $SPACES_STATUS"
           else
-            echo "❌ Version endpoint returned unexpected status: $VERSION_STATUS"
+            echo "❌ Spaces endpoint returned unexpected status: $SPACES_STATUS"
             exit 1
           fi
 

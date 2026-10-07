@@ -46,7 +46,7 @@ const summaryTurn: TaskTimelineEntry = {
 }
 
 const summary = (version: number, at: string, content: string): TaskTimelineEntry => ({ kind: 'summary', id: `sum-${version}`, at, version, content })
-const message = (id: string, at: string): TaskTimelineEntry => ({ kind: 'message', id, at, author: { id: 'u', name: 'Maria' }, body: 'Hi', channel: 'thread', sessionId: null })
+const message = (id: string, at: string): TaskTimelineEntry => ({ kind: 'message', id, at, author: { id: 'u', name: 'Maria' }, externalAuthor: null, body: 'Hi', channel: 'thread', sessionId: null })
 
 function renderThread(entries: TaskTimelineEntry[], runnable = [{ id: CLAUDE, name: 'Claude' }, { id: CODEX, name: 'Codex' }]) {
   mockTimeline.mockResolvedValue(entries)

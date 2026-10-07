@@ -59,7 +59,7 @@ function service(sources: {
   return new TaskTimelineService({
     messages: {
       list: jest.fn(async () =>
-        (sources.messages ?? []).map((m) => ({ id: m.id, ticketId: "t", author: MARIA, body: m.body, createdAt: m.at, editedAt: null })),
+        (sources.messages ?? []).map((m) => ({ id: m.id, ticketId: "t", author: MARIA, externalAuthor: null, source: null, body: m.body, createdAt: m.at, editedAt: null })),
       ),
     },
     sessionMessages: {

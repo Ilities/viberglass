@@ -5,7 +5,7 @@ const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS = "matching_events";
 const GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED = "label_gated";
 
-type GitHubAutoExecuteMode =
+type GitHubPlanNewIssuesMode =
   | typeof GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS
   | typeof GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED;
 
@@ -42,7 +42,7 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
       return {};
     }
 
-    const mode = this.parseGitHubAutoExecuteMode(normalizedInput);
+    const mode = this.parseGitHubPlanNewIssuesMode(normalizedInput);
     if (!mode) {
       return {};
     }
@@ -50,7 +50,7 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
     if (mode === GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS) {
       return {
         github: {
-          autoExecuteMode: GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS,
+          planNewIssuesMode: GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS,
         },
       };
     }
@@ -69,15 +69,15 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
 
     return {
       github: {
-        autoExecuteMode: GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED,
+        planNewIssuesMode: GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED,
         requiredLabels: labels,
       },
     };
   }
 
-  private parseGitHubAutoExecuteMode(labelMappings: {
+  private parseGitHubPlanNewIssuesMode(labelMappings: {
     [key: string]: unknown;
-  }): GitHubAutoExecuteMode | undefined {
+  }): GitHubPlanNewIssuesMode | undefined {
     const root = this.normalizeRecord(labelMappings);
     const nested = this.normalizeRecord(root?.github);
     const source = nested || root;
@@ -85,7 +85,7 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
       return undefined;
     }
 
-    const rawMode = source.autoExecuteMode ?? source.mode;
+    const rawMode = source.planNewIssuesMode ?? source.mode;
     if (typeof rawMode !== "string") {
       return undefined;
     }

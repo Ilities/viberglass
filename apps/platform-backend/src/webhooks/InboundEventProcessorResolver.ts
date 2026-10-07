@@ -2,15 +2,16 @@
  * Inbound event processor interface and resolver
  *
  * Defines the strategy pattern contract for processing inbound webhook events
- * from different providers. Each processor handles provider-specific logic for
- * creating tickets and optionally asking their agent to build.
+ * from different providers. Trackers read their payloads into a linked task's
+ * events; a custom webhook creates a task and can have its plan written.
  */
 
 import type { ParsedWebhookEvent, ProviderType } from './WebhookProvider';
 import type { WebhookConfig } from '../persistence/webhook/WebhookConfigDAO';
 import type { TicketDAO } from '../persistence/ticketing/TicketDAO';
 import type { ProjectIntegrationLinkDAO } from '../persistence/integrations/ProjectIntegrationLinkDAO';
-import type { WebhookBuildRequester } from './WebhookBuildRequester';
+import type { TrackerIssueInbound } from '../services/trackers/TrackerIssueInbound';
+import type { WebhookPlanRequester } from './WebhookPlanRequester';
 import { CustomInboundProcessor } from './inbound-processors/CustomInboundProcessor';
 import { DefaultInboundProcessor } from './inbound-processors/DefaultInboundProcessor';
 import { GitHubInboundProcessor } from './inbound-processors/GitHubInboundProcessor';
@@ -48,8 +49,7 @@ export interface EventProcessingResult {
 /**
  * Interface for provider-specific inbound event processors
  *
- * Each processor handles the logic for creating tickets and asking for builds
- * based on provider-specific event formats and business rules.
+ * Each processor reads its provider's event format and acts on the task it's about.
  */
 export interface InboundEventProcessor {
   /** Provider this processor handles, or 'default' for fallback */
@@ -110,14 +110,15 @@ export class InboundEventProcessorResolver {
  */
 export function createDefaultInboundEventProcessorResolver(
   ticketDAO: TicketDAO,
-  builds: Pick<WebhookBuildRequester, 'request'>,
+  planner: Pick<WebhookPlanRequester, 'request'>,
+  issues: Pick<TrackerIssueInbound, 'opened' | 'edited' | 'commented'>,
   projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
 ): InboundEventProcessorResolver {
   return new InboundEventProcessorResolver([
     new DefaultInboundProcessor(),
-    new GitHubInboundProcessor(ticketDAO, builds),
-    new JiraInboundProcessor(ticketDAO, builds),
-    new ShortcutInboundProcessor(ticketDAO, builds, projectIntegrationLinkDAO),
-    new CustomInboundProcessor(ticketDAO),
+    new GitHubInboundProcessor(issues),
+    new JiraInboundProcessor(issues),
+    new ShortcutInboundProcessor(issues, projectIntegrationLinkDAO),
+    new CustomInboundProcessor(ticketDAO, planner),
   ]);
 }

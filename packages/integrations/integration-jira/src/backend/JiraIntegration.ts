@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import { BasePMIntegration } from "@viberglass/integration-core";
+import { jiraAuthorization } from "./jiraAuth";
 import type { JiraConfig } from "./types";
 import {
   AuthCredentials,
@@ -93,17 +94,8 @@ export class JiraIntegration extends BasePMIntegration {
       "User-Agent": "viberglass-receiver/1.0",
     };
 
-    // Support different auth types
-    if (this.config.token) {
-      // API token (for cloud) or Personal Access Token (for server/data center)
-      headers["Authorization"] = `Bearer ${this.config.token}`;
-    } else if (this.config.username && this.config.password) {
-      // Basic auth (username + API token for cloud, or username + password for server)
-      const auth = Buffer.from(
-        `${this.config.username}:${this.config.password}`,
-      ).toString("base64");
-      headers["Authorization"] = `Basic ${auth}`;
-    }
+    const authorization = jiraAuthorization(this.config);
+    if (authorization) headers["Authorization"] = authorization;
 
     this.requestHeaders = headers;
 

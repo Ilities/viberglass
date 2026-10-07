@@ -133,7 +133,7 @@ Expect: (2) only spaces the user can see. (3) Visible in the UI as that user, wi
 
 ### CLI-01 · Checkout after take-over
 Needs: GH-03; an API token.
-1. `npm run build -w @viberglass/cli`.
+1. `npm run build -w viberglass`.
 2. In a clone of the test repository: `VIBERGLASS_URL=http://localhost:9088 VIBERGLASS_TOKEN=<token> node <repo>/packages/cli/dist/cli.js checkout <TASK-KEY>`.
 3. Run it in a clone of a different repository.
 

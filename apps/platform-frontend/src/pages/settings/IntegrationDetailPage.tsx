@@ -1,6 +1,6 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { Heading, Subheading } from '@/components/heading'
+import { Heading } from '@/components/heading'
 import { IntegrationConfigForm } from '@/components/integration-config-form'
 import { PageMeta } from '@/components/page-meta'
 import {
@@ -54,6 +54,9 @@ function normalizeGitHubRequiredLabels(rawLabels: string[]): string[] {
   return labels
 }
 
+
+/** Connections holding a token: code hosts use it for repositories, trackers to comment on linked issues. */
+const TOKEN_CONNECTIONS = ['github', 'gitlab', 'bitbucket', 'jira', 'shortcut']
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
   const { integrationEntityId: integrationEntityIdParam, integrationSystem: integrationSystemParam } = useParams<{
@@ -227,15 +230,15 @@ export function IntegrationDetailPage() {
   // ---- Per-system inbound handlers -------------------------------------------
 
   const buildGitHubInboundLabelMappings = () => {
-    if (!webhook.autoExecute) {
+    if (!webhook.planNewIssues) {
       return {}
     }
 
-    if (webhook.githubAutoExecuteMode === 'label_gated') {
+    if (webhook.githubPlanNewIssuesMode === 'label_gated') {
       const requiredLabels = normalizeGitHubRequiredLabels(webhook.githubRequiredLabels)
       return {
         github: {
-          autoExecuteMode: 'label_gated',
+          planNewIssuesMode: 'label_gated',
           requiredLabels,
         },
       }
@@ -243,7 +246,7 @@ export function IntegrationDetailPage() {
 
     return {
       github: {
-        autoExecuteMode: 'matching_events',
+        planNewIssuesMode: 'matching_events',
       },
     }
   }
@@ -300,10 +303,10 @@ export function IntegrationDetailPage() {
     }
 
     if (
-      webhook.githubAutoExecuteMode === 'label_gated' &&
+      webhook.githubPlanNewIssuesMode === 'label_gated' &&
       normalizeGitHubRequiredLabels(webhook.githubRequiredLabels).length === 0
     ) {
-      toast.error('Add at least one GitHub label for label-gated auto-execute')
+      toast.error('Add at least one label, or plan every new issue')
       return
     }
 
@@ -534,29 +537,24 @@ export function IntegrationDetailPage() {
       {/* Auth setup section (e.g. Slack install guide) */}
       {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
 
-      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && !isGithubIntegration && !isSlackIntegration && (
-        <section className="app-frame rounded-lg p-6">
-          <Subheading>Configuration</Subheading>
-          <div className="mt-6">
-            <IntegrationConfigForm
-              integration={integrationType}
-              initialValues={initialValues}
-              onSubmit={handleSubmit}
-              onTest={handleTest}
-              onCancel={handleCancel}
-              isLoading={isSavingConfig}
-              isTesting={isTesting}
-              testResult={testResult}
-            />
-          </div>
-        </section>
+      {!isCustomIntegration && !isShortcutIntegration && !isGithubIntegration && !isSlackIntegration && (
+        <IntegrationConfigForm
+          integration={integrationType}
+          initialValues={initialValues}
+          onSubmit={handleSubmit}
+          onTest={handleTest}
+          onCancel={handleCancel}
+          isLoading={isSavingConfig}
+          isTesting={isTesting}
+          testResult={testResult}
+        />
       )}
 
       {/* Inbound webhook section */}
       {(isConfigured || isCustomIntegration) && capabilities.supportsInboundWebhooks && (
         isCustomIntegration ? (
           <CustomInboundWebhookSection
-            autoExecute={webhook.autoExecute}
+            planNewIssues={webhook.planNewIssues}
             deliveries={webhook.deliveries}
             hasInboundChanges={webhook.hasInboundChanges}
             inboundActive={webhook.inboundActive}
@@ -569,7 +567,7 @@ export function IntegrationDetailPage() {
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             selectedProjectId={webhook.selectedInboundProjectId}
             showSecret={webhook.showSecret}
-            onAutoExecuteChange={webhook.setAutoExecute}
+            onPlanNewIssuesChange={webhook.setPlanNewIssues}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
             onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(undefined, projectId)}
@@ -587,7 +585,9 @@ export function IntegrationDetailPage() {
           />
         ) : RegistryInboundSection ? (
           <RegistryInboundSection
-            autoExecute={webhook.autoExecute}
+            planNewIssues={webhook.planNewIssues}
+            botUsername={webhook.botUsername}
+            onBotUsernameChange={webhook.setBotUsername}
             deliveries={webhook.deliveries}
             hasInboundChanges={webhook.hasInboundChanges}
             inboundEvents={webhook.inboundEvents}
@@ -601,15 +601,15 @@ export function IntegrationDetailPage() {
             selectedInboundProjectId={webhook.selectedInboundProjectId}
             selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
             showSecret={webhook.showSecret}
-            githubAutoExecuteMode={webhook.githubAutoExecuteMode}
+            githubPlanNewIssuesMode={webhook.githubPlanNewIssuesMode}
             githubRequiredLabels={webhook.githubRequiredLabels}
-            onAutoExecuteChange={webhook.setAutoExecute}
+            onPlanNewIssuesChange={webhook.setPlanNewIssues}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
             onCreateInboundWebhook={onCreateInboundWebhook}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
             onGenerateSecret={onGenerateInboundSecret}
-            onGitHubAutoExecuteModeChange={webhook.setGitHubAutoExecuteMode}
+            onGitHubPlanNewIssuesModeChange={webhook.setGitHubPlanNewIssuesMode}
             onGitHubRequiredLabelsChange={webhook.setGitHubRequiredLabels}
             onInboundProjectChange={webhook.setSelectedInboundProjectId}
             onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
@@ -622,7 +622,7 @@ export function IntegrationDetailPage() {
           />
         ) : (
           <InboundWebhookSection
-            autoExecute={webhook.autoExecute}
+            planNewIssues={webhook.planNewIssues}
             deliveries={webhook.deliveries}
             hasInboundChanges={webhook.hasInboundChanges}
             inboundWebhooks={webhook.inboundWebhooks}
@@ -634,7 +634,7 @@ export function IntegrationDetailPage() {
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
             showSecret={webhook.showSecret}
-            onAutoExecuteChange={webhook.setAutoExecute}
+            onPlanNewIssuesChange={webhook.setPlanNewIssues}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
             onCreateInboundWebhook={() => webhook.handleCreateInboundWebhook()}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
@@ -648,7 +648,7 @@ export function IntegrationDetailPage() {
         )
       )}
 
-      {isConfigured && existingIntegration && (isGithubIntegration || integrationSystem === 'gitlab' || integrationSystem === 'bitbucket') && (
+      {isConfigured && existingIntegration && integrationSystem && TOKEN_CONNECTIONS.includes(integrationSystem) && (
         <IntegrationCredentialSection
           integrationId={existingIntegration.id}
           integrationSystem={integrationSystem}

@@ -41,10 +41,28 @@ describe('deployment display', () => {
     ])
   })
 
+  it('reads arguments typed on one line, with commas, quotes or a pasted vllm serve command', () => {
+    const expected = ['--enable-auto-tool-choice', '--tool-call-parser', 'qwen3_xml', '--reasoning-parser', 'qwen3', '--max-model-len', '32768']
+    expect(
+      parseServingArgs('--enable-auto-tool-choice,\n--tool-call-parser qwen3_xml, --reasoning-parser qwen3, --max-model-len 32768'),
+    ).toEqual(expected)
+    expect(
+      parseServingArgs('vllm serve Qwen/Qwen3.8-27B-FP8 \\\n  --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 --max-model-len 32768'),
+    ).toEqual(expected)
+    expect(parseServingArgs(`--chat-template "/data/my template.jinja" --served-model-name 'a,b'`)).toEqual([
+      '--chat-template',
+      '/data/my template.jinja',
+      '--served-model-name',
+      'a,b',
+    ])
+  })
+
   it('lays out each flag with its value, and reads that layout back unchanged', () => {
-    const args = ['--enable-auto-tool-choice', '--tool-call-parser', 'qwen3-xml', '--kv-cache-dtype=fp8', '--speculative-config', '{"a": 1}']
+    const args = ['--enable-auto-tool-choice', '--tool-call-parser', 'qwen3-xml', '--kv-cache-dtype=fp8', '--speculative-config', '{"a": 1}', '--chat-template', '/data/my template.jinja']
     const text = formatServingArgs(args)
-    expect(text).toBe('--enable-auto-tool-choice\n--tool-call-parser qwen3-xml\n--kv-cache-dtype=fp8\n--speculative-config {"a": 1}')
+    expect(text).toBe(
+      "--enable-auto-tool-choice\n--tool-call-parser qwen3-xml\n--kv-cache-dtype=fp8\n--speculative-config {\"a\": 1}\n--chat-template '/data/my template.jinja'",
+    )
     expect(parseServingArgs(text)).toEqual(args)
   })
 

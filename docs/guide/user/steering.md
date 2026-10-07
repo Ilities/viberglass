@@ -34,15 +34,16 @@ When the agent has a branch for the task, you can work on it yourself.
 
 ### The viberglass command
 
-If you already have a clone of the repository, the `viberglass checkout` command puts the task's branch in it:
+If you already have a clone of the repository, the `viberglass checkout` command puts the task's branch in it. Install it with npm (it needs Node.js 20 or later):
 
 ```bash
+npm install -g viberglass
 export VIBERGLASS_URL=https://viberglass.example.com
 export VIBERGLASS_TOKEN=<an API token from Settings → API tokens>
 viberglass checkout WEB-42
 ```
 
-It checks that your clone's origin is the task's repository, fetches the branch and switches to it. The command is in the Viberglass repository under `packages/cli`; build it with `npm run build -w @viberglass/cli` and run `packages/cli/dist/cli.js`, or link it onto your PATH.
+It checks that your clone's origin is the task's repository, fetches the branch and switches to it.
 
 ## When a run fails
 

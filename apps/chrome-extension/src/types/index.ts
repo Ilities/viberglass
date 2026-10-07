@@ -1,4 +1,3 @@
-export type TicketWorkflowPhase = "planning" | "execution";
 export type Severity = "low" | "medium" | "high" | "critical";
 
 export interface AuthState {
@@ -118,7 +117,6 @@ export interface TicketResponse {
     id: string;
     projectId: string;
     title: string;
-    workflowPhase: TicketWorkflowPhase;
     status: string;
     [key: string]: unknown;
   };

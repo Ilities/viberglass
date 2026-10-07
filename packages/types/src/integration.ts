@@ -208,9 +208,9 @@ export const INTEGRATION_ICONS: Record<TicketSystem, string> = {
 
 // Integration descriptions (for frontend use)
 export const INTEGRATION_DESCRIPTIONS: Record<TicketSystem, string> = {
-  jira: 'Create and sync issues with Atlassian Jira. Supports Jira Cloud and Server.',
+  jira: 'New Jira issues become tasks; comments reach the task, and the plan, pull request and done come back to the issue.',
   linear: 'Streamlined issue tracking with Linear. Perfect for modern product teams.',
-  github: 'Native GitHub Issues integration with webhook support and PR linking.',
+  github: 'Pull requests for your repositories, and GitHub issues as tasks linked to their issue.',
   gitlab: 'GitLab Issues integration with CI/CD pipeline connectivity.',
   bitbucket: 'Atlassian Bitbucket issue tracking for teams using Bitbucket Git.',
   azure: 'Azure DevOps Boards integration for Microsoft-centric workflows.',
@@ -218,7 +218,7 @@ export const INTEGRATION_DESCRIPTIONS: Record<TicketSystem, string> = {
   trello: 'Kanban-style issue organization using Trello boards.',
   monday: 'Work operating system for issue and project management.',
   clickup: 'All-in-one productivity platform for issue tracking.',
-  shortcut: 'Project management for software teams (formerly Clubhouse).',
+  shortcut: 'New Shortcut stories become tasks; comments reach the task, and the plan, pull request and done come back to the story.',
   slack: 'Send notifications and create issues directly from Slack channels.',
-  custom: 'Receive tickets from any external system via a simple JSON webhook.',
+  custom: 'Create tasks from any system with a simple JSON webhook.',
 }

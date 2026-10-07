@@ -5,7 +5,7 @@ const turn = (id: string, status: 'failed' | 'cancelled' | 'completed'): TaskTim
   kind: 'agent_turn', id, at: '2026-10-01T10:00:00Z', agent: { id: 'a', name: 'Qwen' }, action: 'plan', status, outcome: null, sessionId: 's', jobId: null,
 })
 const message = (id: string, body: string): TaskTimelineEntry => ({
-  kind: 'message', id, at: '2026-10-01T10:00:00Z', author: null, body, channel: 'thread', sessionId: null,
+  kind: 'message', id, at: '2026-10-01T10:00:00Z', author: null, externalAuthor: null, body, channel: 'thread', sessionId: null,
 })
 const cancelled = (id: string): TaskTimelineEntry => ({
   kind: 'event', id, at: '2026-10-01T10:00:00Z',

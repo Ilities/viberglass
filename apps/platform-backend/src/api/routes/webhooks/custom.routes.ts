@@ -131,7 +131,7 @@ export function createCustomRoutes() {
           },
           annotations: [],
           ticketSystem: 'custom',
-          autoFixRequested: config.autoExecute || false,
+          autoFixRequested: config.planNewIssues || false,
         });
 
         // Set external ticket fields if provided

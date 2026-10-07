@@ -77,10 +77,6 @@ export function SpaceRepositoryPage() {
                 onPullRequestBaseBranchChange={form.setPullRequestBaseBranch}
                 branchNameTemplate={form.branchNameTemplate}
                 onBranchNameTemplateChange={form.setBranchNameTemplate}
-                autoFixEnabled={form.autoFixEnabled}
-                onAutoFixEnabledChange={form.setAutoFixEnabled}
-                autoFixTags={form.autoFixTags}
-                onAutoFixTagsChange={form.setAutoFixTags}
                 taskKeyExample={`${project.keyPrefix}-12`}
               />
 

@@ -28,7 +28,13 @@ export const modelDeploymentSchema = Joi.object({
     gpuCount: Joi.number().integer().min(1).max(8).required(),
   }).required(),
   servingArgs: Joi.array()
-    .items(Joi.string().max(4096))
+    // vLLM takes a flag and its value as separate arguments; one argument holding both makes it exit.
+    .items(
+      Joi.string()
+        .max(4096)
+        .pattern(/^--?[\w-]+\s/, { invert: true })
+        .messages({ "string.pattern.invert.base": "Pass each flag and its value as separate serving arguments: {{#value}}" }),
+    )
     .max(100)
     .default([]),
 });

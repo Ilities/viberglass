@@ -1,4 +1,5 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
+import { GitHubCommenter } from './GitHubCommenter'
 import { GitHubIntegration } from './GitHubIntegration'
 import type { GitHubConfig } from './types'
 
@@ -14,9 +15,10 @@ const githubPlugin: IntegrationPlugin<GitHubConfig> = {
   ],
   supports: { issues: true, webhooks: true, pullRequests: true },
   createIntegration: (config) => new GitHubIntegration(config),
+  createCommenter: (config) => new GitHubCommenter(config),
   status: 'ready',
   webhookProvider: 'github',
-  defaultInboundEvents: ['issues.opened', 'issue_comment.created'],
+  defaultInboundEvents: ['issues.opened', 'issues.edited', 'issue_comment.created'],
   getProviderProjectId: (config) => {
     const owner = typeof config.owner === 'string' ? config.owner : null
     const repo = typeof config.repo === 'string' ? config.repo : null

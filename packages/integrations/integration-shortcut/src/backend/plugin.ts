@@ -1,4 +1,5 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
+import { ShortcutCommenter } from './ShortcutCommenter'
 import { ShortcutIntegration } from './ShortcutIntegration'
 import type { ShortcutConfig } from './types'
 
@@ -10,9 +11,10 @@ const shortcutPlugin: IntegrationPlugin<ShortcutConfig> = {
   configFields: [],
   supports: { issues: true, webhooks: true },
   createIntegration: (config) => new ShortcutIntegration(config),
+  createCommenter: (config) => new ShortcutCommenter(config),
   status: 'ready',
   webhookProvider: 'shortcut',
-  defaultInboundEvents: ['story_created', 'comment_created'],
+  defaultInboundEvents: ['story_created', 'story_updated', 'comment_created'],
 }
 
 export default shortcutPlugin

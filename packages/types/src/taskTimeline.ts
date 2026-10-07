@@ -1,5 +1,5 @@
 import type { AgentQuestion } from './agentQuestion'
-import type { TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
+import type { ExternalMessageAuthor, TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
 import type { TaskTurnAction, TaskTurnOutcome } from './taskTurn'
 
 /** The artifacts a task's conversation produces so far. Code arrives with the pull request. */
@@ -17,6 +17,10 @@ export type TaskTimelineEntry =
       id: string
       at: string
       author: TaskTimelinePerson | null
+      /** Who wrote it in a linked tracker issue, when they have no Viberglass account. */
+      externalAuthor: ExternalMessageAuthor | null
+      /** The tracker it was written in ("jira", "shortcut", "github"); absent or null when written in Viberglass or Slack. */
+      source?: string | null
       body: string
       /** `session` when it was sent to the agent in a live session, which the agent reads. */
       channel: 'thread' | 'session'

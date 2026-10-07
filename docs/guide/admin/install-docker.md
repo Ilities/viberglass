@@ -2,7 +2,7 @@
 
 The quickest way to try Viberglass: one command on one machine, then a short setup in the browser. Agents run as Docker containers on the same machine.
 
-This setup is for trying Viberglass on your own machine. It runs the development servers and uses fixed database and encryption keys, so don't expose it to a network. For an installation your team shares, use [Kubernetes](install-kubernetes.md) or [AWS](install-aws.md).
+There are two ways to run it with Docker. The first, below, is for trying Viberglass on your own machine: it runs the development servers with fixed database and encryption keys, so don't expose it to a network. For an installation your team shares on one server, use the [production setup](#on-a-server). For a cluster or the cloud, use [Kubernetes](install-kubernetes.md) or [AWS](install-aws.md).
 
 ## Requirements
 
@@ -52,3 +52,46 @@ More detail is in [local development](https://github.com/Ilities/viberglass/blob
 ## Stop and start
 
 `docker compose down` stops everything; your data stays in Docker volumes. `docker compose up` starts it again. To update, `git pull` and run `docker compose up --build`. See [Upgrades and backups](upgrades-and-backups.md).
+
+## On a server
+
+`docker-compose.prod.yml` runs Viberglass on one Linux server from the published images: PostgreSQL, the backend, the frontend and, optionally, Caddy for HTTPS. Nothing is built on the server, and the passwords and keys come from a `.env` file.
+
+You need:
+
+- A Linux server with Docker Engine 20.10 or newer and Docker Compose v2, and about 20 GB of free disk for agent images.
+- A domain name pointing at the server, with ports 80 and 443 open, for HTTPS. Sign-in cookies only work over HTTPS.
+- A model key, and a GitHub repository with an access token, as above.
+
+```bash
+git clone https://github.com/Ilities/viberglass.git
+cd viberglass
+git checkout v1.0.0   # the release you want to run
+cp .env.production.example .env
+```
+
+Fill in `.env`:
+
+- `VIBERGLASS_URL`: the HTTPS address people open, such as `https://viberglass.example.com`.
+- `VIBERGLASS_DOMAIN`: the same domain without `https://`, for the certificate.
+- `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY` and `WEBHOOK_SECRET_ENCRYPTION_KEY`: generate each with `openssl rand -hex 32`. Keep a copy of the two keys somewhere safe. Without them, the credentials Viberglass stores can't be read.
+- `VIBERGLASS_VERSION`: the same release tag, so the images match. `latest` follows the main branch.
+
+Then start it with HTTPS:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile https up -d
+```
+
+Caddy gets a Let's Encrypt certificate for your domain on the first request. Open your address and go through [first-run setup](#first-run-setup). The backend runs the database migrations each time it starts.
+
+If you already have a reverse proxy, leave out `--profile https` and point the proxy at `127.0.0.1:8080`, the frontend. It serves the app and passes `/api` to the backend.
+
+What else to know:
+
+- Agents run as containers on the same server. The backend starts them through the Docker socket, so treat access to the backend container as root access to the server.
+- Agent containers call the backend back on the Docker bridge address, `172.17.0.1:8888`, which isn't reachable from outside the server. If `ip addr show docker0` shows another address, set `VIBERGLASS_WORKER_API_BIND` in `.env`.
+- Task media, saved agent sessions, instruction files and skills are kept in `/var/lib/viberglass` (`VIBERGLASS_DATA_DIR`), and the database in the `viberglass_postgres-data` volume. Back up both, and `.env`.
+- Optional email, Slack and trace settings are in `.env.production.example`.
+
+To upgrade, set `VIBERGLASS_VERSION` to the new release in `.env`, then run `docker compose -f docker-compose.prod.yml --profile https pull` and `docker compose -f docker-compose.prod.yml --profile https up -d`. Back up the database first; see [Upgrades and backups](upgrades-and-backups.md).

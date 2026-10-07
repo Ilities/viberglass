@@ -426,7 +426,9 @@ export interface IntegrationInboundWebhookConfig {
   providerProjectId: string | null
   projectId: string | null
   active: boolean
-  autoExecute: boolean
+  planNewIssues: boolean
+  /** The tracker account whose mention in a comment asks the agent. */
+  botUsername: string | null
   inboundEvents: string[]
   labelMappings: Record<string, unknown> | null
   events: string[]
@@ -447,6 +449,7 @@ function normalizeInboundWebhookConfig(
 ): IntegrationInboundWebhookConfig {
   return {
     ...config,
+    botUsername: config.botUsername ?? null,
     webhookUrl: toAbsoluteWebhookUrl(config.webhookUrl),
   }
 }
@@ -499,7 +502,8 @@ export async function createIntegrationInboundWebhook(
   integrationEntityId: string,
   config: {
     events?: string[]
-    autoExecute?: boolean
+    planNewIssues?: boolean
+    botUsername?: string | null
     webhookSecret?: string
     generateSecret?: boolean
     providerProjectId?: string | null
@@ -515,7 +519,8 @@ export async function createIntegrationInboundWebhook(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         allowedEvents: config.events,
-        autoExecute: config.autoExecute,
+        planNewIssues: config.planNewIssues,
+        botUsername: config.botUsername,
         webhookSecret: config.webhookSecret,
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,
@@ -541,7 +546,8 @@ export async function updateIntegrationInboundWebhook(
   configId: string,
   config: {
     events?: string[]
-    autoExecute?: boolean
+    planNewIssues?: boolean
+    botUsername?: string | null
     webhookSecret?: string
     generateSecret?: boolean
     providerProjectId?: string | null
@@ -557,7 +563,8 @@ export async function updateIntegrationInboundWebhook(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         allowedEvents: config.events,
-        autoExecute: config.autoExecute,
+        planNewIssues: config.planNewIssues,
+        botUsername: config.botUsername,
         webhookSecret: config.webhookSecret,
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,

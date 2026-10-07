@@ -1,5 +1,6 @@
 # Pulumi Production Deployment Workflow
-# Manually triggered with approval gates for production infrastructure changes
+# Manually triggered, behind the prod environment's approval: base, workers,
+# then platform. State is in the S3 backend (infra/README.md).
 
 name: Pulumi Deploy (Prod)
 
@@ -19,6 +20,10 @@ concurrency:
   group: pulumi-deploy-prod
   cancel-in-progress: false
 
+env:
+  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL || 's3://viberglass-pulumi-state' }}
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
 jobs:
   deploy:
     name: Deploy Infrastructure to Production
@@ -32,8 +37,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Display deployment reason
-        run: |
-          echo "Deployment reason: ${{ github.event.inputs.reason }}"
+        env:
+          REASON: ${{ github.event.inputs.reason }}
+        run: echo "Deployment reason - $REASON"
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -45,29 +51,57 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          cache: npm
 
       - name: Install Pulumi CLI
         uses: pulumi/setup-pulumi@v3
 
-      - name: Install infrastructure dependencies
-        working-directory: infrastructure
-        run: npm ci
+      # The platform stack's config holds account-specific values and isn't committed.
+      - name: Write platform stack config
+        env:
+          STACK_CONFIG: ${{ secrets.PULUMI_PLATFORM_CONFIG_PROD }}
+        run: |
+          if [ -z "$STACK_CONFIG" ]; then
+            echo "::error::Set the PULUMI_PLATFORM_CONFIG_PROD secret to the contents of infra/platform/Pulumi.prod.yaml"
+            exit 1
+          fi
+          printf '%s\n' "$STACK_CONFIG" > infra/platform/Pulumi.prod.yaml
 
-      - name: Run Pulumi up (prod stack)
+      # Base first: workers and platform read its outputs. Platform reads the workers stack's.
+      - name: Install base dependencies
+        working-directory: infra/base
+        run: npm install --no-audit --no-fund
+
+      - name: Pulumi up (base)
         uses: pulumi/actions@v6
         with:
           command: up
           stack-name: prod
-          work-dir: infrastructure
+          work-dir: infra/base
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
           diff: true
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-      - name: Deployment summary
-        if: always()
-        run: |
-          echo "Production stack deployment completed"
-          echo "Check Pulumi Cloud for full stack outputs: https://app.pulumi.com/"
-          echo ""
-          echo "IMPORTANT: Verify all resources are healthy before closing this workflow run"
+      - name: Install workers dependencies
+        working-directory: infra/workers
+        run: npm install --no-audit --no-fund
+
+      - name: Pulumi up (workers)
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: prod
+          work-dir: infra/workers
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
+          diff: true
+
+      - name: Install platform dependencies
+        working-directory: infra/platform
+        run: npm install --no-audit --no-fund
+
+      - name: Pulumi up (platform)
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: prod
+          work-dir: infra/platform
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
+          diff: true

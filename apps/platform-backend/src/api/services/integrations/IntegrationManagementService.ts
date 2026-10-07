@@ -6,11 +6,11 @@ import {
 } from "../../../persistence/integrations";
 import { WebhookConfigDAO } from "../../../persistence/webhook/WebhookConfigDAO";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
-import type { TicketSystem, AuthCredentials } from "@viberglass/types";
+import type { TicketSystem } from "@viberglass/types";
 import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
 import { IntegrationRouteServiceError } from "./errors";
 import type { CreateIntegrationInput, UpdateIntegrationInput } from "./types";
-import { SecretService } from "../../../services/SecretService";
+import { ConnectionCredentialsResolver } from "../../../services/trackers/ConnectionCredentialsResolver";
 
 export class IntegrationManagementService {
   constructor(
@@ -18,7 +18,7 @@ export class IntegrationManagementService {
     private readonly projectLinkDAO = new ProjectIntegrationLinkDAO(),
     private readonly webhookConfigDAO = new WebhookConfigDAO(),
     private readonly credentialDAO = new IntegrationCredentialDAO(),
-    private readonly secretService = new SecretService(),
+    private readonly credentials: Pick<ConnectionCredentialsResolver, "resolve"> = new ConnectionCredentialsResolver(),
     private readonly usageDAO = new IntegrationUsageDAO(),
   ) {}
 
@@ -122,13 +122,11 @@ export class IntegrationManagementService {
       );
     }
 
-    // Build credentials from integration config
-    // The config may contain secretName which references a secret in the secrets system
-    const credentials = await this.resolveCredentials(integration.config);
+    const credentials = await this.credentials.resolve(integration);
 
     try {
       const integrationInstance = plugin.createIntegration(
-        credentials as unknown as AuthCredentials & Record<string, unknown>,
+        credentials,
       );
       await integrationInstance.authenticate(credentials);
 
@@ -145,35 +143,6 @@ export class IntegrationManagementService {
             : "Failed to authenticate integration",
       };
     }
-  }
-
-  /**
-   * Resolve credentials from integration config
-   * If the config contains a secretName, look up the secret value from the secrets system
-   */
-  private async resolveCredentials(
-    config: Record<string, unknown>,
-  ): Promise<AuthCredentials> {
-    // Default to token-based auth if not specified
-    const resolved: AuthCredentials = {
-      type: (config.authType as AuthCredentials["type"]) || "token",
-      ...config,
-    };
-
-    // If secretName is specified, resolve the secret value
-    if (typeof config.secretName === "string") {
-      try {
-        const secretValue = await this.secretService.resolveSecretValueByName(config.secretName);
-        if (secretValue) {
-          resolved.token = secretValue;
-        }
-      } catch {
-        // Secret resolution failed, continue without it
-        // The plugin will handle the missing credential appropriately
-      }
-    }
-
-    return resolved;
   }
 
   async listAvailableTypes() {

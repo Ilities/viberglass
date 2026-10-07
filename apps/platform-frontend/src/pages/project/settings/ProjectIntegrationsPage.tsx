@@ -53,8 +53,10 @@ export function ProjectIntegrationsPage() {
       ])
       const linkedIds = new Set(links.map((link) => link.integration.id))
       const typeBySystem = new Map(types.map((type) => [type.id, type]))
+      // Integrations that aren't built yet stay out of sight, even if a connection to one exists.
+      const working = workspaceConnections.filter((connection) => typeBySystem.get(connection.system)?.status !== 'stub')
       setConnections(
-        workspaceConnections.map((connection) => {
+        working.map((connection) => {
           const type = typeBySystem.get(connection.system)
           return {
             id: connection.id,

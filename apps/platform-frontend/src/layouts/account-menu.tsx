@@ -2,7 +2,8 @@ import { Avatar } from '@/components/avatar'
 import { DropdownDivider, DropdownHeader, DropdownItem, DropdownLabel, DropdownMenu } from '@/components/dropdown'
 import { useTheme } from '@/context/theme-context'
 import type { AuthUser } from '@/service/api/auth-api'
-import { BellIcon, ExitIcon, IdCardIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { BellIcon, CodeIcon, ExitIcon, IdCardIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { SOURCE_URL } from '@/lib'
 import { isRunner } from '@/lib/roles'
 import { NavIcon } from './nav-icon'
 
@@ -27,7 +28,7 @@ export function UserAvatar({ user, slot, size, className = '' }: { user: AuthUse
   )
 }
 
-/** Me: how I'm told about things, my API tokens (for MCP), the theme, and signing out. */
+/** Me: how I'm told about things, my API tokens (for MCP), the theme, the source code, and signing out. */
 export function AccountMenu({ user, onSignOut }: { user: AuthUser; onSignOut: () => void }) {
   const { theme, toggleTheme } = useTheme()
 
@@ -66,6 +67,13 @@ export function AccountMenu({ user, onSignOut }: { user: AuthUser; onSignOut: ()
       >
         <NavIcon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</NavIcon>
         <DropdownLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</DropdownLabel>
+      </DropdownItem>
+      {/* The AGPL lets everyone who uses the app over a network get its source. */}
+      <DropdownItem href={SOURCE_URL} target="_blank" rel="noreferrer noopener">
+        <NavIcon>
+          <CodeIcon />
+        </NavIcon>
+        <DropdownLabel>Source code</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
       <DropdownItem

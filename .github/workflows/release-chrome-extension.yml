@@ -1,0 +1,52 @@
+# Attaches the built Chrome extension to the GitHub release when a release tag is pushed,
+# so people can load it unpacked without building it.
+
+name: Release Chrome extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and attach the extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Set version
+        working-directory: apps/chrome-extension/public
+        env:
+          VERSION: ${{ github.ref_name }}
+        # Chrome takes up to four dot-separated numbers, so pre-release suffixes are dropped.
+        run: |
+          version="${VERSION#v}"
+          version="${version%%-*}"
+          jq --arg version "$version" '.version = $version' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+
+      - name: Build
+        run: npm run build -w @viberglass/chrome-extension
+
+      - name: Zip
+        working-directory: apps/chrome-extension/dist
+        run: zip -r "../viberglass-chrome-extension-${{ github.ref_name }}.zip" .
+
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/chrome-extension/viberglass-chrome-extension-${{ github.ref_name }}.zip

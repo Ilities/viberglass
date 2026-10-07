@@ -30,9 +30,13 @@ import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
 import bot from "../chat";
+import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 
 // Load environment variables
 dotenv.config();
+
+// Tasks linked to a tracker issue post their milestones back to it.
+registerActivityListener(new TaskIssueMirror());
 
 const shouldRunBackgroundSweepers =
   process.env.DISABLE_BACKGROUND_SWEEPERS !== "true";

@@ -28,7 +28,7 @@ describe("WebhookConfigDAO", () => {
       secret_path: null,
       webhook_secret_encrypted: "secret",
       allowed_events: ["issues"],
-      auto_execute: false,
+      plan_new_issues: false,
       bot_username: null,
       label_mappings: {},
       active: true,
