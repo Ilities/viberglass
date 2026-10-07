@@ -240,7 +240,6 @@ export function TicketDetailPage() {
             {canInspectRuns && <TaskRunHistory key={ticket.id} runs={data.runs} open={requestedView === 'runs'} />}
             <TaskThread
               taskId={ticket.id}
-              taskKey={ticket.key}
               refreshKey={threadRefreshKey}
               runs={data.runs}
               onOpenComments={() => {

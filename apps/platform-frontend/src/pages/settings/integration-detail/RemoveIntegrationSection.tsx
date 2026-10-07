@@ -6,8 +6,8 @@ import { deleteIntegration } from '@/service/api/integration-api'
 import { useState } from 'react'
 
 /**
- * Removes an integration with its credentials and webhooks. The server refuses
- * while projects still use it and says which ones.
+ * Removes a connection with its credentials and webhooks. The server refuses
+ * while spaces still use it and says which ones.
  */
 export function RemoveIntegrationSection({
   integrationId,
@@ -30,19 +30,19 @@ export function RemoveIntegrationSection({
       await deleteIntegration(integrationId)
       onRemoved()
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Failed to remove integration')
+      setError(removeError instanceof Error ? removeError.message : 'Failed to remove the connection')
       setIsRemoving(false)
     }
   }
 
   return (
     <section className="app-frame rounded-lg p-6">
-      <Subheading>Remove integration</Subheading>
+      <Subheading>Remove connection</Subheading>
       <Text className="mt-1 text-[var(--gray-9)]">
-        Deletes this integration together with its credentials and webhooks.
+        Deletes this connection together with its credentials and webhooks.
       </Text>
-      <Button className="mt-4" color="red" disabled={isRemoving} onClick={() => setConfirmOpen(true)}>
-        {isRemoving ? 'Removing…' : 'Remove integration'}
+      <Button className="mt-4" outline disabled={isRemoving} onClick={() => setConfirmOpen(true)}>
+        {isRemoving ? 'Removing…' : 'Remove connection'}
       </Button>
       {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
       <Alert open={confirmOpen} onClose={setConfirmOpen}>
@@ -52,7 +52,7 @@ export function RemoveIntegrationSection({
           received. This cannot be undone.
         </AlertDescription>
         <AlertActions>
-          <Button plain onClick={() => setConfirmOpen(false)}>
+          <Button outline onClick={() => setConfirmOpen(false)}>
             Keep it
           </Button>
           <Button color="red" onClick={() => void handleRemove()}>

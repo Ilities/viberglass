@@ -10,8 +10,8 @@ import type { HomeThread } from '@viberglass/types'
 import { needsYouReason, quotedLastMessage, turnLine } from './home-threads'
 
 /**
- * A thread that needs you: who's asking, why, what they said, and the one
- * thing to do about it. A mention you needn't answer can be acknowledged here.
+ * A thread that needs you: who's asking, why, and what they said. A question
+ * gets an Answer button; a mention you needn't answer can be acknowledged here.
  */
 export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChanged: () => void }) {
   const href = taskPath(thread.task.spaceSlug, thread.task)
@@ -35,18 +35,13 @@ export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChang
         />
       }
       action={
-        <>
-          {thread.mentionsYou && !asked && <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />}
-          {asked ? (
-            <Button href={href} color="brand">
-              Answer
-            </Button>
-          ) : (
-            <Button href={href} outline>
-              Open thread
-            </Button>
-          )}
-        </>
+        asked ? (
+          <Button href={href} color="brand">
+            Answer
+          </Button>
+        ) : (
+          thread.mentionsYou && <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />
+        )
       }
     />
   )
@@ -54,13 +49,12 @@ export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChang
 
 /** One of your threads: where it stands, whose turn it is, its last word, and how much is new. */
 export function ConversationRow({ thread }: { thread: HomeThread }) {
-  const href = taskPath(thread.task.spaceSlug, thread.task)
   return (
     <ListRow
       label={thread.task.title}
       taskKey={thread.task.key}
       title={thread.task.title}
-      href={href}
+      href={taskPath(thread.task.spaceSlug, thread.task)}
       titleExtra={
         thread.unread > 0 && (
           <Badge aria-label={`${thread.unread} new message${thread.unread === 1 ? '' : 's'}`}>
@@ -77,11 +71,6 @@ export function ConversationRow({ thread }: { thread: HomeThread }) {
             thread.task.spaceName,
           ]}
         />
-      }
-      action={
-        <Button href={href} outline>
-          Open
-        </Button>
       }
     />
   )

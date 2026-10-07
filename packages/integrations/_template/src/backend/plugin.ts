@@ -5,7 +5,7 @@ import { __PascalName__Integration } from './__PascalName__Integration'
 const __name__Plugin: IntegrationPlugin<__PascalName__Config> = {
   id: '__name__',
   label: '__DISPLAY_NAME__',
-  category: 'ticketing', // Change to 'scm' or 'inbound' as appropriate
+  category: 'ticketing', // Change to 'scm', 'inbound' or 'chat' as appropriate
   authTypes: ['token'],
   configFields: [
     // TODO: define configuration fields

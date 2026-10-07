@@ -153,7 +153,7 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-[var(--gray-12)]">
           <LayersIcon className="h-4 w-4 text-[var(--accent-9)]" />
-          Execution Logs
+          Log
         </div>
         <div className="flex items-center gap-3 text-xs text-[var(--gray-10)]">
           <span>{timeline.length} events</span>

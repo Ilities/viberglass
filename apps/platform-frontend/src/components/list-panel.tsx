@@ -17,8 +17,9 @@ export function ListPanel({ className, ...props }: React.ComponentPropsWithoutRe
 
 /**
  * One row: an optional avatar, a badge above the title, the task's key and
- * title, a line under it, and the row's action on the right. The title links
- * to the task, so the action can be what you'd do there.
+ * title, a line under it, and the row's action on the right. The title's link
+ * stretches over the whole row; the action sits above it and stays clickable,
+ * and so must any control passed as `leading` (give it `relative z-10`).
  */
 export function ListRow({
   leading,
@@ -43,14 +44,20 @@ export function ListRow({
   label?: string
 }) {
   return (
-    <li aria-label={label} className="flex items-center justify-between gap-4 px-5 py-4 max-sm:gap-2 max-sm:px-3">
+    <li
+      aria-label={label}
+      className={cn(
+        'relative flex items-center justify-between gap-4 px-5 py-4 max-sm:gap-2 max-sm:px-3',
+        href && 'hover:bg-[var(--gray-2)]'
+      )}
+    >
       {leading && <div className="shrink-0">{leading}</div>}
       <div className="min-w-0 flex-1">
         {badge && <div className="mb-1">{badge}</div>}
         <p className="my-1 flex min-w-0 flex-wrap items-baseline gap-x-2 font-semibold text-[var(--gray-12)]">
           {taskKey && <span className="text-[11px] font-medium text-[var(--gray-10)]">{taskKey}</span>}
           {href ? (
-            <Link href={href} className="min-w-0 hover:underline">
+            <Link href={href} className="min-w-0 after:absolute after:inset-0 after:content-['']">
               {title}
             </Link>
           ) : (
@@ -60,7 +67,7 @@ export function ListRow({
         </p>
         {meta && <div className="mt-1 truncate text-xs text-[var(--gray-10)]">{meta}</div>}
       </div>
-      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+      {action && <div className="relative z-10 flex shrink-0 items-center gap-2">{action}</div>}
     </li>
   )
 }

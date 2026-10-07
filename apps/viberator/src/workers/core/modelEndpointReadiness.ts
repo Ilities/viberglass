@@ -12,6 +12,9 @@ interface ReadinessDependencies {
   key?: string;
 }
 
+const MINUTE = 60_000;
+const WAIT_MINUTES = 15;
+
 export async function waitForModelEndpoint(
   clankerConfig: Record<string, unknown> | undefined,
   progress: (step: string, message: string) => Promise<void>,
@@ -27,13 +30,24 @@ export async function waitForModelEndpoint(
     : clankerConfig;
   const endpoint = readWorkerModelEndpoint(config?.resolvedModelEndpoint);
   if (!endpoint?.mayColdStart) return;
-  const deadline = deps.now() + 15 * 60_000;
+  const started = deps.now();
+  const deadline = started + WAIT_MINUTES * MINUTE;
   const headers = modelEndpointHeaders(endpoint, deps.key);
   await progress(
     "model-waking",
-    `Waking ${endpoint.model} on ${endpoint.name}…`,
+    `Waking ${endpoint.model} on ${endpoint.name}. A cold start can take several minutes; this run waits up to ${WAIT_MINUTES}.`,
   );
+  let reportedMinutes = 0;
   while (deps.now() < deadline) {
+    // Progress also keeps the job's heartbeat alive, which the platform gives up on after a few silent minutes.
+    const minutes = Math.floor((deps.now() - started) / MINUTE);
+    if (minutes > reportedMinutes) {
+      reportedMinutes = minutes;
+      await progress(
+        "model-waking",
+        `Still waking ${endpoint.model} on ${endpoint.name}: ${minutes} min so far, waiting up to ${WAIT_MINUTES}.`,
+      );
+    }
     let status: number | undefined;
     try {
       status = (
@@ -58,6 +72,6 @@ export async function waitForModelEndpoint(
     await deps.wait(Math.min(5000, Math.max(0, deadline - deps.now())));
   }
   throw new Error(
-    `Timed out waiting for ${endpoint.model} on ${endpoint.name} to wake up.`,
+    `${endpoint.model} on ${endpoint.name} didn't wake up within ${WAIT_MINUTES} minutes. Try again, or keep the deployment warm so it's running before you ask.`,
   );
 }

@@ -219,7 +219,7 @@ describe('TaskThread and the agent', () => {
       const { onAsked } = renderThread(jest.fn(), jest.fn(), steerer)
 
       fireEvent.change(await screen.findByRole('combobox', { name: 'Write a message' }), { target: { value: 'Use the new API' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Interrupt with this' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Send now and interrupt' }))
       await waitFor(() => expect(mockInterrupt).toHaveBeenCalledWith('t-1', 'Use the new API'))
       await waitFor(() => expect(onAsked).toHaveBeenCalled())
 
@@ -231,7 +231,7 @@ describe('TaskThread and the agent', () => {
       mockTimeline.mockResolvedValue([agentTurn({ status: 'running', outcome: null })])
       renderThread()
       expect(await screen.findByRole('combobox', { name: 'Write a message' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Interrupt with this' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Send now and interrupt' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Pause the agent' })).not.toBeInTheDocument()
     })
 
@@ -247,7 +247,7 @@ describe('TaskThread and the agent', () => {
   })
 
   describe('taking the work over', () => {
-    const BRANCH = { branch: 'viberator/t-1', repositoryUrl: 'https://github.com/acme/web', baseBranch: 'main', pushed: true, takenOver: null }
+    const BRANCH = { branch: 'viberglass/t-1', repositoryUrl: 'https://github.com/acme/web', baseBranch: 'main', pushed: true, takenOver: null }
     const steerer = { canPost: true, canAsk: true, canSteer: true }
 
     it('pauses the agent and shows where the work is', async () => {
@@ -259,7 +259,7 @@ describe('TaskThread and the agent', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Take over' }))
       const card = await screen.findByRole('region', { name: 'Taken over' })
       expect(card).toHaveTextContent('Me is working on it locally')
-      expect(screen.getByLabelText('Checkout commands')).toHaveTextContent('git switch viberator/t-1')
+      expect(screen.getByLabelText('Checkout commands')).toHaveTextContent('git switch viberglass/t-1')
       expect(mockTakeOver).toHaveBeenCalledWith('t-1')
     })
 
@@ -269,7 +269,7 @@ describe('TaskThread and the agent', () => {
       mockHandBack.mockResolvedValue(undefined)
       const { onAsked } = renderThread(jest.fn(), jest.fn(), steerer)
 
-      expect(await screen.findByLabelText('Checkout commands')).toHaveTextContent('git switch -c viberator/t-1 origin/main')
+      expect(await screen.findByLabelText('Checkout commands')).toHaveTextContent('git switch -c viberglass/t-1 origin/main')
       // Says which agent handing back resumes, before anyone does.
       expect(await screen.findByText(/Carrying on resumes Claude only, and asks it to build again/)).toBeInTheDocument()
       fireEvent.change(screen.getByRole('textbox', { name: 'Note for the agent' }), { target: { value: 'Fixed the header; add tests' } })

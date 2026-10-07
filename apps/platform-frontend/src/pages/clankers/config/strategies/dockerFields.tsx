@@ -7,7 +7,7 @@ export function DockerStrategyFields({ provisioningMode, defaults }: StrategyFie
     return (
       <Field>
         <Label>Container Image</Label>
-        <Description>The Docker image to use for this agent runner.</Description>
+        <Description>The Docker image to use for this agent.</Description>
         <Input
           name="containerImage"
           defaultValue={defaults.containerImage}

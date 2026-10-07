@@ -36,7 +36,7 @@ export function EditClankerPage() {
   return (
     <>
       <PageMeta title={`Edit ${clanker.name}`} />
-      <Heading>Edit agent runner</Heading>
+      <Heading>Edit agent</Heading>
       <Subheading className="mt-2">Change how {clanker.name} runs: its model, instructions and tools.</Subheading>
       <RunnerForm
         initial={clanker}

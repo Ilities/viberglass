@@ -66,7 +66,7 @@ export class ProjectReadinessService {
             state: "missing",
             code: "configure_repository",
             summary: "Choose the codebase this project should automate.",
-            remediationUrl: `/spaces/${project.slug}/settings`,
+            remediationUrl: `/spaces/${project.slug}/settings/repository`,
           },
       await this.getScmCredentialCheck(project.slug, scmConfig),
       agentRunnerCheck(runners, existingSecretIds),
@@ -90,7 +90,7 @@ export class ProjectReadinessService {
     projectSlug: string,
     scmConfig: Awaited<ReturnType<ProjectScmConfigDAO["getByProjectId"]>>,
   ): Promise<ProjectReadinessCheck> {
-    const remediationUrl = `/spaces/${projectSlug}/settings`;
+    const remediationUrl = `/spaces/${projectSlug}/settings/repository`;
     if (!scmConfig?.integrationCredentialId) {
       return {
         key: "scmCredential",

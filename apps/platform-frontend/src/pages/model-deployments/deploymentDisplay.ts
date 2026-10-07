@@ -46,12 +46,31 @@ export function isSettling(deployment: ModelDeploymentView): boolean {
   return deployment.status.state === 'creating' || deployment.status.state === 'waking'
 }
 
-/** Serving arguments are edited one per line, so values may contain spaces. */
+/**
+ * Serving arguments are edited one option per line: a flag, then its value after the first
+ * space. The value keeps any further spaces, so JSON configs need no quoting.
+ */
 export function parseServingArgs(text: string): string[] {
   return text
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
+    .flatMap((line) => {
+      const match = /^(-\S*)\s+(.+)$/.exec(line)
+      return match ? [match[1], match[2]] : [line]
+    })
+}
+
+/** Lays arguments out for editing, each flag on one line with its value. */
+export function formatServingArgs(args: string[]): string {
+  const lines: string[] = []
+  for (const arg of args) {
+    const previous = lines.at(-1)
+    const awaitsValue = previous !== undefined && /^-[^\s=]*$/.test(previous)
+    if (awaitsValue && !arg.startsWith('-')) lines[lines.length - 1] = `${previous} ${arg}`
+    else lines.push(arg)
+  }
+  return lines.join('\n')
 }
 
 /** Matches tensor parallelism to the GPUs picked, when the arguments set it. */

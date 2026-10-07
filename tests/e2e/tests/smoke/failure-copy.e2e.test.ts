@@ -104,7 +104,7 @@ test("a setup failure sends admins to the fix and tells members an admin is need
   const adminNotice = await openFailure(adminPage, space.projectSlug, task.id, "Repository not reachable");
   await expect(adminNotice.getByRole("link", { name: "Fix repository settings" })).toHaveAttribute(
     "href",
-    `/spaces/${space.projectSlug}/settings`,
+    `/spaces/${space.projectSlug}/settings/repository`,
   );
 
   const memberNotice = await openFailure(memberPage, space.projectSlug, task.id, "Repository not reachable");

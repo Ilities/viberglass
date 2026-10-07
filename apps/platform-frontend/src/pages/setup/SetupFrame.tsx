@@ -36,7 +36,7 @@ export function SetupFrame({
   return (
     <div className="w-full">
       <PageHeader
-        eyebrow="Workspace settings › Set up"
+        eyebrow="Settings › Set up"
         title="Make your first agent ready"
         description="Connect a model, choose a repository, and name your space."
       />

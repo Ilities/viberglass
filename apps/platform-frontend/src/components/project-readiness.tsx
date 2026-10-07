@@ -1,8 +1,18 @@
 import { Button } from '@/components/button'
 import { getProjectReadiness } from '@/service/api/project-api'
-import type { ProjectReadiness } from '@viberglass/types'
+import type { ProjectReadiness, ProjectReadinessCode } from '@viberglass/types'
 import { CheckCircledIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons'
 import { useEffect, useState } from 'react'
+
+/** What each setup fix's button says. */
+const FIX_LABEL: Record<ProjectReadinessCode | 'fix', string> = {
+  configure_repository: 'Choose repository',
+  select_scm_credential: 'Select credential',
+  replace_expired_scm_credential: 'Replace credential',
+  start_agent_runner: 'Start agent',
+  configure_agent_credentials: 'Add model key',
+  fix: 'Fix',
+}
 
 /**
  * What's left before agents can work in a space. With `firstTaskHref` (the
@@ -84,30 +94,21 @@ export function ProjectReadinessBanner({
 
   const incomplete = readiness.checks.filter((check) => check.state !== 'ready')
   return (
-    <section className="rounded-xl border border-warning-300 bg-warning-50 p-4 dark:border-warning-900 dark:bg-warning-950/30">
-      <div className="flex items-start gap-3">
-        <ExclamationTriangleIcon className="mt-0.5 size-5 shrink-0 text-warning-700 dark:text-warning-400" />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-warning-950 dark:text-warning-100">Automation needs setup</h2>
-          <p className="mt-1 text-sm text-warning-900/80 dark:text-warning-200/80">
-            You can submit tasks now. Complete these items before asking an agent for a plan or a build.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-    {incomplete.map((check: ProjectReadiness['checks'][number]) => (
-              <div key={check.key} className="rounded-lg bg-white/70 p-3 dark:bg-black/20">
-                <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
-                  {check.state === 'ready' ? <CheckCircledIcon /> : <ExclamationTriangleIcon />}
-                  {check.label}
-                </div>
-                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{check.summary}</p>
-                {check.remediationUrl ? (
-                  <Button href={check.remediationUrl} plain className="mt-1 px-0 text-xs">Fix setup</Button>
-                ) : null}
-              </div>
-            ))}
-          </div>
+    <section
+      aria-label="Setup needed"
+      className="grid gap-2 rounded-lg border border-warning-300 bg-warning-50 px-4 py-2.5 text-sm dark:border-warning-900 dark:bg-warning-950/30"
+    >
+      {incomplete.map((check) => (
+        <div key={check.key} className="flex flex-wrap items-center gap-3">
+          <ExclamationTriangleIcon className="size-4 shrink-0 text-warning-700 dark:text-warning-400" />
+          <p className="min-w-0 flex-1 text-warning-950 dark:text-warning-100">{check.summary}</p>
+          {check.remediationUrl ? (
+            <Button href={check.remediationUrl} outline>
+              {FIX_LABEL[check.code ?? 'fix']}
+            </Button>
+          ) : null}
         </div>
-      </div>
+      ))}
     </section>
   )
 }

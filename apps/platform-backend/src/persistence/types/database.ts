@@ -64,6 +64,7 @@ export interface ProjectsTable {
   key_prefix: string;
   next_task_number: Generated<number>;
   default_owner_id: string | null;
+  default_clanker_id: string | null;
   default_reviewer_ids: Generated<string[]>;
   question_reminder_hours: Generated<number>;
   created_at: Generated<Timestamp>;
@@ -878,6 +879,7 @@ export interface ModelDeploymentsTable {
   flavour: Json;
   serving_args: Json;
   mode: Generated<string>;
+  waking_since: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

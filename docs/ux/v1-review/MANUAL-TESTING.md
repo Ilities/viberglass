@@ -52,7 +52,7 @@ Log in at http://localhost:3200 as **Alex**.
 4. **One secret, two variables (UX-06).** Edit any OpenCode review runner → Advanced → Extra environment variables: bind **z.ai GLM review key** to a new variable such as `EXTRA_GLM_KEY` (the same secret as its model key) and Save. It saves.
 5. **Timestamps (UX-24).** On that runner's page, Updated is now later than Created. Rows written before the fix may still be off by your UTC offset.
 6. **Roles (UX-22).** Workspace settings → Members → Invite someone: open **What each role can do**. Invite `newguest@example.com` as Guest to Storefront; the email arrives in local mail. Its link shows "invited you as a guest."
-7. **Space settings (UX-16).** Storefront → Space settings: name and access first, then Repository with examples, then Issue tracker; open **Advanced**: the branch-name example reads like `viberator/STO-12`. Clear the repository address and **Save changes**: the error says what to enter. Use **Reset**.
+7. **Space settings (UX-16).** Storefront → Space settings: name and access first, then Repository with examples, then Issue tracker; open **Advanced**: the branch-name example reads like `viberglass/STO-12`. Clear the repository address and **Save changes**: the error says what to enter. Use **Reset**.
 8. **Overview (UX-08).** Overview: the five totals add up to the tasks listed, and no task appears in two groups.
 
 ## C. Live agent runs

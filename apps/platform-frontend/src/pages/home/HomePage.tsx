@@ -93,12 +93,7 @@ export function HomePage() {
         <>
           {needsYou.length > 0 && (
             <section aria-labelledby="home-needs-you" className="mb-8">
-              <SectionHeader
-                id="home-needs-you"
-                title="Needs you"
-                count={needsYou.length}
-                hint="Questions and mentions you haven’t answered"
-              />
+              <SectionHeader id="home-needs-you" title="Needs you" count={needsYou.length} />
               <ListPanel>
                 {needsYou.map((thread) => (
                   <NeedsYouRow key={thread.task.id} thread={thread} onChanged={reload} />
@@ -107,7 +102,7 @@ export function HomePage() {
             </section>
           )}
           <section aria-labelledby="home-conversations" className="mb-8">
-            <SectionHeader id="home-conversations" title="Your conversations" hint="Newest activity first" />
+            <SectionHeader id="home-conversations" title="Your conversations" />
             <FilterPills
               label="Show"
               value={filter}

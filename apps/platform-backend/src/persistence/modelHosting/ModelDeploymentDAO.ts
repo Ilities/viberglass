@@ -13,6 +13,8 @@ import { modelEndpointValues } from "../modelEndpoint/ModelEndpointDAO";
 
 export interface ModelDeploymentRecord extends ModelDeployment {
   externalId: string;
+  /** When the deployment was first seen waking, while it still is. */
+  wakingSince: Date | null;
 }
 
 export interface NewModelDeployment {
@@ -55,6 +57,7 @@ function toDeployment(row: DeploymentRow): ModelDeploymentRecord {
     ),
     mode: row.mode,
     endpointId: row.endpoint_id,
+    wakingSince: row.waking_since,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -134,6 +137,10 @@ export class ModelDeploymentDAO {
       .set({ mode, updated_at: new Date() })
       .where("id", "=", id)
       .execute();
+  }
+
+  async setWakingSince(id: string, since: Date | null): Promise<void> {
+    await db.updateTable("model_deployments").set({ waking_since: since }).where("id", "=", id).execute();
   }
 
   async delete(id: string): Promise<void> {

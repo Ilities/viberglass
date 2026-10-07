@@ -1,6 +1,7 @@
 import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
 import { Button } from '@/components/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
+import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/dialog'
+import { EmptyState } from '@/components/empty-state'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
@@ -37,9 +38,12 @@ const emptyForm: TemplateForm = { name: '', description: '', clankerId: '', task
 
 interface Props {
   projectId: string
+  /** Opens the create dialog once the tab has loaded, when another tab sent someone here to make a template. */
+  startCreating: boolean
+  onStartedCreating: () => void
 }
 
-export function TemplatesTab({ projectId }: Props) {
+export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Props) {
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
@@ -76,6 +80,14 @@ export function TemplatesTab({ projectId }: Props) {
     setForm({ ...emptyForm, clankerId: clankers[0]?.id ?? '' })
     setDialogOpen(true)
   }
+
+  useEffect(() => {
+    if (loading || !startCreating) return
+    onStartedCreating()
+    openCreate()
+    // openCreate reads the agents just loaded; running it once per request is the point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, startCreating])
 
   const openEdit = async (t: ClawTaskTemplateSummary) => {
     setDialogMode('edit')
@@ -171,31 +183,32 @@ export function TemplatesTab({ projectId }: Props) {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Reusable task definitions that schedules run.</p>
-        <Button color="brand" onClick={openCreate}>
-          <PlusIcon />
-          New Template
-        </Button>
-      </div>
-
-      {templates.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-          <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No task templates</h3>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Create a template to define what a schedule will do.
-          </p>
-          <Button color="brand" className="mt-6" onClick={openCreate}>
+      {templates.length > 0 && (
+        <div className="flex justify-end">
+          <Button color="brand" onClick={openCreate}>
             <PlusIcon />
-            Create Template
+            New template
           </Button>
         </div>
+      )}
+
+      {templates.length === 0 ? (
+        <EmptyState
+          title="No task templates yet"
+          description="A template is the task a schedule runs."
+          action={
+            <Button color="brand" onClick={openCreate}>
+              <PlusIcon />
+              Create a template
+            </Button>
+          }
+        />
       ) : (
         <Table className="mt-6">
           <TableHead>
             <TableRow>
               <TableHeader>Name</TableHeader>
-              <TableHeader>Agent runner</TableHeader>
+              <TableHeader>Agent</TableHeader>
               <TableHeader>Credentials</TableHeader>
               <TableHeader>Description</TableHeader>
               <TableHeader>Updated</TableHeader>
@@ -241,8 +254,7 @@ export function TemplatesTab({ projectId }: Props) {
 
       <Dialog open={dialogOpen} onClose={() => !isSubmitting && setDialogOpen(false)} size="lg">
         <form onSubmit={handleSubmit}>
-          <DialogTitle>{dialogMode === 'create' ? 'New Task Template' : 'Edit Template'}</DialogTitle>
-          <DialogDescription>Define the task this schedule will execute.</DialogDescription>
+          <DialogTitle>{dialogMode === 'create' ? 'New task template' : 'Edit task template'}</DialogTitle>
           <DialogBody>
             <Fieldset>
               <FieldGroup>
@@ -257,7 +269,6 @@ export function TemplatesTab({ projectId }: Props) {
                 </Field>
                 <Field>
                   <Label>Description</Label>
-                  <Description>Optional. Shown in the templates list.</Description>
                   <Input
                     value={form.description}
                     onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
@@ -265,21 +276,18 @@ export function TemplatesTab({ projectId }: Props) {
                   />
                 </Field>
                 <Field>
-                  <Label>Agent runner</Label>
+                  <Label>Agent</Label>
                   <Select
                     value={form.clankerId}
                     onChange={(v) => setForm((p) => ({ ...p, clankerId: v }))}
                     disabled={clankers.length === 0}
+                    placeholder="No agents yet"
                   >
-                    {clankers.length === 0 ? (
-                      <option value="">No agent runners available</option>
-                    ) : (
-                      clankers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))
-                    )}
+                    {clankers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                   </Select>
                 </Field>
                 <Field>
@@ -287,13 +295,13 @@ export function TemplatesTab({ projectId }: Props) {
                   <Textarea
                     value={form.taskInstructions}
                     onChange={(e) => setForm((p) => ({ ...p, taskInstructions: e.target.value }))}
-                    placeholder="Describe what the agent runner should do each time this task runs..."
+                    placeholder="What the agent should do each time this runs…"
                     rows={6}
                   />
                 </Field>
                 <Field>
                   <Label>Credentials</Label>
-                  <Description>Secrets injected into the worker alongside the agent runner&apos;s own credentials.</Description>
+                  <Description>Secrets the agent gets on top of its own.</Description>
                   <SecretBindingsField
                     secrets={secrets}
                     selectable={secrets.filter((secret) => !secret.purpose)}
@@ -311,7 +319,7 @@ export function TemplatesTab({ projectId }: Props) {
               Cancel
             </Button>
             <Button color="brand" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : dialogMode === 'create' ? 'Create Template' : 'Save Changes'}
+              {isSubmitting ? 'Saving...' : dialogMode === 'create' ? 'Create template' : 'Save changes'}
             </Button>
           </DialogActions>
         </form>

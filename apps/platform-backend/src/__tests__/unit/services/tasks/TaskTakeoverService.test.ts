@@ -1,6 +1,6 @@
 import { HANDED_BACK, TaskTakeoverService } from "../../../../services/tasks/TaskTakeoverService";
 
-const BRANCH = { branch: "viberator/t-1", repositoryUrl: "https://github.com/acme/web", baseBranch: "main", pushed: true, takenOver: null };
+const BRANCH = { branch: "viberglass/t-1", repositoryUrl: "https://github.com/acme/web", baseBranch: "main", pushed: true, takenOver: null };
 
 function setup(options: { takenOver?: boolean; paused?: boolean } = {}) {
   const deps = {

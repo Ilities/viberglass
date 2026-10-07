@@ -1,30 +1,32 @@
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
+import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { deactivateClanker, deleteClanker, startClanker } from '@/service/api/clanker-api'
-import { PlayIcon, StopIcon, TrashIcon } from '@radix-ui/react-icons'
+import { ChevronDownIcon, Pencil1Icon, PlayIcon, StopIcon, TrashIcon } from '@radix-ui/react-icons'
 import type { Clanker } from '@viberglass/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-interface ClankerActionsProps {
-  clanker: Clanker
-  onClankerUpdated?: (clanker: Clanker) => void
+export function canStartClanker(clanker: Clanker): boolean {
+  return clanker.status === 'inactive' || clanker.status === 'failed'
 }
 
-export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProps) {
-  const navigate = useNavigate()
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isStarting, setIsStarting] = useState(false)
-  const [isDeactivating, setIsDeactivating] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+interface StartClankerButtonProps {
+  clanker: Clanker
+  /** The agents list shows it as a secondary action on a card; the agent's page as its primary one. */
+  outline?: boolean
+  /** Away from the agent's own page the button has to say what it starts. */
+  name?: string
+  onClankerUpdated?: (clanker: Clanker) => void
+  onError: (message: string | null) => void
+}
 
-  const canStart = clanker.status === 'inactive' || clanker.status === 'failed'
-  const canDeactivate = clanker.status === 'active' || clanker.status === 'deploying'
+export function StartClankerButton({ clanker, outline, name = 'Start', onClankerUpdated, onError }: StartClankerButtonProps) {
+  const [isStarting, setIsStarting] = useState(false)
 
   async function handleStart() {
     setIsStarting(true)
-    setActionError(null)
+    onError(null)
     try {
       const updatedClanker = await startClanker(clanker.id)
       if (onClankerUpdated) {
@@ -34,11 +36,42 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
       }
     } catch (error) {
       console.error('Failed to start agent:', error)
-      setActionError(error instanceof Error ? error.message : 'Failed to start agent runner')
+      onError(error instanceof Error ? error.message : 'Failed to start the agent')
     } finally {
       setIsStarting(false)
     }
   }
+
+  const label = (
+    <>
+      <PlayIcon />
+      {isStarting ? 'Starting...' : name}
+    </>
+  )
+  return outline ? (
+    <Button outline disabled={isStarting} onClick={handleStart}>
+      {label}
+    </Button>
+  ) : (
+    <Button color="brand" disabled={isStarting} onClick={handleStart}>
+      {label}
+    </Button>
+  )
+}
+
+interface ClankerActionsProps {
+  clanker: Clanker
+  onClankerUpdated?: (clanker: Clanker) => void
+}
+
+export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProps) {
+  const navigate = useNavigate()
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
+  const canDeactivate = clanker.status === 'active' || clanker.status === 'deploying'
 
   async function handleDeactivate() {
     setIsDeactivating(true)
@@ -52,7 +85,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
       }
     } catch (error) {
       console.error('Failed to deactivate agent:', error)
-      setActionError(error instanceof Error ? error.message : 'Failed to deactivate agent runner')
+      setActionError(error instanceof Error ? error.message : 'Failed to deactivate the agent')
     } finally {
       setIsDeactivating(false)
     }
@@ -66,7 +99,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
       navigate('/settings/agents')
     } catch (error) {
       console.error('Failed to delete agent:', error)
-      setActionError(error instanceof Error ? error.message : 'Failed to delete agent runner')
+      setActionError(error instanceof Error ? error.message : 'Failed to delete the agent')
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }
@@ -74,37 +107,42 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
 
   return (
     <>
-      {canStart && (
-        <Button color="green" disabled={isStarting} onClick={handleStart}>
-          <PlayIcon />
-          {isStarting ? 'Starting...' : 'Start'}
-        </Button>
+      {canStartClanker(clanker) && (
+        <StartClankerButton clanker={clanker} onClankerUpdated={onClankerUpdated} onError={setActionError} />
       )}
 
       {canDeactivate && (
-        <Button color="amber" disabled={isDeactivating} onClick={handleDeactivate}>
+        <Button outline disabled={isDeactivating} onClick={handleDeactivate}>
           <StopIcon />
           {isDeactivating ? 'Deactivating...' : 'Deactivate'}
         </Button>
       )}
 
-      <Button
-        surface
-        color="red"
-        onClick={() => setShowDeleteDialog(true)}
-        aria-label="Delete agent runner"
-      >
-        <TrashIcon />
-      </Button>
+      <Dropdown>
+        <DropdownButton outline>
+          Actions
+          <ChevronDownIcon data-slot="icon" />
+        </DropdownButton>
+        <DropdownMenu align="end">
+          <DropdownItem href={`/settings/agents/${clanker.slug}/edit`}>
+            <Pencil1Icon className="size-4" />
+            Edit agent
+          </DropdownItem>
+          <DropdownItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
+            <TrashIcon className="size-4" />
+            Delete agent
+          </DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
 
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete agent runner</DialogTitle>
+        <DialogTitle>Delete agent</DialogTitle>
         <DialogDescription>
           Are you sure you want to delete &quot;{clanker.name}&quot;? This action cannot be undone.
         </DialogDescription>
         <DialogBody>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            This runner will no longer be available for tasks. Past sessions and run history will be retained.
+            Tasks can no longer use this agent. Past runs and their records are kept.
           </p>
         </DialogBody>
         <DialogActions>

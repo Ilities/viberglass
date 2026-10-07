@@ -25,7 +25,7 @@ function setup() {
   const credentials = { getRequiredCredentialsForClanker: jest.fn().mockResolvedValue([]) };
   const workers = { executeJob: jest.fn().mockResolvedValue({ executionId: "e-1" }) };
   const media = { prepareForExecution: jest.fn().mockResolvedValue({ mounts: [], media: [] }) };
-  const branches = { nameFor: jest.fn().mockResolvedValue("viberator/t-1-part-2"), existing: jest.fn().mockResolvedValue("viberator/t-1") };
+  const branches = { nameFor: jest.fn().mockResolvedValue("viberglass/t-1-part-2"), existing: jest.fn().mockResolvedValue("viberglass/t-1") };
   const dispatcher = new TaskTurnJobDispatcher(jobs, bootstraps, credentials, workers, media, branches);
   return { dispatcher, bootstraps, branches };
 }
@@ -97,7 +97,7 @@ describe("TaskTurnJobDispatcher's branch", () => {
     await dispatcher.dispatch(input("code", { buildParts: { first: 2, last: 2 } }), jest.fn());
 
     expect(branches.nameFor).toHaveBeenCalledWith("t-1", expect.any(String), { first: 2, last: 2 });
-    expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ taskBranch: "viberator/t-1-part-2" }));
+    expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ taskBranch: "viberglass/t-1-part-2" }));
   });
 
   it("continues the open pull request's branch for a build of no new parts", async () => {
@@ -114,6 +114,6 @@ describe("TaskTurnJobDispatcher's branch", () => {
     await dispatcher.dispatch(input(action), jest.fn());
 
     expect(branches.nameFor).not.toHaveBeenCalled();
-    expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ taskBranch: "viberator/t-1" }));
+    expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ taskBranch: "viberglass/t-1" }));
   });
 });

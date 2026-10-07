@@ -13,10 +13,9 @@ interface TaskSuggestedActionsProps {
   trailing?: React.ReactNode
 }
 
-/** The common next moves, in one row under the composer, the likeliest first: each posts its words in the thread and asks the agent. */
-export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAsked, trailing }: TaskSuggestedActionsProps) {
+/** Asking the agent with a suggestion's words, one ask at a time. */
+function useAskSuggestion(taskId: string, onAsked: () => void) {
   const [asking, setAsking] = useState<string | null>(null)
-
   async function ask(suggestion: TaskSuggestion) {
     setAsking(suggestion.label)
     try {
@@ -28,11 +27,23 @@ export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAske
       setAsking(null)
     }
   }
+  return { asking, ask }
+}
 
-  if (agentWorking) {
-    return <p className="text-xs text-[var(--gray-10)]">The agent is working. Messages you post now reach it when it finishes.</p>
-  }
-  if (suggestions.length === 0 && !trailing) return null
+/** Trying a failed turn again, beside the turn; it posts the suggestion's words in the thread like any ask. */
+export function RetryTurnButton({ taskId, suggestion, onAsked }: { taskId: string; suggestion: TaskSuggestion; onAsked: () => void }) {
+  const { asking, ask } = useAskSuggestion(taskId, onAsked)
+  return (
+    <Button outline disabled={asking !== null} onClick={() => void ask(suggestion)}>
+      {asking ? 'Asking…' : 'Try again'}
+    </Button>
+  )
+}
+
+/** The common next moves, in one row under the composer, the likeliest first: each posts its words in the thread and asks the agent. */
+export function TaskSuggestedActions({ taskId, suggestions, agentWorking, onAsked, trailing }: TaskSuggestedActionsProps) {
+  const { asking, ask } = useAskSuggestion(taskId, onAsked)
+  if (agentWorking || (suggestions.length === 0 && !trailing)) return null
   return (
     <div role="group" aria-label="Suggested actions" className="flex flex-wrap items-center gap-2">
       {suggestions.map((suggestion, index) => (

@@ -14,10 +14,7 @@ import {
   updateProject,
   upsertProjectScmConfig,
 } from '@/service/api/project-api'
-jest.mock('@/context/auth-context', () => ({
-  useAuth: () => ({ user: { id: 'user-1', role: 'admin' } }),
-}))
-import { ProjectSettingsPage } from './ProjectSettingsPage'
+import { SpaceRepositoryPage } from './SpaceRepositoryPage'
 import type { Project } from '@/service/api/project-api'
 import type { AvailableIntegrationType, ProjectIntegrationWithDetails } from '@/service/api/integration-api'
 import type { ProjectScmConfig, IntegrationCredential } from '@viberglass/types'
@@ -74,6 +71,7 @@ const PROJECT = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Viberglass',
   slug: 'viberglass',
+  keyPrefix: 'VIB',
   ticketSystem: 'jira',
   credentials: { type: 'token', token: 'token-value' },
   autoFixEnabled: false,
@@ -105,7 +103,7 @@ function renderPage() {
     <Theme>
       <MemoryRouter initialEntries={['/spaces/viberglass/settings']}>
         <Routes>
-          <Route path="/spaces/:project/settings" element={<ProjectSettingsPage />} />
+          <Route path="/spaces/:project/settings" element={<SpaceRepositoryPage />} />
         </Routes>
       </MemoryRouter>
     </Theme>
@@ -121,7 +119,7 @@ async function waitForInitialLoad(expectedCredentialIntegrationId: string = INIT
   })
 }
 
-describe('ProjectSettingsPage', () => {
+describe('SpaceRepositoryPage', () => {
   beforeEach(() => {
     jest.resetAllMocks()
 
@@ -229,8 +227,8 @@ describe('ProjectSettingsPage', () => {
         'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
       )
     })
-    expect(screen.getAllByText('Jira Team (jira)').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Jira Team').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('GitHub Org').length).toBeGreaterThan(0)
 
     const sourceRepositoryInput = container.querySelector(
       'input[name="source_repository"]'
@@ -243,7 +241,7 @@ describe('ProjectSettingsPage', () => {
     expect(sourceRepositoryInput.value).toBe(INITIAL_SCM_CONFIG.sourceRepository)
     expect(baseBranchInput.value).toBe(INITIAL_SCM_CONFIG.baseBranch)
     expect(integrationCredentialOption).not.toBeNull()
-    expect(screen.getByText(/Available placeholders:/i)).toBeInTheDocument()
+    expect(screen.getByText(/Placeholders:/)).toBeInTheDocument()
   })
 
   it('saves ticketing and SCM configuration when form is submitted', async () => {
@@ -251,7 +249,7 @@ describe('ProjectSettingsPage', () => {
     const { container } = renderPage()
     await waitForInitialLoad()
     await waitFor(() => {
-      expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('GitHub Org').length).toBeGreaterThan(0)
     })
 
     const sourceRepositoryInput = container.querySelector(
@@ -293,7 +291,7 @@ describe('ProjectSettingsPage', () => {
       target: { value: 'https://github.com/acme/upstream' },
     })
     fireEvent.change(branchTemplateInput, {
-      target: { value: 'viberator/{{ticketId}}-{{timestamp}}' },
+      target: { value: 'viberglass/{{ticketId}}-{{timestamp}}' },
     })
     fireEvent.change(integrationCredentialSelect as HTMLSelectElement, {
       target: { value: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' },
@@ -305,7 +303,6 @@ describe('ProjectSettingsPage', () => {
       expect(mockedUpdateProject).toHaveBeenCalledWith(
         PROJECT.id,
         expect.objectContaining({
-          name: PROJECT.name,
           primaryTicketingIntegrationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           primaryScmIntegrationId: INITIAL_SCM_CONFIG.integrationId,
         })
@@ -316,12 +313,12 @@ describe('ProjectSettingsPage', () => {
         baseBranch: 'develop',
         pullRequestRepository: 'https://github.com/acme/upstream',
         pullRequestBaseBranch: null,
-        branchNameTemplate: 'viberator/{{ticketId}}-{{timestamp}}',
+        branchNameTemplate: 'viberglass/{{ticketId}}-{{timestamp}}',
         integrationCredentialId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
       })
     })
 
-    expect(screen.getByText('Space settings saved.')).toBeInTheDocument()
+    expect(screen.getByText('Saved.')).toBeInTheDocument()
   })
 
   it('deletes SCM config when SCM integration is cleared and form is submitted', async () => {
@@ -329,7 +326,7 @@ describe('ProjectSettingsPage', () => {
     const { container } = renderPage()
     await waitForInitialLoad()
     await waitFor(() => {
-      expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('GitHub Org').length).toBeGreaterThan(0)
     })
 
     const scmIntegrationSelect = container.querySelector(
@@ -353,7 +350,7 @@ describe('ProjectSettingsPage', () => {
     const { container } = renderPage()
     await waitForInitialLoad()
     await waitFor(() => {
-      expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('GitHub Org').length).toBeGreaterThan(0)
     })
 
     const sourceRepositoryInput = container.querySelector(
@@ -374,7 +371,7 @@ describe('ProjectSettingsPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Enter the repository address, e.g. https://github.com/acme/storefront, or choose No code connection.')
+        screen.getByText('Enter the repository address, e.g. https://github.com/acme/storefront, or choose None.')
       ).toBeInTheDocument()
     })
     expect(mockedUpsertProjectScmConfig).not.toHaveBeenCalled()
@@ -402,5 +399,18 @@ describe('ProjectSettingsPage', () => {
       expect(scmIntegrationSelect).not.toBeNull()
       expect(scmIntegrationSelect?.value).toBe(INITIAL_SCM_CONFIG.integrationId)
     })
+  })
+
+  it('says tasks live in Viberglass when no tracker is linked, and offers to link one', async () => {
+    const links = await mockedGetProjectIntegrations.getMockImplementation()?.(PROJECT.id)
+    mockedGetProjectIntegrations.mockResolvedValue(
+      (links ?? []).filter((link) => link.integration.system !== 'jira')
+    )
+    const { container } = renderPage()
+    await waitForInitialLoad()
+
+    expect(await screen.findByText('Tasks live in Viberglass')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Link a tracker' })).toHaveAttribute('href', '/spaces/viberglass/settings/connections')
+    expect(container.querySelector('select[name="ticket_integration"]')).toBeNull()
   })
 })

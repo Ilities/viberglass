@@ -45,21 +45,21 @@ export function runnerCredentialProblem(
   existingSecretIds: ReadonlySet<string>,
 ): { state: 'needs_key' | 'needs_login'; problem: string } | null {
   const agent = clanker.agent
-  if (!agent) return { state: 'needs_key', problem: 'No agent is chosen. An admin can edit the runner to pick one.' }
+  if (!agent) return { state: 'needs_key', problem: 'No agent is chosen. An admin can edit the agent to pick one.' }
   // Endpoint credentials belong to the shared endpoint, whose references are validated on save.
   if (clanker.modelEndpoint) return null
   if (runnerUsesChatGptLogin(clanker)) {
     return chatGptLoginSecretId(clanker)
       ? null
-      : { state: 'needs_login', problem: 'Not connected to ChatGPT yet. An admin can connect it on the runner.' }
+      : { state: 'needs_login', problem: 'Not connected to ChatGPT yet. An admin can connect it from the agent.' }
   }
   // An agent with no provider to pick, like the test agent, needs no key.
   if (!AGENT_PROVIDER_BINDINGS.some((binding) => binding.agent === agent && binding.provider !== 'fake')) return null
   const keyVars = new Set(getAgentEnvVarNames(agent).apiKey)
   const modelKey = clanker.secretBindings.find((binding) => keyVars.has(binding.envVar))
-  if (!modelKey) return { state: 'needs_key', problem: 'No model key: tasks would fail. An admin can edit the runner to choose one.' }
+  if (!modelKey) return { state: 'needs_key', problem: 'No model key: tasks would fail. An admin can edit the agent to choose one.' }
   if (!existingSecretIds.has(modelKey.secretId)) {
-    return { state: 'needs_key', problem: 'Its model key was deleted. An admin can edit the runner to choose another.' }
+    return { state: 'needs_key', problem: 'Its model key was deleted. An admin can edit the agent to choose another.' }
   }
   return null
 }
@@ -77,7 +77,7 @@ export function runnerReadiness(clanker: RunnerShape, existingSecretIds: Readonl
       clanker.status === 'deploying'
         ? 'Starting up.'
         : clanker.status === 'failed'
-          ? 'Its compute failed to start. An admin can check the runner.'
+          ? 'Its compute failed to start. An admin can check the agent.'
           : 'Not started. An admin can start it.'
     return { state: 'not_running', problem, lastRun }
   }

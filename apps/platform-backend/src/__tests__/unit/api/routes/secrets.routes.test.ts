@@ -25,6 +25,11 @@ jest.mock("../../../../services/SecretService", () => ({
   SecretService: jest.fn(() => mockSecretService),
 }));
 
+const mockListUses = jest.fn();
+jest.mock("../../../../persistence/secret/SecretUsageDAO", () => ({
+  SecretUsageDAO: jest.fn(() => ({ listUses: mockListUses })),
+}));
+
 import secretsRouter from "../../../../api/routes/secrets";
 
 const SECRET_ID = "11111111-1111-4111-8111-111111111111";
@@ -37,6 +42,19 @@ describe("secrets routes", () => {
     app = express();
     app.use(express.json());
     app.use("/api/secrets", secretsRouter);
+  });
+
+  it("lists the spaces and connections that read each secret", async () => {
+    const uses = [
+      { secretId: SECRET_ID, kind: "space", name: "Web shop" },
+      { secretId: SECRET_ID, kind: "connection", name: "GitHub" },
+    ];
+    mockListUses.mockResolvedValue(uses);
+
+    const response = await request(app).get("/api/secrets/usage").expect(200);
+
+    expect(response.body.data).toEqual(uses);
+    expect(mockSecretService.getSecret).not.toHaveBeenCalled();
   });
 
   it("reports SSM as the default store when agents run on ECS", async () => {

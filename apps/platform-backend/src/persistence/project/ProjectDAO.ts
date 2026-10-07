@@ -88,6 +88,17 @@ export class ProjectDAO {
     return this.mapRowToProject(result);
   }
 
+  /** The agent a task's space sends asks to when nobody names one; null when the space hasn't picked one. */
+  async getDefaultAgentIdForTicket(ticketId: string): Promise<string | null> {
+    const row = await db
+      .selectFrom("tickets")
+      .innerJoin("projects", "projects.id", "tickets.project_id")
+      .select("projects.default_clanker_id")
+      .where("tickets.id", "=", ticketId)
+      .executeTakeFirst();
+    return row?.default_clanker_id ?? null;
+  }
+
   async getProject(id: string): Promise<ProjectConfig | null> {
     const row = await db
       .selectFrom("projects")
@@ -142,6 +153,9 @@ export class ProjectDAO {
     }
     if (updates.defaultOwnerId !== undefined) {
       updateData.default_owner_id = updates.defaultOwnerId;
+    }
+    if (updates.defaultAgentId !== undefined) {
+      updateData.default_clanker_id = updates.defaultAgentId;
     }
     if (updates.defaultReviewerIds !== undefined) {
       updateData.default_reviewer_ids = [...new Set(updates.defaultReviewerIds)];
@@ -206,6 +220,7 @@ export class ProjectDAO {
       isPrivate: row.is_private,
       keyPrefix: row.key_prefix,
       defaultOwnerId: row.default_owner_id,
+      defaultAgentId: row.default_clanker_id,
       defaultReviewerIds: row.default_reviewer_ids,
       questionReminderHours: row.question_reminder_hours,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,

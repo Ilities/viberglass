@@ -144,11 +144,11 @@ export function ApiTokensPage() {
 
   return (
     <>
-      <PageMeta title="API Tokens" />
+      <PageMeta title="API tokens" />
       <div className="flex items-center justify-between">
-        <Heading>API Tokens</Heading>
-        <Button onClick={openCreateDialog} disabled={loading}>
-          <PlusIcon /> Create Token
+        <Heading>API tokens</Heading>
+        <Button color="brand" onClick={openCreateDialog} disabled={loading}>
+          <PlusIcon /> Create token
         </Button>
       </div>
       <Text className="mt-2 max-w-2xl">API tokens allow external MCP clients to authenticate with the platform.</Text>
@@ -199,7 +199,7 @@ export function ApiTokensPage() {
             <TableRow>
               <TableHeader>Name</TableHeader>
               <TableHeader>Token</TableHeader>
-              <TableHeader>Last Used</TableHeader>
+              <TableHeader>Last used</TableHeader>
               <TableHeader>Created</TableHeader>
               <TableHeader className="text-right">Actions</TableHeader>
             </TableRow>
@@ -239,7 +239,7 @@ export function ApiTokensPage() {
       )}
 
       <Dialog open={createDialogOpen} onClose={setCreateDialogOpen}>
-        <DialogTitle>Create API Token</DialogTitle>
+        <DialogTitle>Create API token</DialogTitle>
         <DialogDescription>
           Give your token a descriptive name so you can identify it later. The full token will only be shown once after
           creation.
@@ -267,14 +267,14 @@ export function ApiTokensPage() {
           <Button outline onClick={() => setCreateDialogOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={!tokenName.trim() || isCreating}>
-            {isCreating ? 'Creating...' : 'Create Token'}
+          <Button color="brand" onClick={handleCreate} disabled={!tokenName.trim() || isCreating}>
+            {isCreating ? 'Creating...' : 'Create token'}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={revealDialogOpen} onClose={setRevealDialogOpen}>
-        <DialogTitle>API Token Created</DialogTitle>
+        <DialogTitle>API token created</DialogTitle>
         <DialogDescription>Copy this token now. You will not be able to see it again.</DialogDescription>
         <DialogBody>
           <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
@@ -293,7 +293,7 @@ export function ApiTokensPage() {
             <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <Subheading>MCP Config</Subheading>
+                  <Subheading>MCP config</Subheading>
                   <Text className="mt-1">Use this configuration in your MCP client.</Text>
                 </div>
                 <Button plain onClick={() => copyMcpConfig(newToken.token)} className="shrink-0">
@@ -307,12 +307,14 @@ export function ApiTokensPage() {
           ) : null}
         </DialogBody>
         <DialogActions>
-          <Button onClick={() => setRevealDialogOpen(false)}>Done</Button>
+          <Button color="brand" onClick={() => setRevealDialogOpen(false)}>
+            Done
+          </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={deleteDialogOpen} onClose={setDeleteDialogOpen}>
-        <DialogTitle>Revoke API Token</DialogTitle>
+        <DialogTitle>Revoke API token</DialogTitle>
         <DialogDescription>
           Are you sure you want to revoke <strong>{tokenToDelete?.name}</strong>? This action cannot be undone.
         </DialogDescription>

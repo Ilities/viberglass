@@ -87,23 +87,23 @@ test.describe("Authentication E2E Tests", () => {
       await page.fill('input[name="password"]', "nA93baSt");
       await page.click('button[type="submit"]');
 
-      // Should redirect to dashboard
+      // Should redirect to home
       await page.waitForURL("/", { timeout: 10000 });
 
-      // Should show dashboard
+      // Should show the app
       await expect(
-        page.getByRole("heading", { name: "Dashboard" }),
+        page.getByRole("link", { name: "Home", exact: true }),
       ).toBeVisible();
     });
 
-    test("should redirect to dashboard if already authenticated", async ({
+    test("should redirect home if already authenticated", async ({
       authenticatedPage: page,
     }) => {
       await page.goto("/login");
 
-      // Should redirect to dashboard if already logged in
+      // Should redirect home if already logged in
       await page.waitForURL("/", { timeout: 5000 });
-      await expect(page.getByText("Dashboard")).toBeVisible();
+      await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible();
     });
   });
 
@@ -127,34 +127,37 @@ test.describe("Authentication E2E Tests", () => {
     });
   });
 
+  const workspaceSettings = [
+    { path: "/settings/members", label: "Members" },
+    { path: "/settings/agents", label: "Agents" },
+    { path: "/settings/connections", label: "Connections" },
+    { path: "/settings/secrets", label: "Secrets" },
+  ];
+
   test.describe("Session Management", () => {
     test("should persist session across page navigations", async ({ page }) => {
       await helpers.login(page);
 
       // Navigate to different pages
       await page.goto("/");
-      await expect(page.getByText("Dashboard")).toBeVisible();
+      await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible();
 
-      await page.goto("/settings/integrations");
-      await expect(page.getByText("Integrations")).toBeVisible();
+      await page.getByRole("link", { name: "Settings", exact: true }).click();
+      await expect(page).toHaveURL(/\/settings\/members$/);
+      await page.getByRole("link", { name: "Connections", exact: true }).click();
+      await expect(page).toHaveURL(/\/settings\/connections$/);
 
       // Session should still be valid
       await page.goto("/");
-      await expect(page.getByText("Dashboard")).toBeVisible();
+      await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible();
     });
   });
 
   test.describe("Protected Routes", () => {
     test("should redirect unauthenticated users to login", async ({ page }) => {
-      const protectedRoutes = [
-        "/settings/integrations",
-        "/secrets",
-        "/clankers",
-      ];
-
-      for (const route of protectedRoutes) {
+      for (const route of workspaceSettings) {
         await page.context().clearCookies();
-        await page.goto(route);
+        await page.goto(route.path);
 
         // Should redirect to login
         await page.waitForURL(/\/login/, { timeout: 5000 });
@@ -165,17 +168,33 @@ test.describe("Authentication E2E Tests", () => {
     test("should allow authenticated users to access protected routes", async ({
       authenticatedPage: page,
     }) => {
-      const protectedRoutes = [
-        { path: "/settings/integrations", title: "Integrations" },
-        { path: "/secrets", title: "Secrets" },
-        { path: "/clankers", title: "Agent runners" },
-      ];
-
-      for (const route of protectedRoutes) {
+      for (const route of workspaceSettings) {
         await page.goto(route.path);
-        await expect(page.getByText(route.title)).toBeVisible({
-          timeout: 5000,
-        });
+        await expect(
+          page.getByRole("link", { name: route.label, exact: true }),
+        ).toHaveAttribute("aria-current", "page", { timeout: 5000 });
+      }
+    });
+
+    test("should group workspace settings under Workspace and Advanced", async ({
+      authenticatedPage: page,
+    }) => {
+      await page.goto("/");
+      await page.getByRole("link", { name: "Settings", exact: true }).click();
+
+      await expect(page.getByRole("heading", { name: "Workspace" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Advanced" })).toBeVisible();
+      const labels = [
+        ...workspaceSettings.map((route) => route.label),
+        "Model deployments",
+        "MCP servers",
+        "Skills",
+        "Prompt templates",
+        "Run records",
+        "Audit log",
+      ];
+      for (const label of labels) {
+        await expect(page.getByRole("link", { name: label, exact: true })).toBeVisible();
       }
     });
   });

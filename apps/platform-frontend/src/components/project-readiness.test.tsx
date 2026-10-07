@@ -36,9 +36,9 @@ describe('ProjectReadinessBanner', () => {
       </Theme>,
     )
 
-    expect(await screen.findByText('Automation needs setup')).toBeInTheDocument()
-    expect(screen.getByText('You can submit tasks now. Complete these items before asking an agent for a plan or a build.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Fix setup' })).toHaveAttribute('href', '/spaces/shop/settings')
+    const banner = await screen.findByRole('region', { name: 'Setup needed' })
+    expect(banner).toHaveTextContent('Choose the codebase this space should automate.')
+    expect(screen.getByRole('link', { name: 'Choose repository' })).toHaveAttribute('href', '/spaces/shop/settings')
   })
 
   it('stays out of the way when automation is ready', async () => {

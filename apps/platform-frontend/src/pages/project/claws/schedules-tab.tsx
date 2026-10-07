@@ -1,7 +1,8 @@
 import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
+import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/dialog'
+import { EmptyState } from '@/components/empty-state'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
@@ -65,9 +66,11 @@ function formatExpression(s: ClawScheduleSummary): string {
 
 interface Props {
   projectId: string
+  /** Schedules run task templates, so with none yet this is where to make one. */
+  onCreateTemplate: () => void
 }
 
-export function SchedulesTab({ projectId }: Props) {
+export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
   const [schedules, setSchedules] = useState<ClawScheduleSummary[]>([])
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -246,19 +249,24 @@ export function SchedulesTab({ projectId }: Props) {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Schedules run task templates automatically on a set interval or cron expression.
-        </p>
-        <Button color="brand" onClick={openCreate} disabled={templates.length === 0}>
-          <PlusIcon />
-          New Schedule
-        </Button>
-      </div>
-      {templates.length === 0 && (
-        <p className="mt-4 text-sm text-warning-600 dark:text-warning-400">
-          Create a task template first before adding schedules.
-        </p>
+      {templates.length === 0 ? (
+        <EmptyState
+          title="No task templates yet"
+          description="A schedule runs a task template."
+          action={
+            <Button color="brand" onClick={onCreateTemplate}>
+              <PlusIcon />
+              Create a template
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex justify-end">
+          <Button color="brand" onClick={openCreate}>
+            <PlusIcon />
+            New schedule
+          </Button>
+        </div>
       )}
 
       {schedules.length > 0 ? (
@@ -270,7 +278,7 @@ export function SchedulesTab({ projectId }: Props) {
               <TableHeader>Schedule</TableHeader>
               <TableHeader>Status</TableHeader>
               <TableHeader>Last run</TableHeader>
-              <TableHeader>Runs / Fails</TableHeader>
+              <TableHeader>Runs / fails</TableHeader>
               <TableHeader />
             </TableRow>
           </TableHead>
@@ -317,14 +325,13 @@ export function SchedulesTab({ projectId }: Props) {
         </Table>
       ) : templates.length > 0 ? (
         <div className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-zinc-500 dark:text-zinc-400">No schedules yet. Create one to get started.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">No schedules yet.</p>
         </div>
       ) : null}
 
       <Dialog open={dialogOpen} onClose={() => !isSubmitting && setDialogOpen(false)} size="lg">
         <form onSubmit={handleSubmit}>
-          <DialogTitle>{dialogMode === 'create' ? 'New Schedule' : 'Edit Schedule'}</DialogTitle>
-          <DialogDescription>Configure when and how often a task template runs.</DialogDescription>
+          <DialogTitle>{dialogMode === 'create' ? 'New schedule' : 'Edit schedule'}</DialogTitle>
           <DialogBody>
             <Fieldset>
               <FieldGroup>
@@ -357,7 +364,6 @@ export function SchedulesTab({ projectId }: Props) {
                 </Field>
                 <Field>
                   <Label>Task instructions</Label>
-                  <Description>The instructions that will be sent to the agent when this schedule runs.</Description>
                   <Textarea readOnly value={form.taskInstructions} rows={6} />
                 </Field>
                 <Field>
@@ -373,7 +379,6 @@ export function SchedulesTab({ projectId }: Props) {
                 {form.scheduleType === 'interval' ? (
                   <Field>
                     <Label>Interval</Label>
-                    <Description>How often should this schedule run?</Description>
                     <div className="flex gap-2">
                       <Input
                         type="number"
@@ -421,7 +426,7 @@ export function SchedulesTab({ projectId }: Props) {
               Cancel
             </Button>
             <Button color="brand" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : dialogMode === 'create' ? 'Create Schedule' : 'Save Changes'}
+              {isSubmitting ? 'Saving...' : dialogMode === 'create' ? 'Create schedule' : 'Save changes'}
             </Button>
           </DialogActions>
         </form>

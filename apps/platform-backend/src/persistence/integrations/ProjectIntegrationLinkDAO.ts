@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import db from '../config/database'
-import type { ProjectIntegrationLink, ProjectIntegrationLinkWithCategory, TicketSystem, IntegrationCategory } from '@viberglass/types'
+import type { ProjectIntegrationLink, TicketSystem } from '@viberglass/types'
 
 export interface CreateProjectIntegrationLinkInput {
   projectId: string
@@ -76,29 +76,6 @@ export class ProjectIntegrationLinkDAO {
       .execute()
 
     return rows.map((row) => this.mapRowToLinkWithDetails(row))
-  }
-
-  /**
-   * Get all integrations linked to a project with their categories
-   */
-  async getProjectIntegrationsWithCategory(projectId: string): Promise<ProjectIntegrationLinkWithCategory[]> {
-    const rows = await db
-      .selectFrom('project_integrations')
-      .innerJoin('integrations', 'integrations.id', 'project_integrations.integration_id')
-      .select([
-        'project_integrations.id',
-        'project_integrations.project_id',
-        'project_integrations.integration_id',
-        'project_integrations.is_primary',
-        'project_integrations.created_at',
-        'integrations.system as integration_system',
-      ])
-      .where('project_integrations.project_id', '=', projectId)
-      .orderBy('project_integrations.is_primary', 'desc')
-      .orderBy('project_integrations.created_at', 'desc')
-      .execute()
-
-    return rows.map((row) => this.mapRowToLinkWithCategory(row))
   }
 
   /**
@@ -317,21 +294,5 @@ export class ProjectIntegrationLinkDAO {
         isActive: Boolean(row.integration_is_active),
       },
     }
-  }
-
-  private mapRowToLinkWithCategory(row: Record<string, unknown>): ProjectIntegrationLinkWithCategory {
-    const system = row.integration_system as TicketSystem
-    return {
-      ...this.mapRowToLink(row),
-      category: this.inferCategoryFromSystem(system),
-    }
-  }
-
-  private inferCategoryFromSystem(system: TicketSystem): IntegrationCategory {
-    const scmSystems: TicketSystem[] = ['github', 'gitlab', 'bitbucket']
-    if (scmSystems.includes(system)) {
-      return 'scm'
-    }
-    return 'ticketing'
   }
 }

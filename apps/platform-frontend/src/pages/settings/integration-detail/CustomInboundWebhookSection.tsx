@@ -204,7 +204,7 @@ export function CustomInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label className="block text-xs font-medium tracking-wider text-[var(--gray-9)] uppercase">
-                        Link to Space
+                        Link to space
                       </label>
                       <select
                         value={selectedProjectId ?? ''}

@@ -11,7 +11,7 @@ export function AntigravityAgentFields({ model, onModelChange }: AntigravityAgen
     <Field>
       <Label>Antigravity Model</Label>
       <Description>
-        Optional Antigravity model id for this agent runner. Leave empty for Antigravity's default.
+        Optional Antigravity model id for this agent. Leave empty for Antigravity's default.
       </Description>
       <Input
         value={model}

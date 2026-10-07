@@ -6,8 +6,8 @@ import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { HandoffCard } from '../jobs/handoff-card'
 
-/** How to get the task's branch onto your machine: the CLI, or git itself. */
-export function checkoutCommands(branch: TaskCodeBranch, taskKey: string): string {
+/** How to get the task's branch onto your machine with git. */
+export function checkoutCommands(branch: TaskCodeBranch): string {
   const git = branch.pushed
     ? `git fetch origin ${branch.branch}\ngit switch ${branch.branch}`
     : `git fetch origin ${branch.baseBranch}\ngit switch -c ${branch.branch} origin/${branch.baseBranch}`
@@ -16,7 +16,6 @@ export function checkoutCommands(branch: TaskCodeBranch, taskKey: string): strin
 
 interface TaskTakeoverCardProps {
   taskId: string
-  taskKey: string
   branch: TaskCodeBranch
   canSteer: boolean
   onHandedBack: () => void
@@ -25,7 +24,7 @@ interface TaskTakeoverCardProps {
 }
 
 /** The task while someone works on it themselves: where the work is, and handing it back to the agent. */
-export function TaskTakeoverCard({ taskId, taskKey, branch, canSteer, onHandedBack, resumes }: TaskTakeoverCardProps) {
+export function TaskTakeoverCard({ taskId, branch, canSteer, onHandedBack, resumes }: TaskTakeoverCardProps) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   if (!branch.takenOver) return null
@@ -60,7 +59,7 @@ export function TaskTakeoverCard({ taskId, taskKey, branch, canSteer, onHandedBa
       <p>The agent is paused. Push your commits to the task&apos;s branch, then hand it back: the agent reads what you pushed first.</p>
       {resumes}
       <pre aria-label="Checkout commands" className="mt-3 overflow-x-auto rounded-md bg-[var(--gray-3)] p-3 font-mono text-xs text-[var(--gray-12)]">
-        {checkoutCommands(branch, taskKey)}
+        {checkoutCommands(branch)}
       </pre>
       {canSteer && (
         <Textarea

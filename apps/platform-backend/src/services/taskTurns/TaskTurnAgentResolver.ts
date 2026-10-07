@@ -1,6 +1,7 @@
 import { parseMentionedAgentIds, type Clanker } from "@viberglass/types";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
+import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ClankerReadinessService } from "../ClankerReadinessService";
 import { DEFAULT_AGENT_SLUG } from "../setup/SetupAgentService";
 import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
@@ -8,14 +9,15 @@ import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
 interface Dependencies {
   sessions: Pick<AgentSessionDAO, "getLatestClankerIdByTicket">;
   clankers: Pick<ClankerDAO, "getClanker" | "getClankerBySlug" | "listClankers">;
+  spaces: Pick<ProjectDAO, "getDefaultAgentIdForTicket">;
   readiness: Pick<ClankerReadinessService, "withReadiness">;
 }
 
 /** Which agent a turn would go to, and how it was picked. */
 export interface ResolvedAgent {
   clanker: Clanker;
-  /** Asked for or mentioned, already on the task, the workspace default, or the first ready one. */
-  via: "named" | "on_task" | "default" | "first_ready";
+  /** Asked for or mentioned, already on the task, the space's default, the workspace default, or the first ready one. */
+  via: "named" | "on_task" | "space_default" | "default" | "first_ready";
 }
 
 /** A missing key or login fails every run, so an agent without one is refused rather than started. */
@@ -26,14 +28,21 @@ function cannotAuthenticate(clanker: Clanker): boolean {
 
 /**
  * Which agent a turn goes to: the one asked for, else the one mentioned, else
- * the agent already on the task, else the workspace's default agent, else the
- * first agent that is ready. Only a ready agent is picked automatically.
+ * the agent already on the task, else the space's default agent, else the
+ * workspace's default agent, else the first agent that is ready. Only a ready
+ * agent is picked automatically.
  */
 export class TaskTurnAgentResolver {
   private readonly deps: Dependencies;
 
   constructor(deps: Partial<Dependencies> = {}) {
-    this.deps = { sessions: new AgentSessionDAO(), clankers: new ClankerDAO(), readiness: new ClankerReadinessService(), ...deps };
+    this.deps = {
+      sessions: new AgentSessionDAO(),
+      clankers: new ClankerDAO(),
+      spaces: new ProjectDAO(),
+      readiness: new ClankerReadinessService(),
+      ...deps,
+    };
   }
 
   async resolve(ticketId: string, request: { agentId?: string; message: string }): Promise<string> {
@@ -60,19 +69,26 @@ export class TaskTurnAgentResolver {
     const onTask = onTaskId ? await this.deps.clankers.getClanker(onTaskId) : null;
     if (onTask) return { clanker: await this.withReadiness(onTask), via: "on_task" };
 
+    const spaceDefaultId = await this.deps.spaces.getDefaultAgentIdForTicket(ticketId);
+    const spaceDefaultAgent = spaceDefaultId ? await this.deps.clankers.getClanker(spaceDefaultId) : null;
+    const spaceDefault = spaceDefaultAgent ? await this.withReadiness(spaceDefaultAgent) : null;
+    if (spaceDefault?.readiness?.state === "ready") return { clanker: spaceDefault, via: "space_default" };
+
     const defaultAgent = await this.deps.clankers.getClankerBySlug(DEFAULT_AGENT_SLUG);
-    const fallback = defaultAgent ? await this.withReadiness(defaultAgent) : null;
-    if (fallback?.readiness?.state === "ready") return { clanker: fallback, via: "default" };
+    const workspaceDefault = defaultAgent ? await this.withReadiness(defaultAgent) : null;
+    if (workspaceDefault?.readiness?.state === "ready") return { clanker: workspaceDefault, via: "default" };
     const candidates = await this.deps.readiness.withReadiness(await this.deps.clankers.listClankers());
     const firstReady = candidates.find((clanker) => clanker.readiness?.state === "ready");
     if (firstReady) return { clanker: firstReady, via: "first_ready" };
 
-    const reason = fallback?.readiness?.problem;
+    // The default people expect explains best why nothing could run.
+    const expected = spaceDefault ?? workspaceDefault;
+    const reason = expected?.readiness?.problem;
     throw new TaskTurnError(
       TASK_TURN_ERROR_CODE.NO_AGENT,
-      candidates.length === 0 && !fallback
+      candidates.length === 0 && !expected
         ? "There's no agent to ask yet. Set one up first."
-        : `No agent is ready to run.${reason ? ` ${fallback?.name}: ${reason}` : ""} Pick an agent, or ask an admin to fix its setup.`,
+        : `No agent is ready to run.${reason ? ` ${expected?.name}: ${reason}` : ""} Pick another agent, or fix its setup first.`,
     );
   }
 

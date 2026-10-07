@@ -9,6 +9,7 @@ import { ModelHostConnector } from "./ModelHostConnector";
 import { ModelHostRegistry } from "./ModelHostRegistry";
 import { ModelDeploymentService } from "./ModelDeploymentService";
 import { ModelRecipeCatalog } from "./ModelRecipeCatalog";
+import { HuggingFaceModelSize } from "./HuggingFaceModelSize";
 
 const secrets = new SecretService();
 const deploymentDao = new ModelDeploymentDAO();
@@ -30,3 +31,4 @@ export const modelDeployments = new ModelDeploymentService(
   modelHostConnector,
 );
 export const modelRecipes = new ModelRecipeCatalog();
+export const modelSizes = new HuggingFaceModelSize();

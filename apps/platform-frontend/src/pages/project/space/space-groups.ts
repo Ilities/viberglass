@@ -28,6 +28,14 @@ export const STATE_FILTER_LABEL: Record<TaskSituationState, string> = {
   done: 'Done',
 }
 
+/** The task's status, less what its group's heading already says ("Failed · Tests broke" under Failed is "Tests broke"). */
+export function statusUnder(label: string | undefined, group: SpaceGroup | undefined): string | undefined {
+  if (!label || !group) return label
+  const heading = SPACE_GROUP_LABEL[group]
+  if (label === heading) return undefined
+  return label.startsWith(`${heading} · `) ? label.slice(heading.length + 3) : label
+}
+
 export function groupOf(task: Ticket): SpaceGroup {
   const situation = task.situation
   if (!situation) return task.status === 'resolved' ? 'done' : 'not_started'

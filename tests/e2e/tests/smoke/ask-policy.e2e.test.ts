@@ -84,7 +84,7 @@ test("a space's default reviewers join each new task, and the agent mentions the
 }) => {
   test.setTimeout(180_000);
   const reviewer = await memberId(adminApi);
-  await page.goto(`/spaces/${workspace.projectSlug}/settings/members`);
+  await page.goto(`/spaces/${workspace.projectSlug}/settings/task-defaults`);
   await page.getByRole("combobox", { name: "Add a default reviewer" }).click();
   await page.getByRole("option", { name: E2E.member.name }).click();
   await expect

@@ -58,8 +58,8 @@ export function RunRecordsPage() {
       <PageMeta title="Run records" />
       <Heading>Run records</Heading>
       <Text className="mt-2 max-w-2xl">
-        What each run recorded for evaluation: the agent, whether it succeeded, what happened to its pull request, and
-        what it cost. Costs marked as an estimate are the agent's fixed per-run figure, not a measurement.
+        Every run in the workspace, for comparing agents. Costs marked as an estimate are the agent's fixed per-run
+        figure, not a measurement.
       </Text>
 
       {loading ? (

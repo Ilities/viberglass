@@ -121,6 +121,10 @@ export class TicketPhaseDocumentCommentService {
     if (!content) {
       throw new Error("Comment content is required");
     }
+    // Anyone on the task may resolve or reopen a comment, but only its author may reword it.
+    if (content !== existing.content && (existing.actor ?? null) !== (input.actor ?? null)) {
+      throw new Error("Only the comment's author can edit it");
+    }
 
     let resolvedAt = existing.resolvedAt;
     let resolvedBy = existing.resolvedBy;

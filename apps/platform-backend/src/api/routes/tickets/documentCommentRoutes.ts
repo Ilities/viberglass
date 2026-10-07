@@ -171,6 +171,12 @@ export function registerDocumentCommentRoutes(
           });
         }
 
+        if (message === "Only the comment's author can edit it") {
+          return res.status(403).json({
+            error: message,
+          });
+        }
+
         logger.error("Error updating plan comment", {
           ticketId: req.params.id,
           commentId: req.params.commentId,

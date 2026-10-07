@@ -9,15 +9,14 @@ export function NewClankerPage() {
 
   return (
     <>
-      <PageMeta title="New agent runner" />
-      <Heading>Create agent runner</Heading>
+      <PageMeta title="New agent" />
+      <Heading>New agent</Heading>
       <Subheading className="mt-2">Configure a new agent worker for your Viberglass tasks.</Subheading>
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-        Creating an agent runner stores its settings only. Use the Start action on the runner page when you are ready to
-        provision it.
+        Creating an agent saves its settings. Start it from its page when you&apos;re ready.
       </div>
       <RunnerForm
-        submitLabel="Create agent runner"
+        submitLabel="Create agent"
         submittingLabel="Creating..."
         onSubmit={async (request) => {
           const clanker = await createClanker(request)

@@ -251,4 +251,32 @@ describe("plan comment routes", () => {
     );
   });
 
+  it("answers 403 when someone other than the author rewords a comment", async () => {
+    mockTicketPhaseDocumentCommentService.updateComment.mockRejectedValue(
+      new Error("Only the comment's author can edit it"),
+    );
+    const handler = getRouteHandler("/:id/plan/comments/:commentId", "put");
+    if (typeof handler !== "function") {
+      throw new Error("Route handler was not a function");
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    await handler(
+      {
+        params: {
+          id: "11111111-1111-4111-8111-111111111111",
+          commentId: "22222222-2222-4222-8222-222222222222",
+        },
+        body: { content: "Words put in their mouth" },
+        authContext: { user: { email: "someone-else@example.com" } },
+      },
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: "Only the comment's author can edit it" });
+  });
 });

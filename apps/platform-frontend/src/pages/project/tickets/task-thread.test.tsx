@@ -241,19 +241,75 @@ describe('TaskThread', () => {
   })
 
   it('says a turn is working, or failed, with the way to its run', async () => {
-    mockTimeline.mockResolvedValue([agentTurn({ id: 'a', status: 'failed', outcome: null }), agentTurn({ id: 'b', status: 'running', outcome: null })])
+    mockTimeline.mockResolvedValue([agentTurn({ id: 'a', status: 'failed', outcome: null }), agentTurn({ id: 'b', status: 'running', outcome: null, jobId: 'job-2' })])
     renderThread()
 
     expect(await screen.findByText('Working on it…')).toBeInTheDocument()
-    expect(screen.getByText('This turn failed.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Live log' })).toHaveAttribute('href', expect.stringMatching(/^[^?]*\?run=job-2$/))
+    expect(screen.getByText('This turn failed')).toBeInTheDocument()
     // The run opens beside the thread on the same page, rather than on a page that sends you back here.
-    expect(screen.getByRole('link', { name: 'See what happened' })).toHaveAttribute(
-      'href',
-      expect.stringMatching(/^[^?]*\?run=job-1$/)
-    )
-    expect(screen.getByRole('link', { name: 'See what happened' }).getAttribute('href')).not.toContain('/runs/')
-    // While it works, nothing new is suggested.
+    const failedRun = within(screen.getAllByRole('listitem', { name: "Claude's turn" })[0]).getByRole('link', { name: /Run details/ })
+    expect(failedRun).toHaveAttribute('href', expect.stringMatching(/^[^?]*\?run=job-1$/))
+    // While it works, nothing new is suggested, and the failed turn isn't offered again.
     expect(screen.queryByRole('group', { name: 'Suggested actions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('shows why the latest turn failed, and tries it again with the same agent from beside it', async () => {
+    mockTimeline.mockResolvedValue([agentTurn({ status: 'failed', outcome: null })])
+    mockAsk.mockResolvedValue({ sessionId: 's-1', turnId: 't-2', jobId: 'job-2', status: 'pending' })
+    render(
+      <Theme>
+        <MemoryRouter>
+          <TaskThread
+            taskId="t-1"
+            refreshKey="1"
+            onOpenArtifact={jest.fn()}
+            agents={[]}
+            suggestionInput={SUGGESTION_INPUT}
+            canPost
+            canAsk
+            runnableAgents={[]}
+            onAsked={jest.fn()}
+            runs={[
+              {
+                jobId: 'job-1', jobKind: 'planning', status: 'failed', repository: 'acme/web', task: 'Plan', tenantId: 'tenant-1',
+                createdAt: '2026-10-01T10:08:00Z', processedAt: '2026-10-01T10:08:00Z', finishedAt: '2026-10-01T10:14:00Z',
+                ticketId: 't-1', clankerId: CLAUDE, ticket: null,
+                failure: { code: 'X', title: 'Agent stopped responding', summary: 'It went quiet.', retryable: true },
+              },
+            ]}
+          />
+        </MemoryRouter>
+      </Theme>
+    )
+
+    const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
+    expect(turn).toHaveTextContent('Agent stopped responding')
+    fireEvent.click(within(turn).getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'plan', body: 'Try again with Claude', agentId: CLAUDE }))
+  })
+
+  it('folds failed attempts in a row, with the retries between them, into one row that opens in place', async () => {
+    const retry = (id: string): TaskTimelineEntry => ({ kind: 'message', id, at: '2026-10-01T10:09:00Z', author: MARIA, body: 'Try again with Claude', channel: 'thread', sessionId: null })
+    mockTimeline.mockResolvedValue([
+      agentTurn({ id: 'a', status: 'failed', outcome: null }),
+      retry('r-1'),
+      agentTurn({ id: 'b', status: 'cancelled', outcome: null }),
+      retry('r-2'),
+      agentTurn({ id: 'c', status: 'failed', outcome: null }),
+      { kind: 'message', id: 'm-9', at: '2026-10-01T10:10:00Z', author: MARIA, body: 'Use the staging data', channel: 'thread', sessionId: null },
+      agentTurn({ id: 'd', status: 'completed' }),
+    ])
+    renderThread()
+
+    const fold = await screen.findByRole('button', { name: /3 failed or stopped attempts · latest/ })
+    expect(screen.getByText('Use the staging data')).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem', { name: "Claude's turn" })).toHaveLength(1)
+    expect(screen.queryByText('Try again with Claude')).not.toBeInTheDocument()
+    fireEvent.click(fold)
+    expect(screen.getAllByRole('listitem', { name: "Claude's turn" })).toHaveLength(4)
+    expect(screen.getAllByText('Try again with Claude')).toHaveLength(2)
   })
 
   it('offers the next moves, and asks the agent as you', async () => {
@@ -282,7 +338,7 @@ describe('TaskThread', () => {
     fireEvent.change(box, { target: { value: '@ag' } })
     fireEvent.click(await screen.findByRole('option', { name: /Claude/ }))
     fireEvent.change(box, { target: { value: '@Claude cover Safari too' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `${agentMentionToken('Claude', CLAUDE)} cover Safari too`))
   })
@@ -296,7 +352,7 @@ describe('TaskThread', () => {
     fireEvent.change(box, { target: { value: 'Can you look, @da' } })
     fireEvent.click(await screen.findByRole('option', { name: 'Dana' }))
     expect(box).toHaveValue('Can you look, @Dana ')
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `Can you look, ${mentionToken('Dana', DANA)} `))
     await waitFor(() => expect(mockTimeline).toHaveBeenCalledTimes(2))
@@ -325,7 +381,7 @@ describe('TaskThread', () => {
     expect(fireEvent.keyDown(box, { key: 'Enter' })).toBe(true)
 
     fireEvent.change(box, { target: { value: 'Can you look, @Dana ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `Can you look, ${mentionToken('Dana', DANA)} `))
   })
 

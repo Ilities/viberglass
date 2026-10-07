@@ -47,7 +47,7 @@ describe('RunLog', () => {
     expect(await screen.findByText('git status')).toBeInTheDocument()
     expect(screen.getByText('Exploring the repository.')).toBeInTheDocument()
     expect(screen.getByText('1 tool call · live')).toBeInTheDocument()
-    expect(screen.getByText('Worker log · 1 lines')).toBeInTheDocument()
+    expect(screen.getByText(/Worker log/)).toHaveTextContent('Worker log · 1 line')
     expect(mockListRunEvents).toHaveBeenCalledWith('job-1', 0)
   })
 

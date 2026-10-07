@@ -1,5 +1,5 @@
 import { Button } from '@/components/button'
-import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
+import { Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
@@ -10,8 +10,9 @@ import { useProject } from '@/context/project-context'
 import { createTicket } from '@/service/api/ticket-api'
 import type { CreateTicketRequest, Severity } from '@viberglass/types'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { OwnerField } from './owner-field'
+import { TaskAttachmentsField, type TaskAttachments } from './task-attachments-field'
 
 const severities = [
   { id: 'low', name: 'Low' },
@@ -25,49 +26,8 @@ export function CreateTicketPage() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
-  const [recordingFile, setRecordingFile] = useState<File | null>(null)
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
-  const screenshotInputRef = useRef<HTMLInputElement>(null)
-  const recordingInputRef = useRef<HTMLInputElement>(null)
+  const [attachments, setAttachments] = useState<TaskAttachments>({ screenshot: null, recording: null })
   const { project: projectData } = useProject()
-
-  function handleScreenshotChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (file) {
-      setScreenshotFile(file)
-      // Create preview for images
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setScreenshotPreview(reader.result as string)
-        }
-        reader.readAsDataURL(file)
-      }
-    }
-  }
-
-  function handleRecordingChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (file) {
-      setRecordingFile(file)
-    }
-  }
-
-  function clearScreenshot() {
-    setScreenshotFile(null)
-    setScreenshotPreview(null)
-    if (screenshotInputRef.current) {
-      screenshotInputRef.current.value = ''
-    }
-  }
-
-  function clearRecording() {
-    setRecordingFile(null)
-    if (recordingInputRef.current) {
-      recordingInputRef.current.value = ''
-    }
-  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -100,7 +60,7 @@ export function CreateTicketPage() {
         annotations: [],
       }
 
-      const ticket = await createTicket(ticketData, screenshotFile || undefined, recordingFile || undefined)
+      const ticket = await createTicket(ticketData, attachments.screenshot ?? undefined, attachments.recording ?? undefined)
       navigate(`/spaces/${project}/tasks/${ticket.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')
@@ -110,9 +70,9 @@ export function CreateTicketPage() {
 
   return (
     <>
-      <PageMeta title={project ? `${project} | New Task` : 'New Task'} />
+      <PageMeta title={project ? `${project} | New task` : 'New task'} />
       <form className="mx-auto max-w-4xl" onSubmit={handleSubmit}>
-      <Heading>Create New Task</Heading>
+      <Heading>Create task</Heading>
 
       {projectData ? <div className="mt-6"><ProjectReadinessBanner projectId={projectData.id} /></div> : null}
 
@@ -130,14 +90,12 @@ export function CreateTicketPage() {
         <FieldGroup>
           <Field>
             <Label>Title</Label>
-            <Description>A brief summary of the issue.</Description>
-            <Input name="title" placeholder="e.g. Navigation bar overlaps content" required />
+            <Input name="title" placeholder="e.g. Let customers save their cart" required />
           </Field>
 
           <Field>
             <Label>Description</Label>
-            <Description>Provide more details about the bug and how to reproduce it.</Description>
-            <Textarea name="description" rows={5} placeholder="Steps to reproduce..." required />
+            <Textarea name="description" rows={5} placeholder="What you want done or answered, and anything that helps" required />
           </Field>
 
           <details className="rounded-xl border border-zinc-950/10 p-4 dark:border-white/10">
@@ -147,7 +105,6 @@ export function CreateTicketPage() {
             <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
               <Field>
                 <Label>Severity</Label>
-                <Description>How urgent is this change?</Description>
                 <Select name="severity" defaultValue="medium">
                   {severities.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
@@ -156,99 +113,19 @@ export function CreateTicketPage() {
               </Field>
               <Field>
                 <Label>Category</Label>
-                <Description>Which area is affected?</Description>
                 <Input name="category" placeholder="General" />
               </Field>
-              <OwnerField defaultOwnerId={projectData?.defaultOwnerId ?? null} />
+              {projectData && <OwnerField defaultOwnerId={projectData.defaultOwnerId ?? null} />}
+              <TaskAttachmentsField value={attachments} onChange={setAttachments} />
             </div>
           </details>
-
-          <Field>
-            <Label>Screenshot (Optional)</Label>
-            <Description>Upload a screenshot to help illustrate the issue. PNG, JPG, GIF, or WebP up to 10MB.</Description>
-            <div className="mt-2">
-              <input
-                ref={screenshotInputRef}
-                name="screenshot"
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                onChange={handleScreenshotChange}
-                aria-label="Screenshot"
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400"
-              />
-            </div>
-            {screenshotPreview && (
-              <div className="mt-2 relative inline-block">
-                <img 
-                  src={screenshotPreview} 
-                  alt="Screenshot preview" 
-                  className="max-h-48 rounded-md border border-gray-200 dark:border-gray-700"
-                />
-                <button
-                  type="button"
-                  onClick={clearScreenshot}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            )}
-            {screenshotFile && !screenshotPreview && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>{screenshotFile.name}</span>
-                <button
-                  type="button"
-                  onClick={clearScreenshot}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </Field>
-
-          <Field>
-            <Label>Screen Recording (Optional)</Label>
-            <Description>Upload a video recording to demonstrate the issue. MP4, WebM, or QuickTime up to 10MB.</Description>
-            <div className="mt-2">
-              <input
-                ref={recordingInputRef}
-                name="recording"
-                type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                onChange={handleRecordingChange}
-                aria-label="Screen recording"
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400"
-              />
-            </div>
-            {recordingFile && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <span>{recordingFile.name}</span>
-                <button
-                  type="button"
-                  onClick={clearRecording}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </Field>
 
           <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
             <Button outline href={`/spaces/${project}`}>
               Cancel
             </Button>
             <Button type="submit" color="brand" disabled={isSubmitting || !projectData}>
-              {isSubmitting ? 'Creating...' : 'Create Task'}
+              {isSubmitting ? 'Creating…' : 'Create task'}
             </Button>
           </div>
         </FieldGroup>

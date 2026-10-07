@@ -33,6 +33,7 @@ const deployment: ModelDeploymentRecord = {
   servingArgs: [],
   mode: "scale-to-zero",
   endpointId: "endpoint-1",
+  wakingSince: null,
   createdAt: "",
   updatedAt: "",
 };
@@ -81,6 +82,7 @@ function fixture() {
     getByEndpoint: jest.fn(async () => deployment),
     create: jest.fn(async () => deployment),
     setMode: jest.fn(async () => {}),
+    setWakingSince: jest.fn(async (_id: string, _since: Date | null) => {}),
     delete: jest.fn(async () => {}),
   };
   const endpoints = {
@@ -96,12 +98,16 @@ function fixture() {
       credentials: { clientId: "client", clientSecret: "secret" },
     })),
   };
+  let now = new Date("2026-10-07T09:00:00Z");
   return {
     host,
     deployments,
     endpoints,
     connector,
-    service: new ModelDeploymentService(deployments, endpoints, connector),
+    advance: (minutes: number) => {
+      now = new Date(now.getTime() + minutes * 60_000);
+    },
+    service: new ModelDeploymentService(deployments, endpoints, connector, () => now),
   };
 }
 
@@ -203,5 +209,27 @@ describe("model deployments", () => {
     host.getStatus.mockRejectedValueOnce(new Error("Verda is down"));
     const [unknown] = await service.list();
     expect(unknown.status).toEqual({ state: "unknown", detail: "Verda is down" });
+  });
+
+  test("reports a deployment that has been waking past any run's wait as failed, and forgets it once it's up", async () => {
+    const { service, host, deployments, advance } = fixture();
+    host.getStatus.mockResolvedValue({ state: "waking" });
+
+    const [first] = await service.list();
+    expect(first.status).toEqual({ state: "waking" });
+    const since = deployments.setWakingSince.mock.calls[0][1];
+    expect(since).toEqual(new Date("2026-10-07T09:00:00Z"));
+
+    deployments.list.mockResolvedValue([{ ...deployment, wakingSince: since }]);
+    advance(19);
+    expect((await service.list())[0].status).toEqual({ state: "waking" });
+    advance(2);
+    const [stuck] = await service.list();
+    expect(stuck.status).toMatchObject({ state: "failed", detail: expect.stringContaining("Still not answering after 21 minutes") });
+    expect(stuck).not.toHaveProperty("wakingSince");
+
+    host.getStatus.mockResolvedValue({ state: "running" });
+    await service.list();
+    expect(deployments.setWakingSince).toHaveBeenLastCalledWith(deployment.id, null);
   });
 });

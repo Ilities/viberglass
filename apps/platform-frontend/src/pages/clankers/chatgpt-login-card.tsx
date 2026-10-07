@@ -62,7 +62,7 @@ export function ChatGptLoginCard({ clanker, login, onConnected }: ChatGptLoginCa
           <CodexDeviceAuthCard prompt={prompt} />
         </div>
       )}
-      {inProgress && !prompt && <p className="mt-4 text-sm text-[var(--gray-9)]">Starting the login on the runner…</p>}
+      {inProgress && !prompt && <p className="mt-4 text-sm text-[var(--gray-9)]">Starting the login on the agent…</p>}
       {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {!inProgress && (
@@ -76,7 +76,7 @@ export function ChatGptLoginCard({ clanker, login, onConnected }: ChatGptLoginCa
               Connect ChatGPT
             </Button>
           )}
-          {!isRunning && <span className="text-sm text-[var(--gray-9)]">Start the runner first; the login runs on it.</span>}
+          {!isRunning && <span className="text-sm text-[var(--gray-9)]">Start the agent first; the login runs on it.</span>}
         </div>
       )}
     </div>

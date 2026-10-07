@@ -9,16 +9,16 @@ function setup(options: { pushed?: string | null; scm?: boolean } = {}) {
       ),
     },
     takeovers: { get: jest.fn().mockResolvedValue(null), lastBuildBranch: jest.fn().mockResolvedValue(options.pushed ?? null) },
-    namer: { current: jest.fn().mockResolvedValue("viberator/t-1") },
+    namer: { current: jest.fn().mockResolvedValue("viberglass/t-1") },
   };
   return { deps, service: new TaskCodeBranchService(deps) };
 }
 
 describe("TaskCodeBranchService", () => {
   it("describes the task's branch, its repository, and whether a build pushed it", async () => {
-    const { deps, service } = setup({ pushed: "viberator/t-1" });
+    const { deps, service } = setup({ pushed: "viberglass/t-1" });
     expect(await service.describe("t-1")).toEqual({
-      branch: "viberator/t-1",
+      branch: "viberglass/t-1",
       repositoryUrl: "https://github.com/acme/web",
       baseBranch: "develop",
       pushed: true,
@@ -28,7 +28,7 @@ describe("TaskCodeBranchService", () => {
   });
 
   it("says a branch no build has pushed starts from the base branch", async () => {
-    expect(await setup().service.describe("t-1")).toMatchObject({ branch: "viberator/t-1", pushed: false });
+    expect(await setup().service.describe("t-1")).toMatchObject({ branch: "viberglass/t-1", pushed: false });
   });
 
   it("has nothing to say for a space without a repository", async () => {

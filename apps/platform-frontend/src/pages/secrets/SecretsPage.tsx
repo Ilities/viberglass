@@ -12,16 +12,18 @@ import {
   createSecret,
   deleteSecret,
   listAllSecrets,
+  listSecretUses,
   getSecretStorageDefaults,
   updateSecret,
   type Secret,
   type SecretLocation,
   type SecretStorageDefaults,
+  type SecretUse,
 } from '@/service/api/secret-api'
 import { PlusIcon } from '@radix-ui/react-icons'
 import { getClankers, type Clanker } from '@/service/api/clanker-api'
-import { summarizeRunner } from '@/pages/clankers/config/runnerSummary'
 import { SecretsTable } from './secrets-table'
+import { collectSecretUsers, describeSecretUsers } from './secretUsers'
 import { SsmPathField } from './ssm-path-field'
 import { CloudAccountsSection } from './cloud-accounts-section'
 import { ENV_VAR_NAME_PATTERN, MODEL_PROVIDERS, type ModelProviderId } from '@viberglass/types'
@@ -73,6 +75,7 @@ function isModelProvider(value: string): value is ModelProviderId {
 export function SecretsPage() {
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [runners, setRunners] = useState<Clanker[]>([])
+  const [uses, setUses] = useState<SecretUse[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
@@ -86,16 +89,9 @@ export function SecretsPage() {
   const modelKeys = secrets.filter((secret) => secret.provider && !secret.purpose)
   const logins = secrets.filter((secret) => secret.purpose === 'codex_login')
   const otherSecrets = secrets.filter((secret) => !secret.provider && !secret.purpose)
-  const usedBy = useMemo(() => {
-    const names = new Map<string, string[]>()
-    const use = (secretId: string, runner: Clanker) => names.set(secretId, [...(names.get(secretId) ?? []), runner.name])
-    for (const runner of runners) {
-      for (const binding of runner.secretBindings) use(binding.secretId, runner)
-      const loginSecretId = summarizeRunner(runner, []).loginSecretId
-      if (loginSecretId) use(loginSecretId, runner)
-    }
-    return names
-  }, [runners])
+  const usedBy = useMemo(() => collectSecretUsers(runners, uses), [runners, uses])
+  const showStorage = secrets.some((secret) => secret.secretLocation !== 'database')
+  const usersOfSecretToDelete = describeSecretUsers(secretToDelete ? usedBy.get(secretToDelete.id) : undefined)
   const locationHelper = useMemo(() => {
     return locationOptions.find((option) => option.value === formState.secretLocation)?.helper || ''
   }, [formState.secretLocation])
@@ -110,9 +106,14 @@ export function SecretsPage() {
   async function loadSecrets() {
     setLoading(true)
     try {
-      const [data, runners] = await Promise.all([listAllSecrets(), getClankers(100).catch(() => [])])
+      const [data, runners, uses] = await Promise.all([
+        listAllSecrets(),
+        getClankers(100).catch(() => []),
+        listSecretUses().catch(() => []),
+      ])
       setSecrets(data)
       setRunners(runners)
+      setUses(uses)
     } catch (error) {
       toast.error('Failed to load secrets', {
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -239,12 +240,12 @@ export function SecretsPage() {
         <div>
           <Heading>Secrets</Heading>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Store and manage environment secrets that are injected into worker invocations.
+            Keys and tokens your agents, spaces and connections use.
           </p>
         </div>
         <Button color="brand" onClick={openCreateDialog}>
           <PlusIcon />
-          Add Secret
+          Add secret
         </Button>
       </div>
 
@@ -256,12 +257,8 @@ export function SecretsPage() {
         <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
           <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No secrets yet</h3>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Add a secret to securely inject credentials into worker containers.
+            Model keys and repository tokens you add here can be picked by agents and spaces.
           </p>
-          <Button color="brand" className="mt-6" onClick={openCreateDialog}>
-            <PlusIcon />
-            Create Secret
-          </Button>
         </div>
       ) : (
         <>
@@ -269,27 +266,27 @@ export function SecretsPage() {
             <section className="space-y-3">
               <Subheading>Model keys</Subheading>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                AI provider keys. Runners pick one in their Model section; one key can serve several runners.
+                AI provider keys. Agents pick one in their Model section; one key can serve several agents.
               </p>
-              <SecretsTable secrets={modelKeys} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+              <SecretsTable secrets={modelKeys} usedBy={usedBy} showStorage={showStorage} onEdit={openEditDialog} onDelete={handleDelete} />
             </section>
           )}
           {logins.length > 0 && (
             <section className="space-y-3">
               <Subheading>ChatGPT logins</Subheading>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Codex runners keep these signed in. Reconnect a runner from its page; deleting a login signs the runner out.
+                Codex agents keep these signed in. Reconnect an agent from its page; deleting a login signs the agent out.
               </p>
-              <SecretsTable secrets={logins} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+              <SecretsTable secrets={logins} usedBy={usedBy} showStorage={showStorage} onEdit={openEditDialog} onDelete={handleDelete} />
             </section>
           )}
           {otherSecrets.length > 0 && (
             <section className="space-y-3">
               <Subheading>Other secrets</Subheading>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Repository tokens, integration credentials, and variables runners expose to their agents.
+                Repository tokens, connection credentials, and variables agents get.
               </p>
-              <SecretsTable secrets={otherSecrets} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+              <SecretsTable secrets={otherSecrets} usedBy={usedBy} showStorage={showStorage} onEdit={openEditDialog} onDelete={handleDelete} />
             </section>
           )}
         </>
@@ -299,7 +296,7 @@ export function SecretsPage() {
 
       <Dialog open={dialogOpen} onClose={closeDialog} size="lg">
         <form onSubmit={handleSubmit}>
-          <DialogTitle>{dialogMode === 'create' ? 'Add Secret' : 'Edit Secret'}</DialogTitle>
+          <DialogTitle>{dialogMode === 'create' ? 'Add secret' : 'Edit secret'}</DialogTitle>
           <DialogDescription>
             {dialogMode === 'create'
               ? 'Choose how you want to store and resolve this secret.'
@@ -312,7 +309,7 @@ export function SecretsPage() {
                 <Field>
                   <Label>Name</Label>
                   <Description>
-                    What you&apos;ll know it by. Runners choose the environment variable it&apos;s exposed as.
+                    What you&apos;ll know it by. Agents choose the environment variable it&apos;s exposed as.
                   </Description>
                   <Input
                     value={formState.name}
@@ -409,7 +406,7 @@ export function SecretsPage() {
               Cancel
             </Button>
             <Button color="brand" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : dialogMode === 'create' ? 'Create Secret' : 'Save Changes'}
+              {isSubmitting ? 'Saving...' : dialogMode === 'create' ? 'Add secret' : 'Save changes'}
             </Button>
           </DialogActions>
         </form>
@@ -420,9 +417,16 @@ export function SecretsPage() {
         <AlertDescription>
           Are you sure you want to delete <strong>{secretToDelete?.name}</strong>? This action cannot be undone.
         </AlertDescription>
-        <AlertBody>
-          Workers will no longer receive this secret on invocation.
-        </AlertBody>
+        {usersOfSecretToDelete.length > 0 && (
+          <AlertBody>
+            <p className="text-sm">These lose access to it:</p>
+            <ul className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              {usersOfSecretToDelete.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </AlertBody>
+        )}
         <AlertActions>
           <Button outline onClick={() => setDeleteDialogOpen(false)}>
             Cancel

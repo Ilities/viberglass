@@ -142,6 +142,16 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
           )}
         </SidebarSection>
 
+        {user.role === 'admin' && (
+          <SidebarSection>
+            <SidebarItem href="/settings" current={pathname.startsWith('/settings')}>
+              <NavIcon>
+                <GearIcon />
+              </NavIcon>
+              <SidebarLabel>Settings</SidebarLabel>
+            </SidebarItem>
+          </SidebarSection>
+        )}
       </SidebarBody>
       <SidebarFooter>
         <Dropdown>

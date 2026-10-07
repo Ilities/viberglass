@@ -48,6 +48,8 @@ import { PromptTemplatesPage } from '@/pages/settings/PromptTemplatesPage'
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
 import { SpaceGeneralSettings } from '@/pages/project/settings/AboutSpacePage'
 import { SpaceMembersPage } from '@/pages/project/settings/SpaceMembersPage'
+import { SpaceRepositoryPage } from '@/pages/project/settings/SpaceRepositoryPage'
+import { SpaceTaskDefaultsPage } from '@/pages/project/settings/SpaceTaskDefaultsPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
 import { McpServersPage } from '@/pages/mcp-servers/McpServersPage'
 import { ModelDeploymentsPage } from '@/pages/model-deployments/ModelDeploymentsPage'
@@ -120,6 +122,8 @@ export function AppRoutes() {
         <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="general" replace />} />
           <Route path="general" element={<SpaceGeneralSettings />} />
+          <Route path="repository" element={<SpaceRepositoryPage />} />
+          <Route path="task-defaults" element={<SpaceTaskDefaultsPage />} />
           <Route path="members" element={<SpaceMembersPage />} />
           <Route path="connections" element={<ProjectIntegrationsPage />} />
           <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />

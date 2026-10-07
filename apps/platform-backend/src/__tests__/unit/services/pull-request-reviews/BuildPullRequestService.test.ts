@@ -30,15 +30,15 @@ describe("BuildPullRequestService", () => {
 
   it("lists every pull request the task's builds opened, with the parts each builds", async () => {
     pullRequests.listForTask.mockResolvedValue([
-      { branch: "viberator/t-1", url: "https://github.com/acme/app/pull/7", firstPart: 1, lastPart: 1 },
-      { branch: "viberator/t-1-part-2", url: "https://github.com/acme/app/pull/9", firstPart: 2, lastPart: null },
+      { branch: "viberglass/t-1", url: "https://github.com/acme/app/pull/7", firstPart: 1, lastPart: 1 },
+      { branch: "viberglass/t-1-part-2", url: "https://github.com/acme/app/pull/9", firstPart: 2, lastPart: null },
     ]);
 
     const listed = await service.listForTask(TICKET);
 
     expect(listed.map(({ pullRequestUrl, branch, firstPart, lastPart }) => ({ pullRequestUrl, branch, firstPart, lastPart }))).toEqual([
-      { pullRequestUrl: "https://github.com/acme/app/pull/7", branch: "viberator/t-1", firstPart: 1, lastPart: 1 },
-      { pullRequestUrl: "https://github.com/acme/app/pull/9", branch: "viberator/t-1-part-2", firstPart: 2, lastPart: null },
+      { pullRequestUrl: "https://github.com/acme/app/pull/7", branch: "viberglass/t-1", firstPart: 1, lastPart: 1 },
+      { pullRequestUrl: "https://github.com/acme/app/pull/9", branch: "viberglass/t-1-part-2", firstPart: 2, lastPart: null },
     ]);
     expect(listed[1]?.details).toEqual({ title: "fix", state: "open" });
     expect(reviews.fetchReview).toHaveBeenCalledWith("https://github.com/acme/app/pull/9", "tok", new Date("2026-09-05T00:00:00Z"));

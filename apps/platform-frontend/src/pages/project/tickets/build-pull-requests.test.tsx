@@ -10,7 +10,7 @@ jest.mock('@/service/api/build-api', () => ({
 function pullRequest(number: number, firstPart: number, lastPart: number | null): TaskPullRequest {
   return {
     pullRequestUrl: `https://github.com/acme/app/pull/${number}`,
-    branch: `viberator/t-${number}`,
+    branch: `viberglass/t-${number}`,
     firstPart,
     lastPart,
     details: null,

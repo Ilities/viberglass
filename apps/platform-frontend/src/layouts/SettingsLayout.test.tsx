@@ -7,7 +7,7 @@ import { SpaceGeneralSettings } from '@/pages/project/settings/AboutSpacePage'
 import { SettingsLayout } from './SettingsLayout'
 
 jest.mock('@/context/project-context', () => ({ useProject: jest.fn() }))
-jest.mock('@/pages/project/settings/ProjectSettingsPage', () => ({ ProjectSettingsPage: () => <div>Settings form</div> }))
+jest.mock('@/pages/project/settings/SpaceGeneralPage', () => ({ SpaceGeneralPage: () => <div>Settings form</div> }))
 jest.mock('@/service/api/project-api', () => ({
   getProjectScmConfig: jest.fn(async () => ({ sourceRepository: 'acme/shop', baseBranch: 'main' })),
 }))
@@ -42,6 +42,8 @@ function renderAt(path: string, canMaintain: boolean) {
           <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
             <Route path="general" element={<SpaceGeneralSettings />} />
             <Route path="members" element={<div>Members</div>} />
+            <Route path="repository" element={<div>Connections form</div>} />
+            <Route path="task-defaults" element={<div>Connections form</div>} />
             <Route path="connections" element={<div>Connections form</div>} />
           </Route>
         </Routes>
@@ -55,7 +57,7 @@ describe('space settings', () => {
     renderAt('/spaces/web/settings/general', true)
 
     expect(screen.getByText('Settings form')).toBeInTheDocument()
-    for (const name of ['Space', 'Members', 'Connections', 'Agent instructions']) expect(screen.getByRole('link', { name })).toBeInTheDocument()
+    for (const name of ['General', 'Repository', 'Task defaults', 'Members', 'Connections', 'Agent instructions']) expect(screen.getByRole('link', { name })).toBeInTheDocument()
   })
 
   it('reads as a summary for everyone else, without plumbing', async () => {
@@ -65,12 +67,12 @@ describe('space settings', () => {
     expect(await screen.findByText('Maria')).toBeInTheDocument()
     expect(screen.getByText('Only its members')).toBeInTheDocument()
     expect(screen.queryByText('Settings form')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Connections' })).not.toBeInTheDocument()
+    for (const name of ['Repository', 'Task defaults', 'Connections']) expect(screen.queryByRole('link', { name })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Agent instructions' })).not.toBeInTheDocument()
   })
 
-  it('sends non-maintainers from a maintainers-only tab back to the summary', async () => {
-    renderAt('/spaces/web/settings/connections', false)
+  it.each(['repository', 'task-defaults', 'connections'])('sends non-maintainers from the maintainers-only %s tab back to the summary', async (tab) => {
+    renderAt(`/spaces/web/settings/${tab}`, false)
 
     expect(await screen.findByRole('heading', { name: 'About this space' })).toBeInTheDocument()
     expect(screen.queryByText('Connections form')).not.toBeInTheDocument()

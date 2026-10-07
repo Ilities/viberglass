@@ -77,12 +77,14 @@ services:
       NODE_ENV: development
       PORT: 8888
       LOG_LEVEL: debug
-      # Ticket media local storage (used by Docker clanker file mounts)
-      TICKET_MEDIA_DISK_ROOT: /tmp/viberglass-ticket-media
-      TICKET_MEDIA_CONTAINER_ROOT: /tmp/viberglass-ticket-media
+      # Task media and saved agent conversations live on the host, so they survive restarts.
+      # Docker workers mount these folders through the host's Docker daemon, which is why
+      # each path is the same on the host and in this container.
+      TICKET_MEDIA_DISK_ROOT: ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/media
+      TICKET_MEDIA_CONTAINER_ROOT: ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/media
       SECRETS_ENCRYPTION_KEY: 'very-berry-secret-key'
       WEBHOOK_SECRET_ENCRYPTION_KEY: 'very-berry-webhook-key'
-      SESSION_STATE_ROOT: /tmp/viberglass-session-state
+      SESSION_STATE_ROOT: ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/session-state
       PLATFORM_FRONTEND_URL: http://localhost:3000
       # Email (invite links, notifications). Empty means unset: nothing is emailed.
       # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
@@ -126,9 +128,9 @@ services:
       - ./packages/mcp-server:/app/packages/mcp-server:cached
       - ./packages/integrations:/app/packages/integrations:cached
       # Persist ticket media files on host disk for Docker strategy mounts
-      - /tmp/viberglass-ticket-media:/tmp/viberglass-ticket-media
+      - ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/media:${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/media
       # Persist session state archives for local conversation continuity
-      - /tmp/viberglass-session-state:/tmp/viberglass-session-state
+      - ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/session-state:${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/session-state
       # Persist clanker instruction files in repo (survives container restarts)
       - ./.clanker-instructions:/app/apps/platform-backend/.clanker-instructions
       # Docker socket for provisioning clanker containers

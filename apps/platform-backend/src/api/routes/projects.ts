@@ -1,4 +1,5 @@
 import express from "express";
+import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ProjectDeletionSummaryDAO } from "../../persistence/project/ProjectDeletionSummaryDAO";
 import { ProjectConfig } from "../../models/PMIntegration";
@@ -297,6 +298,9 @@ router.put(
       }
       if (!(await everyoneCanSeeSpace(project.id, req.body.defaultReviewerIds ?? []))) {
         return res.status(400).json({ error: "Default reviewers must be people who can see this space." });
+      }
+      if (req.body.defaultAgentId && !(await new ClankerDAO().getClanker(req.body.defaultAgentId))) {
+        return res.status(400).json({ error: "That agent doesn't exist." });
       }
 
       const updatedProject = await projectService.updateProject(

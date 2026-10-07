@@ -14,7 +14,7 @@ import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { readFilters, SpaceFilterBar, writeFilters, type SpaceFilters } from './space-filters'
-import { groupTasks, matchesSituationFilters, peopleIn, SPACE_GROUP_LABEL } from './space-groups'
+import { groupTasks, matchesSituationFilters, peopleIn, SPACE_GROUP_LABEL, type SpaceGroup } from './space-groups'
 import { SpaceTaskRow } from './space-task-row'
 import { SpaceTaskTable } from './space-task-table'
 import { usePagedTasks, type PagedTasks } from './use-space-tasks'
@@ -56,7 +56,7 @@ export function SpacePage() {
 
   const filters = readFilters(searchParams)
   const showArchived = searchParams.get('archived') === '1'
-  const view = searchParams.get('view') === 'table' ? 'table' : 'board'
+  const view = searchParams.get('view') === 'table' ? 'table' : 'list'
   // Only the filters the server applies reload the lists; the rest narrow what's loaded.
   const { search, artifact, severity } = filters
   const queries = useMemo(() => {
@@ -115,15 +115,15 @@ export function SpacePage() {
     }
   }
 
-  const rows = (tasks: Ticket[]) => (
+  const rows = (tasks: Ticket[], group?: SpaceGroup) => (
     <ListPanel>
       {tasks.map((task) => (
-        <SpaceTaskRow key={task.id} task={task} space={slug} selection={selection(task)} />
+        <SpaceTaskRow key={task.id} task={task} space={slug} selection={selection(task)} group={group} />
       ))}
     </ListPanel>
   )
-  const list = (tasks: Ticket[]) =>
-    view === 'table' ? <SpaceTaskTable tasks={tasks} space={slug} selection={tableSelection} /> : rows(tasks)
+  const list = (tasks: Ticket[], group?: SpaceGroup) =>
+    view === 'table' ? <SpaceTaskTable tasks={tasks} space={slug} selection={tableSelection} /> : rows(tasks, group)
   const countLine = (count: number) => `${count} task${count === 1 ? '' : 's'}`
   const activeCount = groups.reduce((sum, group) => sum + group.tasks.length, 0)
 
@@ -158,7 +158,7 @@ export function SpacePage() {
       />
 
       {space && access?.canMaintain && (
-        <div className="mb-6">
+        <div className="mb-6 empty:hidden">
           <ProjectReadinessBanner projectId={space.id} firstTaskHref={`/spaces/${slug}/tasks/new`} />
         </div>
       )}
@@ -192,7 +192,7 @@ export function SpacePage() {
             setSearchParams(next)
           }}
           options={[
-            { value: 'board', label: 'Board' },
+            { value: 'list', label: 'List' },
             { value: 'table', label: 'Table' },
           ]}
         />
@@ -227,7 +227,7 @@ export function SpacePage() {
                 title={SPACE_GROUP_LABEL[group]}
                 hint={countLine(tasks.length)}
               />
-              {list(tasks)}
+              {list(tasks, group)}
             </section>
           ))}
           <LoadMore list={active} />

@@ -13,10 +13,12 @@ import { secretStorageDefaults } from "../../services/secretStorageDefaults";
 import logger from "../../config/logger";
 import { isSecretServiceError } from "../../services/errors/SecretServiceError";
 import { SetupModelKeyService } from "../../services/setup/SetupModelKeyService";
+import { SecretUsageDAO } from "../../persistence/secret/SecretUsageDAO";
 
 const router = express.Router();
 const secretService = new SecretService();
 const modelKeyService = new SetupModelKeyService();
+const secretUsage = new SecretUsageDAO();
 
 router.use(requireAuth);
 
@@ -42,6 +44,15 @@ router.get("/", async (req, res) => {
 
 router.get("/storage-defaults", (_req, res) => {
   res.json({ success: true, data: secretStorageDefaults() });
+});
+
+// GET /api/secrets/usage - The spaces, connections and model endpoints that read each secret
+router.get("/usage", async (_req, res, next) => {
+  try {
+    res.json({ success: true, data: await secretUsage.listUses() });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/:id", validateUuidParam("id"), async (req, res) => {

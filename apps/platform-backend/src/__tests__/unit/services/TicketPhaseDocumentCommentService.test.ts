@@ -261,6 +261,61 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
   });
 
+  describe("rewording a comment", () => {
+    const comment = {
+      id: "comment-1",
+      documentId: "doc-1",
+      ticketId: "ticket-1",
+      phase: "planning",
+      lineNumber: 1,
+      content: "Original wording",
+      status: "open",
+      actor: "author@example.com",
+      resolvedAt: null,
+      resolvedBy: null,
+      createdAt: new Date("2026-03-01T09:00:00.000Z"),
+      updatedAt: new Date("2026-03-01T09:00:00.000Z"),
+    };
+
+    beforeEach(() => {
+      mockCommentDAO.getById.mockResolvedValue(comment);
+      mockCommentDAO.update.mockImplementation(async (_id, update) => ({ ...comment, ...update }));
+      mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "Original wording" });
+    });
+
+    it("lets the author change the text", async () => {
+      await new TicketPhaseDocumentCommentService().updateComment("ticket-1", "comment-1", {
+        content: "Better wording",
+        actor: "author@example.com",
+      });
+
+      expect(mockCommentDAO.update).toHaveBeenCalledWith("comment-1", expect.objectContaining({ content: "Better wording" }));
+    });
+
+    it("refuses to let someone else change the text", async () => {
+      await expect(
+        new TicketPhaseDocumentCommentService().updateComment("ticket-1", "comment-1", {
+          content: "Words put in their mouth",
+          actor: "someone-else@example.com",
+        }),
+      ).rejects.toThrow("Only the comment's author can edit it");
+      expect(mockCommentDAO.update).not.toHaveBeenCalled();
+    });
+
+    it("lets someone else resolve it, sending the text unchanged", async () => {
+      await new TicketPhaseDocumentCommentService().updateComment("ticket-1", "comment-1", {
+        content: "Original wording",
+        status: "resolved",
+        actor: "someone-else@example.com",
+      });
+
+      expect(mockCommentDAO.update).toHaveBeenCalledWith(
+        "comment-1",
+        expect.objectContaining({ content: "Original wording", status: "resolved", resolvedBy: "someone-else@example.com" }),
+      );
+    });
+  });
+
   it("reopens a resolved comment", async () => {
     mockCommentDAO.getById.mockResolvedValue({
       id: "comment-1",

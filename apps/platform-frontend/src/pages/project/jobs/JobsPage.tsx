@@ -1,18 +1,22 @@
-import { Button } from '@/components/button'
-import { Heading } from '@/components/heading'
+import { Link } from '@/components/link'
+import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
 import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
 import { getProjectJobs } from '@/data'
 import type { JobListItem } from '@/data'
+import { useProject } from '@/context/project-context'
+import { getClankers } from '@/service/api/clanker-api'
 import { JobsTable } from './jobs-table'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 export function JobsPage() {
   const { project } = useParams<{ project: string }>()
+  const { project: space } = useProject()
   const [searchParams] = useSearchParams()
   const [jobs, setJobs] = useState<JobListItem[]>([])
+  const [agentNames, setAgentNames] = useState<Map<string, string>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
 
   const status = searchParams.get('status') ?? 'all'
@@ -21,8 +25,9 @@ export function JobsPage() {
   useEffect(() => {
     async function loadData() {
       if (!project) return
-      const j = await getProjectJobs(project, 50)
+      const [j, agents] = await Promise.all([getProjectJobs(project, 50), getClankers(100).catch(() => [])])
       setJobs(j)
+      setAgentNames(new Map(agents.map((agent) => [agent.id, agent.name])))
       setIsLoading(false)
     }
     loadData()
@@ -54,13 +59,16 @@ export function JobsPage() {
 
   return (
     <>
-      <PageMeta title={project ? `${project} | Runs` : 'Runs'} />
-      <div className="flex items-end justify-between">
-        <Heading>Runs</Heading>
-        <div className="flex gap-4">
-          <Button href={`/spaces/${project}`}>Back to Space</Button>
-        </div>
-      </div>
+      <PageMeta title={`${space?.name ?? project} | Runs`} />
+      <PageHeader
+        eyebrow={
+          <Link href={`/spaces/${project}`} className="hover:underline">
+            {space?.name ?? project}
+          </Link>
+        }
+        title="Runs"
+        className="mb-0"
+      />
 
       <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
@@ -71,7 +79,7 @@ export function JobsPage() {
           />
         </div>
         <Select name="status" defaultValue={status}>
-          <option value="all">All Status</option>
+          <option value="all">All statuses</option>
           <option value="queued">Queued</option>
           <option value="active">Running</option>
           <option value="completed">Completed</option>
@@ -80,7 +88,7 @@ export function JobsPage() {
       </div>
 
       {filteredJobs.length > 0 ? (
-        <JobsTable jobs={filteredJobs} project={project} />
+        <JobsTable jobs={filteredJobs} project={project} agentNames={agentNames} />
       ) : (
         <div className="mt-8 text-center">
           <p className="text-zinc-500 dark:text-zinc-400">

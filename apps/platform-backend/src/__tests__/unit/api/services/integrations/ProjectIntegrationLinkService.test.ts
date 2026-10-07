@@ -67,4 +67,17 @@ describe("ProjectIntegrationLinkService", () => {
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(mockProjectDAO.updateProject).not.toHaveBeenCalled();
   });
+
+  it("never makes a chat connection the space's tracker", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({ id: "slack-1", system: "slack" });
+    mockLinkDAO.isLinked.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const service = new ProjectIntegrationLinkService();
+
+    await expect(service.setPrimaryProjectIntegration("project-1", "slack-1")).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    await service.linkProjectIntegration("project-1", { integrationId: "slack-1", isPrimary: true });
+
+    expect(mockProjectDAO.updateProject).not.toHaveBeenCalled();
+  });
 });

@@ -24,23 +24,23 @@ describe("TaskBranchNamer", () => {
   });
 
   it("uses the default name without a template", async () => {
-    expect(await setup(null).namer.nameFor("t-1", "job-1")).toBe("viberator/t-1");
+    expect(await setup(null).namer.nameFor("t-1", "job-1")).toBe("viberglass/t-1");
   });
 
   it("names a later part's branch after the first's, with its part", async () => {
     const { deps, namer } = setup(null);
-    expect(await namer.nameFor("t-1", "job-3", { first: 2, last: 2 })).toBe("viberator/t-1-part-2");
-    expect(deps.branches.claim).toHaveBeenCalledWith("t-1", "viberator/t-1-part-2", { first: 2, last: 2 });
+    expect(await namer.nameFor("t-1", "job-3", { first: 2, last: 2 })).toBe("viberglass/t-1-part-2");
+    expect(deps.branches.claim).toHaveBeenCalledWith("t-1", "viberglass/t-1-part-2", { first: 2, last: 2 });
   });
 
   it("reads the latest branch without naming one, and names one for a take-over only when there's none", async () => {
-    const stored = setup("viberator/t-1");
-    expect(await stored.namer.existing("t-1")).toBe("viberator/t-1");
-    expect(await stored.namer.current("t-1", "t-1")).toBe("viberator/t-1");
+    const stored = setup("viberglass/t-1");
+    expect(await stored.namer.existing("t-1")).toBe("viberglass/t-1");
+    expect(await stored.namer.current("t-1", "t-1")).toBe("viberglass/t-1");
     expect(stored.deps.branches.claim).not.toHaveBeenCalled();
 
     const none = setup(null);
-    expect(await none.namer.current("t-1", "t-1")).toBe("viberator/t-1");
+    expect(await none.namer.current("t-1", "t-1")).toBe("viberglass/t-1");
     expect(none.deps.branches.claim).toHaveBeenCalled();
   });
 });

@@ -32,14 +32,15 @@ function renderAs(role: 'admin' | 'member' | 'guest', path: string) {
 }
 
 describe('WorkspaceSettingsLayout', () => {
-  it('shows admins the plumbing under Advanced', () => {
+  it('shows admins the workspace and the plumbing under Advanced', () => {
     renderAs('admin', '/settings/agents/default-agent')
 
+    expect(screen.getByRole('heading', { name: 'Workspace' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Advanced' })).toBeInTheDocument()
-    for (const name of ['Members', 'API tokens', 'Agents & runners', 'MCP servers', 'Skills', 'Connections', 'Secrets', 'Prompt templates']) {
+    for (const name of ['Members', 'API tokens', 'Agents', 'MCP servers', 'Skills', 'Connections', 'Secrets', 'Prompt templates']) {
       expect(screen.getByRole('link', { name })).toBeInTheDocument()
     }
-    expect(screen.getByRole('link', { name: 'Agents & runners' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Agents' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('shows members only what they can use', () => {

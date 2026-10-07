@@ -1,6 +1,7 @@
 import { Button } from '@/components/button'
 import { Timestamp } from '@/components/timestamp'
 import type { TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
+import { useState } from 'react'
 import { describeActivity } from './activity-sentence'
 import { MessageBody } from './message-body'
 import { ThreadItem } from './thread-item'
@@ -58,6 +59,25 @@ export function EventEntry({
     <li className="-mt-3 ml-[42px] flex items-baseline justify-between gap-4 text-xs text-[var(--gray-10)]">
       <span>{describeActivity(entry.activity, nameOf)}</span>
       <Timestamp date={entry.at} className="shrink-0" />
+    </li>
+  )
+}
+
+/** A run of turns that didn't finish, as one quiet row that opens in place. */
+export function FoldedAttempts({ label, latestAt, children }: { label: string; latestAt: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <li>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="ml-[42px] flex items-center gap-1 text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]"
+      >
+        <span aria-hidden>{open ? '▾' : '▸'}</span>
+        {label} · latest <Timestamp date={latestAt} />
+      </button>
+      {open && <ol className="mt-6 space-y-6">{children}</ol>}
     </li>
   )
 }

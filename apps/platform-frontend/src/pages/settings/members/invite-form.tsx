@@ -4,11 +4,19 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Subheading } from '@/components/heading'
 import { RoleCapabilityTable } from '@/components/role-capabilities'
-import { ROLE_DESCRIPTION, ROLE_LABEL } from '@/lib/roleCopy'
+import { ROLE_LABEL } from '@/lib/roleCopy'
 import { createInvite, type Invite } from '@/service/api/invite-api'
 import { isWorkspaceRole, WORKSPACE_ROLES, type Project, type WorkspaceRole } from '@viberglass/types'
 import { useState, type FormEvent } from 'react'
 import { CopyLink } from './copy-link'
+
+/** One line under the role picker; "What each role can do" below has the detail. */
+const ROLE_SUMMARY: Record<WorkspaceRole, string> = {
+  admin: 'Everything, including workspace settings.',
+  member: 'Works in open spaces and the ones they join.',
+  guest: 'Only the spaces picked below.',
+  viewer: 'Read-only.',
+}
 
 export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited: (invite: Invite) => void }) {
   const [role, setRole] = useState<WorkspaceRole>('member')
@@ -59,7 +67,7 @@ export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited
                 </option>
               ))}
             </Select>
-            <Description>{ROLE_DESCRIPTION[role]}</Description>
+            <Description>{ROLE_SUMMARY[role]}</Description>
           </Field>
         </FieldGroup>
         <div className="mt-3">
@@ -96,7 +104,7 @@ export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited
         )}
         {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="mt-5">
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" color="brand" disabled={isSubmitting}>
             {isSubmitting ? 'Creating the link…' : 'Create invite link'}
           </Button>
         </div>

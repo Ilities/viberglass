@@ -18,7 +18,7 @@ export async function getTaskTimeline(taskId: string): Promise<TaskTimelineEntry
 export interface NextAgent {
   clankerId: string | null
   name: string | null
-  via: 'named' | 'on_task' | 'default' | 'first_ready' | null
+  via: 'named' | 'on_task' | 'space_default' | 'default' | 'first_ready' | null
   problem: string | null
 }
 

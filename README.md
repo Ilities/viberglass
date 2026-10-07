@@ -1,60 +1,62 @@
 # Viberglass
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
-[![GitHub stars](https://img.shields.io/github/stars/Ilities/viberglass?style=social)](https://github.com/Ilities/viberglass/stargazers)
 
-**Open-source agent orchestrator that turns tickets into pull requests.** Team members describe bugs or code changes, and AI agents read the codebase, plan the change, write it, and open a PR for review.
+An open-source, self-hosted workspace where people and coding agents work on the same tasks together. Viberglass is for software companies: product, design, QA, support and engineering bring the work, the agents do it, and everyone sees and shapes it in one shared thread, from the first question to the merged pull request.
 
-No repository access required to file a ticket. QA engineers, PMs, and customer success teams can submit issues directly. Developers review the PR when it's ready.
+Coding agents are good at writing code. They're bad at knowing what your company actually wants. In Viberglass, the people who know what's wanted stay in the conversation: they're asked when the agent is unsure, they review its plan before any code is written, and they decide when it's done. Nobody needs repository access or a dev environment to take part.
 
-<img src="docs/images/infographic.png" width="800" />
+[Documentation](docs/) | [Architecture](docs/ARCHITECTURE.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md)
 
-**[Documentation](docs/)** | **[Architecture](docs/ARCHITECTURE.md)** | **[Contributing](CONTRIBUTING.md)**
+## How a task works
+
+1. Someone asks for something. A PM, a support lead or an engineer creates a task in a space, from the web, Slack (`/viberator`) or an issue tracker. They own it, and can bring in reviewers and watchers.
+2. The agent writes a plan. It reads the code and writes one document: what it found and what it would change. When it's missing something, it asks the right person in the thread and waits for their answer.
+3. The team agrees on it. Reviewers comment on lines of the plan, suggest edits, @mention a designer or an engineer, and ask the agent to revise. Everyone sees the same plan, the same comments and the same history.
+4. The agent builds it and opens a GitHub pull request for engineering's usual review. Large plans can be built in parts, with a PR per part.
+5. The PR is merged and the task closes. Anyone can ask for another round on the same task; it keeps its conversation and its branch.
+
+An engineer can step in at any point: pause the agent, take over its branch locally with `viberglass checkout`, and hand it back.
 
 ## Features
-![how-it-works.svg](docs/images/how-it-works.svg)
-- **Multi-phase ticket lifecycle** — the agent writes a plan from what it finds in the code, then builds it, with people revising each in the ticket's thread
-- **Interactive agent sessions (ACP)** — collaborate with agents in real-time via the built-in session UI
-- **Scheduled tasks (Claws)** — define recurring agent jobs on a cron schedule
-- **Customizable prompt templates** — override system prompts per project for full control over agent behavior
-- **Multi-agent support** — run different AI harnesses side by side, pick the best tool for each job
-- **Webhook integrations** — ingest tickets from GitHub Issues, Jira, Shortcut, or any custom webhook source
 
-## How it works
+- One thread per task: people's messages, the agent's questions, plan revisions, comments, runs and PRs, in order, for everyone on the task.
+- Home shows whose move it is: a question from the agent, a review request, a mention, a failed run. Notifications reach you in Slack or by email.
+- Roles that fit a company: members, guests and read-only viewers; open or private spaces; owners, reviewers and watchers per task. Not everyone who can comment can ask for code.
+- Slack as a front door: start tasks, answer the agent's questions, discuss the plan and start the build from a Slack thread that stays in step with the task.
+- Bring your own agent and model: eight coding agent harnesses side by side, with provider keys, coding plans, or any OpenAI- or Anthropic-compatible endpoint.
+- Runs you can inspect: what the agent thought and did, its tool calls, the prompt it got, the worker log, and cost and token usage where the harness reports them.
+- Workspace controls: shared secrets, MCP servers and skills for agents, agent instructions per space, API tokens and an audit log.
+- Schedules for recurring agent work.
 
-1. Someone creates a ticket (via the UI, GitHub webhook, Shortcut, Jira, etc.)
-2. The platform dispatches a job to a configured agent worker target (**Clanker**)
-3. A **viberator** starts from that Clanker configuration
-4. The viberator clones the repo, analyzes the code, and pushes a fix
-5. A pull request lands in your repository for standard review
+## Agents and models
 
-A **Clanker** is the saved configuration for how an agent should run: which AI model, what compute (Docker, Lambda, ECS Fargate), and which credentials to use.
+| Harness                                                       | Models                                                            |
+|---------------------------------------------------------------|-------------------------------------------------------------------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic                                                         |
+| [OpenAI Codex](https://github.com/openai/codex)               | OpenAI, including ChatGPT sign-in                                 |
+| [Google Antigravity](https://antigravity.google)              | Google                                                            |
+| [Qwen Code](https://github.com/QwenLM/qwen-code)              | Alibaba                                                           |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe)     | Mistral                                                           |
+| [Kimi Code](https://github.com/MoonshotAI/kimi-code)          | Moonshot                                                          |
+| [OpenCode](https://github.com/opencode-ai/opencode)           | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq and custom endpoints |
+| [Pi](https://pi.dev)                                          | Many providers and custom endpoints                               |
 
-A **viberator** is the running instantiation of a Clanker. You can run multiple viberators from different Clankers side by side.
+Custom model endpoints: add a URL, an API format and a key under the runner form, and OpenCode and Pi runners can use it. This covers hosted open-weight models and anything you serve yourself.
 
-## Supported agent harnesses
-
-| Harness | Provider |
-|---------|----------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic |
-| [Codex](https://github.com/openai/codex) | OpenAI |
-| [Google Antigravity](https://antigravity.google) | Google |
-| [Qwen CLI](https://github.com/QwenLM/qwen-cli) | Alibaba |
-| [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | Mistral AI |
-| [OpenCode](https://github.com/opencode-ai/opencode) | OpenCode |
-| [Kimi Code](https://github.com/MoonshotAI/kimi-code) | Moonshot AI |
-| [Pi](https://pi.dev) | Earendil (many model providers) |
+Model deployments (experimental): Viberglass can create a GPU container on [Verda](https://verda.com) running vLLM, scale it to zero when idle and wake it when a run needs it.
 
 ## Integrations
 
-**Ticket sources:** GitHub Issues, Jira, Shortcut, custom webhooks
-
-**Compute targets:** Docker (local or self-hosted), AWS Lambda, AWS ECS Fargate
-
-**Source control:** GitHub, GitLab
+|                   |                                                 |
+|-------------------|-------------------------------------------------|
+| Pull requests     | GitHub                                          |
+| Task sources      | GitHub Issues, Shortcut, custom webhooks        |
+| Chat              | Slack                                           |
+| Compute           | Docker, Kubernetes, AWS ECS Fargate, AWS Lambda |
 
 ---
 
@@ -63,199 +65,129 @@ A **viberator** is the running instantiation of a Clanker. You can run multiple 
 Requires Docker Engine 20.10+ and Docker Compose v2.
 
 ```bash
-git clone https://github.com/ilities/viberglass.git
+git clone https://github.com/Ilities/viberglass.git
 cd viberglass
 docker compose up
 ```
 
-The platform is available at http://localhost:3000. The backend API runs on port 8888.
+Open http://localhost:3000. The first visit creates the administrator account, then setup walks you through:
 
-With authentication enabled, opening the login page against an empty database starts a one-time
-administrator setup. The first account is created as an administrator and signed in immediately;
-after that, new users can only be added by an administrator.
+1. A model key: pick a provider and paste a key, or point at a custom endpoint.
+2. A repository: a GitHub repository and a fine-grained token that can push a branch and open a pull request. Setup links to GitHub's token form with the permissions filled in.
+3. A space for the repository's tasks.
+4. A default agent, created for you and run on your local Docker using the published worker images.
+5. A first task.
 
-On first run, the backend runs database migrations automatically. If you need to run them manually:
+There's also an "Explore a demo workspace" option on setup's first screen, with sample tasks and no keys needed.
 
-```bash
-docker compose exec backend npm run migrate:latest
-```
+> This compose file is for trying Viberglass on your own machine. It runs the development servers and uses fixed database and encryption keys. Don't expose it to a network. For a shared installation, use [Kubernetes](#kubernetes) or [AWS](#aws).
 
----
-
-## Running agents
-
-To start getting tickets fixed, you need a Clanker, a project, and credentials for your agent harness.
-
-**Step 1: Set up your environment secrets**
-
-Viberglass manages your secrets for you either encrypted in the database or in AWS SSM. You can also use local environment variables and refer to them only via the platform UI for local use.
-
-For the first run, you want to set up at least your GitHub token (GITHUB_TOKEN) and an API key for your favourite agent harness (suggested values in the UI).
-
-<img src="docs/images/secret-creation.png" width="600" />
-
-**Step 2: Create your Clanker configuration**
-
-To execute tickets, you need at least one Clanker. Clankers are configured and managed entirely through the UI at `/clankers`: pick the compute type, set credentials, and click **Start**. The platform handles provisioning the container, ECS task definition, or Lambda function, then launches a viberator from that configuration.
-
-<img src="docs/images/clanker-config.png" width="600" />
-
-The simplest local setup uses Docker. AWS Lambda and ECS Clankers are for production use and work better once the whole app is deployed.
-
-**Step 3: Deploy/Build your Clanker**
-
-Via the UI: click the **Start** button on your configured Clanker page to configure a viberator image ready to be used. Depending on the compute type, the platform will either build a Docker image, create an ECS task definition, or a Lambda function. For more information on how to build your own Clanker images, see the [Worker images](#worker-images) section below.
-
-<img src="docs/images/start-clanker.png" width="600" />
-
-**Step 4: Configure your project**
-
-Once your Clanker is running, go to `/projects` and click **Create Project**. Within the project settings page, select the integration you want to link. This lets you configure your SCM (e.g. GitHub) and ticket source (e.g. Jira) with the correct values like repository URL and ticket labels.
-
-<img src="docs/images/project-config.png" width="600" />
-
-**Step 5: Create tickets**
-
-Create tickets in the UI or via an integration webhook. Each ticket gets a plan and then a build, and ends with a pull request in your repository.
-
-<img src="docs/images/ticket-page.png" width="600" />
+The backend runs database migrations on startup. Optional services (Mailpit for email, Langfuse for traces) and Slack setup are in [local development](docs/local-development.md).
 
 ---
 
 ## Configuration
 
-The backend reads environment variables from `apps/platform-backend/.env`. Copy `.env.example` to get started.
+The backend reads its environment from `docker-compose.yml`; optional settings go in a `.env` file in the repository root. Running the backend outside compose, it reads `apps/platform-backend/.env` (start from `.env.example`).
 
-Key variables:
+| Variable                                                  | Description                                                     |
+|-----------------------------------------------------------|-----------------------------------------------------------------|
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL connection                                           |
+| `SECRETS_ENCRYPTION_KEY`                                  | Encrypts stored credentials at rest                             |
+| `WEBHOOK_SECRET_ENCRYPTION_KEY`                           | Encrypts webhook secrets                                        |
+| `PORT`                                                    | Backend port (default: `8888`)                                  |
+| `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email                 |
+| `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset             |
+| `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`                 | Slack app (commands, threads, DMs)                              |
+| `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`) |
+| `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`) |
 
-| Variable                                                  | Description                                 |
-|-----------------------------------------------------------|---------------------------------------------|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL connection                       |
-| `SECRETS_ENCRYPTION_KEY`                                  | Encrypts tenant credentials at rest         |
-| `WEBHOOK_SECRET_ENCRYPTION_KEY`                           | Encrypts webhook secrets                    |
-| `AUTH_ENABLED`                                            | Set to `false` to disable auth in local dev |
-| `PORT`                                                    | Backend port (default: `8888`)              |
-| `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email |
-| `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset |
-| `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`                 | Slack app (commands, threads, DMs)          |
+Agent credentials are stored as workspace secrets (encrypted in the database, or in AWS SSM) and attached to runners in Settings → Agents & runners. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
 
-With `docker compose`, optional settings go in a `.env` file in the repository root. See [docs/local-development.md](docs/local-development.md) for local email (Mailpit) and Slack.
+---
 
+## Deployment
 
-Store agent credentials through the Secrets feature and attach them to the Clanker. AWS workers can use SSM; experimental Kubernetes workers receive selected database/environment secrets through authenticated backend bootstrap. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
+### Kubernetes
 
-### Experimental Kubernetes support
-
-The Helm distribution installs the backend, React/Vite frontend, migrations, local PostgreSQL and MinIO. Setup and runner forms support Kubernetes; agent executions run as bounded Jobs.
+A Helm chart in [`infra/kubernetes/chart`](infra/kubernetes/chart) installs the backend, frontend and migrations; each agent run is a Kubernetes Job. Bring PostgreSQL, S3-compatible storage, an ingress and TLS, or use the bundled PostgreSQL and MinIO for a local cluster:
 
 ```bash
 python3 infra/kubernetes/scripts/local.py
 ```
 
-See [local Kubernetes installation](docs/local-kubernetes.md) for prerequisites, port forwards and the full-platform smoke test, and [deployment operations](docs/kubernetes-deployment.md) for external databases/storage, ingress, secrets and upgrades. OVHcloud infrastructure provisioning and production cloud validation remain pending.
+- [Local Kubernetes](docs/local-kubernetes.md): prerequisites, port forwards and a full-platform smoke test.
+- [Kubernetes deployment](docs/kubernetes-deployment.md): building images, external database and storage, ingress, secrets and upgrades.
+- [OVHcloud plan](docs/kubernetes-ovh-deployment-plan.md): the managed-cluster target we're validating against.
 
----
+### AWS
 
-## AWS deployment
-
-The `infra/` directory contains three Pulumi stacks that must deploy in order.
-
-**Prerequisites:** Pulumi CLI, AWS credentials, Node.js 20+
+Three Pulumi stacks in [`infra/`](infra/README.md), deployed in order:
 
 ```bash
-# Set up S3 state backend
 ./infra/setup-pulumi-state.sh
 pulumi login s3://viberglass-pulumi-state
 
-# Deploy base infrastructure (VPC, KMS, logging)
-cd infra/base && npm install && pulumi stack select dev && pulumi up
-
-# Deploy platform (ECS backend, RDS, Amplify frontend)
-cd infra/platform && npm install && pulumi stack select dev && pulumi up
-
-# Deploy workers (Lambda and ECS execution)
-cd infra/workers && npm install && pulumi stack select dev && pulumi up
+cd infra/base && npm install && pulumi stack select dev && pulumi up       # VPC, KMS, logging
+cd infra/platform && npm install && pulumi stack select dev && pulumi up   # ECS backend, RDS, S3, Amplify frontend
+cd infra/workers && npm install && pulumi stack select dev && pulumi up    # Lambda and ECS workers
 ```
+
+Runners on ECS or Lambda are created under Settings → Agents & runners; the platform creates the task definition or function, with networking from the stack outputs.
 
 ### Worker images
 
-Before creating ECS or Lambda Clankers, the worker images need to be in ECR. The `deploy-viberators` GitHub Actions workflow handles this.
+Every agent runs in a worker image: a shared base plus one harness.
 
-It runs automatically on any push to `main` that touches `apps/viberator/` or `infra/workers/docker/`. You can also trigger it manually from the Actions tab to target a specific environment and harness type:
-
-- **Environment:** `dev` or `prod`
-- **Harness:** `multi-agent` (default), `claude`, `codex`, `antigravity`, `qwen`, `mistral`, `kimi`, `opencode`, `pi`, `lambda`, or `all`
-
-To push images manually from the command line:
+- Docker and Kubernetes use the public images on GHCR (`ghcr.io/ilities/viberator-worker-<agent>`, `linux/amd64` and `linux/arm64`), published by `publish-worker-images` on pushes to `main` and on releases. Set `VIBERATOR_WORKER_REGISTRY` empty to use images you built locally.
+- AWS pulls from ECR. The `deploy-viberators` workflow pushes them, or by hand:
 
 ```bash
-# Build and push the default multi-agent harness to dev
-./infra/workers/scripts/setup-harness-images.sh dev multi-agent
-
-# Build and push all harness images to prod
-./infra/workers/scripts/setup-harness-images.sh prod all
+./infra/workers/scripts/setup-harness-images.sh dev multi-agent   # one image with every harness
+./infra/workers/scripts/setup-harness-images.sh prod all          # every image
 ```
-
-The script creates ECR repositories if they don't exist, builds each image, and pushes it. Agent images depend on the base image, so the script builds that first automatically.
-
-### Public worker images (GHCR)
-
-For self-hosted Docker runners, the `publish-worker-images` workflow publishes the base image and each agent's default image to `ghcr.io/ilities/<repository>` for `linux/amd64` and `linux/arm64`. It runs on pushes to `main` that touch worker code, on releases (adds the release tag) and manually. Tags: `latest`, the commit SHA, and the release tag.
-
-The published set comes from the catalog (`node infra/workers/scripts/worker-image-catalog.js list public`). A new agent whose image is some agent's default is published without changing the workflow. To make the platform's default images point there, set `VIBERATOR_WORKER_REGISTRY=ghcr.io/ilities`.
-
-### Creating AWS Clankers
-
-Once images are in ECR, go to `/clankers` in the UI, create a Clanker with ECS or Lambda compute, and click **Start**. The platform creates the task definition or Lambda function and wires it up. Network config (subnets, security groups) comes from the Pulumi stack outputs.
-
-Agent credentials in production go in SSM: `/viberator/tenants/{tenantId}/GITHUB_TOKEN` and `/viberator/tenants/{tenantId}/ANTHROPIC_API_KEY`.
 
 ### Database migrations
 
-```bash
-# Development
-npm run migrate -w @viberglass/platform-backend
+The backend migrates on startup. To run them yourself:
 
-# Staging / production
-./apps/platform-backend/scripts/run-migrations.sh staging
-./apps/platform-backend/scripts/run-migrations.sh prod --dry-run
+```bash
+npm run migrate -w @viberglass/platform-backend                    # development
+./apps/platform-backend/scripts/run-migrations.sh prod --dry-run   # staging / production
 ./apps/platform-backend/scripts/run-migrations.sh prod
 ```
 
-Always test migrations in staging before running in production. Verify an RDS backup exists first.
+Check that a database backup exists before migrating production.
 
 ---
 
-## Testing
+## Security model
+
+Agents run code from your repositories with your credentials, so it matters where those go.
+
+- Each run gets its own container (or Kubernetes Job, ECS task or Lambda invocation), started for that run and removed after it.
+- Credentials are stored encrypted (AES-256-GCM in PostgreSQL, or AWS SSM) and only the secrets bound to a runner reach its runs. Kubernetes workers fetch them at start from the backend with a token scoped to the run. They are not written into the Job spec.
+- The agent doesn't see worker credentials. Worker-only credentials, such as a ChatGPT sign-in, are kept out of the agent's environment. Workers handle integration communication towards GitHub etc.
+
+Report vulnerabilities as described in [SECURITY.md](SECURITY.md), not in public issues.
+
+---
+
+## Development
+
+[Local development](docs/local-development.md) and [TESTING.md](TESTING.md) cover the dev stack and test suites. In short:
 
 ```bash
-# Unit and integration tests (from repo root)
-npm test -w @viberglass/platform-backend
-
-# E2E tests (Playwright)
-cd tests/e2e
-
-# Option 1: docker-compose services (fixed ports)
-npm run setup:docker
-
-# Option 2: testcontainers (dynamic ports, written to .env.e2e)
-npm run setup:services
-
-npm test
+(cd apps/platform-backend && npx jest --maxWorkers=2 src/__tests__/unit)   # backend unit tests
+npm run test:e2e                                                           # smoke suite, starts its own stack
 ```
-
-E2E tests start the frontend and backend automatically via Playwright's webServer config. See `tests/e2e/docker/.env.example` for the expected environment variables.
-
----
 
 ## Community
 
-- [GitHub Issues](https://github.com/Ilities/viberglass/issues) — bug reports and feature requests
-- [GitHub Discussions](https://github.com/Ilities/viberglass/discussions) — questions and ideas
-- [Contributing Guide](CONTRIBUTING.md) — how to contribute
-
----
+- [GitHub Issues](https://github.com/Ilities/viberglass/issues): bug reports and feature requests
+- [GitHub Discussions](https://github.com/Ilities/viberglass/discussions): questions and ideas
+- [Contributing guide](CONTRIBUTING.md)
 
 ## License
 
-[Apache 2.0](LICENSE)
+Viberglass is licensed under the [GNU Affero General Public License v3.0](LICENSE). You can use, modify and self-host it freely. If you modify it and let people use it over a network, you must offer them the source of your modified version under the same license.

@@ -8,6 +8,14 @@ import { JobListItem } from '@/service/api/job-api'
 interface JobsTableProps {
   jobs: JobListItem[]
   project?: string
+  /** Agent names by id, for the Agent column. */
+  agentNames?: Map<string, string>
+}
+
+/** "owner/repo" from a repository URL or SSH address. */
+export function repositoryName(repository: string): string {
+  const path = repository.replace(/\/+$/, '').replace(/\.git$/, '')
+  return path.split(/[/:]/).filter(Boolean).slice(-2).join('/')
 }
 
 function formatDuration(start: string | null, end: string | null): string {
@@ -30,14 +38,15 @@ function jobTitle(job: JobListItem): string {
   return formatJobKind(job.jobKind)
 }
 
-export function JobsTable({ jobs, project }: JobsTableProps) {
+export function JobsTable({ jobs, project, agentNames }: JobsTableProps) {
   return (
-    <Table className="mt-8 [--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
+    <Table className="mt-8 [--gutter:--spacing(4)]">
       <TableHead>
         <TableRow>
           <TableHeader>Status</TableHeader>
           <TableHeader>Run</TableHeader>
           <TableHeader>Reason</TableHeader>
+          <TableHeader>Agent</TableHeader>
           <TableHeader>Repository</TableHeader>
           <TableHeader>Duration</TableHeader>
           <TableHeader>Created</TableHeader>
@@ -52,7 +61,7 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
               <TableCell>
                 <JobStatusIndicator status={job.status} />
               </TableCell>
-              <TableCell className="max-w-md">
+              <TableCell className="max-w-xs">
                 <div className="flex items-center gap-2">
                   <Badge color={jobKindBadgeColor(job.jobKind)}>{formatJobKind(job.jobKind)}</Badge>
                   <span className="truncate text-sm font-medium text-zinc-950 dark:text-white" title={jobTitle(job)}>
@@ -67,9 +76,12 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
                   '-'
                 )}
               </TableCell>
+              <TableCell className="text-sm text-zinc-600 dark:text-zinc-400">
+                {(job.clankerId && agentNames?.get(job.clankerId)) || '-'}
+              </TableCell>
               <TableCell>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {job.repository.split('/').slice(-2).join('/')}
+                <span className="block max-w-44 truncate text-sm text-zinc-600 dark:text-zinc-400" title={job.repository}>
+                  {repositoryName(job.repository)}
                 </span>
               </TableCell>
               <TableCell className="text-zinc-500 dark:text-zinc-400">
