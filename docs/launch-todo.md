@@ -8,26 +8,9 @@ The clean-machine run in [testing/e2e-manual/00-clean-machine.md](testing/e2e-ma
 
 - Chrome extension: test it end to end against the current app, then bring it up to date. It still shows the old Planning/Execution labels, and its manifest describes "research, planning, and execution workflows". Decide how people get it: the Chrome Web Store, or build-from-source instructions in the user guide.
 - `viberglass` CLI: publish `packages/cli` from a CI job (npm, on release tags), so `viberglass checkout` is installable. Then update the README and the guide's steering page, which currently have to tell people to build it themselves.
-- Create task page: it says "Every new task starts with a plan", but creating a task starts nothing until someone chooses Write the plan.
 - Connections: the GitHub, Shortcut and custom webhook screens still say "ticket" and "Viberator ticket". The space Connections page describes the GitLab, Bitbucket and Jira stubs as if they worked. Hide stub integrations or label them plainly as not available.
 - Password reset: `/forgot-password` only logs the request. Send the reset email when email is configured.
 - A link to the source in the app, e.g. in the user menu, so modified installations can meet AGPL section 13 easily.
-
-Found while taking the screenshots (2026-10-07):
-
-- The answer buttons on an agent question don't wrap, so long options overflow the card. (The marketing screenshots were taken with a CSS patch for this.)
-- Consecutive agent messages are joined without a space: "codebase.I've read", "first.Waiting".
-- An answered question shows twice: "Maria answered: …" under the question, and again as Maria's own message.
-- On Home, a finished plan shows as "OpenCode mentioned you" with an "OG" avatar, instead of saying the plan is ready. Adding someone as reviewer doesn't put the task under their Needs you.
-- Run details and summaries show internals: "writing PLAN.md", full `/tmp/viberator-work/task-…/repo/…` paths on every tool call, and "$0 (estimate)" as the cost.
-- "Invite your team" in Next steps is already ticked on a fresh instance; the demo workspace's members probably count.
-- Starting a runner created by hand builds the whole multi-agent image from source (about 6 minutes), where setup uses the published images. The runner page says "Docker image not configured".
-- The New space form is the old plumbing form (Integration Credential, "Enable Auto-fix", "use Viberglass as ticketing system"). Create task still uses bug-report framing ("Create New Task", "Steps to reproduce").
-- Agents & runners: the intro line renders in a monospace box, the heading says "Agent runners" while the navigation says "Agents & runners", card columns don't line up, and Created/Updated times are cut off.
-- Comparing plan versions shows a raw markdown line diff in monospace; changing one word marks the whole paragraph.
-- The comment popover shows a raw locale timestamp ("10/7/2026, 10:06:09 AM").
-- The red Cancel run button on every running turn is visually loud.
-- The main content frame's right border shows on every page.
 
 ## Installing and running
 

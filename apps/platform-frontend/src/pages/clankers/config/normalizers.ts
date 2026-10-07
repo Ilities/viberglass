@@ -14,6 +14,11 @@ export function toProvisioningMode(value: string): ProvisioningMode {
   return value === 'prebuilt' ? 'prebuilt' : 'managed'
 }
 
+/** Docker runs the agent's published image unless asked to build one; the cloud strategies create their own resources. */
+export function defaultProvisioningMode(strategyName?: string): ProvisioningMode {
+  return normalizeStrategyName(strategyName) === 'docker' ? 'prebuilt' : 'managed'
+}
+
 export function toCodexAuthMode(value: string): CodexAuthMode {
   if (value === 'chatgpt_device') return 'chatgpt_device'
   if (value === 'chatgpt_device_stored') return 'chatgpt_device_stored'

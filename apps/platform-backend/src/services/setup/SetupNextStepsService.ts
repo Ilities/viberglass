@@ -1,4 +1,5 @@
 import type { Integration, SetupNextSteps, TicketSystem } from "@viberglass/types";
+import { DemoSeedRecordDAO } from "../../persistence/demo/DemoSeedRecordDAO";
 import { IntegrationDAO } from "../../persistence/integrations/IntegrationDAO";
 import { InviteDAO } from "../../persistence/user/InviteDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
@@ -8,6 +9,7 @@ import { SlackWebApi } from "../notifications/SlackWebApi";
 interface Dependencies {
   users: Pick<UserDAO, "listUsers">;
   invites: Pick<InviteDAO, "listOpen">;
+  demo: Pick<DemoSeedRecordDAO, "list">;
   integrations: Pick<IntegrationDAO, "listIntegrations">;
   isTicketingSystem: (system: TicketSystem) => boolean;
   slack: Pick<SlackWebApi, "isConfigured">;
@@ -16,6 +18,7 @@ interface Dependencies {
 const defaults = (): Dependencies => ({
   users: new UserDAO(),
   invites: new InviteDAO(),
+  demo: new DemoSeedRecordDAO(),
   integrations: new IntegrationDAO(),
   isTicketingSystem: (system) => integrationRegistry.get(system)?.category === "ticketing",
   slack: new SlackWebApi(),
@@ -30,13 +33,17 @@ export class SetupNextStepsService {
   }
 
   async getNextSteps(): Promise<SetupNextSteps> {
-    const [users, invites, integrations] = await Promise.all([
+    const [users, invites, demo, integrations] = await Promise.all([
       this.deps.users.listUsers(),
       this.deps.invites.listOpen(),
+      this.deps.demo.list(),
       this.deps.integrations.listIntegrations(),
     ]);
+    // The demo workspace's made-up people aren't a team.
+    const demoUsers = new Set(demo.flatMap((record) => (record.entityType === "user" ? [record.entityId] : [])));
+    const people = users.filter((user) => !demoUsers.has(user.id));
     return {
-      teamInvited: users.length > 1 || invites.length > 0,
+      teamInvited: people.length > 1 || invites.length > 0,
       // Slack can be set up by its bot token in the environment, with no connection saved.
       slackConnected:
         this.deps.slack.isConfigured() || integrations.some((integration: Integration) => integration.system === "slack"),

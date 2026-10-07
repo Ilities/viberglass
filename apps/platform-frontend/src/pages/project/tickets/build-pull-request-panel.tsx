@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge'
 import { Fact, FactList } from '@/components/fact-list'
 import { ReviewCommentList } from '@/components/review-comment-list'
+import { Timestamp } from '@/components/timestamp'
 import { formatJobStatus } from '@/data'
 import type { BuildPullRequest } from '@/service/api/build-api'
 import type { JobListItem } from '@/service/api/job-api'
@@ -93,7 +94,7 @@ export function BuildPullRequestPanel({
             <>
               <Fact label="Last build">
                 {formatJobStatus(latestBuild.status).label}
-                <span className="text-[var(--gray-9)]"> · {new Date(latestBuild.createdAt).toLocaleString()}</span>
+                <span className="text-[var(--gray-9)]"> · <Timestamp date={latestBuild.createdAt} /></span>
               </Fact>
               <Fact label="Took">{formatRunDuration(latestBuild.processedAt, latestBuild.finishedAt) ?? <Missing>Not started</Missing>}</Fact>
             </>

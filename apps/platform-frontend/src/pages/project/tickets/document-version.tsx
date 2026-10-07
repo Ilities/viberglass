@@ -3,9 +3,9 @@ import { Button } from '@/components/button'
 import { Timestamp } from '@/components/timestamp'
 import { usePersonName } from '@/hooks/usePeople'
 import { getPlanRevisions, type PhaseDocumentRevisionResponse } from '@/service/api/ticket-api'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FullScreenReader } from './full-screen-reader'
-import { diffLines } from './line-diff'
+import { compareDocuments } from './document-comparison'
 import { MarkdownDocument } from './markdown/markdown-document'
 
 interface DocumentVersionProps {
@@ -17,28 +17,21 @@ interface DocumentVersionProps {
   onShowCurrent: () => void
 }
 
-function Comparison({ before, after }: { before: string; after: string }) {
-  const lines = diffLines(before, after)
-  if (lines.every((line) => line.kind === 'same')) return <p className="text-sm text-[var(--gray-10)]">This version matches the current one.</p>
+function Comparison({ before, after, reading = false }: { before: string; after: string; reading?: boolean }) {
+  const comparison = useMemo(() => compareDocuments(before, after), [before, after])
+  if (!comparison.changed) return <p className="text-sm text-[var(--gray-10)]">This version matches the current one.</p>
   return (
-    <pre className="overflow-x-auto rounded-lg border border-[var(--gray-5)] bg-[var(--gray-2)] p-4 text-xs leading-6 whitespace-pre-wrap">
-      {lines.map((line, index) => (
-        <div
-          key={index}
-          className={
-            line.kind === 'added'
-              ? 'bg-[var(--green-3)] text-[var(--green-11)]'
-              : line.kind === 'removed'
-                ? 'bg-[var(--red-3)] text-[var(--red-11)] line-through'
-                : 'text-[var(--gray-11)]'
-          }
-        >
-          <span aria-hidden className="mr-2 select-none">{line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}</span>
-          <span className="sr-only">{line.kind === 'added' ? 'Added in the current version: ' : line.kind === 'removed' ? 'Removed since: ' : ''}</span>
-          {line.text || ' '}
-        </div>
-      ))}
-    </pre>
+    <div className="space-y-3">
+      <p className="flex flex-wrap gap-x-4 text-xs text-[var(--gray-10)]">
+        <span>
+          <del className="rounded-[2px] bg-[var(--red-a3)] text-[var(--red-11)]">Struck through</del>: only in this version
+        </span>
+        <span>
+          <ins className="rounded-[2px] bg-[var(--green-a4)] text-[var(--green-12)] no-underline">Highlighted</ins>: added in the current version
+        </span>
+      </p>
+      <MarkdownDocument source={comparison.source} highlights={comparison.highlights} reading={reading} />
+    </div>
   )
 }
 
@@ -129,7 +122,7 @@ export function DocumentVersion({
           </>
         }
       >
-        {comparing ? <Comparison before={shown.content} after={current.content} /> : <MarkdownDocument reading source={shown.content} />}
+        {comparing ? <Comparison reading before={shown.content} after={current.content} /> : <MarkdownDocument reading source={shown.content} />}
       </FullScreenReader>
       {!isCurrent && <p className="text-xs text-[var(--gray-10)]">Older versions are read-only. Comments and edits go on the current version.</p>}
     </article>

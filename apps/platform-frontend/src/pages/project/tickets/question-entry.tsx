@@ -97,7 +97,13 @@ function AnswerCard({ taskId, question, viewerId, onAnswered }: { taskId: string
       {question.options.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {question.options.map((option) => (
-            <Button key={option} outline disabled={sending} onClick={() => void send(option)}>
+            <Button
+              key={option}
+              outline
+              disabled={sending}
+              onClick={() => void send(option)}
+              className="!h-auto min-h-[var(--base-button-height)] max-w-full !whitespace-normal py-1.5 text-left"
+            >
               {option}
             </Button>
           ))}

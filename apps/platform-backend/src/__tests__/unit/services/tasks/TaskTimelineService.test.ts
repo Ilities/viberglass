@@ -54,6 +54,7 @@ function service(sources: {
   agentTurns?: TaskAgentTurn[];
   summaries?: Array<{ id: string; ticketId: string; version: number; content: string; agentTurnId: string | null; createdAt: Date }>;
   questions?: AgentQuestionRecord[];
+  answers?: Map<string, string>;
 }) {
   return new TaskTimelineService({
     messages: {
@@ -70,7 +71,10 @@ function service(sources: {
     revisions: { listByTicketWithAuthors: jest.fn(async () => sources.revisions ?? []) },
     activity: { list: jest.fn(async () => sources.activity ?? []) },
     summaries: { listForTask: jest.fn(async () => sources.summaries ?? []) },
-    questions: { listForTask: jest.fn(async () => sources.questions ?? []) },
+    questions: {
+      listForTask: jest.fn(async () => sources.questions ?? []),
+      questionsAnsweredBy: jest.fn(async () => sources.answers ?? new Map<string, string>()),
+    },
   });
 }
 
@@ -183,5 +187,17 @@ describe("TaskTimelineService", () => {
         answer: null,
       },
     });
+  });
+
+  it("leaves out a message that answered a question, which shows under the question", async () => {
+    const thread = await service({
+      messages: [
+        { id: "answer", at: "2026-10-01T10:02:00.000Z", body: "North" },
+        { id: "other", at: "2026-10-01T10:03:00.000Z", body: "Thanks" },
+      ],
+      answers: new Map([["answer", "Which warehouse?"]]),
+    }).list("t");
+
+    expect(thread.map((entry) => entry.id)).toEqual(["other"]);
   });
 });

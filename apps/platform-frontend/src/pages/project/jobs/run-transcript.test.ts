@@ -1,5 +1,5 @@
 import type { RunEvent } from '@/service/api/job-api'
-import { buildRunTranscript, toolCallCount } from './run-transcript'
+import { buildRunTranscript, inRepository, toolCallCount } from './run-transcript'
 
 let sequence = 0
 function event(eventType: string, payloadJson: Record<string, unknown>): RunEvent {
@@ -58,5 +58,14 @@ describe('buildRunTranscript', () => {
       { kind: 'note', id: expect.any(String), text: "Started the agent's session" },
       { kind: 'tool', id: 'c9', title: 'grep', toolKind: null, detail: null, locations: [], status: 'done', output: '3 matches' },
     ])
+  })
+})
+
+describe('inRepository', () => {
+  it('shows paths as they are in the repository, not in the worker', () => {
+    expect(inRepository('/tmp/viberator-work/task-0f3a/repo/src/App.jsx')).toBe('src/App.jsx')
+    expect(inRepository('cd /tmp/viberator-work/task-0f3a/repo && ls')).toBe('cd . && ls')
+    expect(inRepository('/work/2b1c4d5e-1111-2222-3333-444455556666/repo/README.md')).toBe('README.md')
+    expect(inRepository('grep -r todo src/repo/')).toBe('grep -r todo src/repo/')
   })
 })

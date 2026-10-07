@@ -7,7 +7,7 @@ import { Timestamp } from '@/components/timestamp'
 import { initialsOf } from '@/lib/initials'
 import { taskPath } from '@/lib/taskPath'
 import type { HomeThread } from '@viberglass/types'
-import { needsYouReason, quotedLastMessage, turnLine } from './home-threads'
+import { agentNeedsYou, needsYouReason, quotedLastMessage, turnLine } from './home-threads'
 
 /**
  * A thread that needs you: who's asking, why, and what they said. A question
@@ -16,7 +16,8 @@ import { needsYouReason, quotedLastMessage, turnLine } from './home-threads'
 export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChanged: () => void }) {
   const href = taskPath(thread.task.spaceSlug, thread.task)
   const asked = thread.situation.state === 'question'
-  const from = asked ? 'AI' : thread.lastMessage?.author ? initialsOf(thread.lastMessage.author.name) : '?'
+  const fromAgent = agentNeedsYou(thread)
+  const from = fromAgent ? 'AI' : thread.lastMessage?.author ? initialsOf(thread.lastMessage.author.name) : '?'
   return (
     <ListRow
       label={thread.task.title}
@@ -28,7 +29,7 @@ export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChang
       meta={
         <MetaLine
           parts={[
-            thread.mentionsYou && !asked ? quotedLastMessage(thread.lastMessage) : thread.situation.label,
+            thread.mentionsYou && !fromAgent ? quotedLastMessage(thread.lastMessage) : thread.situation.label,
             thread.task.spaceName,
             <Timestamp key="at" date={thread.latestActivityAt} />,
           ]}

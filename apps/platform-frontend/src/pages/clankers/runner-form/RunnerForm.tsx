@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import type { AgentSettings } from '../config/agents'
 import { describeBindingsProblem } from '../config/agentSecrets'
 import { buildClankerDeploymentConfig } from '../config/buildConfig'
+import { defaultProvisioningMode } from '../config/normalizers'
 import { keysForProvider, providerOptionsForAgent, settingsForProvider, splitRunnerBindings } from '../config/modelKey'
 import { readClankerDeploymentConfig } from '../config/readConfig'
 import { SecretBindingsField } from '../config/secret-bindings-field'
@@ -70,7 +71,10 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         setSecrets(allSecrets)
         if (!initial) {
           const defaultStrategy = strategies[0]
-          if (defaultStrategy) setSelectedStrategyId((current) => current || defaultStrategy.id)
+          if (defaultStrategy) {
+            setSelectedStrategyId((current) => current || defaultStrategy.id)
+            setProvisioningMode(defaultProvisioningMode(defaultStrategy.name))
+          }
           // A new runner on an agent with one provider starts with that provider's newest key.
           const options = providerOptionsForAgent(DEFAULT_AGENT_TYPE)
           if (options.length === 1) {
@@ -267,7 +271,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
                 value={selectedStrategyId}
                 onChange={(strategyId) => {
                   setSelectedStrategyId(strategyId)
-                  setProvisioningMode('managed')
+                  setProvisioningMode(defaultProvisioningMode(deploymentStrategies.find((strategy) => strategy.id === strategyId)?.name))
                 }}
               />
               <StrategySpecificFields

@@ -1,7 +1,19 @@
 import { buildClankerDeploymentConfig } from './buildConfig'
+import { defaultProvisioningMode } from './normalizers'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './types'
 
 describe('buildClankerDeploymentConfig', () => {
+  test('a Docker runner uses the published image unless it names one', () => {
+    expect(defaultProvisioningMode('docker')).toBe('prebuilt')
+    expect(defaultProvisioningMode('ecs')).toBe('managed')
+    const result = buildClankerDeploymentConfig({
+      strategyName: 'docker',
+      selectedAgent: 'claude-code',
+      form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, provisioningMode: 'prebuilt', containerImage: '  ' },
+    })
+    expect(result.strategy).toEqual({ type: 'docker', provisioningMode: 'prebuilt', containerImage: undefined })
+  })
+
   test('includes opencode endpoint and model when provided', () => {
     const result = buildClankerDeploymentConfig({
       strategyName: 'docker',

@@ -59,8 +59,8 @@ describe('HomePage', () => {
       needsYou: [
         thread('1', {
           situation: {
-            state: 'artifact_ready',
-            label: 'Plan v2 ready',
+            state: 'discussing',
+            label: 'Discussing',
             waitingOn: { kind: 'people', people: [{ id: 'me', name: 'Maria' }] },
             since: 't',
             yourMove: true,

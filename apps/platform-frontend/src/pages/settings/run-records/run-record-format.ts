@@ -51,7 +51,8 @@ export function formatRunCost(record: RunRecord): { amount: string | null; prove
     case 'actual':
       return { amount, provenance: 'measured' }
     case 'estimated':
-      return { amount, provenance: 'estimate' }
+      // A zero estimate means the model has no price to estimate from.
+      return record.costUsd === 0 ? { amount: null, provenance: 'not measured' } : { amount, provenance: 'estimate' }
     default:
       return { amount: null, provenance: 'not measured' }
   }
