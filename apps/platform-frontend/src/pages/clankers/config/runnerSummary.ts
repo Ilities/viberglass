@@ -1,9 +1,19 @@
 import type { Secret } from '@/service/api/secret-api'
-import { getAgentEnvVarNames, getModelProvider, isClankerConfigV1, runnerCredentialProblem, type Clanker, type SecretBinding } from '@viberglass/types'
+import {
+  getAgentEnvVarNames,
+  getModelProvider,
+  isClankerConfigV1,
+  runnerCredentialProblem,
+  type Clanker,
+  type ModelEndpoint,
+  type SecretBinding,
+} from '@viberglass/types'
 import { providerOptionsForAgent, splitRunnerBindings } from './modelKey'
 
 export interface RunnerSummary {
   providerLabel: string | null
+  /** The workspace model endpoint the runner uses, when it uses one. */
+  endpoint: { name: string; host: string; keyLabel: string | null } | null
   model: string | null
   /** The key the agent uses, or null when it has none. */
   key: { label: string; envVar: string } | null
@@ -21,8 +31,20 @@ export interface RunnerSummary {
   extras: SecretBinding[]
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
 /** What a runner runs on, in the terms the runner form uses, plus anything that stops it working. */
-export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'modelEndpoint'>, secrets: Secret[]): RunnerSummary {
+export function summarizeRunner(
+  clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'modelEndpoint'>,
+  secrets: Secret[],
+  endpoints: Array<Pick<ModelEndpoint, 'id' | 'name' | 'baseUrl' | 'auth' | 'secretId'>> = [],
+): RunnerSummary {
   const agent = clanker.agent ?? ''
   const config = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const agentConfig = config?.agent
@@ -46,10 +68,29 @@ export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConf
   const customUrl = configuredUrl && configuredUrl !== providerEndpoint ? configuredUrl : null
   const customEndpoint = !clanker.modelEndpoint && (customUrl || endpointVar) ? { url: customUrl, envVar: endpointVar } : null
 
+  const usedEndpoint = clanker.modelEndpoint
+    ? endpoints.find((candidate) => candidate.id === clanker.modelEndpoint?.endpointId)
+    : undefined
+  const endpoint = usedEndpoint
+    ? {
+        name: usedEndpoint.name,
+        host: hostOf(usedEndpoint.baseUrl),
+        keyLabel:
+          usedEndpoint.auth.scheme === 'none'
+            ? null
+            : (secrets.find((secret) => secret.id === usedEndpoint.secretId)?.name ?? 'Deleted secret'),
+      }
+    : null
+
   const problem = runnerCredentialProblem(clanker, new Set(secrets.map((secret) => secret.id)))?.problem ?? null
 
   return {
-    providerLabel: clanker.modelEndpoint ? 'Custom endpoint' : provider ? getModelProvider(provider).displayName : null,
+    providerLabel: clanker.modelEndpoint
+      ? (endpoint?.name ?? 'Workspace model')
+      : provider
+        ? getModelProvider(provider).displayName
+        : null,
+    endpoint,
     model,
     key,
     usesChatGptLogin,

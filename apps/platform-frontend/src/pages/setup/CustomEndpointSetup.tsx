@@ -4,17 +4,18 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { checkModelEndpoint, saveModelEndpoint } from '@/service/api/model-endpoint-api'
 import { createSecret, getSecretStorageDefaults } from '@/service/api/secret-api'
-import { AGENT_LABELS, agentForModelApiFormat, isModelApiFormat, type ModelApiFormat, type ModelEndpointInput } from '@viberglass/types'
+import {
+  AGENT_LABELS,
+  MODEL_API_FORMAT_LABELS,
+  MODEL_API_FORMATS,
+  agentForModelApiFormat,
+  isModelApiFormat,
+  normalizeModelEndpointBaseUrl,
+  type ModelApiFormat,
+  type ModelEndpointInput,
+} from '@viberglass/types'
 import { useId, useState } from 'react'
 import { SetupError } from './SetupFrame'
-
-const FORMAT_LABEL: Record<ModelApiFormat, string> = {
-  'openai-chat': 'OpenAI-compatible Chat Completions',
-  'openai-responses': 'OpenAI Responses',
-  'anthropic-messages': 'Anthropic Messages',
-}
-
-const FORMATS: ModelApiFormat[] = ['openai-chat', 'openai-responses', 'anthropic-messages']
 
 function hostOf(url: string): string {
   try {
@@ -56,7 +57,7 @@ export function CustomEndpointSetup({ onDone }: { onDone: (endpointId: string, m
     }
     return {
       name: hostOf(url),
-      baseUrl: url,
+      baseUrl: normalizeModelEndpointBaseUrl(url, format),
       apiFormat: format,
       auth: format === 'anthropic-messages' ? { scheme: 'header', header: 'x-api-key' } : { scheme: 'bearer' },
       secretId,
@@ -83,7 +84,8 @@ export function CustomEndpointSetup({ onDone }: { onDone: (endpointId: string, m
       const result = await checkModelEndpoint(await input())
       setFound(result.models)
       if (!model.trim() && result.models[0]) setModel(result.models[0])
-      if (!result.discoverySupported) setError("The key was accepted, but this endpoint doesn't list its models. Type the model's ID.")
+      if (!result.discoverySupported)
+        setError(`${result.detail ?? "This endpoint doesn't list its models."} Check the base URL and API format, or type the model's ID.`)
     })
 
   const save = () =>
@@ -109,9 +111,9 @@ export function CustomEndpointSetup({ onDone }: { onDone: (endpointId: string, m
       <Field>
         <Label>API it speaks</Label>
         <Select value={format} onChange={(value) => isModelApiFormat(value) && setFormat(value)} aria-label="API it speaks">
-          {FORMATS.map((option) => (
+          {MODEL_API_FORMATS.map((option) => (
             <option key={option} value={option}>
-              {FORMAT_LABEL[option]}
+              {MODEL_API_FORMAT_LABELS[option]}
             </option>
           ))}
         </Select>

@@ -2,14 +2,20 @@ import {
   DEFAULT_AGENT_TYPE,
   getAgentModelApiFormats,
   isSupportedAgentType,
+  normalizeModelEndpointBaseUrl,
   type AgentType,
   type ModelEndpoint,
   type ModelEndpointInput,
   type ModelEndpointSelection,
+  type ModelEndpointView,
 } from "@viberglass/types";
 import type { ModelEndpointDAO } from "../../persistence/modelEndpoint/ModelEndpointDAO";
 import type { ModelEndpointInputValidator } from "./ModelEndpointInputValidator";
 import { ModelEndpointServiceError } from "../errors/ModelEndpointServiceError";
+
+function normalized(input: ModelEndpointInput): ModelEndpointInput {
+  return { ...input, baseUrl: normalizeModelEndpointBaseUrl(input.baseUrl, input.apiFormat) };
+}
 
 export class ModelEndpointService {
   constructor(
@@ -17,8 +23,14 @@ export class ModelEndpointService {
     private readonly validator: Pick<ModelEndpointInputValidator, "validate">,
   ) {}
 
-  list(): Promise<ModelEndpoint[]> {
-    return this.endpoints.list();
+  async list(): Promise<ModelEndpointView[]> {
+    const endpoints = await this.endpoints.list();
+    return Promise.all(
+      endpoints.map(async (endpoint) => ({
+        ...endpoint,
+        runners: (await this.endpoints.runnersUsing(endpoint.id)).map((runner) => runner.name),
+      })),
+    );
   }
 
   async require(id: string): Promise<ModelEndpoint> {
@@ -48,7 +60,8 @@ export class ModelEndpointService {
       );
   }
 
-  async create(input: ModelEndpointInput): Promise<ModelEndpoint> {
+  async create(raw: ModelEndpointInput): Promise<ModelEndpoint> {
+    const input = normalized(raw);
     await this.validate(input);
     await this.assertNameAvailable(input.name);
     if (!input.models.length)
@@ -59,7 +72,8 @@ export class ModelEndpointService {
     return this.endpoints.create(input);
   }
 
-  async update(id: string, input: ModelEndpointInput): Promise<ModelEndpoint> {
+  async update(id: string, raw: ModelEndpointInput): Promise<ModelEndpoint> {
+    const input = normalized(raw);
     this.assertManual(await this.require(id));
     await this.validate(input);
     await this.assertNameAvailable(input.name, id);

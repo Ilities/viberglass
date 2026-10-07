@@ -157,7 +157,7 @@ Settings is a sidebar entry for admins. Everyone else reaches their own settings
 |---|---|---|
 | You | Notifications (Slack link, email); API tokens | everyone; API tokens for admins and members (MCP) |
 | Workspace | Members, Agents, Connections, Secrets | admins |
-| Advanced | Model deployments, MCP servers, Skills, Prompt templates, Run records, Audit log | admins |
+| Advanced | Models, MCP servers, Skills, Prompt templates, Run records, Audit log | admins |
 
 Settings opens on Notifications for everyone except admins, who land on Members (RM13, RV26). Workspace and Advanced pages refuse non-admins in the UI too, not just in the nav: opening one sends a non-admin back to their own settings.
 

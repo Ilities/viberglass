@@ -21,6 +21,16 @@ export {
   parseOpenCodeSessionExport,
 } from "./usage";
 
+// Runner model endpoints
+export {
+  MODEL_ENDPOINT_CONFIG_ENV_VAR,
+  ModelEndpointConfigEnvironment,
+  currentModelEndpoint,
+  modelEndpointKey,
+  modelEndpointRequestHeaders,
+} from "./modelEndpointConfig";
+export { tomlInlineTable, tomlString } from "./toml";
+
 // Agent environment boundary
 export {
   sanitizeAgentEnvironment,

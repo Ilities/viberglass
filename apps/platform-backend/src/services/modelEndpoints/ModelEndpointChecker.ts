@@ -1,4 +1,8 @@
-import { isObjectRecord, type ModelEndpointInput } from "@viberglass/types";
+import {
+  isObjectRecord,
+  modelEndpointModelsRequest,
+  type ModelEndpointInput,
+} from "@viberglass/types";
 import type { SecretService } from "../SecretService";
 import { ModelEndpointServiceError } from "../errors/ModelEndpointServiceError";
 import { buildModelKeyCheckRequest } from "../setup/modelKeyCheckRequest";
@@ -16,24 +20,22 @@ export class ModelEndpointChecker {
 
   async check(
     input: ModelEndpointInput,
-  ): Promise<{ models: string[]; discoverySupported: boolean }> {
+  ): Promise<{ models: string[]; discoverySupported: boolean; detail?: string }> {
     const key = input.secretId
       ? (await this.secrets.resolveSecretValues([input.secretId])).get(
           input.secretId,
         )
       : undefined;
+    const models = modelEndpointModelsRequest(input);
     let response: Pick<Response, "status" | "json">;
     try {
-      response = await this.fetchFn(
-        `${input.baseUrl.replace(/\/+$/, "")}/models`,
-        {
-          ...buildModelKeyCheckRequest(
-            { auth: input.auth, headers: input.extraHeaders },
-            key,
-          ),
-          redirect: "error",
-        },
-      );
+      response = await this.fetchFn(models.url, {
+        ...buildModelKeyCheckRequest(
+          { auth: input.auth, headers: { ...models.headers, ...input.extraHeaders } },
+          key,
+        ),
+        redirect: "error",
+      });
     } catch {
       throw new ModelEndpointServiceError(
         "MODEL_ENDPOINT_UNREACHABLE",
@@ -42,7 +44,11 @@ export class ModelEndpointChecker {
       );
     }
     if ([404, 405].includes(response.status))
-      return { models: input.models, discoverySupported: false };
+      return {
+        models: input.models,
+        discoverySupported: false,
+        detail: `Nothing lists models at ${models.url} (HTTP ${response.status}).`,
+      };
     if (response.status !== 200) {
       throw new ModelEndpointServiceError(
         "MODEL_ENDPOINT_REJECTED",
@@ -51,7 +57,7 @@ export class ModelEndpointChecker {
       );
     }
     const body: unknown = await response.json().catch(() => null);
-    const models =
+    const listed =
       isObjectRecord(body) && Array.isArray(body.data)
         ? body.data.flatMap((entry: unknown) =>
             isObjectRecord(entry) &&
@@ -62,8 +68,9 @@ export class ModelEndpointChecker {
           )
         : [];
     return {
-      models: Array.from(new Set(models)),
-      discoverySupported: models.length > 0,
+      models: Array.from(new Set(listed)),
+      discoverySupported: listed.length > 0,
+      ...(listed.length ? {} : { detail: `${models.url} listed no models.` }),
     };
   }
 }

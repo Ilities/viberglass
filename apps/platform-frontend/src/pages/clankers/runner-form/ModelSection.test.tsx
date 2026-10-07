@@ -121,7 +121,7 @@ test("explains that an agent without endpoint support can't use one, instead of 
   render(
     <Theme>
       <ModelSection
-        agent="claude-code"
+        agent="antigravity"
         provider=""
         modelKeyId=""
         secrets={[]}
@@ -139,8 +139,8 @@ test("explains that an agent without endpoint support can't use one, instead of 
     </Theme>
   )
 
-  expect(screen.getByText(/Claude Code uses only its own providers here; it can't run on a custom endpoint yet/)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Add endpoint' })).not.toBeInTheDocument()
+  expect(screen.getByText(/Google Antigravity runs only on its own providers; it can't use workspace models yet/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Connect a model' })).not.toBeInTheDocument()
 })
 
 test('offers only endpoints that speak an API the agent understands', async () => {

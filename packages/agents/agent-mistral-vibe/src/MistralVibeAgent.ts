@@ -1,8 +1,9 @@
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { MistralVibeConfig } from "./config";
+import { vibeModelEndpointEnvironment } from "./vibeModelConfig";
 
 export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
   constructor(config: MistralVibeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -10,7 +11,7 @@ export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
   }
 
   protected requiresApiKey(): boolean {
-    return true;
+    return !currentModelEndpoint();
   }
 
   public getAcpServerCommand(): string[] {
@@ -18,6 +19,8 @@ export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+    const endpoint = currentModelEndpoint();
+    if (endpoint) return vibeModelEndpointEnvironment(endpoint);
     return {
       MISTRAL_API_KEY: this.config.apiKey!,
     };

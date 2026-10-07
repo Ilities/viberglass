@@ -1,8 +1,9 @@
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { CodexConfig } from "./config";
+import { writeCodexModelConfig } from "./codexModelConfig";
 
 /**
  * What Codex keeps when it compacts its context. It has no instructions on
@@ -20,6 +21,7 @@ export class CodexAgent extends BaseAgent<CodexConfig> {
   }
 
   protected requiresApiKey(): boolean {
+    if (currentModelEndpoint()) return false;
     const authMode = process.env.CODEX_AUTH_MODE || "api_key";
     return authMode === "api_key";
   }
@@ -29,6 +31,24 @@ export class CodexAgent extends BaseAgent<CodexConfig> {
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+    const endpoint = currentModelEndpoint();
+    if (endpoint) {
+      writeCodexModelConfig(
+        endpoint,
+        process.env.CODEX_HOME ||
+          process.env.CODEX_CONFIG_DIR ||
+          path.join(this.resolveHomeDirectory(process.env.HOME), ".codex"),
+      );
+      return {
+        OPENAI_API_KEY: undefined,
+        OPENAI_BASE_URL: undefined,
+        CODEX_CONFIG: JSON.stringify({
+          compact_prompt: CODEX_COMPACT_PROMPT,
+          model: endpoint.model,
+          model_provider: "viberglass",
+        }),
+      };
+    }
     return {
       OPENAI_API_KEY:
         (process.env.CODEX_AUTH_MODE || "api_key") === "api_key"

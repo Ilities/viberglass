@@ -1,8 +1,9 @@
-import { BaseAgent, parseClaudeCodeStreamJsonUsage } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint, parseClaudeCodeStreamJsonUsage } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { ClaudeCodeConfig } from "./config";
+import { claudeModelEndpointEnvironment } from "./claudeModelEndpoint";
 
 export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
   constructor(config: ClaudeCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -10,7 +11,7 @@ export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
   }
 
   protected requiresApiKey(): boolean {
-    return true;
+    return !currentModelEndpoint();
   }
 
   public getAcpServerCommand(): string[] {
@@ -18,6 +19,8 @@ export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+    const endpoint = currentModelEndpoint();
+    if (endpoint) return claudeModelEndpointEnvironment(endpoint);
     return {
       ANTHROPIC_API_KEY: this.config.apiKey!,
       CLAUDE_CODE_NON_INTERACTIVE: "true",

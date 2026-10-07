@@ -41,11 +41,11 @@ function readReplicaStatuses(value: unknown): string[] {
   })
 }
 
-async function ignoreMissing(request: Promise<unknown>): Promise<void> {
+async function ignoreStatuses(request: Promise<unknown>, statuses: number[]): Promise<void> {
   try {
     await request
   } catch (error) {
-    if (!(error instanceof VerdaApiError && error.status === 404)) throw error
+    if (!(error instanceof VerdaApiError && statuses.includes(error.status))) throw error
   }
 }
 
@@ -114,12 +114,15 @@ export class VerdaContainersHost implements ModelHost {
   }
 
   async delete(account: ModelHostCredentials, externalId: string): Promise<void> {
-    await ignoreMissing(
+    // Verda ignores timeout=0 and answers 408 after a minute, but the deletion carries on regardless.
+    await ignoreStatuses(
       this.api.request(account, 'DELETE', `/container-deployments/${encodeURIComponent(externalId)}?timeout=0`),
+      [404, 408],
     )
     // The account's token may have been removed since, so look for the secret regardless.
-    await ignoreMissing(
+    await ignoreStatuses(
       this.api.request(account, 'DELETE', `/secrets/${encodeURIComponent(huggingFaceSecretName(externalId))}`),
+      [404],
     )
   }
 }

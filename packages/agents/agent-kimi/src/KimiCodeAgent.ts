@@ -1,8 +1,9 @@
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { KimiCodeConfig } from "./config";
+import { writeKimiModelConfig } from "./kimiModelConfig";
 
 export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
   constructor(config: KimiCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -13,7 +14,7 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
   private readonly defaultBaseUrl = "https://api.kimi.com/coding/v1";
 
   protected requiresApiKey(): boolean {
-    return true;
+    return !currentModelEndpoint();
   }
 
   public getAcpServerCommand(): string[] {
@@ -21,6 +22,11 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+    const endpoint = currentModelEndpoint();
+    if (endpoint) {
+      writeKimiModelConfig(endpoint, this.resolveHomeDirectory(process.env.HOME));
+      return { KIMI_CODE_NO_AUTO_UPDATE: "1" };
+    }
     return {
       ...(this.config.apiKey ? { KIMI_API_KEY: this.config.apiKey } : {}),
     };

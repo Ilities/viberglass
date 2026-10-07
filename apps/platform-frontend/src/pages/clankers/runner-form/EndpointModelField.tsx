@@ -4,7 +4,7 @@ import { Select } from '@/components/select'
 import type { Secret } from '@/service/api/secret-api'
 import type { ModelEndpoint, ModelEndpointSelection } from '@viberglass/types'
 import { useState } from 'react'
-import { ModelEndpointDialog } from './ModelEndpointDialog'
+import { ModelEndpointDialog } from '@/pages/models/ModelEndpointDialog'
 
 export function EndpointModelField({
   endpoint,

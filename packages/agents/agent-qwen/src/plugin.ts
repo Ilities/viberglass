@@ -1,5 +1,5 @@
 import type { AgentPlugin, AgentEndpointEnvironment, IAgentGitService } from "@viberglass/agent-core";
-import { NoopAgentEndpointEnvironment } from "@viberglass/agent-core";
+import { ModelEndpointConfigEnvironment, NoopAgentEndpointEnvironment } from "@viberglass/agent-core";
 import type { QwenCodeConfig } from "./config";
 import { QwenCodeAgent } from "./QwenCodeAgent";
 import { QwenAgentEndpointEnvironment } from "./QwenAgentEndpointEnvironment";
@@ -79,6 +79,11 @@ const qwenCodePlugin: AgentPlugin<QwenCodeConfig> = {
 
   stateDirs: [".qwen"],
   stateExcludes: [".qwen/oauth_creds.json"],
+
+  customEndpoints: {
+    apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"],
+    environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
+  },
 
   endpointEnvironment(ctx): AgentEndpointEnvironment {
     const endpoint = resolveQwenEndpoint(ctx.clankerConfig);
