@@ -28,7 +28,7 @@ export function DocumentStep({
   onDocumentSaved: (document: PhaseDocumentResponse) => void
   /** Opens an earlier version, compared with the current one. */
   onCompare: (version: number) => void
-  /** Someone asked the agent for a part's build. */
+  /** Someone asked the agent for a part's build, or changed where a part stands. */
   onAsked: () => void
 }) {
   const document = data.plan
@@ -126,7 +126,8 @@ export function DocumentStep({
         state={data.planParts}
         ticketId={data.ticket.id}
         canBuild={Boolean(data.capabilities?.canAskForCode) && move.kind !== 'working'}
-        onAsked={onAsked}
+        canChange={Boolean(data.capabilities?.canAskForCode)}
+        onChanged={onAsked}
       />
       <CommentableDocument
         source={document.content}

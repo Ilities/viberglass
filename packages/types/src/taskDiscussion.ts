@@ -100,6 +100,11 @@ export const TASK_ACTIVITY_KINDS = [
   'pull_request_merged',
   /** A pull request for some of the plan's parts merged, with more parts to build. */
   'part_merged',
+  /** Someone marked a part done or skipped, or took the mark back. */
+  'part_marked',
+  'part_unmarked',
+  /** Someone discarded a build of some parts that never opened its pull request. */
+  'build_discarded',
   'question_asked',
   'question_answered',
   'question_reminded',

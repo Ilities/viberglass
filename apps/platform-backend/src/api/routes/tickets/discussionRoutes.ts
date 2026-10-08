@@ -35,18 +35,28 @@ export function registerTaskDiscussionRoutes(
     const action: unknown = req.body?.action;
     const agentId: unknown = req.body?.agentId;
     const parts: unknown = req.body?.parts;
+    const add: unknown = req.body?.add;
     if (typeof body !== "string") return res.status(400).json({ error: "body must be a string" });
     if (action !== undefined && !isTaskTurnAction(action)) return res.status(400).json({ error: "Unknown action" });
     if (agentId !== undefined && typeof agentId !== "string") return res.status(400).json({ error: "agentId must be a string" });
     if (parts !== undefined && (action !== "code" || !isPartRange(parts))) {
       return res.status(400).json({ error: "parts is a build's { first, last } range of the plan's parts" });
     }
+    if (add !== undefined && (action !== "code" || typeof add !== "boolean")) {
+      return res.status(400).json({ error: "add is a build's choice to go into the open pull request" });
+    }
     try {
       const userId = req.authContext!.user.id;
       if (!action && !agentId && !mentionsAnAgent(body)) {
         return res.status(201).json({ success: true, data: await deps.discussion.post(req.params.id, userId, body) });
       }
-      const asked = await deps.turns.ask(req.params.id, userId, { message: body, action, agentId, ...(parts !== undefined ? { parts } : {}) });
+      const asked = await deps.turns.ask(req.params.id, userId, {
+        message: body,
+        action,
+        agentId,
+        ...(parts !== undefined ? { parts } : {}),
+        ...(add === true ? { add } : {}),
+      });
       res.status(201).json({
         success: true,
         data: await deps.discussion.list(req.params.id),

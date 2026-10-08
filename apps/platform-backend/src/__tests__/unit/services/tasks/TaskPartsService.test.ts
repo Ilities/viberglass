@@ -19,6 +19,7 @@ describe("taskPlanParts", () => {
         { number: 3, title: "Print it", status: "not_built", pullRequestUrl: null },
       ],
       open: null,
+      addable: null,
       next: 1,
     });
   });
@@ -53,14 +54,40 @@ describe("taskPlanParts", () => {
   });
 });
 
+describe("taskPlanParts with parts marked done or skipped", () => {
+  it("shows the mark, and lets the part after a skipped one be built next", () => {
+    const state = taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1, state: "merged" })], new Map([[2, "skipped"]]));
+    expect(state.parts.map((part) => part.status)).toEqual(["merged", "skipped", "not_built"]);
+    expect(state).toMatchObject({ open: null, next: 3 });
+  });
+
+  it("no longer counts a pull request open once its parts are marked done", () => {
+    const state = taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1, state: "open" })], new Map([[1, "done"]]));
+    expect(state.parts[0]).toMatchObject({ status: "done", pullRequestUrl: "u1" });
+    expect(state).toMatchObject({ open: null, next: 2 });
+  });
+
+  it("counts a merge over a mark", () => {
+    const state = taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1, state: "merged" })], new Map([[1, "skipped"]]));
+    expect(state.parts[0].status).toBe("merged");
+  });
+
+  it("offers the part after the open pull request's to add to it, and none when it builds through the end", () => {
+    expect(taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1 })]).addable).toBe(2);
+    expect(taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: null })]).addable).toBeNull();
+    expect(taskPlanParts(PLAN, []).addable).toBeNull();
+  });
+});
+
 describe("TaskPartsService", () => {
-  function setup(plan: string, rows: TaskPullRequestRow[], after: TaskPullRequestRow[] = rows) {
+  function setup(plan: string, rows: TaskPullRequestRow[], after: TaskPullRequestRow[] = rows, marks: Map<number, "done" | "skipped"> = new Map()) {
     const deps = {
       documents: { getByTicketAndPhase: jest.fn().mockResolvedValue({ content: plan }) },
-      pullRequests: { listWithStates: jest.fn().mockResolvedValueOnce(rows).mockResolvedValue(after) },
+      pullRequests: { listWithStates: jest.fn().mockResolvedValueOnce(rows).mockResolvedValue(after), extendTo: jest.fn().mockResolvedValue(undefined) },
+      marks: { list: jest.fn().mockResolvedValue(marks) },
       checker: { check: jest.fn().mockResolvedValue(null) },
     };
-    const service = new TaskPartsService({ documents: deps.documents, pullRequests: deps.pullRequests, checker: () => deps.checker });
+    const service = new TaskPartsService({ documents: deps.documents, pullRequests: deps.pullRequests, marks: deps.marks, checker: () => deps.checker });
     return { deps, service };
   }
 
@@ -121,5 +148,30 @@ describe("TaskPartsService", () => {
       const { service } = setup(PLAN, [pullRequest({ firstPart: 1, lastPart: null, state: "merged" })]);
       await expect(service.resolveBuild(TICKET, null)).rejects.toThrow("Every part of the plan is built already.");
     });
+  });
+
+  describe("adding parts to the open pull request", () => {
+    it("takes the next part for the open pull request, without changing it until asked", async () => {
+      const { deps, service } = setup(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1 })]);
+      expect(await service.resolveBuild(TICKET, null, { add: true })).toEqual({ first: 2, last: 2 });
+      expect(deps.pullRequests.extendTo).not.toHaveBeenCalled();
+    });
+
+    it("has the open pull request build through the parts added, the last part as through the end", async () => {
+      const { deps, service } = setup(PLAN, [pullRequest({ branch: "feature/a", url: "u1", firstPart: 1, lastPart: 2 })]);
+      await service.extendOpen(TICKET, { first: 3, last: null });
+      expect(deps.pullRequests.extendTo).toHaveBeenCalledWith("t-1", "feature/a", null);
+    });
+
+    it("refuses with no open pull request, or for a part that isn't next", async () => {
+      await expect(setup(PLAN, []).service.resolveBuild(TICKET, null, { add: true })).rejects.toThrow("no open pull request");
+      const open = setup(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1 })]);
+      await expect(open.service.resolveBuild(TICKET, { first: 3, last: 3 }, { add: true })).rejects.toThrow("Part 2 is next");
+    });
+  });
+
+  it("builds the part after one whose pull request was marked done, in a pull request of its own", async () => {
+    const { service } = setup(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1 })], undefined, new Map([[1, "done"]]));
+    expect(await service.resolveBuild(TICKET, { first: 2, last: 2 })).toEqual({ first: 2, last: 2 });
   });
 });

@@ -33,27 +33,39 @@ export class TaskBranchNamer {
   }
 
   /**
-   * The branch a build goes to: the open pull request's, else a new one for
+   * The branch a build goes to: the open pull request's when the build
+   * continues it (null `parts`) or it covers `parts`, else a new one for
    * `parts`. `runId` fills a template's {{ jobId }}: the run the branch is first named for.
    */
-  async nameFor(ticketId: string, runId: string, parts: PartRange = WHOLE_PLAN): Promise<string | null> {
+  async nameFor(ticketId: string, runId: string, parts: PartRange | null = WHOLE_PLAN): Promise<string | null> {
+    const name = await this.render(ticketId, runId);
+    if (name === null) return null;
+    const first = parts?.first ?? 1;
+    return this.deps.branches.claim(ticketId, first > 1 ? `${name}-part-${first}` : name, parts);
+  }
+
+  /** The task's latest branch, named now for `parts` if it has none: where someone taking the work over pushes. */
+  async current(ticketId: string, runId: string, parts: PartRange = WHOLE_PLAN): Promise<string | null> {
+    return (await this.existing(ticketId)) ?? this.nameFor(ticketId, runId, parts);
+  }
+
+  /** The task's latest branch, or the name its first would get, without naming one. */
+  async preview(ticketId: string, runId: string): Promise<string | null> {
+    return (await this.existing(ticketId)) ?? this.render(ticketId, runId);
+  }
+
+  /** The task's latest branch, without naming one. */
+  async existing(ticketId: string): Promise<string | null> {
+    return this.deps.branches.get(ticketId);
+  }
+
+  private async render(ticketId: string, runId: string): Promise<string | null> {
     const ticket = await this.deps.tickets.getTicket(ticketId);
     if (!ticket) return null;
     const [scm, clankerId] = await Promise.all([
       this.deps.scm.getByProjectId(ticket.projectId),
       this.deps.sessions.getLatestClankerIdByTicket(ticketId),
     ]);
-    const name = buildFeatureBranchName(runId, ticket.id, ticket.externalTicketId || ticket.id, clankerId ?? undefined, scm?.branchNameTemplate);
-    return this.deps.branches.claim(ticketId, parts.first > 1 ? `${name}-part-${parts.first}` : name, parts);
-  }
-
-  /** The task's latest branch, named now if it has none: where someone taking the work over pushes. */
-  async current(ticketId: string, runId: string): Promise<string | null> {
-    return (await this.existing(ticketId)) ?? this.nameFor(ticketId, runId);
-  }
-
-  /** The task's latest branch, without naming one. */
-  async existing(ticketId: string): Promise<string | null> {
-    return this.deps.branches.get(ticketId);
+    return buildFeatureBranchName(runId, ticket.id, ticket.externalTicketId || ticket.id, clankerId ?? undefined, scm?.branchNameTemplate);
   }
 }

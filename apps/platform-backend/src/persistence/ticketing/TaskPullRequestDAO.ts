@@ -81,6 +81,27 @@ export class TaskPullRequestDAO {
     return new Map(rows.flatMap((row) => (row.last_part === null ? [] : [[row.ticket_id, row.last_part] as const])));
   }
 
+  /** Forgets a build's branch that never opened a pull request, so its parts can be built again. */
+  async discardUnopened(ticketId: string, branch: string): Promise<boolean> {
+    const result = await db
+      .deleteFrom("task_pull_requests")
+      .where("ticket_id", "=", ticketId)
+      .where("branch", "=", branch)
+      .where("url", "is", null)
+      .executeTakeFirst();
+    return Number(result.numDeletedRows) > 0;
+  }
+
+  /** Has the pull request on this branch build through `lastPart` as well; null is through the plan's end. */
+  async extendTo(ticketId: string, branch: string, lastPart: number | null): Promise<void> {
+    await db
+      .updateTable("task_pull_requests")
+      .set({ last_part: lastPart, updated_at: new Date() })
+      .where("ticket_id", "=", ticketId)
+      .where("branch", "=", branch)
+      .execute();
+  }
+
   /** Records the pull request a build opened on a branch of the task. */
   async record(ticketId: string, branch: string, url: string): Promise<void> {
     await db

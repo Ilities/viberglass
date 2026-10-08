@@ -38,6 +38,8 @@ export class TaskTurnPromptBuilder {
         builtParts: (action === "plan" && Boolean(documents.plan)) || action === "reply" ? (context.parts.built ?? undefined) : undefined,
         buildIt: flag(action === "code"),
         buildParts: action === "code" ? (context.parts.building ?? undefined) : undefined,
+        addParts: action === "code" ? (context.parts.adding ?? undefined) : undefined,
+        addedTo: action === "code" ? (context.parts.addedTo ?? undefined) : undefined,
         continuesPullRequest: flag(action === "code" && Boolean(ticket.pullRequestUrl)),
         pullRequestUrl: ticket.pullRequestUrl ?? undefined,
         reply: flag(action === "reply"),

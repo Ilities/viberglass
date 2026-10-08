@@ -23,6 +23,7 @@ describe("TaskTakeoverService", () => {
     expect(await service.takeOver("t-1", "u-dev")).toEqual(BRANCH);
     expect(deps.steering.pause).toHaveBeenCalledWith("t-1", "u-dev");
     expect(deps.takeovers.set).toHaveBeenCalledWith("t-1", "u-dev");
+    expect(deps.branches.describe).toHaveBeenCalledWith("t-1", { claim: true });
     expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "u-dev" }, "taken_over", { userId: "u-dev" });
   });
 

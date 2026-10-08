@@ -9,6 +9,7 @@ const PARTS: TaskPlanParts = {
     { number: 2, title: "Show it", status: "not_built", pullRequestUrl: null },
   ],
   open: null,
+  addable: null,
   next: 2,
 };
 
@@ -215,6 +216,6 @@ describe("TaskTurnContextLoader", () => {
 
     expect(pullRequest.forTask).not.toHaveBeenCalled();
     expect(context.ticket.pullRequestUrl).toBeNull();
-    expect(context.parts).toEqual({ building: "part 2, “Show it”", built: "Part 1" });
+    expect(context.parts).toEqual({ building: "part 2, “Show it”", adding: null, addedTo: null, built: "Part 1" });
   });
 });

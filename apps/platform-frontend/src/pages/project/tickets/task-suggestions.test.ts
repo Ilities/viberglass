@@ -96,7 +96,7 @@ describe('buildSuggestions', () => {
   const part = (number: number, status: TaskPlanPartStatus) => ({ number, title: `Part ${number}`, status, pullRequestUrl: null })
   const plan = (statuses: TaskPlanPartStatus[], open: PartRange | null = null): TaskPlanParts => {
     const parts = statuses.map((status, index) => part(index + 1, status))
-    return { parts, open, next: open ? null : (parts.find((entry) => entry.status === 'not_built')?.number ?? null) }
+    return { parts, open, addable: null, next: open ? null : (parts.find((entry) => entry.status === 'not_built')?.number ?? null) }
   }
 
   it('builds a plan in one part, or none, as a whole', () => {

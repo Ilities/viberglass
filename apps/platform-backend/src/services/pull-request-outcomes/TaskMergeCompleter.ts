@@ -1,4 +1,4 @@
-import { TICKET_STATUS } from "@viberglass/types";
+import { isPartFinished, TICKET_STATUS } from "@viberglass/types";
 import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
@@ -13,7 +13,7 @@ interface Dependencies {
 }
 
 /**
- * Done is every part of the plan merged: a merge that finishes the plan closes
+ * Done is every part of the plan merged, done or skipped: a merge that finishes the plan closes
  * the task, with a quiet line saying so; a merge of an earlier part says which
  * part is next instead.
  */
@@ -37,7 +37,7 @@ export class TaskMergeCompleter {
       const ticket = await this.deps.tickets.getTicket(ticketId);
       if (!ticket) continue;
       const { parts, next } = await this.deps.parts.state(ticket);
-      const remaining = parts.filter((part) => part.status !== "merged");
+      const remaining = parts.filter((part) => !isPartFinished(part.status));
       if (remaining.length > 0) {
         await this.deps.activity.record(ticketId, { type: "system" }, "part_merged", {
           pullRequestUrl,

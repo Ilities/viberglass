@@ -28,19 +28,19 @@ describe("part ranges", () => {
 
 describe("nextBuild", () => {
   it("offers the whole plan for a plan in one part, or none, even with its pull request open", () => {
-    expect(nextBuild({ parts: [], open: null, next: null })).toEqual({ label: "Build it" });
-    expect(nextBuild({ parts: [part(1, "open")], open: { first: 1, last: null }, next: null })).toEqual({ label: "Build it" });
+    expect(nextBuild({ parts: [], open: null, addable: null, next: null })).toEqual({ label: "Build it" });
+    expect(nextBuild({ parts: [part(1, "open")], open: { first: 1, last: null }, addable: null, next: null })).toEqual({ label: "Build it" });
   });
 
   it("offers the next part on its own", () => {
-    expect(nextBuild({ parts: [part(1, "merged"), part(2, "not_built")], open: null, next: 2 })).toEqual({
+    expect(nextBuild({ parts: [part(1, "merged"), part(2, "not_built")], open: null, addable: null, next: 2 })).toEqual({
       label: "Build part 2",
       parts: { first: 2, last: 2 },
     });
   });
 
   it("offers nothing while a part's pull request is open, or once every part is built", () => {
-    expect(nextBuild({ parts: [part(1, "open"), part(2, "not_built")], open: { first: 1, last: 1 }, next: null })).toBeNull();
-    expect(nextBuild({ parts: [part(1, "merged"), part(2, "merged")], open: null, next: null })).toBeNull();
+    expect(nextBuild({ parts: [part(1, "open"), part(2, "not_built")], open: { first: 1, last: 1 }, addable: null, next: null })).toBeNull();
+    expect(nextBuild({ parts: [part(1, "merged"), part(2, "merged")], open: null, addable: null, next: null })).toBeNull();
   });
 });
