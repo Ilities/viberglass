@@ -13,7 +13,7 @@ Coding agents are good at writing code. They're bad at knowing what your company
 
 ## How a task works
 
-1. Someone asks for something. A PM, a support lead or an engineer creates a task in a space, from the web, Slack (`/viberator`) or an issue tracker. They own it, and can bring in reviewers and watchers.
+1. Someone asks for something. A PM, a support lead or an engineer creates a task in a space, from the web, Slack (`/viberglass`) or an issue tracker. They own it, and can bring in reviewers and watchers.
 2. The agent writes a plan. It reads the code and writes one document: what it found and what it would change. When it's missing something, it asks the right person in the thread and waits for their answer.
 3. The team agrees on it. Reviewers comment on lines of the plan, suggest edits, @mention a designer or an engineer, and ask the agent to revise. Everyone sees the same plan, the same comments and the same history.
 4. The agent builds it and opens a GitHub pull request for engineering's usual review. Large plans can be built in parts, with a PR per part.

@@ -6,7 +6,7 @@ export function registerSlashCommandHandler(
   bot: Chat,
   services: SlackHandlerServices,
 ): void {
-  bot.onSlashCommand("/viberator", async (event) => {
+  bot.onSlashCommand("/viberglass", async (event) => {
     try {
       const [projects, clankers] = await Promise.all([
         services.listProjects(event.user.userId),
@@ -29,7 +29,7 @@ export function registerSlashCommandHandler(
 
       const result = await event.openModal(
         Modal({
-          callbackId: "viberator_launch",
+          callbackId: "viberglass_launch",
           title: "Ask the agent",
           submitLabel: "Ask",
           privateMetadata: JSON.stringify({ channelId: event.channel.id }),

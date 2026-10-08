@@ -18,7 +18,7 @@ A good description is concrete. "Make the welcome text say Welcome to Acme, with
 
 ## Other ways tasks start
 
-- From Slack, with `/viberator`. The task gets a Slack thread that stays in step with it. See [Slack](slack.md).
+- From Slack, with `/viberglass`. The task gets a Slack thread that stays in step with it. See [Slack](slack.md).
 - From an issue tracker. A space can take issues from GitHub Issues, Jira or Shortcut: for Jira and Shortcut by label, for GitHub from the space's repository. Those issues become tasks linked to them. Comments on the issue appear in the task's thread, mentioning the bot there asks the agent, and Viberglass posts the plan, its questions, the pull request and when it's done back to the issue. Which issues a space takes is under Space settings → Incoming issues; see [Issue trackers](../admin/issue-trackers.md).
 - From a custom webhook, for tools that can send an HTTP request.
 - From the [Chrome extension](chrome-extension.md), with a screenshot and the page's details attached.

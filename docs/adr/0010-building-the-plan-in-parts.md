@@ -1,6 +1,6 @@
 # ADR 0010: Building the plan in parts
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0013](./0013-ways-around-building-in-parts.md)
 - **Date:** 2026-10-06
 - **Decider:** Jussi Hallila
 - **Amends:** [ADR 0007](./0007-iterating-on-a-task.md) (one pull request per task), [ADR 0008](./0008-tasks-are-conversations.md) (done is a merged pull request), [ADR 0009](./0009-the-plan-includes-the-research.md) (building part at a time)

@@ -10,8 +10,8 @@ A linked account lets you take part in task threads as yourself, see only the sp
 
 ## Start a task
 
-1. Invite the bot to the channel: `/invite @Viberator`.
-2. Type `/viberator`.
+1. Invite the bot to the channel: `/invite @Viberglass`.
+2. Type `/viberglass`.
 3. In the Ask the agent form, choose the space and the agent, and whether to start with a plan or with the build. Write what you want done; the title is optional.
 4. Choose Ask.
 
@@ -39,4 +39,4 @@ The thread follows the task, whatever caused the change: the web, Slack or a sch
 - Failed and cancelled runs.
 - "Done." when the pull request is merged or the task is finished.
 
-Only tasks started with `/viberator` have a Slack thread. For other tasks, Slack sends DMs to people who linked their account; see [Home and notifications](home-and-notifications.md).
+Only tasks started with `/viberglass` have a Slack thread. For other tasks, Slack sends DMs to people who linked their account; see [Home and notifications](home-and-notifications.md).

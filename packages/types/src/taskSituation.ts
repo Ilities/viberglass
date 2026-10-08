@@ -63,6 +63,8 @@ export interface TaskSituationInput {
   mergedBy?: string | null
   /** The last part a merged pull request built, when the plan has parts still to build. */
   partMerged?: number | null
+  /** The part to build after it, past parts marked done or skipped; the one after it when absent. */
+  nextPart?: number | null
 }
 
 export interface SituationViewer {
@@ -161,7 +163,8 @@ function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
 
   if (artifact?.kind === 'code' && input.partMerged) {
     const part = input.partMerged
-    return { state: 'artifact_ready', label: `Part ${part} merged · build part ${part + 1}`, waitingOn: ownerOnly(input), since: artifact.at }
+    const next = input.nextPart ?? part + 1
+    return { state: 'artifact_ready', label: `Part ${part} merged · build part ${next}`, waitingOn: ownerOnly(input), since: artifact.at }
   }
   if (artifact?.kind === 'code') return { state: 'pr_open', label: 'PR open', waitingOn: ownerOnly(input), since: artifact.at }
   if (artifact) {

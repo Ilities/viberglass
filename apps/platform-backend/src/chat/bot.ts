@@ -9,7 +9,7 @@ if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "no
 }
 
 const bot = new Chat({
-  userName: "viberator",
+  userName: "viberglass",
   adapters,
   state: createPostgresState({ client: pool }),
 });

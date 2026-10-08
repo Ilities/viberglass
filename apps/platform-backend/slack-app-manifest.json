@@ -4,19 +4,19 @@
     "minor_version": 0
   },
   "display_information": {
-    "name": "Viberator",
+    "name": "Viberglass",
     "description": "Start tasks and talk to the agent from Slack",
     "background_color": "#1a1a2e",
-    "long_description": "Viberator Slack integration lets you start tasks from Slack with the /viberator slash command. Each task has a Slack thread that follows it, where you talk to the people on the task, @mention the agent to ask it for something, and answer its questions."
+    "long_description": "The Viberglass Slack app lets you start tasks from Slack with the /viberglass slash command. Each task has a Slack thread that follows it, where you talk to the people on the task, @mention the agent to ask it for something, and answer its questions."
   },
   "features": {
     "bot_user": {
-      "display_name": "Viberator",
+      "display_name": "Viberglass",
       "always_online": true
     },
     "slash_commands": [
       {
-        "command": "/viberator",
+        "command": "/viberglass",
         "url": "https://YOUR_HOST/api/webhooks/slack",
         "description": "Start a task",
         "usage_hint": "[message]",

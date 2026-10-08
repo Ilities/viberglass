@@ -10,13 +10,17 @@ import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO'
 import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDeliveryDAO';
 import { TicketDAO } from '../../../persistence/ticketing/TicketDAO';
 import { CustomWebhookProvider } from '../../../webhooks/providers/CustomWebhookProvider';
+import { CustomInboundProcessor } from '../../../webhooks/inbound-processors/CustomInboundProcessor';
+import { WebhookPlanRequester } from '../../../webhooks/WebhookPlanRequester';
+import { TaskTurnService } from '../../../services/taskTurns/TaskTurnService';
 import { getRequestRawBody } from './routeHelpers';
 
 /**
  * POST /api/webhooks/custom/:configId
  *
  * Inbound webhook endpoint for custom integrations.
- * Verifies HMAC-SHA256 signature and creates a ticket from the payload.
+ * Verifies HMAC-SHA256 signature and creates a task from the payload, with
+ * its plan when the webhook is set to write the plan for new issues.
  *
  * Expected payload:
  * {
@@ -31,7 +35,10 @@ import { getRequestRawBody } from './routeHelpers';
  * Headers:
  * - X-Webhook-Signature-256: sha256=<hex_digest> (HMAC-SHA256 of body)
  */
-export function createCustomRoutes() {
+export function createCustomRoutes(
+  processor: () => Pick<CustomInboundProcessor, 'process'> = () =>
+    new CustomInboundProcessor(new TicketDAO(), new WebhookPlanRequester(new TaskTurnService())),
+) {
   const router = express.Router();
 
   router.post(
@@ -41,7 +48,6 @@ export function createCustomRoutes() {
         const { configId } = req.params;
         const configDAO = new WebhookConfigDAO();
         const deliveryDAO = new WebhookDeliveryDAO();
-        const ticketDAO = new TicketDAO();
 
         // Look up the webhook config
         const config = await configDAO.getConfigById(configId);
@@ -112,43 +118,37 @@ export function createCustomRoutes() {
           payload: body as Record<string, unknown>,
         });
 
-        // Create the ticket
         const projectId = config.projectId;
         if (!projectId) {
           await deliveryDAO.updateDeliveryStatus(delivery.id, 'failed', 'No project linked to webhook config');
           return res.status(400).json({ error: 'No project linked to this webhook configuration' });
         }
 
-        const ticket = await ticketDAO.createTicket({
-          projectId,
-          title: body.title as string,
-          description: body.description as string,
-          severity: severity as 'low' | 'medium' | 'high' | 'critical',
-          category: (body.category as string) || 'bug',
-          metadata: {
+        // The same processing as a retried delivery: the task, and its plan when the webhook is set to write one.
+        const processed = await processor().process({
+          event: {
+            provider: 'custom',
+            eventType: 'ticket_created',
+            deduplicationId: deliveryId,
             timestamp: new Date().toISOString(),
-            timezone: 'UTC',
+            payload: body,
+            metadata: {},
           },
-          annotations: [],
-          ticketSystem: 'custom',
-          autoFixRequested: config.planNewIssues || false,
+          config,
         });
-
-        // Set external ticket fields if provided
-        if (body.externalId || body.url) {
-          await ticketDAO.updateTicket(ticket.id, {
-            externalTicketId: (body.externalId as string) || undefined,
-            externalTicketUrl: (body.url as string) || undefined,
-          });
+        const ticketId = processed.ticketId;
+        if (!ticketId) {
+          await deliveryDAO.updateDeliveryStatus(delivery.id, 'failed', 'No task was created');
+          return res.status(500).json({ error: 'Failed to process webhook' });
         }
 
         // Update delivery with ticket info
         await deliveryDAO.updateDeliveryStatus(delivery.id, 'succeeded');
-        await deliveryDAO.linkDeliveryToTicketById(delivery.id, ticket.id, projectId);
+        await deliveryDAO.linkDeliveryToTicketById(delivery.id, ticketId, projectId);
 
         return res.status(200).json({
           message: 'Webhook processed successfully',
-          ticketId: ticket.id,
+          ticketId,
           deliveryId,
         });
       } catch (error) {

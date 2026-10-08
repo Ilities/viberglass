@@ -98,6 +98,39 @@ describe("custom webhook routes", () => {
     );
   });
 
+  it("creates the task the way a retried delivery does, so a webhook set to write the plan starts it", async () => {
+    const rawPayload = JSON.stringify({ title: "Plan it", description: "From the custom webhook" });
+    const secret = "custom-secret";
+    const signature = `sha256=${crypto.createHmac("sha256", secret).update(Buffer.from(rawPayload)).digest("hex")}`;
+    const config = { id: "cfg-1", provider: "custom", active: true, webhookSecretEncrypted: secret, planNewIssues: true, projectId: "project-1" };
+    mockConfigDAO.getConfigById.mockResolvedValue(config as any);
+    mockDeliveryDAO.checkDeliveryExists.mockResolvedValue(false);
+    mockDeliveryDAO.recordDeliveryAttempt.mockResolvedValue({ id: "delivery-row-1" } as any);
+    mockDeliveryDAO.updateDeliveryStatus.mockResolvedValue(undefined);
+    mockDeliveryDAO.linkDeliveryToTicketById.mockResolvedValue(undefined);
+    const process = jest.fn().mockResolvedValue({ ticketId: "ticket-2", jobId: "job-1" });
+    const planned = express();
+    planned.use(express.json({ verify: (req, _res, buf) => ((req as any).rawBody = Buffer.from(buf)) }));
+    planned.use("/api/webhooks/custom", createCustomRoutes(() => ({ process })));
+
+    const response = await request(planned)
+      .post("/api/webhooks/custom/cfg-1")
+      .set("content-type", "application/json")
+      .set("x-webhook-signature-256", signature)
+      .set("x-webhook-delivery-id", "delivery-2")
+      .send(rawPayload)
+      .expect(200);
+
+    expect(response.body.ticketId).toBe("ticket-2");
+    expect(process).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config,
+        event: expect.objectContaining({ provider: "custom", eventType: "ticket_created", payload: { title: "Plan it", description: "From the custom webhook" } }),
+      }),
+    );
+    expect(mockDeliveryDAO.linkDeliveryToTicketById).toHaveBeenCalledWith("delivery-row-1", "ticket-2", "project-1");
+  });
+
   it("rejects requests with invalid signatures", async () => {
     const rawPayload = '{"title":"Bad Sig","description":"Should fail"}';
 

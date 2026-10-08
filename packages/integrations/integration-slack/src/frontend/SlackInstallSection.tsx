@@ -9,17 +9,17 @@ import { toast } from 'sonner'
 const BASE_MANIFEST = {
   _metadata: { major_version: 2, minor_version: 0 },
   display_information: {
-    name: 'Viberator',
+    name: 'Viberglass',
     description: 'Start tasks and talk to the agent from Slack',
     background_color: '#1a1a2e',
     long_description:
-      'Viberator Slack integration lets you start tasks from Slack with the /viberator slash command. Each task has a Slack thread that follows it, where you talk to the people on the task, @mention the agent to ask it for something, and answer its questions.',
+      'The Viberglass Slack app lets you start tasks from Slack with the /viberglass slash command. Each task has a Slack thread that follows it, where you talk to the people on the task, @mention the agent to ask it for something, and answer its questions.',
   },
   features: {
-    bot_user: { display_name: 'Viberator', always_online: true },
+    bot_user: { display_name: 'Viberglass', always_online: true },
     slash_commands: [
       {
-        command: '/viberator',
+        command: '/viberglass',
         url: 'https://YOUR_HOST/api/webhooks/slack',
         description: 'Start a task',
         usage_hint: '[message]',
@@ -109,9 +109,9 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
     <section className="app-frame rounded-lg p-6 space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Subheading>Install the Viberator Slack app</Subheading>
+          <Subheading>Install the Viberglass Slack app</Subheading>
           <Text className="mt-1.5 text-[var(--gray-9)]">
-            Slack is integrated as a workspace-level bot. Use <code>/viberator</code> to create
+            Slack is integrated as a workspace-level bot. Use <code>/viberglass</code> to create
             tasks from Slack, and talk to the agent in each task's thread. A workspace admin sets the bot
             up once; there is nothing to configure per project here.
           </Text>
@@ -211,8 +211,8 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
       <div className="space-y-3">
         <Subheading level={3}>4. Use it from Slack</Subheading>
         <Text className="text-[var(--gray-9)]">
-          Invite the bot to a channel with <code>/invite @Viberator</code>, then run{' '}
-          <code>/viberator</code> to open the launch form. Pick a space and an agent, choose whether
+          Invite the bot to a channel with <code>/invite @Viberglass</code>, then run{' '}
+          <code>/viberglass</code> to open the launch form. Pick a space and an agent, choose whether
           to start with a plan or go straight to the build, and describe the task. Clicking{' '}
           <strong>Ask</strong> creates the task and starts its thread in the channel; from then
           on, that thread is the task's thread.
