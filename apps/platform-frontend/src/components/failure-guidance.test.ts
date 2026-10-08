@@ -22,6 +22,11 @@ describe('failureGuidance', () => {
     expect(guidance.nextStep).toMatch(/same setup will fail the same way/)
   })
 
+  it("sends admins to the runner's model when a request didn't fit its context", () => {
+    const guidance = failureGuidance({ ...quota, code: JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED }, true, 'shop', { name: 'Qwen', slug: 'qwen' })
+    expect(guidance.fix).toEqual({ label: "Check Qwen's model", href: '/settings/agents/qwen' })
+  })
+
   it('tells members that an admin is needed, without a fix link', () => {
     const guidance = failureGuidance(quota, false, 'shop')
     expect(guidance.fix).toBeUndefined()

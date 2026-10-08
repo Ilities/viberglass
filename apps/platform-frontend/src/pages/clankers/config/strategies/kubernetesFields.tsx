@@ -13,7 +13,7 @@ export function KubernetesStrategyFields({ defaults }: { defaults: ClankerConfig
     <Field><Label>Memory</Label><Description>Memory requested and limited per worker.</Description>
       <Input name="kubernetesMemory" defaultValue={defaults.kubernetesMemory} placeholder="1Gi" />
     </Field>
-    <Field><Label>Temporary Storage</Label><Description>Disk space for the repository and agent workspace.</Description>
+    <Field><Label>Temporary Storage</Label><Description>Disk space for the repository and the agent's working directory.</Description>
       <Input name="kubernetesStorage" defaultValue={defaults.kubernetesStorage} placeholder="2Gi" />
     </Field>
     <Field><Label>Time Limit (seconds)</Label><Description>Maximum time allowed for one worker run.</Description>
