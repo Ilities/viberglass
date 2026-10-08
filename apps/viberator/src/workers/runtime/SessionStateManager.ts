@@ -16,6 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execFile } from "child_process";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { Logger } from "winston";
 import { agentRegistry } from "../../agents/registerPlugins";
 
@@ -291,11 +292,13 @@ export async function captureAndStore(
   sessionId: string,
   homeDir: string,
   logger: Logger,
+  storage?: WorkerObjectStorage,
 ): Promise<string | undefined> {
   const archiveBuffer = await captureConversationState(agentName, homeDir, logger);
   if (!archiveBuffer) {
     return undefined;
   }
+  if (storage) return storage.upload(archiveBuffer);
 
   // Prefer S3 when configured (production)
   if (objectStorageBucket(process.env)) {
@@ -318,11 +321,13 @@ export async function retrieveAndRestore(
   url: string,
   homeDir: string,
   logger: Logger,
+  storage?: WorkerObjectStorage,
 ): Promise<void> {
   let archiveBuffer: Buffer | undefined;
+  if (storage && !url.startsWith("s3://")) throw new Error("Remote workers require durable object-storage session state");
 
   if (url.startsWith("s3://")) {
-    archiveBuffer = await downloadFromS3(url, logger);
+    archiveBuffer = storage ? await storage.download(url) : await downloadFromS3(url, logger);
   } else if (url.startsWith("file://")) {
     archiveBuffer = readFromLocalStorage(url, logger);
   } else {

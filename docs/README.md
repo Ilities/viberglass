@@ -24,6 +24,9 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 
 ### Deployment
 
+- [guide/admin/install-kubernetes.md](guide/admin/install-kubernetes.md) - Install on your own Kubernetes cluster
+- [kubernetes-deployment.md](kubernetes-deployment.md) - Kubernetes upgrades, backups and operations
+- [local-kubernetes.md](local-kubernetes.md) - Disposable local cluster and platform verification
 - [DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md) - Managing secrets
 - [model-hosting-plan.md](model-hosting-plan.md) - Custom endpoints, Bedrock, model deployments and implementation progress
 - [operations/database-migrations.md](operations/database-migrations.md) - Database migration guide

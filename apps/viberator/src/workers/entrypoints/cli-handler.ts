@@ -11,6 +11,7 @@ import {
 } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
+import { loadCallbackToken } from "../infrastructure/callbackToken";
 
 /**
  * CLI-based ephemeral worker entry point
@@ -106,6 +107,7 @@ Environment Variables:
   CONFIG_PATH               Path to configuration file
   PLATFORM_API_URL          Base URL for platform callbacks/bootstrap API
   CALLBACK_TOKEN            Callback token for bootstrap/result/progress auth
+  CALLBACK_TOKEN_FILE       Mounted callback token file for Kubernetes workers
   TENANT_ID                 Tenant identifier used for bootstrap auth header
 
 Docker Credential Flow:
@@ -122,10 +124,10 @@ async function loadJobData(args: CliArgs): Promise<WorkerPayload> {
   }
 
   if (args["job-ref"]) {
-    const callbackToken = process.env.CALLBACK_TOKEN;
+    const callbackToken = loadCallbackToken();
     if (!callbackToken) {
       throw new Error(
-        "Missing CALLBACK_TOKEN environment variable for --job-ref bootstrap fetch.",
+        "Missing CALLBACK_TOKEN or CALLBACK_TOKEN_FILE for --job-ref bootstrap fetch.",
       );
     }
 

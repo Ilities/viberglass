@@ -18,7 +18,9 @@ data:
   S3_BUCKET: {{ .Values.storage.bucket | quote }}
   S3_FORCE_PATH_STYLE: {{ .Values.storage.forcePathStyle | quote }}
   KUBERNETES_WORKER_NAMESPACE: {{ include "viberglass.workersNamespace" . | quote }}
+  {{- if .Values.workers.envSecret }}
   KUBERNETES_WORKER_ENV_SECRET: {{ .Values.workers.envSecret | quote }}
+  {{- end }}
   PLATFORM_API_URL: "http://{{ include "viberglass.name" . }}-backend.{{ .Release.Namespace }}.svc.cluster.local:3000"
   PLATFORM_PUBLIC_API_URL: {{ .Values.publicUrl | quote }}
   PLATFORM_FRONTEND_URL: {{ .Values.publicUrl | quote }}
@@ -26,7 +28,6 @@ data:
   VIBERATOR_WORKER_REGISTRY: {{ .Values.workers.registry | quote }}
   KUBERNETES_WORKER_IMAGE_PULL_SECRETS: {{ join "," .Values.workers.imagePullSecrets | quote }}
   KUBERNETES_WORKER_IMAGE_TAG: {{ .Values.workers.imageTag | quote }}
-  MIGRATION_MARKER: {{ .Values.migration.marker | quote }}
   {{- range $key, $value := .Values.backend.env }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
@@ -38,17 +39,22 @@ metadata:
 data:
   wait.cjs: |
     const { Client } = require('pg');
+    const { readdirSync } = require('node:fs');
     const mode = process.argv[2];
     async function wait() {
+      const migrations = mode === 'migrations'
+        ? readdirSync('/app/dist/migrations').filter(name => /^\d+.*\.js$/.test(name)).map(name => name.slice(0, -3))
+        : [];
+      if (mode === 'migrations' && !migrations.length) throw new Error('No migrations found in backend image');
       for (let attempt = 0; attempt < 150; attempt++) {
         const client = new Client({ host: process.env.DB_HOST, port: process.env.DB_PORT, user: process.env.DB_USER,
           password: process.env.DB_PASSWORD, database: process.env.DB_NAME,
           ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false });
         try {
           await client.connect();
-          const result = await client.query(mode === 'database' ? 'SELECT 1' : 'SELECT name FROM kysely_migration WHERE name = $1',
-            mode === 'database' ? [] : [process.env.MIGRATION_MARKER]);
-          if (result.rows.length) return;
+          const result = await client.query(mode === 'database' ? 'SELECT 1' : 'SELECT name FROM kysely_migration');
+          const applied = new Set(result.rows.map(row => row.name));
+          if (mode === 'database' || migrations.every(name => applied.has(name))) return;
         } catch { console.log('Waiting for ' + mode); }
         finally { await client.end(); }
         await new Promise(resolve => setTimeout(resolve, 2000));

@@ -84,6 +84,17 @@ async function main(): Promise<void> {
     await jobs.updateJobStatus("completed-run", "active");
     assert.equal(await dispatchState.getStatus("cancelled-run"), "cancelled");
     assert.equal(await dispatchState.getStatus("completed-run"), "completed");
+    await sql`INSERT INTO jobs (id, status, started_at, last_heartbeat) VALUES
+      ('healthy-long-run', 'active', now() - interval '45 minutes', now()),
+      ('silent-run', 'active', now() - interval '45 minutes', now() - interval '40 minutes'),
+      ('never-started-worker', 'active', now() - interval '45 minutes', NULL)`.execute(db);
+    const { findOrphanedJobs } = await import("../src/services/job/JobSweeperQueries");
+    const cutoff = new Date(Date.now() - 30 * 60_000);
+    assert.deepEqual((await findOrphanedJobs(cutoff)).map(job => job.id).sort(), ["never-started-worker", "silent-run"]);
+    assert.equal(await jobs.updateJobStatus("healthy-long-run", "failed", {
+      expectedStatus: "active", expectedHeartbeatBefore: cutoff,
+    }), false);
+    assert.equal(await dispatchState.getStatus("healthy-long-run"), "active");
 
     client = new S3Client(objectStorageClientConfig(process.env));
     const bucket = process.env.S3_BUCKET;
@@ -126,9 +137,16 @@ async function main(): Promise<void> {
     await retrieveAndRestore(stateUrl, targetHome, logger);
     assert.equal(await readFile(path.join(targetHome, relativeState), "utf8"), "conversation-state");
     await assert.rejects(() => readFile(path.join(targetHome, ".local/share/opencode/auth.json")));
+    const { portableWorkerStorageSmoke } = await import("./portableWorkerStorageSmoke");
+    const scopedInstruction = await instructions.storeClankerInstruction("scoped-clanker", "AGENTS.md", "portable instructions", "kubernetes");
+    const scopedHome = path.join(fixture, "home-scoped");
+    await mkdir(scopedHome);
+    await portableWorkerStorageSmoke(scopedInstruction, sourceHome, scopedHome, logger);
+    assert.equal(await readFile(path.join(scopedHome, relativeState), "utf8"), "conversation-state");
+    await assert.rejects(() => readFile(path.join(scopedHome, ".local/share/opencode/auth.json")));
     const objects = await client.send(new ListObjectsV2Command({ Bucket: bucket }));
     for (const object of objects.Contents ?? []) await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: object.Key }));
-    console.log("Portable smoke passed: encrypted database credentials, run allowlist, Codex refresh, instructions, signed media, deletion, and session restore without AWS credentials");
+    console.log("Portable smoke passed: encrypted credentials, run allowlist, Codex refresh, instructions, signed media, scoped worker storage/session restore, and healthy long-running Jobs");
   } finally {
     client?.destroy();
     const cleanup = await Promise.allSettled([

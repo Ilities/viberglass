@@ -10,12 +10,12 @@ export interface KubernetesJobOptions {
   jobId: string;
   tenantId: string;
   image: string;
-  callbackToken: string;
+  callbackSecret: string;
   platformApiUrl: string;
   config: KubernetesStrategyConfig;
   environmentSecret?: string;
   imagePullSecrets?: string[];
-  storageEnvironment?: Record<string, string>;
+  environment?: Record<string, string>;
 }
 
 export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
@@ -50,10 +50,13 @@ export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
               { name: "JOB_ID", value: options.jobId },
               { name: "TENANT_ID", value: options.tenantId },
               { name: "PLATFORM_API_URL", value: options.platformApiUrl },
-              { name: "CALLBACK_TOKEN", value: options.callbackToken },
-              ...Object.entries(options.storageEnvironment ?? {}).map(([name, value]) => ({ name, value })),
+              { name: "CALLBACK_TOKEN_FILE", value: "/run/viberglass-auth/token" },
+              ...Object.entries(options.environment ?? {}).map(([name, value]) => ({ name, value })),
+              ...(options.environmentSecret ? [{ name: "OTEL_EXPORTER_OTLP_HEADERS", valueFrom: {
+                secretKeyRef: { name: options.environmentSecret, key: "OTEL_EXPORTER_OTLP_HEADERS", optional: true },
+              } }] : []),
             ],
-            ...(options.environmentSecret ? { envFrom: [{ secretRef: { name: options.environmentSecret } }] } : {}),
+            volumeMounts: [{ name: "run-auth", mountPath: "/run/viberglass-auth", readOnly: true }],
             resources: {
               requests: {
                 cpu: options.config.cpu ?? "500m",
@@ -67,6 +70,7 @@ export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
               },
             },
           }],
+          volumes: [{ name: "run-auth", secret: { secretName: options.callbackSecret, defaultMode: 0o444 } }],
         },
       },
     },

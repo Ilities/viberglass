@@ -1,6 +1,8 @@
 import jobsRouter from "../../../../api/routes/jobs";
 import { requireAuth } from "../../../../api/middleware/authentication";
 import { requireRunnerRole } from "../../../../api/middleware/workspaceRoleGuards";
+import { validateCallbackToken } from "../../../../api/middleware/callbackTokenValidation";
+import { tenantMiddleware } from "../../../../api/middleware/tenantValidation";
 
 function getRouteHandlers(path: string, method: string): Array<(...args: unknown[]) => unknown> {
   const layer = (jobsRouter as any).stack.find(
@@ -18,6 +20,13 @@ function getRouteHandlers(path: string, method: string): Array<(...args: unknown
 }
 
 describe("jobs route auth boundaries", () => {
+  it("authenticates worker storage and heartbeats with the run token and tenant", () => {
+    for (const path of ["/:jobId/storage-url", "/:jobId/heartbeat"]) {
+      expect(getRouteHandlers(path, "post")).toContain(validateCallbackToken);
+      expect(getRouteHandlers(path, "post")).toContain(tenantMiddleware);
+      expect(getRouteHandlers(path, "post")).not.toContain(requireAuth);
+    }
+  });
   it("requires user auth on job management endpoints", () => {
     expect(getRouteHandlers("/", "get")).toContain(requireAuth);
     expect(getRouteHandlers("/:jobId", "get")).toContain(requireAuth);

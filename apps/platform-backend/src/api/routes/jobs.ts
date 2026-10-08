@@ -18,6 +18,9 @@ import { isDomainError } from "../../services/errors/DomainError";
 import { registerCodexAuthCacheRoute } from "./jobs/codexAuthCacheRoute";
 import { registerJobResultRoute } from "./jobs/jobResultRoute";
 import { registerJobWorkerCallbackRoutes } from "./jobs/workerCallbackRoutes";
+import { registerWorkerStorageRoute } from "./jobs/workerStorageRoute";
+import { WorkerStorageService, signWorkerStorageUrl } from "../../services/job/WorkerStorageService";
+import { JobBootstrapService } from "../../services/job/JobBootstrapService";
 import { registerQuestionCallbackRoute } from "./jobs/questionCallbackRoute";
 import { registerPartialResultRoute } from "./jobs/partialResultRoute";
 import { registerSkillCallbackRoute } from "./jobs/skillCallbackRoute";
@@ -221,7 +224,9 @@ router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-registerJobWorkerCallbackRoutes(router);
+const workerStorage = new WorkerStorageService(new JobBootstrapService(), signWorkerStorageUrl);
+registerJobWorkerCallbackRoutes(router, workerStorage);
+registerWorkerStorageRoute(router, workerStorage);
 registerJobResultRoute(router);
 registerCodexAuthCacheRoute(router);
 registerQuestionCallbackRoute(router);

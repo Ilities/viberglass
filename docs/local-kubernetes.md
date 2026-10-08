@@ -39,14 +39,19 @@ python3 infra/kubernetes/scripts/local.py --agent codex
 
 Use `--agent claude-code`, `antigravity`, `kimi`, `mistral`, `pi`, or `qwen` as appropriate. Each invocation retains already-loaded images. A Clanker can use the default catalog image or an explicit image. Kubernetes forms support CPU, memory, temporary storage, and time limits. Activation checks namespace access, Job admission, and create/get/delete permissions; it cannot prove an image exists in the registry. Diagnose image pull failures through Pod events.
 
+The installer builds and loads each agent's default image from the worker catalog. Claude Code uses `viberator-worker-multi-agent:local`; its Dockerfile is `infra/workers/docker/viberator-worker-multi-agent.Dockerfile`.
+
+Local installs use `<namespace>-workers` by default to retain existing installations. Override it with `--worker-namespace`. Direct Helm installs use `<namespace>-<release>-workers` unless `workers.namespace` is set. The platform smoke reads the installed backend ConfigMap to find the actual worker namespace; pass `--namespace` and `--release` when checking a custom installation, or `--worker-namespace` to select it explicitly.
+
 ## Architecture and persistence
 
 - Backend and frontend are Deployments in `viberglass`; PostgreSQL and MinIO are StatefulSets with PVCs.
 - Workers run in `viberglass-workers`, with no Kubernetes service account token. The backend has namespaced Job permissions.
-- Model/Git credentials stay in the encrypted database and are delivered through authenticated bootstrap. The worker namespace Secret contains platform object-storage credentials only.
+- Model/Git credentials stay in the encrypted database and are delivered through authenticated bootstrap. Each worker mounts its own callback-token Secret; worker Pods receive no shared object-storage credentials.
 - `S3_ENDPOINT` is reachable from Pods. `S3_PUBLIC_ENDPOINT` is the browser-reachable signing endpoint; locally it is `http://localhost:39000`. Worker media links use the internal endpoint.
 - Instructions, task media, phase documents, and archived conversation state use object storage. Restarts retain data while the cluster/PVCs exist.
 - Resource requests and limits consume cluster capacity. A worker namespace quota limits concurrency; requests exceeding quota fail admission.
+- Workers request short-lived URLs for their instructions/media and assigned session archive. Pod scheduling, image-pull and admission diagnostics appear in the existing run log. Silent agent steps send a heartbeat every minute, so a healthy long run is not stopped at thirty minutes.
 - The chart includes network policies. Local validation does not certify policy enforcement. Use a NetworkPolicy-capable CNI in a production cluster and test private Git/storage egress rules.
 
 The application compute/storage/credential paths are available without AWS. This does not supply AWS-managed infrastructure equivalents: production databases, backups, ingress/TLS, email, registry publishing, and cloud provisioning remain operator responsibilities. See [Kubernetes deployment and operations](kubernetes-deployment.md).
@@ -148,7 +153,7 @@ The check validates strategy activation, credential bootstrap, media upload/down
 
 The Kubernetes strategy migration is `101_kubernetes_deployment_strategy`, after upstream migrations through 100. If a disposable installation already applied it under an earlier name (`088_` or `099_kubernetes_deployment_strategy`), recreate its cluster before installing this version. Its migration history predates this merge and cannot accept the newly inserted upstream migrations in order. Do not recreate a cluster containing data you need; export its database and arrange a migration-history reconciliation first.
 
-## Verified in this branch
+## Earlier validation on main
 
 - Fresh backend/frontend/worker images and a clean kind installation, including all migrations through 101.
 - Backend unit suite: 171 suites / 1,188 tests; frontend suite: 53 suites / 256 tests; worker suite: 26 suites / 130 tests.
@@ -159,3 +164,21 @@ The Kubernetes strategy migration is `101_kubernetes_deployment_strategy`, after
 - Kubernetes create/edit forms checked in an authenticated browser.
 
 OVHcloud provisioning, provider storage/networking, paid-model behavior, network policy enforcement, and backup restoration have not been certified by these local checks.
+
+## Completion worktree validation, 2026-10-08
+
+The `feat/kubernetes-completion` worktree passed 219 backend suites / 1,464 tests and 33 worker suites / 151 tests, backend type checking, worker/backend builds, and targeted backend lint. The disposable PostgreSQL/MinIO smoke verified scoped storage and session restoration, denied foreign-object and terminal-run access, and preserved a healthy run older than thirty minutes.
+
+A disposable kind v0.33.0 / Kubernetes v1.37.0 cluster passed mounted callback-token authentication, Job-owned Secret cleanup, result callbacks, duplicate submission, cancellation, image failure detection and scheduling diagnostics. Its worker image overlaid newly compiled code on a cached worker base. A fresh image build, clean chart installation and database upgrade from this revision remain to be validated.
+
+## Installer and upgrade regression checks
+
+These checks need Python 3, Node.js and Helm, and do not create a cluster or use cloud credentials:
+
+```bash
+python3 -m unittest discover -s infra/kubernetes/tests -p 'test_*.py'
+node --test infra/kubernetes/tests/migrationGate.test.cjs
+helm lint infra/kubernetes/chart -f infra/kubernetes/chart/values-local.yaml
+```
+
+The installer checks cover all supported agent choices, image build/export selection, and worker namespace overrides/discovery. The migration checks execute the rendered startup script with database responses for a fresh install and an upgrade. Backend startup waits for every numbered migration shipped in its image, including gaps before the latest migration; it fails if migrations remain pending or the image contains none.

@@ -1,5 +1,6 @@
 import { SecretResolutionService } from "../../../services/SecretResolutionService";
 import { WorkerBootstrapCredentials } from "../../../services/job/WorkerBootstrapCredentials";
+import { WorkerStorageDenied, type WorkerStorageService } from "../../../services/job/WorkerStorageService";
 import { Request, Response, Router } from "express";
 import logger from "../../../config/logger";
 import { AgentPendingRequestDAO } from "../../../persistence/agentSession/AgentPendingRequestDAO";
@@ -43,7 +44,19 @@ const workerEventService = new AgentSessionWorkerEventService(
  * bootstrap payload, progress, logs and its session's events. Authenticated
  * by the run's callback token, not a person.
  */
-export function registerJobWorkerCallbackRoutes(router: Router): void {
+export function registerJobWorkerCallbackRoutes(router: Router, storage: WorkerStorageService): void {
+  router.post("/:jobId/heartbeat", tenantMiddleware, validateCallbackToken, async (req, res) => {
+    try {
+      const bootstrap = await bootstraps.getBootstrapPayload(req.params.jobId);
+      if (!bootstrap || bootstrap.tenantId !== req.tenantId || bootstrap.status !== "active") {
+        return res.status(403).json({ error: "Heartbeat requires this active run" });
+      }
+      await touchHeartbeat(req.params.jobId, new Date());
+      return res.json({ success: true });
+    } catch {
+      return res.status(500).json({ error: "Could not record worker heartbeat" });
+    }
+  });
   router.get(
     "/:jobId/bootstrap",
     tenantMiddleware,
@@ -293,9 +306,11 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
             .json({ error: "conversationStateUrl must be a non-empty string" });
         }
 
+        await storage.validateArchive(jobId, req.tenantId!, conversationStateUrl);
         await workerEventService.storeConversationStateUrl(jobId, conversationStateUrl);
         return res.json({ success: true });
       } catch (err) {
+        if (err instanceof WorkerStorageDenied) return res.status(403).json({ error: err.message });
         logger.error("Failed to store conversation state URL", {
           jobId: req.params.jobId,
           error: err instanceof Error ? err.message : String(err),

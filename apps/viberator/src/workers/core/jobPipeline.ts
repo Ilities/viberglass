@@ -18,6 +18,7 @@ import { CallbackClient } from "../infrastructure/CallbackClient";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
+import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { mergeWorkerSettings } from "../runtime/workerSettings";
 import { failingWith } from "./JobFailureError";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
@@ -26,6 +27,7 @@ import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
 import { jobWorkspaceDir } from "./taskWorkspace";
 
 export interface JobRunnerParams {
+  objectStorage?: WorkerObjectStorage;
   data: CodingJobData;
   repositoryRoot: string;
   logger: Logger;

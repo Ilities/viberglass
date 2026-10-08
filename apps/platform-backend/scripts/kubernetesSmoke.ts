@@ -10,7 +10,11 @@ import { isObjectRecord, type Clanker } from "@viberglass/types";
 import type { JobData } from "../src/types/Job";
 import { KubernetesInvoker } from "../src/workers/invokers/KubernetesInvoker";
 import { createKubernetesJobClient, kubernetesStatusCode } from "../src/workers/invokers/kubernetesJobClient";
+import { createKubernetesSecretClient, KubernetesRunSecret } from "../src/workers/invokers/KubernetesRunSecret";
 import { KubernetesWorkerStopper } from "../src/workers/stoppers/KubernetesWorkerStopper";
+import { kubernetesRunSecretName } from "../src/workers/invokers/KubernetesRunSecret";
+import { KubernetesPodInspector, createKubernetesPodClient } from "../src/workers/invokers/KubernetesPodInspector";
+import { KubernetesJobReconciler } from "../src/workers/KubernetesJobReconciler";
 
 async function waitFor(check: () => Promise<boolean>, description: string): Promise<void> {
   const deadline = Date.now() + 120_000;
@@ -85,10 +89,11 @@ async function main(): Promise<void> {
     deploymentConfig: { version: 1, strategy: { type: "kubernetes", containerImage: image }, agent: { type: "fake" } },
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   };
+  const secrets = new KubernetesRunSecret(createKubernetesSecretClient);
   const invoker = new KubernetesInvoker(createKubernetesJobClient, {
     async saveBootstrapPayload(id, payload) { payloads.set(id, payload); },
-  }, { async getRequiredCredentialsForClanker() { return []; } }, { async getStatus() { return "active"; } }, { workerBindings() { return []; } });
-  const stopper = new KubernetesWorkerStopper(createKubernetesJobClient);
+  }, { async getRequiredCredentialsForClanker() { return []; } }, { async getStatus() { return "active"; } }, { workerBindings() { return []; } }, secrets);
+  const stopper = new KubernetesWorkerStopper(createKubernetesJobClient, secrets);
   const client = await createKubernetesJobClient();
   const runs: string[] = [];
   function job(task: string): JobData {
@@ -105,6 +110,13 @@ async function main(): Promise<void> {
     const successful = job("Write PLAN.md for the Kubernetes smoke test.");
     const execution = await invoker.invoke(successful, clanker);
     assert.deepEqual(await invoker.invoke(successful, clanker), execution);
+    const createdJob = await client.readNamespacedJob({ namespace, name: execution.executionId });
+    assert(!JSON.stringify(createdJob).includes(successful.callbackToken!));
+    assert(!createdJob.spec?.template.spec?.containers[0].envFrom);
+    const secretClient = await createKubernetesSecretClient();
+    const secret = await secretClient.readNamespacedSecret({ namespace, name: kubernetesRunSecretName(successful.id) });
+    assert.equal(secret.immutable, true);
+    assert.equal(secret.metadata?.ownerReferences?.[0].uid, createdJob.metadata?.uid);
     await waitFor(async () => results.has(successful.id), "the worker result callback");
     const result = results.get(successful.id);
     assert(isObjectRecord(result) && result.success === true, `Worker failed: ${JSON.stringify(result)}`);
@@ -124,7 +136,26 @@ async function main(): Promise<void> {
       }
     }, "Job deletion");
     assert.equal(await stopper.stop(cancelled.id), false);
-    console.log("Kubernetes smoke passed: worker callback, Job completion, duplicate submission, and cancellation");
+    await assert.rejects(() => secretClient.readNamespacedSecret({ namespace, name: kubernetesRunSecretName(cancelled.id) }),
+      error => kubernetesStatusCode(error) === 404);
+
+    for (const strategy of [{ type: "kubernetes", containerImage: "invalid image name" },
+      { type: "kubernetes", containerImage: image, cpu: "100000" }]) {
+      const unavailable = job("Write PLAN.md.");
+      const runner: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy, agent: { type: "fake" } } };
+      await invoker.invoke(unavailable, runner);
+      let failure: string | undefined;
+      const diagnostics: string[] = [];
+      const reconciler = new KubernetesJobReconciler(createKubernetesJobClient,
+        async () => [{ id: unavailable.id, started_at: new Date(Date.now() - 300_000) }],
+        { async updateJobStatus(_id, _status, updates) { failure = updates?.errorMessage; return true; } },
+        { async stop(id) { await stopper.stop(id); } }, new KubernetesPodInspector(createKubernetesPodClient),
+        { async record(_id, _source, entries) { diagnostics.push(...entries.map(entry => entry.message)); } });
+      await waitFor(async () => { await reconciler.sweep(); return Boolean(failure); }, "startup failure reconciliation");
+      assert(failure?.includes(strategy.cpu ? "Unschedulable" : "InvalidImageName"), failure);
+      assert(diagnostics.length > 0);
+    }
+    console.log("Kubernetes smoke passed: mounted run token, owned Secret cleanup, worker callback, duplicate submission, cancellation, image failures and scheduling diagnostics");
   } finally {
     for (const id of runs) await stopper.stop(id);
     await new Promise<void>((resolve) => server.close(() => resolve()));

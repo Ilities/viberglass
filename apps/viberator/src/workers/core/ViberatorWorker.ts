@@ -3,6 +3,8 @@ import * as fs from "fs";
 import { CodingJobData, JobResult, WorkerPayload } from "./types";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
+import { PresignedWorkerStorage } from "../infrastructure/PresignedWorkerStorage";
+import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { NO_SETTINGS, workerSettingsOf, type WorkerSettings } from "./workerSettings";
@@ -22,6 +24,7 @@ export class ViberatorWorker {
   private readonly workDir: string;
   private credentialProvider!: CredentialProvider;
   private configLoader!: ConfigLoader;
+  private objectStorage?: WorkerObjectStorage;
   private instructionFileManager!: InstructionFileManager;
   private environmentManager!: EnvironmentManager;
   private services!: WorkerServices;
@@ -60,7 +63,8 @@ export class ViberatorWorker {
       this.credentialProvider = new CredentialProvider(this.logger, payload?.workerType === "kubernetes"
         ? { suppliedCredentials: payload.credentials ?? {}, ssmEnabled: false }
         : undefined);
-      this.configLoader = new ConfigLoader(this.logger);
+      this.objectStorage = payload?.workerType === "kubernetes" ? new PresignedWorkerStorage(payload) : undefined;
+      this.configLoader = new ConfigLoader(this.logger, undefined, this.objectStorage);
       this.instructionFileManager = new InstructionFileManager(this.logger);
       this.environmentManager = new EnvironmentManager(this.logger);
 
@@ -163,6 +167,7 @@ export class ViberatorWorker {
             details,
           ),
         scmToken,
+        objectStorage: this.objectStorage,
         mcpServers: this.settings.mcpServers,
         skills: this.settings.skills,
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>

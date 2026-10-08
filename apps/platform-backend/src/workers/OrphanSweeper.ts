@@ -8,7 +8,7 @@ const logger = createChildLogger({ worker: 'OrphanSweeper' });
 
 export interface OrphanSweeperConfig {
   sweepIntervalMs?: number;  // How often to check (default: 60 seconds)
-  jobTimeoutMs?: number;     // Job considered orphaned after (default: 30 minutes)
+  jobTimeoutMs?: number;     // Maximum inactivity (default: 30 minutes)
 }
 
 export class OrphanSweeper {
@@ -73,18 +73,23 @@ export class OrphanSweeper {
 
     const orphanedJobs = await findOrphanedJobs(cutoffTime);
 
+    let failed = 0;
     for (const job of orphanedJobs) {
       logger.warn('Marking job as timed out', {
         jobId: job.id,
         startedAt: job.started_at,
       });
 
-      await this.jobService.updateJobStatus(job.id, 'failed', {
+      const changed = await this.jobService.updateJobStatus(job.id, 'failed', {
         errorMessage: `Job timed out after ${this.config.jobTimeoutMs / 1000}s without callback`,
         failureCode: JOB_FAILURE_CODE.RUN_LOST,
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: cutoffTime,
       });
+      if (changed === false) continue;
       // A worker that stopped reporting may still be running; don't leave it behind.
       await this.workers.stop(job.id, 'timed out');
+      failed++;
     }
 
     if (orphanedJobs.length > 0) {
@@ -93,7 +98,7 @@ export class OrphanSweeper {
       });
     }
 
-    return orphanedJobs.length;
+    return failed;
   }
 
   /**
