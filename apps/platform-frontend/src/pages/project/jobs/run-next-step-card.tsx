@@ -117,6 +117,7 @@ export function RunNextStepCard({
             }
           >
             <p>{guidance.summary}</p>
+            {guidance.reported && <p className="mt-1 font-mono text-xs break-words text-[var(--gray-11)]">{guidance.reported}</p>}
             {!canRunAgain && <p className="mt-1 text-[var(--gray-10)]">{guidance.nextStep}</p>}
             <details className="mt-3">
               <summary className="cursor-pointer text-xs font-medium text-[var(--gray-10)]">Technical details</summary>

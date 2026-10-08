@@ -5,6 +5,8 @@ export interface FailureGuidance {
   title: string
   /** What happened, as a sentence anyone can read. */
   summary: string
+  /** The first line of the agent's own error, when Viberglass couldn't name the failure. */
+  reported?: string
   /** What this person can do next. */
   nextStep: string
   /** A link to where the problem is fixed, for people allowed to fix it. */
@@ -37,9 +39,30 @@ function setupFixFor(code: string, project: string, runner?: FailedRunner): { la
   }
 }
 
+const REPORTED_MAX_LENGTH = 200
+
+/**
+ * A generic agent failure says nothing about the cause, so the agent's own
+ * error leads instead of hiding in the technical details.
+ */
+function reportedError(failure: JobFailure | null | undefined): string | undefined {
+  if (failure?.code !== JOB_FAILURE_CODE.AGENT_FAILED) return undefined
+  const line = failure.technicalDetail
+    ?.split('\n')
+    .map((text) => text.trim())
+    .find(Boolean)
+  if (!line) return undefined
+  return line.length > REPORTED_MAX_LENGTH ? `${line.slice(0, REPORTED_MAX_LENGTH - 1)}…` : line
+}
+
 /** What happened, in a few words and in a sentence anyone can read, before any technical detail. */
-export function failureHeadline(failure: JobFailure | null | undefined): { title: string; summary: string } {
-  return { title: failure?.title ?? 'Run failed', summary: failure?.summary ?? 'The run stopped before it could finish.' }
+export function failureHeadline(failure: JobFailure | null | undefined): { title: string; summary: string; reported?: string } {
+  const reported = reportedError(failure)
+  return {
+    title: failure?.title ?? 'Run failed',
+    summary: failure?.summary ?? 'The run stopped before it could finish.',
+    ...(reported ? { reported } : {}),
+  }
 }
 
 /**
@@ -48,7 +71,7 @@ export function failureHeadline(failure: JobFailure | null | undefined): { title
  * in Viberglass itself say so instead of blaming the person's setup.
  */
 export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolean, project: string, runner?: FailedRunner): FailureGuidance {
-  const { title, summary } = failureHeadline(failure)
+  const { title, summary, reported } = failureHeadline(failure)
 
   switch (failure?.category) {
     case 'setup':
@@ -56,6 +79,7 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
         ? {
             title,
             summary,
+            reported,
             nextStep: 'Trying again with the same setup will fail the same way. Fix the setup, then try again from the task.',
             fix: setupFixFor(failure.code, project, runner),
             canRetry: false,
@@ -63,6 +87,7 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
         : {
             title,
             summary,
+            reported,
             nextStep: `A workspace admin needs to fix ${runner ? `${runner.name}'s setup` : 'the setup'} before the agent can run again; trying again before that fails the same way. Let them know.`,
             canRetry: false,
           }
@@ -70,6 +95,7 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
       return {
         title,
         summary,
+        reported,
         nextStep: 'Try again from the task. Adding detail to the task description often helps.',
         canRetry: true,
       }
@@ -77,11 +103,12 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
       return {
         title,
         summary,
+        reported,
         nextStep: 'Try again. If it keeps happening, share the technical details with your admin.',
         canRetry: true,
       }
     default:
       // Failures recorded before categories existed.
-      return { title, summary, nextStep: 'Check the technical details, then try again from the task.', canRetry: true }
+      return { title, summary, reported, nextStep: 'Check the technical details, then try again from the task.', canRetry: true }
   }
 }
