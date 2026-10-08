@@ -19,6 +19,7 @@ import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
 import { JobFailureError } from "./JobFailureError";
 import type { JobRunnerParams, ManifestScratch } from "./jobPipeline";
+import { startWorkerHeartbeat } from "./workerHeartbeat";
 
 /**
  * Wraps a job runner function with shared error handling and result callbacks.
@@ -84,6 +85,7 @@ async function runJobLifecycle(
 ): Promise<JobResult> {
   const { data, callbackClient, logForwarder, sendProgress, logger } = params;
   const startTime = Date.now();
+  const stopHeartbeat = startWorkerHeartbeat(() => callbackClient.sendHeartbeat(data.id, data.tenantId), logger);
 
   try {
     const result = await execute();
@@ -175,6 +177,8 @@ async function runJobLifecycle(
       errorMessage,
       runManifest: failureManifest,
     };
+  } finally {
+    stopHeartbeat();
   }
 }
 

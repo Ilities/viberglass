@@ -12,7 +12,7 @@ describe("KubernetesWorkerStopper", () => {
       deleteNamespacedJob: jest.fn().mockResolvedValue({}),
     };
 
-    await expect(new KubernetesWorkerStopper(async () => client).stop("job-123")).resolves.toBe(true);
+    await expect(new KubernetesWorkerStopper(async () => client, { remove: jest.fn().mockResolvedValue(undefined) }).stop("job-123")).resolves.toBe(true);
     expect(client.deleteNamespacedJob).toHaveBeenCalledWith({
       namespace: "viberglass-workers",
       name: kubernetesJobName("job-123"),
@@ -27,7 +27,8 @@ describe("KubernetesWorkerStopper", () => {
       readNamespacedJob: jest.fn(),
       deleteNamespacedJob: jest.fn().mockRejectedValue(Object.assign(new Error("missing"), { statusCode: 404 })),
     };
-
-    await expect(new KubernetesWorkerStopper(async () => client).stop("job-123")).resolves.toBe(false);
+    const remove = jest.fn().mockResolvedValue(undefined);
+    await expect(new KubernetesWorkerStopper(async () => client, { remove }).stop("job-123")).resolves.toBe(false);
+    expect(remove).toHaveBeenCalledWith("viberglass-workers", "job-123");
   });
 });

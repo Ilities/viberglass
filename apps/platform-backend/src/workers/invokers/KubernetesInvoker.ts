@@ -10,6 +10,7 @@ import type { InvocationResult, WorkerInvoker } from "../WorkerInvoker";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { buildKubernetesJob, kubernetesJobName } from "./kubernetesJob";
 import { kubernetesWorkerEnvironment } from "./kubernetesWorkerEnvironment";
+import { kubernetesRunSecretName, type KubernetesRunSecret } from "./KubernetesRunSecret";
 import {
   kubernetesStatusCode,
   type KubernetesJobClient,
@@ -24,6 +25,7 @@ export class KubernetesInvoker implements WorkerInvoker {
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker">,
     private readonly dispatchState: Pick<JobDispatchStateDAO, "getStatus">,
     private readonly codexLogins: Pick<CodexLoginService, "workerBindings">,
+    private readonly secrets: Pick<KubernetesRunSecret, "ensure" | "remove">,
   ) {}
 
   async invoke(job: JobData, clanker: Clanker, project?: Project): Promise<InvocationResult> {
@@ -85,18 +87,21 @@ export class KubernetesInvoker implements WorkerInvoker {
       jobId: job.id,
       tenantId: job.tenantId,
       image,
-      callbackToken: job.callbackToken,
+      callbackSecret: kubernetesRunSecretName(job.id),
       platformApiUrl,
       config: strategy,
       environmentSecret: process.env.KUBERNETES_WORKER_ENV_SECRET?.trim(),
       imagePullSecrets: process.env.KUBERNETES_WORKER_IMAGE_PULL_SECRETS?.split(",").map(name => name.trim()).filter(Boolean),
-      storageEnvironment: kubernetesWorkerEnvironment(process.env),
+      environment: kubernetesWorkerEnvironment(process.env),
     });
     const name = kubernetesJobName(job.id);
+    let submitted = false;
 
     try {
       const client = await this.clientFactory();
-      await client.createNamespacedJob({ namespace, body: manifest });
+      const created = await client.createNamespacedJob({ namespace, body: manifest });
+      submitted = true;
+      await this.secrets.ensure(namespace, job.id, job.callbackToken, created);
       await this.removeCancelledJob(client, namespace, name, job.id);
       return { workerType: "kubernetes", executionId: name };
     } catch (error) {
@@ -106,6 +111,8 @@ export class KubernetesInvoker implements WorkerInvoker {
           const client = await this.clientFactory();
           const existing = await client.readNamespacedJob({ namespace, name });
           if (existing.metadata?.annotations?.["viberglass.dev/job-id"] === job.id) {
+            submitted = true;
+            await this.secrets.ensure(namespace, job.id, job.callbackToken, existing);
             await this.removeCancelledJob(client, namespace, name, job.id);
             return { workerType: "kubernetes", executionId: name };
           }
@@ -118,6 +125,10 @@ export class KubernetesInvoker implements WorkerInvoker {
       const classification = status === undefined || status === 429 || status >= 500
         ? ErrorClassification.TRANSIENT
         : ErrorClassification.PERMANENT;
+      if (submitted && classification === ErrorClassification.PERMANENT && status !== 409) {
+        await (await this.clientFactory()).deleteNamespacedJob({ namespace, name, propagationPolicy: "Background" });
+        await this.secrets.remove(namespace, job.id);
+      }
       throw new WorkerError(
         `Kubernetes Job creation failed${status ? ` (HTTP ${status})` : ""}: ${failure instanceof Error ? failure.message : String(failure)}`,
         classification,
@@ -130,6 +141,7 @@ export class KubernetesInvoker implements WorkerInvoker {
     if (await this.dispatchState.getStatus(jobId) !== "cancelled") return;
     try { await client.deleteNamespacedJob({ namespace, name, propagationPolicy: "Background" }); }
     catch (error) { if (kubernetesStatusCode(error) !== 404) throw error; }
+    await this.secrets.remove(namespace, jobId);
     throw new WorkerError("Run was cancelled during dispatch", ErrorClassification.PERMANENT);
   }
 

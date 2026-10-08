@@ -21,7 +21,7 @@ workers:
   registry: ghcr.io/ilities
   imageTag: latest
   imagePullSecrets: []
-  envSecret: viberglass-storage
+  envSecret: ""
   quota:
     pods: "10"
     requests.cpu: "8"
@@ -50,8 +50,6 @@ storage:
   forcePathStyle: false
   size: 5Gi
   storageClass: ""
-migration:
-  marker: 101_kubernetes_deployment_strategy
 ingress:
   enabled: false
   className: ""

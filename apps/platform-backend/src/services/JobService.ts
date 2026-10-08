@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { sql } from "kysely";
 import db from "../persistence/config/database";
 import { JobData, JobResult, JobStatus } from "../types/Job";
 import { createChildLogger } from "../config/logger";
@@ -126,8 +127,9 @@ export class JobService {
       /** What a task turn produced, and whom it mentioned, for the run's Activity and notifications. */
       turn?: { step: string; mentioned: string[] };
       expectedStatus?: JobStatus;
+      expectedHeartbeatBefore?: Date;
     } = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     const failure =
       status === "failed"
         ? describeJobFailure(updates.failureCode, updates.errorMessage)
@@ -164,8 +166,11 @@ export class JobService {
     if (updates.expectedStatus) {
       query = query.where("status", "=", updates.expectedStatus);
     }
+    if (updates.expectedHeartbeatBefore) {
+      query = query.where(sql<Date>`coalesce(last_heartbeat, started_at)`, "<", updates.expectedHeartbeatBefore);
+    }
     const updated = await query.executeTakeFirst();
-    if (updated.numUpdatedRows === 0n) return;
+    if (updated.numUpdatedRows === 0n) return false;
 
     logger.info("Job status updated", { jobId, status, ...updates });
 
@@ -212,6 +217,7 @@ export class JobService {
         await this.synchronizeTicketStatus(job.ticket_id);
       }
     }
+    return true;
   }
 
   /** Best effort: a ticket status that lags must not fail the run update. */

@@ -76,7 +76,7 @@ export async function recordProgress(
  * still working.
  */
 export async function touchHeartbeat(jobId: string, at: Date): Promise<void> {
-  await db.updateTable("jobs").set({ last_heartbeat: at }).where("id", "=", jobId).execute();
+  await db.updateTable("jobs").set({ last_heartbeat: at }).where("id", "=", jobId).where("status", "=", "active").execute();
 }
 
 /**

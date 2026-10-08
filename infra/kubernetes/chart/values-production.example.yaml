@@ -1,0 +1,39 @@
+# Copy outside the repository and replace the image tags, hosts and storage settings.
+# Credentials belong in Kubernetes Secrets, never in this file.
+backend:
+  image: ghcr.io/ilities/viberglass-backend:REPLACE_WITH_MATCHING_TAG
+  replicas: 1
+frontend:
+  image: ghcr.io/ilities/viberglass-frontend:REPLACE_WITH_MATCHING_TAG
+  replicas: 1
+publicUrl: https://viberglass.example.com
+appSecret: viberglass-app
+storageSecret: viberglass-storage
+workers:
+  namespace: viberglass-workers
+  registry: ghcr.io/ilities
+  imageTag: REPLACE_WITH_MATCHING_TAG
+database:
+  enabled: false
+  host: postgres.example.internal
+  port: 5432
+  name: viberglass
+  user: viberglass
+  ssl: true
+storage:
+  enabled: false
+  endpoint: https://s3.example.com
+  publicEndpoint: https://s3.example.com
+  region: REPLACE_WITH_SIGNING_REGION
+  bucket: viberglass
+  forcePathStyle: true
+ingress:
+  enabled: true
+  className: REPLACE_WITH_INGRESS_CLASS
+  host: viberglass.example.com
+  tls:
+    - hosts: [viberglass.example.com]
+      secretName: viberglass-tls
+networkPolicy:
+  enabled: true
+  workerExtraEgress: []

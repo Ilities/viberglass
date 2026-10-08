@@ -73,6 +73,7 @@ export class HeartbeatSweeper {
 
     const staleJobs = await findStaleJobs(staleThreshold);
 
+    let failed = 0;
     for (const job of staleJobs) {
       logger.warn('Marking job as failed (no heartbeat)', {
         jobId: job.id,
@@ -80,12 +81,16 @@ export class HeartbeatSweeper {
         lastHeartbeat: job.last_heartbeat,
       });
 
-      await this.jobService.updateJobStatus(job.id, 'failed', {
+      const changed = await this.jobService.updateJobStatus(job.id, 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
         failureCode: JOB_FAILURE_CODE.RUN_LOST,
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: staleThreshold,
       });
+      if (changed === false) continue;
       // A worker that stopped reporting may still be running; don't leave it behind.
       await this.workers.stop(job.id, 'no heartbeat');
+      failed++;
     }
 
     if (staleJobs.length > 0) {
@@ -94,7 +99,7 @@ export class HeartbeatSweeper {
       });
     }
 
-    return staleJobs.length;
+    return failed;
   }
 
   /**

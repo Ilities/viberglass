@@ -11,7 +11,7 @@ The Helm chart (`infra/kubernetes/chart/`) and the Kubernetes runner strategy, f
 
 ## K8S-00 · Merge gate
 
-1. Check `main` contains the Kubernetes merge (`git log --oneline | grep -i kubernetes`) and that `apps/platform-backend/src/migrations/101_kubernetes_deployment_strategy.ts` exists. The chart's `migration.marker` must be `101_kubernetes_deployment_strategy`.
+1. Check `main` contains the Kubernetes merge (`git log --oneline | grep -i kubernetes`) and that `apps/platform-backend/src/migrations/101_kubernetes_deployment_strategy.ts` exists. Backend startup must wait for all numbered migrations shipped in its image.
 2. Delete any kind cluster installed from the old branch (`kind delete cluster --name viberglass-local`): its migration history has the old `099_`/`088_` names.
 
 Expect: merged and renumbered; no stale cluster.
@@ -20,14 +20,12 @@ Expect: merged and renumbered; no stale cluster.
 
 | # | Issue | Where it shows |
 |---|---|---|
-| K1 | `local.py --agent claude-code` fails: there is no `infra/workers/docker/generated/claude-code.Dockerfile` | K8S-01 |
-| K2 | The chart defaults the worker namespace to `<ns>-<release>-workers`; `local.py` and `platformSmoke.py` assume `<ns>-workers` | K8S-01, K8S-20 |
-| K3 | The backend's Role only covers Jobs: no Pod events or logs in the app; use `kubectl logs job/<name>` | K8S-08 |
-| K4 | An image-pull failure isn't caught at activation; the run only fails via the heartbeat/orphan sweepers or the Job deadline (1 h default) | K8S-11 |
-| K5 | The callback token is plaintext in the Pod spec; workers get bucket-wide S3 credentials from a shared Secret | K8S-30 |
 | K6 | kind's default CNI doesn't enforce NetworkPolicy | K8S-12 vs K8S-27 |
 | K7 | `helm uninstall` deletes the worker namespace and its Jobs; Helm rollback doesn't reverse migrations | K8S-29 |
-| K8 | Keep `backend.replicas: 1`; sweepers run in-process | K8S-31 |
+
+K1 and K2 have regression fixes: the installer uses catalog Dockerfiles/image names (including Claude's multi-agent default), and the platform smoke discovers the installed worker namespace. Local installs retain `<ns>-workers` by default; `--worker-namespace` overrides it. For custom installations, give the smoke `--namespace` and `--release`.
+
+K3–K5 are implemented: Pod state/events are persisted in the run log, startup failures reconcile after a short grace period, callback tokens are mounted from run-owned Secrets, and workers receive scoped storage URLs instead of bucket credentials. The deployment intentionally uses one backend replica.
 
 ## Local kind cluster (K8S-01 – K8S-15)
 
@@ -59,7 +57,7 @@ Expect: Job `viberglass-<hash>` with `restartPolicy: Never`, no service-account 
 1. `kubectl logs job/<name> -n <worker-ns>` for the run.
 2. `kubectl get job <name> -o yaml`.
 
-Expect: logs show credentials fetched once from bootstrap; the Job spec holds no model key (only the callback token, K5).
+Expect: logs show credentials fetched once from bootstrap; the Job spec holds no model key or callback token. It references the run's token Secret and has no `envFrom` importing storage credentials.
 
 ### K8S-06 · Session continuity across Pods
 1. Ask a follow-up.
@@ -89,7 +87,7 @@ Expect: the reconciler fails the run after the 2-minute grace period.
 ### K8S-11 · Bad image
 1. Set a runner's container image to a tag that doesn't exist; start it; run a task.
 
-Expect: activation succeeds (K4); the run eventually fails; record how long it takes and what the user sees.
+Expect: activation can succeed; within roughly three minutes, the run fails with an image-pull detail and Pod events in its worker log.
 
 ### K8S-12 · Quota
 1. Lower `workers.quota` (e.g. 1 CPU) with `helm upgrade`; start two runs at once.
@@ -120,14 +118,14 @@ Expect: images in the registry with one tag.
 
 ### K8S-21 · Namespaces and Secrets
 1. Create the app and worker namespaces (worker namespace with Helm ownership labels/annotations).
-2. Create `viberglass-app` (DB password, two encryption keys), `viberglass-storage` (S3 keys) in both namespaces, and registry pull secrets in both.
+2. Create `viberglass-app` (DB password, two encryption keys) and `viberglass-storage` (S3 keys) in the application namespace, and registry pull secrets in both namespaces.
 
 Expect: Secrets present; nothing secret in values files.
 
 ### K8S-22 · Install
 1. `helm upgrade --install viberglass infra/kubernetes/chart -n viberglass -f production-values.yaml --wait --wait-for-jobs --timeout 10m` with images, `publicUrl`, database, storage, workers, ingress and TLS values.
 
-Expect: migration Job completes; backend ready (its init container waited for the migration marker); ingress serves `https://<host>`.
+Expect: migration Job completes; backend ready (its init container waited for all migrations in the backend image); ingress serves `https://<host>`.
 
 ### K8S-23 · TLS and CORS
 1. Open the app over HTTPS; sign in; upload media.
@@ -168,7 +166,7 @@ Expect: (1) the app keeps working; migrations are not rolled back (K7). (2) The 
 ### K8S-30 · Security review
 1. Inspect a worker Job spec and the worker namespace's Secrets.
 
-Expect: record K5; no model or SCM credentials in specs.
+Expect: no model/SCM/storage credentials or callback token in specs. The run's token Secret is immutable and owned by its Job; cancellation removes both. Workers cannot obtain storage URLs for another run's objects or after termination.
 
 ### K8S-31 · Backup and restore
 1. Back up the database and bucket; restore into a fresh install; sign in.
@@ -178,4 +176,4 @@ Expect: tasks, documents, media and secrets usable after restore (the same encry
 ### K8S-32 · Smoke subset and long run
 1. Run the README's smoke subset; run one turn longer than 30 minutes.
 
-Expect: smoke passes; record whether the orphan sweeper (30 min) fails the long run before the Job deadline (1 h).
+Expect: smoke passes; a healthy run continues past thirty minutes. Silent agent steps still send heartbeats. Stale workers fail after the inactivity grace period; the Kubernetes Job deadline remains effective.

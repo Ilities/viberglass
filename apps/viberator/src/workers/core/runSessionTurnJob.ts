@@ -133,7 +133,7 @@ async function restoreConversationState(params: JobRunnerParams): Promise<void> 
   if (!params.conversationStateUrl) return;
   await params.sendProgress("restore-state", "Restoring conversation state");
   try {
-    await retrieveAndRestore(params.conversationStateUrl, os.homedir(), params.logger);
+    await retrieveAndRestore(params.conversationStateUrl, os.homedir(), params.logger, params.objectStorage);
   } catch (err) {
     params.logger.warn("Failed to restore conversation state, continuing with fresh session", {
       conversationStateUrl: params.conversationStateUrl,
@@ -152,7 +152,7 @@ async function saveConversationState(
   if (!acpSessionId) return undefined;
   await callbackClient.turn.sendAcpSessionId(data.id, data.tenantId, acpSessionId);
   try {
-    const url = await captureAndStore(agent || "", params.agentSessionId || data.id, os.homedir(), logger);
+    const url = await captureAndStore(agent || "", params.agentSessionId || data.id, os.homedir(), logger, params.objectStorage);
     if (!url) {
       logger.warn("No conversation state to archive, or storing it failed", { jobId: data.id, agent });
       return undefined;

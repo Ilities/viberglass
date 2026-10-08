@@ -12,7 +12,6 @@
 import { OrphanSweeper } from '../../../workers/OrphanSweeper';
 import { JobService } from '../../../services/JobService';
 
-// Mock JobService
 jest.mock('../../../services/JobService');
 const mockQueries = { findOrphanedJobs: jest.fn() };
 jest.mock('../../../services/job/JobSweeperQueries', () => ({
@@ -23,15 +22,14 @@ describe('OrphanSweeper', () => {
   let sweeper: OrphanSweeper;
   let mockJobService: jest.Mocked<JobService>;
 
-  const workers = { stop: jest.fn().mockResolvedValue(undefined) };
+  const workers = { stop: jest.fn().mockResolvedValue(true) };
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
-    // Mock JobService
     mockJobService = {
-      updateJobStatus: jest.fn().mockResolvedValue(undefined),
+      updateJobStatus: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<JobService>;
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
     mockQueries.findOrphanedJobs.mockResolvedValue([]);
@@ -48,7 +46,6 @@ describe('OrphanSweeper', () => {
 
   describe('Orphan Detection', () => {
     it('should find and mark orphaned jobs past timeout threshold', async () => {
-      // Create mock orphaned jobs
       const orphanedJobs = [
         { id: 'job-1', started_at: new Date(Date.now() - 40 * 60_000) }, // 40 minutes ago
         { id: 'job-2', started_at: new Date(Date.now() - 35 * 60_000) }, // 35 minutes ago
@@ -58,24 +55,26 @@ describe('OrphanSweeper', () => {
 
       const count = await sweeper.sweep();
 
-      // Verify cutoff time was calculated correctly (default 30 minutes)
       expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
       const cutoffArg = mockQueries.findOrphanedJobs.mock.calls[0][0] as Date;
       const cutoffAge = Date.now() - cutoffArg.getTime();
       expect(cutoffAge).toBeGreaterThan(29 * 60_000); // ~30 minutes
       expect(cutoffAge).toBeLessThan(31 * 60_000);
 
-      // Verify each orphan was marked as failed
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
       expect(workers.stop).toHaveBeenCalledTimes(2);
       expect(workers.stop).toHaveBeenCalledWith(expect.any(String), 'timed out');
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-1', 'failed', {
         errorMessage: 'Job timed out after 1800s without callback',
         failureCode: 'RUN_LOST',
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: expect.any(Date),
       });
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-2', 'failed', {
         errorMessage: 'Job timed out after 1800s without callback',
         failureCode: 'RUN_LOST',
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: expect.any(Date),
       });
 
       expect(count).toBe(2);
@@ -103,7 +102,6 @@ describe('OrphanSweeper', () => {
 
       expect(capturedCutoff).toBeDefined();
       const age = now - capturedCutoff!.getTime();
-      // Should be approximately 30 minutes (1800000ms)
       expect(age).toBeGreaterThanOrEqual(1799000);
       expect(age).toBeLessThanOrEqual(1801000);
     });
@@ -114,7 +112,6 @@ describe('OrphanSweeper', () => {
       const now = Date.now();
       let capturedCutoff: Date | undefined;
 
-      // Clear previous mocks and set fresh implementation
       mockQueries.findOrphanedJobs.mockReset();
       mockJobService.updateJobStatus.mockReset();
 
@@ -122,7 +119,7 @@ describe('OrphanSweeper', () => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
-      mockJobService.updateJobStatus.mockResolvedValue(undefined);
+      mockJobService.updateJobStatus.mockResolvedValue(true);
 
       const customSweeper = new OrphanSweeper({
         jobTimeoutMs: 10 * 60_000, // 10 minutes
@@ -149,6 +146,8 @@ describe('OrphanSweeper', () => {
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-timeout', 'failed', {
         errorMessage: 'Job timed out after 300s without callback',
         failureCode: 'RUN_LOST',
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: expect.any(Date),
       });
     });
 
@@ -198,7 +197,6 @@ describe('OrphanSweeper', () => {
       sweeper.stop();
       expect(sweeper.isRunning()).toBe(false);
 
-      // Restart
       sweeper.start();
       expect(sweeper.isRunning()).toBe(true);
 
@@ -208,7 +206,6 @@ describe('OrphanSweeper', () => {
     it('should run initial sweep on start', async () => {
       sweeper.start();
 
-      // Wait for microtasks and advance timers slightly for the initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
@@ -218,18 +215,15 @@ describe('OrphanSweeper', () => {
     it('should stop periodic sweeps when stop() is called', async () => {
       sweeper.start();
 
-      // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
       expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
       mockQueries.findOrphanedJobs.mockClear();
 
-      // Stop the sweeper
       sweeper.stop();
       expect(sweeper.isRunning()).toBe(false);
 
-      // Advance past interval - no new sweep should occur
       await jest.advanceTimersByTimeAsync(60000);
 
       expect(mockQueries.findOrphanedJobs).not.toHaveBeenCalled();
@@ -244,18 +238,15 @@ describe('OrphanSweeper', () => {
 
       customSweeper.start();
 
-      // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
       expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
       mockQueries.findOrphanedJobs.mockClear();
 
-      // Advance 1 second - not yet time for next sweep
       await jest.advanceTimersByTimeAsync(1000);
       expect(mockQueries.findOrphanedJobs).not.toHaveBeenCalled();
 
-      // Advance another second - triggers next sweep
       await jest.advanceTimersByTimeAsync(1000);
       expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
@@ -265,14 +256,12 @@ describe('OrphanSweeper', () => {
     it('should run periodic sweeps at default 60 second interval', async () => {
       sweeper.start();
 
-      // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
       expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
       mockQueries.findOrphanedJobs.mockClear();
 
-      // Advance to next sweep (60 seconds)
       await jest.advanceTimersByTimeAsync(60000);
       expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
     });
@@ -282,7 +271,6 @@ describe('OrphanSweeper', () => {
     it('should handle findOrphanedJobs errors gracefully', async () => {
       mockQueries.findOrphanedJobs.mockReset().mockRejectedValue(new Error('Database error'));
 
-      // The sweep() method will reject on findOrphanedJobs error
       await expect(sweeper.sweep()).rejects.toThrow('Database error');
     });
 
@@ -295,16 +283,13 @@ describe('OrphanSweeper', () => {
 
       mockQueries.findOrphanedJobs.mockReset().mockResolvedValue(orphanedJobs);
 
-      // First updateJobStatus fails - sweep should stop there
       mockJobService.updateJobStatus
         .mockRejectedValueOnce(new Error('Update failed'))
-        .mockResolvedValue(undefined)
-        .mockResolvedValue(undefined);
+        .mockResolvedValue(true)
+        .mockResolvedValue(true);
 
-      // The sweep will fail due to the first updateJobStatus error
       await expect(sweeper.sweep()).rejects.toThrow('Update failed');
 
-      // Only the first updateJobStatus call was attempted
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(1);
     });
   });
@@ -338,7 +323,6 @@ describe('OrphanSweeper', () => {
     it('should run sweep immediately on start without waiting for interval', async () => {
       sweeper.start();
 
-      // The initial sweep runs immediately, before first interval tick
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 

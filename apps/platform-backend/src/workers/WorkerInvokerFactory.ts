@@ -4,6 +4,7 @@ import { EcsInvoker } from './invokers/EcsInvoker';
 import { DockerInvoker } from './invokers/DockerInvoker';
 import { JobDispatchStateDAO } from '../persistence/job/JobDispatchStateDAO';
 import { KubernetesInvoker } from './invokers/KubernetesInvoker';
+import { createKubernetesSecretClient, KubernetesRunSecret } from './invokers/KubernetesRunSecret';
 import { createKubernetesJobClient } from './invokers/kubernetesJobClient';
 import { JobBootstrapService } from '../services/job/JobBootstrapService';
 import { CodexLoginService } from '../services/codexLogin/CodexLoginService';
@@ -36,6 +37,7 @@ export class WorkerInvokerFactory {
       new CredentialRequirementsService(),
       new JobDispatchStateDAO(),
       new CodexLoginService(),
+      new KubernetesRunSecret(createKubernetesSecretClient),
     ));
 
     logger.info('Initialized invokers', {

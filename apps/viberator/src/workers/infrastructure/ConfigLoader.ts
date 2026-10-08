@@ -1,6 +1,7 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { objectStorageClientConfig } from "@viberglass/types";
 import { Logger } from "winston";
+import type { WorkerObjectStorage } from "./workerObjectStorage";
 
 /**
  * Instruction file fetched from S3
@@ -28,7 +29,7 @@ export class ConfigLoader {
   private s3Client: S3Client;
   private logger: Logger;
 
-  constructor(logger: Logger, config?: { region?: string }) {
+  constructor(logger: Logger, config?: { region?: string }, private readonly storage?: WorkerObjectStorage) {
     this.logger = logger;
     this.s3Client = new S3Client(objectStorageClientConfig(process.env, config?.region));
   }
@@ -63,6 +64,7 @@ export class ConfigLoader {
    */
   async fetchInstructionFile(s3Url: string): Promise<string | null> {
     try {
+      if (this.storage) return (await this.storage.download(s3Url)).toString("utf8");
       const { bucket, key } = this.parseS3Url(s3Url);
 
       this.logger.info("ConfigLoader: Fetching instruction file from S3", {

@@ -14,11 +14,16 @@ parser.add_argument("--cluster", default="viberglass-local")
 parser.add_argument("--kubeconfig", default="/tmp/viberglass-local.kubeconfig")
 parser.add_argument("--namespace", default="viberglass")
 parser.add_argument("--release", default="viberglass")
+parser.add_argument("--worker-namespace", help="Defaults to <namespace>-workers for local installations")
 parser.add_argument("--agent", default="opencode", choices=["opencode", "codex", "claude-code", "antigravity", "kimi", "mistral", "pi", "qwen", "fake"])
 parser.add_argument("--skip-build", action="store_true")
 args = parser.parse_args()
-workers_namespace = f"{args.namespace}-workers"
+workers_namespace = args.worker_namespace or f"{args.namespace}-workers"
 kube = ["kubectl", "--kubeconfig", args.kubeconfig]
+catalog = json.loads((ROOT / "packages/types/src/workerImageCatalog.json").read_text())
+agent = {"kimi": "kimi-code", "mistral": "mistral-vibe", "qwen": "qwen-cli"}.get(args.agent, args.agent)
+worker_images = [next(entry for entry in catalog if name in entry["defaultForAgents"])
+                 for name in dict.fromkeys([agent, "fake"])]
 
 
 def run(command, **kwargs):
@@ -45,9 +50,9 @@ if not args.skip_build:
         ("infra/workers/docker/base/base-worker.Dockerfile", "viberglass-worker-base:kubernetes"),
     ]:
         run(["docker", "build", "-f", dockerfile, "-t", image, "."])
-    for agent in set([args.agent, "fake"]):
-        run(["docker", "build", "-f", f"infra/workers/docker/generated/{agent}.Dockerfile",
-             "--build-arg", "BASE_IMAGE=viberglass-worker-base:kubernetes", "-t", f"viberator-worker-{agent}:local", "."])
+    for entry in worker_images:
+        run(["docker", "build", "-f", entry["dockerfilePath"],
+             "--build-arg", "BASE_IMAGE=viberglass-worker-base:kubernetes", "-t", f"{entry['repositoryName']}:local", "."])
 
 clusters = run(["kind", "get", "clusters"], capture_output=True, text=True).stdout.splitlines()
 if args.cluster not in clusters:
@@ -58,7 +63,7 @@ else:
     pathlib.Path(args.kubeconfig).chmod(0o600)
 
 images = ["viberglass-k8s-backend:local", "viberglass-k8s-frontend:local",
-          f"viberator-worker-{args.agent}:local", "viberator-worker-fake:local",
+          *[f"{entry['repositoryName']}:local" for entry in worker_images],
           "postgres:17-alpine", "cgr.dev/chainguard/minio:latest"]
 for image in images:
     if subprocess.run(["docker", "image", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
@@ -82,9 +87,6 @@ if not exists("namespace", workers_namespace):
 create_secret(args.namespace, "viberglass-app", {"DB_PASSWORD": secrets.token_hex(24),
               "SECRETS_ENCRYPTION_KEY": secrets.token_hex(32), "WEBHOOK_SECRET_ENCRYPTION_KEY": secrets.token_hex(32)})
 create_secret(args.namespace, "viberglass-storage", {"S3_ACCESS_KEY_ID": "viberglass-local", "S3_SECRET_ACCESS_KEY": secrets.token_hex(32)})
-storage = run(kube + ["-n", args.namespace, "get", "secret", "viberglass-storage", "-o", "json"], capture_output=True, text=True)
-storage_data = {key: base64.b64decode(value).decode() for key, value in json.loads(storage.stdout)["data"].items()}
-create_secret(workers_namespace, "viberglass-storage", storage_data)
 
 run(["helm", "upgrade", "--install", args.release, "infra/kubernetes/chart", "--kubeconfig", args.kubeconfig,
      "--namespace", args.namespace, "-f", "infra/kubernetes/chart/values-local.yaml",

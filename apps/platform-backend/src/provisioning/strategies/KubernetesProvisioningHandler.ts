@@ -40,9 +40,8 @@ export class KubernetesProvisioningHandler implements ProvisioningStrategyHandle
     if (config.type !== "kubernetes" || !namespace || !image) return { status: "inactive", statusMessage: "Worker configuration is incomplete" };
     try {
       await this.client.validateJob(namespace, buildKubernetesJob({
-        jobId: randomUUID(), tenantId: "availability-check", image, callbackToken: "dry-run-only",
+        jobId: randomUUID(), tenantId: "availability-check", image, callbackSecret: "dry-run-only",
         platformApiUrl: process.env.PLATFORM_API_URL || "", config,
-        environmentSecret: process.env.KUBERNETES_WORKER_ENV_SECRET,
         imagePullSecrets: process.env.KUBERNETES_WORKER_IMAGE_PULL_SECRETS?.split(",").map(name => name.trim()).filter(Boolean),
       }));
       return { status: "active", statusMessage: `Kubernetes worker configured: ${image}` };

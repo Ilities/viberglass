@@ -116,6 +116,11 @@ export class CallbackClient {
     );
   }
 
+  async sendHeartbeat(jobId: string, tenantId: string): Promise<void> {
+    await this.post(`${this.apiUrl}/api/jobs/${jobId}/heartbeat`, tenantId, {},
+      { timeoutMs: 10000, label: "worker heartbeat" }, { jobId });
+  }
+
   async sendCodexAuthCache(
     jobId: string,
     tenantId: string,
@@ -206,4 +211,3 @@ export class CallbackClient {
   }
 
 }
-

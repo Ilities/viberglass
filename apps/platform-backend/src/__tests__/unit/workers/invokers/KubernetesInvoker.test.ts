@@ -48,14 +48,16 @@ function setup() {
   const saveBootstrapPayload = jest.fn().mockResolvedValue(undefined);
   const getRequiredCredentialsForClanker = jest.fn().mockResolvedValue([{ envVar: "GITHUB_TOKEN" }]);
   const workerBindings = jest.fn().mockReturnValue([]);
+  const secrets = { ensure: jest.fn().mockResolvedValue(undefined), remove: jest.fn().mockResolvedValue(undefined) };
   const invoker = new KubernetesInvoker(
     async () => client,
     { saveBootstrapPayload },
     { getRequiredCredentialsForClanker },
     { getStatus: getDispatchStatus },
     { workerBindings },
+    secrets,
   );
-  return { client, saveBootstrapPayload, getDispatchStatus, workerBindings, invoker };
+  return { client, saveBootstrapPayload, getDispatchStatus, workerBindings, secrets, invoker };
 }
 
 describe("KubernetesInvoker", () => {
@@ -70,7 +72,7 @@ describe("KubernetesInvoker", () => {
   });
 
   it("persists the payload and starts one bounded Job using a reference", async () => {
-    const { client, saveBootstrapPayload, invoker } = setup();
+    const { client, saveBootstrapPayload, invoker, secrets } = setup();
 
     await expect(invoker.invoke(job, clanker)).resolves.toEqual({
       workerType: "kubernetes",
@@ -88,8 +90,28 @@ describe("KubernetesInvoker", () => {
       "node", "apps/viberator/dist/cli-worker.js", "--job-ref", job.id,
     ]);
     expect(request.body.spec.template.spec.containers[0].resources.requests.cpu).toBe("250m");
-    expect(JSON.stringify(request.body.metadata)).not.toContain("private-callback-token");
+    expect(JSON.stringify(request.body)).not.toContain("private-callback-token");
+    expect(request.body.spec.template.spec.containers[0]).not.toHaveProperty("envFrom");
+    expect(request.body.spec.template.spec.containers[0].env).toContainEqual({ name: "CALLBACK_TOKEN_FILE", value: "/run/viberglass-auth/token" });
+    expect(secrets.ensure).toHaveBeenCalledWith("viberglass-workers", job.id, job.callbackToken, expect.any(Object));
     expect(JSON.stringify(request.body.spec.template.spec.containers[0].command)).not.toContain("private-callback-token");
+  });
+
+  it("cleans up a submitted Job if creation of its auth Secret is forbidden", async () => {
+    const { invoker, client, secrets } = setup();
+    secrets.ensure.mockRejectedValue(Object.assign(new Error("Forbidden"), { code: 403 }));
+    await expect(invoker.invoke(job, clanker)).rejects.toThrow("Forbidden");
+    expect(client.deleteNamespacedJob).toHaveBeenCalled();
+    expect(secrets.remove).toHaveBeenCalledWith("viberglass-workers", job.id);
+  });
+
+  it("leaves existing Secrets untouched when Job submission is forbidden", async () => {
+    const { invoker, client, secrets } = setup();
+    client.createNamespacedJob.mockRejectedValue(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
+    await expect(invoker.invoke(job, clanker)).rejects.toThrow("Forbidden");
+    expect(secrets.ensure).not.toHaveBeenCalled();
+    expect(secrets.remove).not.toHaveBeenCalled();
+    expect(client.deleteNamespacedJob).not.toHaveBeenCalled();
   });
 
   it("includes the runner's Codex login binding without putting values in the Job", async () => {

@@ -1,5 +1,7 @@
 const execute = jest.fn();
-const where = jest.fn(() => ({ execute }));
+const where = jest.fn().mockReturnThis();
+const updateQuery = { where, execute };
+where.mockReturnValue(updateQuery);
 const set = jest.fn(() => ({ where }));
 const values = jest.fn(() => ({ execute }));
 const mockDb = {
@@ -23,6 +25,7 @@ describe("JobProgressService log lines", () => {
     expect(mockDb.updateTable).toHaveBeenCalledWith("jobs");
     expect(set).toHaveBeenCalledWith({ last_heartbeat: expect.any(Date) });
     expect(where).toHaveBeenCalledWith("id", "=", "job-1");
+    expect(where).toHaveBeenCalledWith("status", "=", "active");
     expect(mockDb.insertInto).toHaveBeenCalledWith("job_log_lines");
   });
 

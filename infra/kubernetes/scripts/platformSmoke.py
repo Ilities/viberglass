@@ -3,9 +3,14 @@ parser = argparse.ArgumentParser(description="Exercise a disposable installed pl
 parser.add_argument("--api-url", default="http://localhost:3100")
 parser.add_argument("--kubeconfig", default="/tmp/viberglass-local.kubeconfig")
 parser.add_argument("--namespace", default="viberglass")
-parser.add_argument("--worker-namespace", default="viberglass-workers")
+parser.add_argument("--release", default="viberglass")
+parser.add_argument("--worker-namespace", help="Defaults to the namespace in the installed backend ConfigMap")
 parser.add_argument("--credentials", default="/tmp/viberglass-platform-smoke-credentials.json")
 args = parser.parse_args()
+if not args.worker_namespace:
+ config=subprocess.check_output(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.namespace,
+  "get","configmap",args.release+"-config","-o","json"],text=True)
+ args.worker_namespace=json.loads(config)["data"]["KUBERNETES_WORKER_NAMESPACE"]
 base = args.api_url.rstrip("/")
 creds = pathlib.Path(args.credentials)
 if creds.exists(): account=json.loads(creds.read_text())

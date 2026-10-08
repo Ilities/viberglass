@@ -13,6 +13,8 @@ import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
 import { KubernetesJobReconciler } from "../workers/KubernetesJobReconciler";
+import { KubernetesPodInspector, createKubernetesPodClient } from "../workers/invokers/KubernetesPodInspector";
+import { WorkerDiagnosticDAO } from "../persistence/job/WorkerDiagnosticDAO";
 import { createKubernetesJobClient } from "../workers/invokers/kubernetesJobClient";
 import { findActiveKubernetesJobs } from "../services/job/JobSweeperQueries";
 import { JobService } from "../services/JobService";
@@ -69,7 +71,8 @@ const heartbeatSweeper = shouldRunBackgroundSweepers
   : null;
 
 const kubernetesJobReconciler = shouldRunBackgroundSweepers && process.env.KUBERNETES_WORKER_NAMESPACE
-  ? new KubernetesJobReconciler(createKubernetesJobClient, findActiveKubernetesJobs, new JobService(), new WorkerStopperChain())
+  ? new KubernetesJobReconciler(createKubernetesJobClient, findActiveKubernetesJobs, new JobService(), new WorkerStopperChain(),
+      new KubernetesPodInspector(createKubernetesPodClient), new WorkerDiagnosticDAO())
   : null;
 
 const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
