@@ -27,7 +27,6 @@ The clean-machine run in [testing/e2e-manual/00-clean-machine.md](testing/e2e-ma
 ## Website (vibug-marketing-site)
 
 - New screenshots, a demo video or GIF, and a redrawn how-it-works diagram. Check the social preview image (`public/media/social-preview.png`) too; links shared on HN and Reddit show it.
-- Rewrite the Terms and Privacy pages: they describe Cloud subscriptions that don't exist. The site collects analytics (Plausible), newsletter sign-ups and contact form messages.
-- Remove the plaintext password from `SCREENSHOT_CAPTURE_GUIDE.md` and rotate it.
+- Rotate the screenshot account's password: it's still in the site repo's git history. The scripts now read `VIBERGLASS_SCREENSHOT_PASSWORD`.
+- Deploy the contact form handler (it no longer logs submissions) and delete or expire its existing CloudWatch logs, which hold past submissions with IP addresses.
 - Commit and push `docs/guide/` before deploying the site; its build clones the guide from `main`.
-- Delete the old site docs and their images (`public/media/`, apart from `social-preview.png`).
