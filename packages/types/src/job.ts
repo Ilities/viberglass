@@ -32,6 +32,8 @@ export const JOB_FAILURE_CODE = {
   AGENT_CREDENTIAL_INVALID: 'AGENT_CREDENTIAL_INVALID',
   /** The model provider refused for quota, credit or rate limits. */
   AGENT_QUOTA_EXHAUSTED: 'AGENT_QUOTA_EXHAUSTED',
+  /** The model refused a request that didn't fit its context window. */
+  AGENT_CONTEXT_EXCEEDED: 'AGENT_CONTEXT_EXCEEDED',
   /** The agent itself failed or gave up. */
   AGENT_FAILED: 'AGENT_FAILED',
   /** The agent finished without writing the plan. */

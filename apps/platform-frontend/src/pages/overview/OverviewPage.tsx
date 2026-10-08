@@ -77,8 +77,8 @@ export function OverviewPage() {
     <>
       <PageMeta title="Overview" />
       <PageHeader
-        eyebrow="Workspace overview · visible spaces only"
-        title="Work across the workspace"
+        eyebrow="Overview"
+        title="Work across your spaces"
         description="Progress, blockers, and completed outcomes."
         actions={
           spaces.length > 1 && (

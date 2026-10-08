@@ -40,6 +40,13 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "setup",
     retryable: true,
   },
+  [JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED]: {
+    title: "Model context exceeded",
+    summary:
+      "The agent's request didn't fit the model's context window, so the model refused it.",
+    category: "setup",
+    retryable: false,
+  },
   [JOB_FAILURE_CODE.AGENT_FAILED]: {
     title: "Agent failed",
     summary: "The agent stopped with an error before finishing.",

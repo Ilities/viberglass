@@ -75,7 +75,7 @@ export function HomePage() {
     <>
       <PageMeta title="Home" />
       <PageHeader
-        eyebrow="Your workspace"
+        eyebrow="Your work"
         title={firstName ? `${greeting(new Date())}, ${firstName}` : 'Home'}
         description={attentionLine(needsYou.length)}
         actions={canCreate && !empty ? <AskForSomething spaces={spaces} /> : undefined}

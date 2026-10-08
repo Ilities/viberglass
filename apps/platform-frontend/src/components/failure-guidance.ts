@@ -26,6 +26,10 @@ function setupFixFor(code: string, project: string, runner?: FailedRunner): { la
       return runner
         ? { label: `Check ${runner.name}'s model key`, href: `/settings/agents/${runner.slug}` }
         : { label: 'Check the model key', href: '/settings/secrets' }
+    case JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED:
+      return runner
+        ? { label: `Check ${runner.name}'s model`, href: `/settings/agents/${runner.slug}` }
+        : { label: 'Check agent runners', href: '/settings/agents' }
     case JOB_FAILURE_CODE.RUNNER_UNAVAILABLE:
       return runner ? { label: `Check ${runner.name}`, href: `/settings/agents/${runner.slug}` } : { label: 'Check agent runners', href: '/settings/agents' }
     default:

@@ -5,6 +5,9 @@ const QUOTA =
 const CREDENTIAL =
   /invalid[_ ]api[_ ]key|invalid x-api-key|incorrect api key|authentication[_ ]error|authentication required|auth[_ ]required|unauthori[sz]ed|\b401\b|not logged in|please (run )?log ?in|api key (is )?(missing|not set|required)/i;
 
+const CONTEXT =
+  /context[_ ]length[_ ]exceeded|maximum context length|context window|context exceeds|exceeds the context|ContextOverflow|prompt is too long/i;
+
 /**
  * Why an agent run failed, from the error its CLI reported.
  *
@@ -15,6 +18,7 @@ const CREDENTIAL =
  */
 export function classifyAgentFailure(errorMessage: string | undefined): JobFailureCode {
   const message = errorMessage ?? "";
+  if (CONTEXT.test(message)) return JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED;
   if (QUOTA.test(message)) return JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED;
   if (CREDENTIAL.test(message)) return JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID;
   return JOB_FAILURE_CODE.AGENT_FAILED;

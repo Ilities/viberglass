@@ -23,7 +23,13 @@ export class OpenCodeModelEndpointEnvironment implements AgentEndpointEnvironmen
             npm: "@ai-sdk/openai-compatible",
             name: endpoint.name,
             options: { baseURL: endpoint.baseUrl, headers },
-            models: { [endpoint.model]: { name: endpoint.model } },
+            // Without limits OpenCode asks for 32k output tokens, which a 32k-context server refuses outright.
+            models: {
+              [endpoint.model]: {
+                name: endpoint.model,
+                limit: { context: 32768, output: 8192 },
+              },
+            },
           },
         },
       }),

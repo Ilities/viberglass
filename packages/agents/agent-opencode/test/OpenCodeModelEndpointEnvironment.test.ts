@@ -24,7 +24,12 @@ test("generates an OpenAI-compatible provider with model and env-referenced head
             Authorization: "Bearer {env:MODEL_ENDPOINT_API_KEY}",
           },
         },
-        models: { "org/qwen": { name: "org/qwen" } },
+        models: {
+          "org/qwen": {
+            name: "org/qwen",
+            limit: { context: 32768, output: 8192 },
+          },
+        },
       },
     },
   });
