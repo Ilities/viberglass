@@ -1,6 +1,7 @@
 import { getProjectBySlug, Project } from '@/service/api/project-api'
+import { useApiRefresh } from '@/hooks/useApiRefresh'
 import { useParams } from 'react-router-dom'
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react'
 
 interface ProjectContextType {
   project: Project | null
@@ -12,7 +13,9 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const params = useParams()
-  const projectSlug = params.project as string
+  const projectSlug = params.project
+  const revision = useApiRefresh('/api/spaces')
+  const loadedSlug = useRef<string | undefined>(undefined)
 
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -20,27 +23,39 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!projectSlug) {
+      loadedSlug.current = undefined
       setProject(null)
       setIsLoading(false)
+      setError(null)
       return
     }
+    const slug = projectSlug
+    const changingSpace = loadedSlug.current !== slug
+    let cancelled = false
 
     async function fetchProject() {
-      setIsLoading(true)
       setError(null)
-      setProject(null)
+      if (changingSpace) {
+        setIsLoading(true)
+        setProject(null)
+      }
       try {
-        const project = await getProjectBySlug(projectSlug)
+        const project = await getProjectBySlug(slug)
+        if (cancelled) return
+        loadedSlug.current = slug
         setProject(project)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch space')
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to fetch space')
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
 
-    fetchProject()
-  }, [projectSlug])
+    void fetchProject()
+    return () => {
+      cancelled = true
+    }
+  }, [projectSlug, revision])
 
   return <ProjectContext.Provider value={{ project, isLoading, error }}>{children}</ProjectContext.Provider>
 }

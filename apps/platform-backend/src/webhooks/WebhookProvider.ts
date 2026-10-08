@@ -36,8 +36,6 @@ export interface WebhookProviderConfig {
   allowedEvents: string[];
   /** Webhook secret for database storage */
   webhookSecret?: string;
-  /** Provider-specific project identifier (e.g., 'owner/repo' for GitHub) */
-  providerProjectId?: string;
 }
 
 /**

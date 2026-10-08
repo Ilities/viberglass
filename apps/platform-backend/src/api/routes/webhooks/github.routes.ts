@@ -9,7 +9,7 @@ import type { WebhookService } from '../../../webhooks/WebhookService';
 import { getRequestRawBody, respondWithWebhookResult } from './routeHelpers';
 
 /**
- * POST /api/webhooks/github
+ * POST /api/webhooks/github/:configId
  *
  * GitHub webhook endpoint for receiving events from GitHub.
  * Handles issues and issue_comment events.
@@ -23,7 +23,7 @@ export function createGitHubRoutes(getWebhookService: () => WebhookService) {
   const router = express.Router();
 
   router.post(
-    '/',
+    '/:configId',
     async (req: Request, res: Response) => {
       try {
         const service = getWebhookService();
@@ -35,7 +35,7 @@ export function createGitHubRoutes(getWebhookService: () => WebhookService) {
           req.body,
           rawBody,
           req.tenantId,
-          { providerName: 'github' },
+          { providerName: 'github', configId: req.params.configId },
         );
 
         return respondWithWebhookResult(res, result);

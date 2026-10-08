@@ -2,12 +2,10 @@ import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfig
 
 export interface IntegrationWebhookProviderPolicy {
   readonly provider: WebhookProvider;
-
-  getProviderLabel(): string;
-  shouldUseIntegrationProviderProjectIdFallback(): boolean;
-  validateProviderProjectId(providerProjectId: string | null): void;
-  normalizeInboundLabelMappings(
-    inputLabelMappings: { [key: string]: unknown } | undefined,
-    existingLabelMappings?: { [key: string]: unknown },
-  ): { [key: string]: unknown };
+  /**
+   * Whether each of the connection's webhooks creates its tasks in a space of
+   * its own. A tracker's connection has one webhook instead, and spaces choose
+   * which of its issues they take.
+   */
+  readonly targetsOneSpace: boolean;
 }

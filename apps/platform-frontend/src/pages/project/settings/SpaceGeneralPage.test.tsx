@@ -1,6 +1,6 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import type { Project } from '@viberglass/types'
 import { useProject } from '@/context/project-context'
 import { updateProject } from '@/service/api/project-api'
@@ -32,12 +32,17 @@ const SPACE: Project = {
   updatedAt: '',
 }
 
+function CurrentPath() {
+  return <p>{useLocation().pathname}</p>
+}
+
 function renderPage() {
   jest.mocked(useProject).mockReturnValue({ project: SPACE, isLoading: false, error: null })
   return render(
     <Theme>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/spaces/web/settings/general']}>
         <SpaceGeneralPage />
+        <CurrentPath />
       </MemoryRouter>
     </Theme>
   )
@@ -64,5 +69,13 @@ describe('SpaceGeneralPage', () => {
     expect(screen.getByRole('button', { name: 'Archive space' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Danger zone' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete space' })).toBeInTheDocument()
+  })
+
+  it('follows the new space URL when renaming changes its slug', async () => {
+    jest.mocked(updateProject).mockResolvedValue({ ...SPACE, name: 'Storefront', slug: 'storefront' })
+    renderPage()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Storefront' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText('/spaces/storefront/settings/general')).toBeInTheDocument()
   })
 })

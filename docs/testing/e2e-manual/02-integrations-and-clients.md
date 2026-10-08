@@ -16,7 +16,7 @@ Everything that talks to Viberglass from outside the browser: GitHub, trackers, 
 ## Preparing a public URL
 
 1. Start a tunnel to the backend: `cloudflared tunnel --url http://localhost:8888` (L-DEV) or `:9088` (L-REV). Note the `https://…trycloudflare.com` URL.
-2. Webhook endpoints are `<tunnel>/api/webhooks/<provider>`. Workers keep calling the backend through `PLATFORM_API_URL` (no change needed locally).
+2. Webhook endpoints are `<tunnel>/api/webhooks/<provider>/<webhook id>`; the connection's page shows the address. Workers keep calling the backend through `PLATFORM_API_URL` (no change needed locally).
 
 ## GitHub (GH)
 
@@ -63,12 +63,13 @@ Expect: the agent's next turn says it read your changes and builds on them; no f
 
 ### GH-07 · Inbound GitHub webhook
 Needs: TUNNEL; GH-01.
-1. Connection → Inbound webhooks → create one for the space (auto-build off). Copy the URL and secret into the repository's webhook settings (events: Issues, Issue comments).
+1. Connection → Webhook → Set up the webhook. Copy the URL and secret into the repository's webhook settings (events: Issues, Issue comments). The space using the repository needs no setup.
 2. Open an issue on GitHub; comment on it.
 3. Send a delivery with a wrong secret (edit the GitHub webhook secret).
-4. Turn auto-build on; open another issue.
+4. In the space's settings → Incoming issues, turn on Write the plan for new issues; open another issue.
+5. Narrow the space to issues labelled `ready`; open an issue without it, then add the label.
 
-Expect: (2) a task appears with the issue content; the comment lands in its thread. (3) The delivery is rejected and listed as failed; **Retry** works after fixing. (4) The task starts an agent turn on its own.
+Expect: (2) a task appears with the issue content; the comment lands in its thread. (3) The delivery is rejected and listed as failed; **Retry** works after fixing. (4) The agent writes the plan on its own. (5) The unlabelled issue is listed as ignored with the reason; adding the label creates the task.
 
 ## Tracker and custom webhooks (HOOK)
 
@@ -80,13 +81,13 @@ Expect: (2) a task appears with the issue content; the comment lands in its thre
 Expect: one task created; the duplicate is ignored (deduplication); the bad signature is refused; deliveries are listed with status and **Retry**.
 
 ### HOOK-02 · Jira (optional)
-1. Connections → Jira → add with an API token; inbound webhook config; register the webhook in the Jira project.
-2. Create an issue; comment on it.
+1. Connections → Jira → add with an API token; set up the webhook; register it in Jira. In a space's settings → Incoming issues, take the label `viberglass`.
+2. Create an issue with the label; comment on it. Create one without it.
 
-Expect: a task per issue, comments in the thread. Jira is marked as a limited integration; record what works.
+Expect: a task for the labelled issue, comments in its thread; the other is listed as ignored. Jira is marked as a limited integration; record what works.
 
 ### HOOK-03 · Shortcut (optional)
-Same as HOOK-02 with a Shortcut story (`/api/webhooks/shortcut/<configId>`).
+Same as HOOK-02 with a Shortcut story and label.
 
 ### HOOK-04 · Linear, Monday, GitLab, Bitbucket
 Not available yet (stubs). Confirm Connections lists them as not available, without broken pages.

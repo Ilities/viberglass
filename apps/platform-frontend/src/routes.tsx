@@ -49,6 +49,7 @@ import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegra
 import { SpaceGeneralSettings } from '@/pages/project/settings/AboutSpacePage'
 import { SpaceMembersPage } from '@/pages/project/settings/SpaceMembersPage'
 import { SpaceRepositoryPage } from '@/pages/project/settings/SpaceRepositoryPage'
+import { SpaceIssuesPage } from '@/pages/project/settings/SpaceIssuesPage'
 import { SpaceTaskDefaultsPage } from '@/pages/project/settings/SpaceTaskDefaultsPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
 import { McpServersPage } from '@/pages/mcp-servers/McpServersPage'
@@ -123,6 +124,7 @@ export function AppRoutes() {
           <Route index element={<Navigate to="general" replace />} />
           <Route path="general" element={<SpaceGeneralSettings />} />
           <Route path="repository" element={<SpaceRepositoryPage />} />
+          <Route path="issues" element={<SpaceIssuesPage />} />
           <Route path="task-defaults" element={<SpaceTaskDefaultsPage />} />
           <Route path="members" element={<SpaceMembersPage />} />
           <Route path="connections" element={<ProjectIntegrationsPage />} />

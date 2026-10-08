@@ -13,7 +13,12 @@ import { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import { DeduplicationService } from "./DeduplicationService";
 import { WebhookSecretService } from "./WebhookSecretService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
-import { ProjectIntegrationLinkDAO } from "../persistence/integrations";
+import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import { TaskIssueLinkDAO } from "../persistence/ticketing/TaskIssueLinkDAO";
+import { TrackerIssueRuleDAO } from "../persistence/trackers/TrackerIssueRuleDAO";
+import { UserDAO } from "../persistence/user/UserDAO";
+import { TrackerIssueRouter } from "../services/trackers/TrackerIssueRouter";
+import { TrackerIssueTaskOpener } from "../services/trackers/TrackerIssueTaskOpener";
 import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
 import { WebhookPlanRequester } from "./WebhookPlanRequester";
 import { TrackerIssueInbound } from "../services/trackers/TrackerIssueInbound";
@@ -40,7 +45,7 @@ export function getWebhookService(): WebhookService {
       type: "github",
       secretLocation: "database",
       algorithm: "sha256",
-      allowedEvents: ["issues.opened", "issue_comment.created"],
+      allowedEvents: ["issues.opened", "issues.edited", "issues.labeled", "issue_comment.created"],
     });
     registry.register(githubProvider);
 
@@ -77,19 +82,18 @@ export function getWebhookService(): WebhookService {
     const credentialProvider = getCredentialFactory();
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
-    const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
     const taskTurns = new TaskTurnService();
     const planner = new WebhookPlanRequester(taskTurns);
     const issues = new TrackerIssueInbound({
+      router: new TrackerIssueRouter({ rules: new TrackerIssueRuleDAO(), repositories: new ProjectScmConfigDAO() }),
+      opener: new TrackerIssueTaskOpener({ tickets: ticketDAO, links: new TaskIssueLinkDAO(), users: new UserDAO(), planner }),
       turns: taskTurns,
       answers: new AgentQuestionAnswerService({ asker: taskTurns }),
-      planner,
     });
     const inboundProcessorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO,
       planner,
       issues,
-      projectIntegrationLinkDAO,
     );
 
     const serviceConfig = {

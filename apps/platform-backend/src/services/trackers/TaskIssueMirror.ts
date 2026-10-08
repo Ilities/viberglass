@@ -11,12 +11,12 @@ import type { RecordedActivity } from "../notifications/NotificationService";
 import type { ActivityListener } from "../tasks/activityListeners";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { TrackerCommenterResolver } from "./TrackerCommenterResolver";
-import { DONE_POST, partMergedPost, planReadyPost, pullRequestPost, questionPost, replyPost } from "./trackerMirrorPosts";
+import { DONE_POST, inSpacePost, partMergedPost, planReadyPost, pullRequestPost, questionPost, replyPost } from "./trackerMirrorPosts";
 
 const logger = createChildLogger({ service: "TaskIssueMirror" });
 
 interface Dependencies {
-  links: Pick<TaskIssueLinkDAO, "getByTicket">;
+  links: Pick<TaskIssueLinkDAO, "getByTicket" | "countSharingIssue">;
   commenters: Pick<TrackerCommenterResolver, "resolve">;
   turns: Pick<TaskAgentTurnDAO, "getByJobId">;
   messages: Pick<TaskMessageDAO, "sourcesAnsweredBy">;
@@ -60,7 +60,8 @@ export class TaskIssueMirror implements ActivityListener {
       return;
     }
     const issue = { key: link.issueKey, url: link.issueUrl, apiBaseUrl: link.apiBaseUrl };
-    for (const post of posts) await commenter.postComment(issue, withViberglassMark(post));
+    const space = (await this.deps.links.countSharingIssue(link)) > 1 ? (await this.deps.tickets.getSummary(activity.ticketId))?.spaceName : null;
+    for (const post of posts) await commenter.postComment(issue, withViberglassMark(space ? inSpacePost(space, post) : post));
   }
 
   private async postsFor({ ticketId, kind, payload }: RecordedActivity, link: TaskIssueLink): Promise<string[]> {

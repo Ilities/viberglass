@@ -14,8 +14,6 @@ export interface WebhookServiceConfig {
 export interface WebhookProcessingOptions {
   providerName?: "github" | "jira" | "shortcut" | "custom";
   configId?: string;
-  integrationId?: string;
-  providerProjectId?: string;
 }
 
 export interface RetryDeliveryOptions {

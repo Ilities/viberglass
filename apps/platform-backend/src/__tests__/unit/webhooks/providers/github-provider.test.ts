@@ -12,7 +12,6 @@ describe("GitHubWebhookProvider", () => {
       algorithm: "sha256",
       allowedEvents: ["issues.opened", "issue_comment.created"],
       webhookSecret: "secret",
-      providerProjectId: "acme/repo",
     });
   });
 

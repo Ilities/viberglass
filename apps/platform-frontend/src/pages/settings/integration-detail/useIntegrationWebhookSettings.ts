@@ -15,8 +15,6 @@ interface UseIntegrationWebhookSettingsArgs {
   integrationEntityId?: string
 }
 
-type GitHubPlanNewIssuesMode = 'matching_events' | 'label_gated'
-
 function areEventListsEqual(left: string[], right: string[]): boolean {
   const normalizedLeft = Array.from(new Set(left)).sort()
   const normalizedRight = Array.from(new Set(right)).sort()
@@ -26,64 +24,6 @@ function areEventListsEqual(left: string[], right: string[]): boolean {
   }
 
   return normalizedLeft.every((event, index) => event === normalizedRight[index])
-}
-
-function areStringListsEqual(left: string[], right: string[]): boolean {
-  const normalizedLeft = Array.from(new Set(left.map((value) => value.trim().toLowerCase()).filter(Boolean))).sort()
-  const normalizedRight = Array.from(
-    new Set(right.map((value) => value.trim().toLowerCase()).filter(Boolean))
-  ).sort()
-
-  if (normalizedLeft.length !== normalizedRight.length) {
-    return false
-  }
-
-  return normalizedLeft.every((value, index) => value === normalizedRight[index])
-}
-
-function normalizeGitHubRequiredLabels(rawLabels: unknown): string[] {
-  if (!Array.isArray(rawLabels)) {
-    return []
-  }
-
-  const normalizedLabels: string[] = []
-  for (const label of rawLabels) {
-    if (typeof label !== 'string') {
-      continue
-    }
-
-    const normalized = label.trim().toLowerCase()
-    if (!normalized || normalizedLabels.includes(normalized)) {
-      continue
-    }
-    normalizedLabels.push(normalized)
-  }
-
-  return normalizedLabels
-}
-
-function parseGitHubPlanNewIssuesSettings(labelMappings?: Record<string, unknown> | null): {
-  mode: GitHubPlanNewIssuesMode
-  requiredLabels: string[]
-} {
-  if (!labelMappings || typeof labelMappings !== 'object' || Array.isArray(labelMappings)) {
-    return { mode: 'matching_events', requiredLabels: [] }
-  }
-
-  const nested =
-    typeof labelMappings.github === 'object' && labelMappings.github !== null && !Array.isArray(labelMappings.github)
-      ? (labelMappings.github as Record<string, unknown>)
-      : labelMappings
-
-  const mode =
-    nested.planNewIssuesMode === 'label_gated'
-      ? 'label_gated'
-      : 'matching_events'
-
-  return {
-    mode,
-    requiredLabels: normalizeGitHubRequiredLabels(nested.requiredLabels ?? nested.labels),
-  }
 }
 
 export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegrationWebhookSettingsArgs) {
@@ -99,9 +39,6 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
   const [inboundEvents, setInboundEvents] = useState<string[]>([])
   const [isSavingWebhook, setIsSavingWebhook] = useState(false)
   const [selectedInboundProjectId, setSelectedInboundProjectId] = useState<string | null>(null)
-  const [selectedInboundProviderProjectId, setSelectedInboundProviderProjectId] = useState<string | null>(null)
-  const [githubPlanNewIssuesMode, setGitHubPlanNewIssuesMode] = useState<GitHubPlanNewIssuesMode>('matching_events')
-  const [githubRequiredLabels, setGitHubRequiredLabels] = useState<string[]>([])
 
   const selectedInboundConfig = useMemo(
     () => inboundWebhooks.find((config) => config.id === selectedInboundConfigId) || null,
@@ -123,9 +60,6 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         setInboundActive(true)
         setInboundEvents([])
         setSelectedInboundProjectId(null)
-        setSelectedInboundProviderProjectId(null)
-        setGitHubPlanNewIssuesMode('matching_events')
-        setGitHubRequiredLabels([])
         return
       }
 
@@ -170,19 +104,12 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
       setInboundActive(selectedInboundConfig.active)
       setInboundEvents(selectedInboundConfig.events)
       setSelectedInboundProjectId(selectedInboundConfig.projectId ?? null)
-      setSelectedInboundProviderProjectId(selectedInboundConfig.providerProjectId ?? null)
-      const planNewIssuesSettings = parseGitHubPlanNewIssuesSettings(selectedInboundConfig.labelMappings)
-      setGitHubPlanNewIssuesMode(planNewIssuesSettings.mode)
-      setGitHubRequiredLabels(planNewIssuesSettings.requiredLabels)
     } else {
       setPlanNewIssues(false)
       setBotUsername('')
       setInboundActive(true)
       setInboundEvents([])
       setSelectedInboundProjectId(null)
-      setSelectedInboundProviderProjectId(null)
-      setGitHubPlanNewIssuesMode('matching_events')
-      setGitHubRequiredLabels([])
     }
   }, [selectedInboundConfig])
 
@@ -216,11 +143,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     void loadDeliveriesForConfig(integrationEntityId, selectedInboundConfigId, false)
   }, [integrationEntityId, loadDeliveriesForConfig, selectedInboundConfigId])
 
-  const handleGenerateSecret = async (
-    providerProjectId?: string | null,
-    projectId?: string | null,
-    labelMappings?: Record<string, unknown>
-  ) => {
+  const handleGenerateSecret = async (projectId?: string | null) => {
     if (!integrationEntityId) {
       return
     }
@@ -239,18 +162,14 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
             planNewIssues,
             botUsername: botUsername.trim() || null,
             active: inboundActive,
-            providerProjectId,
             projectId,
-            labelMappings,
           })
         : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
             events: inboundEvents.length > 0 ? inboundEvents : undefined,
             planNewIssues: false,
             active: true,
-            providerProjectId,
             projectId,
-            labelMappings,
           })
 
       setInboundWebhooks((prev) => {
@@ -273,11 +192,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleCreateInboundWebhook = async (
-    providerProjectId?: string | null,
-    projectId?: string | null,
-    labelMappings?: Record<string, unknown>
-  ) => {
+  const handleCreateInboundWebhook = async (projectId?: string | null) => {
     if (!integrationEntityId) {
       return
     }
@@ -288,9 +203,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         generateSecret: true,
         planNewIssues: false,
         active: true,
-        providerProjectId,
         projectId,
-        labelMappings,
       })
       setInboundWebhooks((prev) => [...prev, config])
       setSelectedInboundConfigId(config.id)
@@ -305,11 +218,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleSaveInboundWebhook = async (
-    providerProjectId?: string | null,
-    projectId?: string | null,
-    labelMappings?: Record<string, unknown>
-  ) => {
+  const handleSaveInboundWebhook = async (projectId?: string | null) => {
     if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
@@ -326,9 +235,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         planNewIssues,
         botUsername: botUsername.trim() || null,
         active: inboundActive,
-        providerProjectId,
         projectId,
-        labelMappings,
       })
       setInboundWebhooks((prev) => prev.map((item) => (item.id === config.id ? config : item)))
       toast.success('Inbound webhook settings saved')
@@ -449,25 +356,18 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const selectedInboundPlanNewIssuesSettings = parseGitHubPlanNewIssuesSettings(selectedInboundConfig?.labelMappings)
-
   const hasInboundChanges = selectedInboundConfig
     ? planNewIssues !== selectedInboundConfig.planNewIssues ||
       botUsername.trim() !== (selectedInboundConfig.botUsername ?? '') ||
       inboundActive !== selectedInboundConfig.active ||
       !areEventListsEqual(inboundEvents, selectedInboundConfig.events) ||
-      selectedInboundProjectId !== (selectedInboundConfig.projectId ?? null) ||
-      selectedInboundProviderProjectId !== (selectedInboundConfig.providerProjectId ?? null) ||
-      githubPlanNewIssuesMode !== selectedInboundPlanNewIssuesSettings.mode ||
-      !areStringListsEqual(githubRequiredLabels, selectedInboundPlanNewIssuesSettings.requiredLabels)
+      selectedInboundProjectId !== (selectedInboundConfig.projectId ?? null)
     : false
 
   return {
     planNewIssues,
     botUsername,
     deliveries,
-    githubPlanNewIssuesMode,
-    githubRequiredLabels,
     hasInboundChanges,
     inboundActive,
     inboundEvents,
@@ -477,15 +377,11 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     isSavingWebhook,
     selectedInboundConfig,
     selectedInboundConfigId,
-    selectedInboundProviderProjectId,
     selectedInboundProjectId,
     showSecret,
     setPlanNewIssues,
     setBotUsername,
-    setGitHubPlanNewIssuesMode,
-    setGitHubRequiredLabels,
     setInboundActive,
-    setSelectedInboundProviderProjectId,
     setSelectedInboundProjectId,
     setShowSecret,
     handleCopyWebhookSecret,

@@ -87,3 +87,10 @@ function inline(content: unknown): string {
     })
     .join("");
 }
+
+/** An issue's labels, lower-cased. */
+export function jiraLabels(fields: unknown): string[] {
+  const labels = field(fields, "labels");
+  if (!Array.isArray(labels)) return [];
+  return labels.flatMap((label) => (typeof label === "string" && label.trim() ? [label.trim().toLowerCase()] : []));
+}

@@ -423,14 +423,13 @@ export interface IntegrationInboundWebhookConfig {
   webhookUrl: string
   webhookSecret: string | null
   hasSecret: boolean
-  providerProjectId: string | null
+  /** Custom webhooks only: the space their tasks go to. */
   projectId: string | null
   active: boolean
   planNewIssues: boolean
   /** The tracker account whose mention in a comment asks the agent. */
   botUsername: string | null
   inboundEvents: string[]
-  labelMappings: Record<string, unknown> | null
   events: string[]
   createdAt: string
   updatedAt: string
@@ -460,7 +459,7 @@ export interface IntegrationWebhookDelivery {
   webhookConfigId: string | null
   deliveryId: string
   eventType: string
-  status: 'pending' | 'processing' | 'succeeded' | 'failed'
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'ignored'
   retryable: boolean
   errorMessage: string | null
   ticketId: string | null
@@ -506,9 +505,7 @@ export async function createIntegrationInboundWebhook(
     botUsername?: string | null
     webhookSecret?: string
     generateSecret?: boolean
-    providerProjectId?: string | null
     projectId?: string | null
-    labelMappings?: Record<string, unknown>
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -523,9 +520,7 @@ export async function createIntegrationInboundWebhook(
         botUsername: config.botUsername,
         webhookSecret: config.webhookSecret,
         generateSecret: config.generateSecret,
-        providerProjectId: config.providerProjectId,
         projectId: config.projectId,
-        labelMappings: config.labelMappings,
         active: config.active,
       }),
     }
@@ -550,9 +545,7 @@ export async function updateIntegrationInboundWebhook(
     botUsername?: string | null
     webhookSecret?: string
     generateSecret?: boolean
-    providerProjectId?: string | null
     projectId?: string | null
-    labelMappings?: Record<string, unknown>
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -567,9 +560,7 @@ export async function updateIntegrationInboundWebhook(
         botUsername: config.botUsername,
         webhookSecret: config.webhookSecret,
         generateSecret: config.generateSecret,
-        providerProjectId: config.providerProjectId,
         projectId: config.projectId,
-        labelMappings: config.labelMappings,
         active: config.active,
       }),
     }
@@ -606,7 +597,7 @@ export async function getIntegrationDeliveries(
   inboundConfigId: string,
   options: {
     limit?: number
-    statuses?: Array<'pending' | 'processing' | 'succeeded' | 'failed'>
+    statuses?: Array<IntegrationWebhookDelivery['status']>
   } = {}
 ): Promise<IntegrationWebhookDelivery[]> {
   const limit = options.limit ?? 50
@@ -643,6 +634,57 @@ export async function retryIntegrationDelivery(
     throw new Error(error.reason || error.message || error.error || 'Failed to retry delivery')
   }
   const data: ApiResponse<IntegrationWebhookRetryResult> = await response.json()
+  return data.data
+}
+
+// ============================================================================
+// Which tracker issues spaces take
+// ============================================================================
+
+/** A space taking a connection's issues: those with the label, or for GitHub with no label, every issue in its repository. */
+export interface TrackerIssueRule {
+  id: string
+  projectId: string
+  integrationId: string
+  label: string | null
+  planNewIssues: boolean
+}
+
+export interface ConnectionSpaceRule extends TrackerIssueRule {
+  projectName: string
+  projectSlug: string
+}
+
+export async function getSpaceIssueRules(projectId: string): Promise<TrackerIssueRule[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/space/${projectId}/issue-rules`)
+  if (!response.ok) throw new Error('Failed to load which tracker issues the space takes')
+  const data: ApiResponse<TrackerIssueRule[]> = await response.json()
+  return data.data
+}
+
+export async function saveSpaceIssueRules(
+  projectId: string,
+  integrationId: string,
+  rules: Array<Pick<TrackerIssueRule, 'label' | 'planNewIssues'>>
+): Promise<TrackerIssueRule[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/space/${projectId}/issue-rules/${integrationId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rules }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to save which tracker issues the space takes')
+  }
+  const data: ApiResponse<TrackerIssueRule[]> = await response.json()
+  return data.data
+}
+
+/** The rules of every space that takes the connection's issues. */
+export async function getConnectionIssueRules(integrationId: string): Promise<ConnectionSpaceRule[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/issue-rules`)
+  if (!response.ok) throw new Error("Failed to load the spaces that take the connection's issues")
+  const data: ApiResponse<ConnectionSpaceRule[]> = await response.json()
   return data.data
 }
 

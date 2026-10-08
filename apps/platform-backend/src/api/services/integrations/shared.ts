@@ -14,13 +14,6 @@ export function getDefaultInboundEvents(provider: WebhookProvider): string[] {
   return integrationRegistry.getDefaultInboundEvents(provider);
 }
 
-export function getProviderProjectIdFromIntegration(
-  provider: WebhookProvider,
-  integrationConfig: Record<string, unknown>,
-): string | null {
-  return integrationRegistry.getProviderProjectId(provider, integrationConfig);
-}
-
 export function serializeInboundWebhookConfig(
   config: {
     id: string;
@@ -30,9 +23,7 @@ export function serializeInboundWebhookConfig(
     botUsername: string | null;
     active: boolean;
     webhookSecretEncrypted: string | null;
-    providerProjectId: string | null;
     projectId: string | null;
-    labelMappings?: Record<string, unknown>;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -41,19 +32,14 @@ export function serializeInboundWebhookConfig(
   return {
     id: config.id,
     provider: config.provider,
-    webhookUrl:
-      config.provider === "custom" || config.provider === "shortcut"
-        ? `/api/webhooks/${config.provider}/${config.id}`
-        : `/api/webhooks/${config.provider}`,
+    webhookUrl: `/api/webhooks/${config.provider}/${config.id}`,
     events: config.allowedEvents,
     planNewIssues: config.planNewIssues,
     botUsername: config.botUsername,
     active: config.active,
     hasSecret: Boolean(config.webhookSecretEncrypted),
     webhookSecret: includeSecret,
-    providerProjectId: config.providerProjectId,
     projectId: config.projectId,
-    labelMappings: config.labelMappings || {},
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
   };
@@ -65,7 +51,7 @@ export function serializeWebhookDelivery(delivery: {
   webhookConfigId: string | null;
   deliveryId: string;
   eventType: string;
-  status: "pending" | "processing" | "succeeded" | "failed";
+  status: DeliveryStatus;
   errorMessage: string | null;
   ticketId: string | null;
   projectId: string | null;
@@ -79,7 +65,7 @@ export function serializeWebhookDelivery(delivery: {
     deliveryId: delivery.deliveryId,
     eventType: delivery.eventType,
     status: delivery.status,
-    retryable: delivery.status === "failed",
+    retryable: delivery.status === "failed" || delivery.status === "ignored",
     errorMessage: delivery.errorMessage,
     ticketId: delivery.ticketId,
     projectId: delivery.projectId,
@@ -107,6 +93,7 @@ const VALID_DELIVERY_STATUSES: DeliveryStatus[] = [
   "processing",
   "succeeded",
   "failed",
+  "ignored",
 ];
 
 function splitQueryValues(value: unknown): string[] {

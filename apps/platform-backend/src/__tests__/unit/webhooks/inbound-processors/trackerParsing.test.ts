@@ -1,5 +1,6 @@
 import { takeBotMention } from "../../../../webhooks/inbound-processors/trackers/botMention";
-import { plansGitHubIssue } from "../../../../webhooks/inbound-processors/trackers/githubIssuePolicy";
+import { jiraLabels } from "../../../../webhooks/inbound-processors/trackers/jiraPayload";
+import { shortcutLabels } from "../../../../webhooks/inbound-processors/trackers/shortcutLabels";
 import { jiraBrowseUrl, jiraSiteUrl, jiraText } from "../../../../webhooks/inbound-processors/trackers/jiraPayload";
 
 describe("takeBotMention", () => {
@@ -39,12 +40,20 @@ describe("Jira payloads", () => {
   });
 });
 
-describe("plansGitHubIssue", () => {
-  it("plans every new issue, or with label gating only those with a listed label", () => {
-    expect(plansGitHubIssue(false, {}, ["bug"])).toBe(false);
-    expect(plansGitHubIssue(true, {}, [])).toBe(true);
-    const gated = { github: { planNewIssuesMode: "label_gated", requiredLabels: ["AI-Plan"] } };
-    expect(plansGitHubIssue(true, gated, ["bug"])).toBe(false);
-    expect(plansGitHubIssue(true, gated, ["ai-plan"])).toBe(true);
+describe("issue labels", () => {
+  it("reads Jira's labels, lower-cased", () => {
+    expect(jiraLabels({ labels: ["Frontend", " ui ", ""] })).toEqual(["frontend", "ui"]);
+    expect(jiraLabels({})).toEqual([]);
+  });
+
+  it("names a Shortcut story's labels from the event's references", () => {
+    const refs = [
+      { id: 7, entity_type: "label", name: "Frontend" },
+      { id: 8, entity_type: "label", name: "ops" },
+      { id: 9, entity_type: "workflow-state", name: "Done" },
+    ];
+    expect(shortcutLabels({ data: { label_ids: [7, 8] }, refs })).toEqual(["frontend", "ops"]);
+    expect(shortcutLabels({ data: { label_ids: { adds: [8], removes: [7] } }, refs })).toEqual(["ops"]);
+    expect(shortcutLabels({ data: { labels: [{ id: 3, name: "Bug" }] } })).toEqual(["bug"]);
   });
 });

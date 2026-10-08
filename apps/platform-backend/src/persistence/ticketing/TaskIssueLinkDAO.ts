@@ -34,18 +34,33 @@ export class TaskIssueLinkDAO {
     return row ? toLink(row) : null;
   }
 
-  /** The task an issue is linked to in a space; the newest, should the issue have been linked twice. */
-  async findTicket(provider: string, issueKey: string, projectId: string): Promise<string | null> {
-    const row = await db
+  /**
+   * The tasks an issue is linked to, one per space, oldest first. Links made
+   * before connections were recorded match any connection.
+   */
+  async findTickets(provider: string, issueKey: string, integrationId: string): Promise<Array<{ ticketId: string; projectId: string }>> {
+    const rows = await db
       .selectFrom("task_issue_links")
       .innerJoin("tickets", "tickets.id", "task_issue_links.ticket_id")
-      .select("task_issue_links.ticket_id")
+      .select(["task_issue_links.ticket_id", "tickets.project_id"])
       .where("task_issue_links.provider", "=", provider)
       .where("task_issue_links.issue_key", "=", issueKey)
-      .where("tickets.project_id", "=", projectId)
-      .orderBy("task_issue_links.created_at", "desc")
-      .executeTakeFirst();
-    return row?.ticket_id ?? null;
+      .where((eb) => eb.or([eb("task_issue_links.integration_id", "=", integrationId), eb("task_issue_links.integration_id", "is", null)]))
+      .orderBy("task_issue_links.created_at", "asc")
+      .execute();
+    return rows.map((row) => ({ ticketId: row.ticket_id, projectId: row.project_id }));
+  }
+
+  /** How many tasks share a task's issue, itself included. */
+  async countSharingIssue(link: Pick<TaskIssueLink, "provider" | "issueKey" | "integrationId">): Promise<number> {
+    let query = db
+      .selectFrom("task_issue_links")
+      .select((eb) => eb.fn.countAll<string>().as("count"))
+      .where("provider", "=", link.provider)
+      .where("issue_key", "=", link.issueKey);
+    if (link.integrationId) query = query.where("integration_id", "=", link.integrationId);
+    const row = await query.executeTakeFirst();
+    return Number(row?.count ?? 0);
   }
 }
 

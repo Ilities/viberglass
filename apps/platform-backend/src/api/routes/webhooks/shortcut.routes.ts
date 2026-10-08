@@ -171,11 +171,6 @@ export function createShortcutRoutes(getWebhookService: () => WebhookService) {
   }
 
   router.post(
-    '/',
-    handleShortcutWebhook,
-  );
-
-  router.post(
     '/:configId',
     handleShortcutWebhook,
   );

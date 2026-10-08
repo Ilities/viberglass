@@ -43,3 +43,8 @@ export function partMergedPost(parts: number[]): string {
 }
 
 export const DONE_POST = "**Done.**";
+
+/** Names the space a post is about, for an issue that has a task in more than one. */
+export function inSpacePost(space: string, post: string): string {
+  return `**${space}** · ${post}`;
+}

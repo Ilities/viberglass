@@ -90,10 +90,10 @@ export function useSpaceRepositoryForm(project: Project | null) {
   }
 
   useEffect(() => {
-    if (!project) return
+    if (!project?.id) return
     setError(null)
     setSuccess(null)
-  }, [project])
+  }, [project?.id])
 
   useEffect(() => {
     let isActive = true

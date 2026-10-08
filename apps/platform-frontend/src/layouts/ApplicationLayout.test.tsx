@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ApplicationLayout } from './ApplicationLayout'
@@ -8,6 +8,7 @@ import { useTheme } from '@/context/theme-context'
 import { getProjects } from '@/service/api/project-api'
 import { getNeedsYouCount } from '@/service/api/home-api'
 import type { AuthUser } from '@/service/api/auth-api'
+import { apiFetch } from '@/service/api/client'
 
 jest.mock('@/context/auth-context', () => ({
   useAuth: jest.fn(),
@@ -128,6 +129,29 @@ function linkNames(drawer: HTMLElement): string[] {
 }
 
 describe('ApplicationLayout navigation', () => {
+  it.each(['/api/spaces', '/api/setup/space', '/api/setup/demo'])('updates the mounted sidebar after a space is created through %s', async (path) => {
+    renderLayout('/')
+    const drawer = await openDrawer()
+    const originalFetch = global.fetch
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    mockedGetProjects.mockResolvedValue([
+      {
+        id: 'new-space', name: 'New API space', slug: 'new-api-space', createdAt: '', updatedAt: '',
+        ticketSystem: 'custom', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {},
+        isPrivate: false, keyPrefix: 'NEW', defaultReviewerIds: [], questionReminderHours: 4,
+      },
+    ])
+    try {
+      await act(async () => {
+        await apiFetch(path, { method: 'POST' })
+      })
+      expect(await within(drawer).findByRole('link', { name: /New API space/i })).toHaveAttribute('href', '/spaces/new-api-space')
+      expect(within(drawer).queryByRole('link', { name: /Catalyst/i })).not.toBeInTheDocument()
+    } finally {
+      global.fetch = originalFetch
+    }
+  })
+
   it('shows Home, Overview, the spaces and, for admins, one Settings entry', async () => {
     renderLayout('/')
     const drawer = await openDrawer()

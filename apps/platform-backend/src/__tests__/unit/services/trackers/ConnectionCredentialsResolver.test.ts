@@ -1,16 +1,21 @@
 import { ConnectionCredentialsResolver } from "../../../../services/trackers/ConnectionCredentialsResolver";
 
-function resolver(options: { credential?: { credentialType: string; secretId: string } | null; named?: string | null }) {
+function resolver(options: { credentials?: Array<{ credentialType: string; secretId: string }>; named?: string | null }) {
   return new ConnectionCredentialsResolver(
-    { getDefaultForIntegration: jest.fn().mockResolvedValue(options.credential ?? null) },
+    { listByIntegrationId: jest.fn().mockResolvedValue(options.credentials ?? []) },
     { resolveSecretValue: jest.fn().mockResolvedValue("default-token") },
     { resolveSecretValueByName: jest.fn().mockResolvedValue(options.named ?? null) },
   );
 }
 
 describe("ConnectionCredentialsResolver", () => {
-  it("fills in the connection's default token", async () => {
-    const credentials = await resolver({ credential: { credentialType: "token", secretId: "s-1" } }).resolve({
+  it("fills in the connection's first token credential, the default being listed first", async () => {
+    const credentials = await resolver({
+      credentials: [
+        { credentialType: "oauth", secretId: "s-0" },
+        { credentialType: "token", secretId: "s-1" },
+      ],
+    }).resolve({
       id: "conn-1",
       config: { instanceUrl: "https://acme.atlassian.net", email: "bot@acme.com" },
     });

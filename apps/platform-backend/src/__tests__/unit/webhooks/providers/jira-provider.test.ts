@@ -12,7 +12,6 @@ describe("JiraWebhookProvider", () => {
       algorithm: "sha256",
       allowedEvents: ["issue_created", "comment_created"],
       webhookSecret: "secret",
-      providerProjectId: "PROJ",
     });
   });
 

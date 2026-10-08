@@ -22,32 +22,12 @@ A space can take its tasks from a tracker. Each issue is linked to the task it c
 | Tracker | State |
 |---|---|
 | GitHub Issues | Ready |
+| Jira Cloud | Ready |
 | Shortcut | Ready |
 | Custom webhook | Ready, for any system that can send JSON |
-| Jira | Not available yet; hidden under Connections until it has been tried against a real site |
 | GitLab, Bitbucket, Linear, Monday | Not available yet |
 
-To connect one:
-
-1. Under Settings → Connections, add the tracker. For Jira, enter the site URL and the email of the account Viberglass posts as.
-2. Under Credentials on the same page, add an API token for that account. Viberglass uses it to post to the issues tasks are linked to. GitHub uses the repository token for this.
-3. Set up the connection's inbound webhook. The page gives the webhook address and a secret, the setup steps for the tracker, and which events to accept: issues created and updated, and comments created.
-4. Register the webhook in the tracker with that address and secret. Viberglass checks every delivery's signature.
-5. In the space's settings, link the connection under Connections, and choose it under Issue tracker.
-
-### How an issue and its task work together
-
-- A new issue creates a task in the space, linked to the issue. The person who opened it becomes the task's requester when their email matches a Viberglass account.
-- Editing the issue's title or description updates the task.
-- A comment on the issue appears in the task's thread. It's shown as the Viberglass person whose email matches the commenter, or otherwise under the commenter's name with where they wrote it, such as "Pat · on Jira".
-- A comment that mentions the connection's bot account asks the agent, like mentioning it in the thread. A reply from the person the agent asked answers its question.
-- Viberglass comments on the issue when the plan is ready, with a short summary and a link, when the agent asks a question, when it opens the pull request, and when the task is done. When the agent was asked from the issue, its reply is posted there too. Messages written in Viberglass stay in Viberglass.
-
-### Plans for new issues
-
-Each connection's inbound webhook has a setting, Write the plan for new issues. With it on, the agent writes the plan as soon as an issue arrives. With it off, the task waits until someone asks, in Viberglass or by mentioning the bot on the issue. For GitHub you can limit it to issues with certain labels. Nothing is built before there's a plan.
-
-Set the bot account on the same page: the account whose mention asks the agent. That's the Jira account ID, the Shortcut mention name or the GitHub login, usually the account the token belongs to.
+Connecting a tracker, choosing which issues each space takes, and what to check when an issue doesn't arrive are in [Issue trackers](issue-trackers.md).
 
 ### Custom webhooks
 

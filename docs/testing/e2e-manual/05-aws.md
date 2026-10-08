@@ -138,7 +138,7 @@ Expect: function `viberator-<runner>` created; the research arrives; cancel can'
 Expect: emails delivered from `EMAIL_FROM`; first real run of SES.
 
 ### AWS-19 · Webhooks and Slack on AWS
-1. Repeat GH-07 against `https://api.dev.<domain>/api/webhooks/github`.
+1. Repeat GH-07 against the deployed backend (`https://api.dev.<domain>/api/webhooks/github/<webhook id>`).
 2. Set the Slack signing secret and bot token in SSM (`/viberglass/dev/backend/slack-*`), redeploy, run SLACK-02 to SLACK-04.
 
 Expect: same results as locally.

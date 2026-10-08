@@ -36,6 +36,8 @@ import { TaskSituationService } from "../../services/tasks/TaskSituationService"
 import { TaskReadDAO } from "../../persistence/ticketing/TaskReadDAO";
 import { TaskAskPolicyService } from "../../services/taskTurns/TaskAskPolicyService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
+import { registerTaskCopyRoutes } from "./tickets/copyRoutes";
+import { TaskCopyService } from "../../services/tasks/TaskCopyService";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { registerTaskQuestionRoutes } from "./tickets/questionRoutes";
 import { registerTaskSteeringRoutes } from "./tickets/steeringRoutes";
@@ -80,6 +82,9 @@ registerTaskDiscussionRoutes(router, {
   timeline: new TaskTimelineService(),
   turns: taskTurns,
   mentions: new TaskMentionDAO(),
+});
+registerTaskCopyRoutes(router, {
+  copies: new TaskCopyService({ tickets: ticketService, spaceAccess: new SpaceAccessService(), discussion: taskDiscussion }),
 });
 registerTaskQuestionRoutes(router, { answers: new AgentQuestionAnswerService({ asker: taskTurns }) });
 const steering = new TaskSteeringService({ turns: taskTurns });
