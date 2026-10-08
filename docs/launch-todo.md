@@ -2,19 +2,18 @@
 
 What's left before Viberglass is announced publicly (Show HN, Reddit). Collected 2026-10-07. Delete items as they're done, and this file with the last one.
 
-Context from the last session, and how to test the trackers: [launch-handover.md](launch-handover.md).
+Context from the last session: [launch-handover.md](launch-handover.md).
 
 The clean-machine run in [testing/e2e-manual/00-clean-machine.md](testing/e2e-manual/00-clean-machine.md) is the final check; several items below come from its known issues.
 
 ## Installing and running
 
 - Publish a first release (images, CLI, extension zip) and make the GHCR packages public; set the Pulumi workflow secrets (see `.github/DEPLOYMENT.md`).
-- AWS, Kubernetes and OVHcloud: run each install path from nothing, following only the docs (clean-machine tests CLEAN-20 – CLEAN-32). Add a clean-machine test for the one-server compose install and run it too.
+- AWS, Kubernetes and OVHcloud: run each install path from nothing, following only the docs (clean-machine tests CLEAN-15 – CLEAN-32). Kubernetes is tested programmatically on a local cluster (`kubernetesSmoke.ts` and the storage smokes); what's left there is following the README and install guide on a clean machine (CLEAN-20) and the managed cluster on OVHcloud (CLEAN-21 – CLEAN-23). Run the one-server compose install too (CLEAN-15 – CLEAN-19).
 
 ## Validation still open from the UX review
 
-- Linked tracker issues against real Jira Cloud, Shortcut and GitHub: a new issue creates its task (and plan, when set), an edit updates it, comments reach the thread, a bot mention asks the agent, and the plan, questions, pull request and done come back as comments. Check Shortcut's real comment payload for the author's name.
-- A real writable repository from plan to merged PR, closing and reopening the task.
+- A real writable repository from plan to merged PR, closing and reopening the task. Plans in parts are partly tested on token.observer; still to try with a real build: add part 2 to part 1's pull request, mark a part done and skip one, and discard a build that failed before opening its pull request ([ADR 0013](adr/0013-ways-around-building-in-parts.md)).
 - Native-provider keys tested separately from custom endpoints, including replacing a failed key and timeouts.
 - A manual accessibility pass in both themes: contrast, focus order and restoration, dialogs, keyboard, screen reader.
 - One first-time admin, PM, reviewer and read-only viewer each using it unguided.
@@ -22,7 +21,7 @@ The clean-machine run in [testing/e2e-manual/00-clean-machine.md](testing/e2e-ma
 
 ## Licensing and project
 
-- Add a contributor license agreement (e.g. the cla-assistant GitHub app) before accepting outside pull requests, so a commercial license stays possible.
+- Contributor license agreement: [CLA.md](../CLA.md) is drafted and CONTRIBUTING asks for it. Fill in the Project Owner's legal name (and have it read by someone who knows contracts), put its text in a GitHub gist, and link the gist to the repository at cla-assistant.io.
 - Send a test email to `security@viberglass.io`, the address in SECURITY.md.
 
 ## Website (vibug-marketing-site)

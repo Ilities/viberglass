@@ -35,7 +35,7 @@ Create one custom inbound endpoint per system that sends tasks. Each has its own
 
 ## Slack
 
-The Slack app lets people start tasks with `/viberator`, follow them in a Slack thread, and get DMs. See [Slack](../user/slack.md) for how people use it.
+The Slack app lets people start tasks with `/viberglass`, follow them in a Slack thread, and get DMs. See [Slack](../user/slack.md) for how people use it.
 
 1. Under Settings → Connections → Slack, enter your backend's public HTTPS address and copy the app manifest it fills in. At api.slack.com/apps, choose Create New App → From a manifest, paste it, create the app and install it to your workspace.
 2. Set `SLACK_BOT_TOKEN` (the bot token, `xoxb-…`) and `SLACK_SIGNING_SECRET` on the backend, and `PLATFORM_FRONTEND_URL` so Slack posts link to tasks. Restart the backend.

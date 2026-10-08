@@ -42,7 +42,7 @@ On Docker, the first run of each agent downloads its worker image, which can tak
 
 - A pull request was merged but the task is still open: merges are picked up by a regular check, within about an hour.
 - Nobody gets email: check `EMAIL_FROM` and `SMTP_URL` (or SES on AWS), then Send test email under Settings → Notifications. On AWS, a new SES account only delivers to verified addresses until production access is granted.
-- Slack doesn't answer `/viberator`: the backend needs `SLACK_SIGNING_SECRET` and `SLACK_BOT_TOKEN`, and Slack must reach `https://<your backend>/api/webhooks/slack`. Without the signing secret the route answers 503.
+- Slack doesn't answer `/viberglass`: the backend needs `SLACK_SIGNING_SECRET` and `SLACK_BOT_TOKEN`, and Slack must reach `https://<your backend>/api/webhooks/slack`. Without the signing secret the route answers 503.
 - Someone can't see a space or a task: they may not have access. Check their workspace role, and whether the space is private. See [People and access](people-and-access.md).
 - Someone forgot their password: send them a Reset link from Settings → Members.
 - On Docker, a port is already in use: stop whatever uses 3000, 8888 or 5432, or change the port mapping in `docker-compose.yml`.

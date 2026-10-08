@@ -108,7 +108,7 @@ Expect: Slack shows as in use; without the signing secret, the webhook answers 5
 Expect: DMs for the mention and question, with links back to the task.
 
 ### SLACK-03 · Slash command and modal
-1. In Slack: `/viberator` → the modal; pick a space you can see; describe a task; submit.
+1. In Slack: `/viberglass` → the modal; pick a space you can see; describe a task; submit.
 2. As a Slack user not linked to a Viberglass account, try the same.
 
 Expect: (1) a task created with you as requester; a thread posted with its link. (2) A message saying to link the account first.

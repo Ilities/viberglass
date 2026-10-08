@@ -90,7 +90,7 @@ services:
       # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
       EMAIL_FROM: ${EMAIL_FROM:-}
       SMTP_URL: ${SMTP_URL:-}
-      # Slack (optional): DMs and the /viberator command; see docs/operations/slack-integration.md
+      # Slack (optional): DMs and the /viberglass command; see docs/operations/slack-integration.md
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       # Where pre-built worker images come from (publish-worker-images.yml). Runners

@@ -17,6 +17,7 @@ describe("describeTurnParts", () => {
     expect(describeTurnParts(state, { first: 2, last: 2 }).building).toBe("part 2, “Show it”");
     expect(describeTurnParts(state, { first: 3, last: 3 }).building).toBe("part 3");
     expect(describeTurnParts(state, { first: 2, last: null }).building).toBe("parts 2 to the end");
+    expect(describeTurnParts(state, { first: 1, last: null }).building).toBe("parts 1 to the end");
   });
 
   it("names the parts that already have pull requests", () => {

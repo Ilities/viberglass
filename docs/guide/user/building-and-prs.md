@@ -22,9 +22,19 @@ A large plan can be written in parts, each small enough for one review. The plan
 
 A plan without parts is built as a whole with Build it. Revising the plan leaves parts that are already built as they are.
 
+When the work doesn't go part by part, each part's menu (⋯) in the plan has a way around it:
+
+- Mark done, for a part finished some other way, such as by hand in another pull request. If its pull request is still open, it stops holding up the next part, which gets a pull request of its own.
+- Skip this part, for a part that isn't needed after all.
+- Discard this build, for a build that stopped before opening its pull request, so its parts show Building with nothing happening. Its parts can then be built again. It isn't offered while the agent is working.
+
+A mark can be taken back from the same menu, and a merge always counts over it. Marking the last part that's left finishes the task, as a merge would.
+
+While a part's pull request is open, the next part has Add to part N's pull request. The agent builds that part on the same branch, and the one pull request then covers both parts.
+
 ## When a task is done
 
-A task is done when the pull requests for all of its plan are merged. Viberglass checks the state of open pull requests regularly, so a merge on GitHub closes the task within about an hour. The requester and owner are told.
+A task is done when the pull requests for all of its plan are merged, or its remaining parts are marked done or skipped. Viberglass checks the state of open pull requests regularly, so a merge on GitHub closes the task within about an hour. The requester and owner are told.
 
 You can also finish a task by hand with Actions → Finish task, for work that ended another way. That keeps the history and merges nothing. Reopen task opens it again.
 

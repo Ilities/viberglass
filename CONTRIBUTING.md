@@ -83,6 +83,7 @@ Feature suggestions are tracked as GitHub issues. When creating a feature sugges
 3. Ensure all tests pass: `npm test`
 4. Update documentation if needed
 5. Submit your pull request with a clear description of changes
+6. Sign the [Contributor License Agreement](CLA.md) when the CLA Assistant asks on your first pull request. You keep the copyright in your work; the agreement lets the project be distributed under the AGPL and, if needed, under other licenses. Pull requests can be merged only once it's signed.
 
 **PR Title Format:** Use conventional commits style:
 - `feat: add new feature`

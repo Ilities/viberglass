@@ -1,6 +1,6 @@
 # Slack Integration
 
-Viberglass connects to Slack through the [Vercel Chat SDK](https://github.com/vercel/chat). People can start a task from Slack with `/viberator`, and the task then gets a Slack thread that mirrors its thread in Viberglass. What people write in the Slack thread goes to the task, and what happens on the task (messages from the web, the agent's runs, its questions, the plan, the pull request) is posted back into the thread.
+Viberglass connects to Slack through the [Vercel Chat SDK](https://github.com/vercel/chat). People can start a task from Slack with `/viberglass`, and the task then gets a Slack thread that mirrors its thread in Viberglass. What people write in the Slack thread goes to the task, and what happens on the task (messages from the web, the agent's runs, its questions, the plan, the pull request) is posted back into the thread.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ Viberglass connects to Slack through the [Vercel Chat SDK](https://github.com/ve
 
 The integration provides:
 
-- A `/viberator` slash command that opens a form to create a task and ask an agent for a plan or for code.
+- A `/viberglass` slash command that opens a form to create a task and ask an agent for a plan or for code.
 - One Slack thread per task started from Slack, kept in step with the task's thread in Viberglass.
 - Thread replies that become messages on the task, asks of the agent (when they mention the bot) or answers to the agent's question.
 - Buttons in the thread: a **Build it** button after a plan, and option buttons on the agent's questions.
@@ -55,9 +55,9 @@ curl -X POST https://slack.com/api/apps.manifest.create \
 ### Option C: Manual Setup
 
 1. Create a new app at [api.slack.com/apps](https://api.slack.com/apps) > **From scratch**.
-2. **Bot User**: set the display name to "Viberator" and enable "Always Online".
+2. **Bot User**: set the display name to "Viberglass" and enable "Always Online".
 3. **OAuth Scopes** (Bot Token): `commands`, `app_mentions:read`, `chat:write`, `chat:write.public`, `channels:read`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write`. `users:read.email` is used to link accounts by email, `im:write` to send DMs, and `files:write` to attach `plan.md`.
-4. **Slash Commands**: create `/viberator` pointing to `https://{host}/api/webhooks/slack`.
+4. **Slash Commands**: create `/viberglass` pointing to `https://{host}/api/webhooks/slack`.
 5. **Interactivity**: enable it and set the Request URL to `https://{host}/api/webhooks/slack`.
 6. **Event Subscriptions**: enable them, set the Request URL to `https://{host}/api/webhooks/slack`, and subscribe to `app_mention`, `message.channels` and `message.groups`.
 7. Install to the workspace.
@@ -97,7 +97,7 @@ Each person links their Slack account in Viberglass under **Settings → Notific
 What a linked account allows:
 
 - Messages, mentions, answers and option buttons in a task's thread are done as that Viberglass user. Someone without a linked account gets this reply instead: "Link your Slack account in Viberglass (Settings → Notifications) to take part in tasks from Slack."
-- The `/viberator` form lists only the spaces the linked user can see, and the new task's requester is that user. For someone not linked, the form lists every space and the task has no requester.
+- The `/viberglass` form lists only the spaces the linked user can see, and the new task's requester is that user. For someone not linked, the form lists every space and the task has no requester.
 - Asking the agent for code needs a linked account, so the run can be credited to someone. Someone not linked can still start a task with a plan.
 - The usual task permissions apply: only the task's people can ask the agent, and only the task's people, the space's maintainers or a workspace admin can ask it to build.
 
@@ -105,8 +105,8 @@ What a linked account allows:
 
 ### Starting a Task
 
-1. Invite the bot to a channel: `/invite @Viberator`.
-2. Type `/viberator` in the channel.
+1. Invite the bot to a channel: `/invite @Viberglass`.
+2. Type `/viberglass` in the channel.
 3. Fill in the **Ask the agent** form:
    - **Space**: the space the task belongs to.
    - **Agent**: the agent to ask.
@@ -141,7 +141,7 @@ The bot creates the task, posts `Task: <title>` in the channel (linked to the ta
 | A run is cancelled | _The run was cancelled._ |
 | The pull request is merged or the task is done | **Done.** |
 
-Changes are posted whatever caused them, the web, Slack or a schedule, so the thread matches the task. Only tasks started with `/viberator` have a Slack thread.
+Changes are posted whatever caused them, the web, Slack or a schedule, so the thread matches the task. Only tasks started with `/viberglass` have a Slack thread.
 
 ## Architecture
 
@@ -152,7 +152,7 @@ Slack workspace
   │
   Chat SDK Slack adapter (verifies the signing secret)
   │
-  ├── /viberator ─────────────► slashCommand → "Ask the agent" form (callback viberator_launch)
+  ├── /viberglass ────────────► slashCommand → "Ask the agent" form (callback viberglass_launch)
   │
   ├── form submitted ─────────► modalSubmit
   │                               ├── createTicket (requester = linked user)
@@ -184,7 +184,7 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 | `packages/chat-slack/src/index.ts` | `registerSlackHandlers`, registers every handler on the bot |
 | `packages/chat-slack/src/types.ts` | `SlackHandlerServices`, what the backend provides to the handlers |
 | `packages/chat-slack/src/actions.ts` | Button IDs (`task_ask`, `question_answer_0`–`4`) and button values |
-| `packages/chat-slack/src/handlers/slashCommand.ts` | `/viberator` opens the launch form |
+| `packages/chat-slack/src/handlers/slashCommand.ts` | `/viberglass` opens the launch form |
 | `packages/chat-slack/src/handlers/modalSubmit.ts` | Creates the task, starts and links its thread, asks the agent |
 | `packages/chat-slack/src/handlers/threadMessage.ts` | Sends messages in a task's thread to the task |
 | `packages/chat-slack/src/handlers/buttonActions.ts` | Build it and option buttons |
@@ -202,7 +202,7 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 
 ## Troubleshooting
 
-### Bot doesn't respond to `/viberator`
+### Bot doesn't respond to `/viberglass`
 
 - Check that `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set. A `503` from `/api/webhooks/slack` means the signing secret is missing.
 - Check that the slash command URL matches your backend host and is HTTPS.
@@ -223,9 +223,9 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 
 ### Thread replies are ignored
 
-- The bot must be in the channel (`/invite @Viberator`).
+- The bot must be in the channel (`/invite @Viberglass`).
 - Check that the `message.channels` (and `message.groups` for private channels) event subscriptions are active.
-- Only threads of tasks started with `/viberator` are handled. Other threads are ignored.
+- Only threads of tasks started with `/viberglass` are handled. Other threads are ignored.
 
 ### Task links are missing from posts
 

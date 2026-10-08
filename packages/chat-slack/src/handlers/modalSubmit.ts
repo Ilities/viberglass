@@ -28,7 +28,7 @@ function buildSlackThreadId(channelId: string, sentThreadId: string, sentMessage
  * asks the agent for the first step. The thread is the task's from then on.
  */
 export function registerModalSubmitHandler(bot: import("chat").Chat, services: SlackHandlerServices): void {
-  bot.onModalSubmit("viberator_launch", async (event) => {
+  bot.onModalSubmit("viberglass_launch", async (event) => {
     const { projectId, clankerId, mode, message, title: rawTitle } = event.values;
     const channel = event.relatedChannel;
 

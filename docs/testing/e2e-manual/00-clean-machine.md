@@ -8,6 +8,7 @@ Can a stranger get from the README to a merged pull request without help? Every 
 - [Known issues](#known-issues)
 - [Local Docker (CLEAN-01 – CLEAN-06)](#local-docker-clean-01--clean-06)
 - [First pull requests on real repositories (CLEAN-10 – CLEAN-14)](#first-pull-requests-on-real-repositories-clean-10--clean-14)
+- [One server with Docker Compose (CLEAN-15 – CLEAN-19)](#one-server-with-docker-compose-clean-15--clean-19)
 - [Kubernetes (CLEAN-20 – CLEAN-23)](#kubernetes-clean-20--clean-23)
 - [AWS (CLEAN-30 – CLEAN-32)](#aws-clean-30--clean-32)
 - [Someone else, cold (CLEAN-40 – CLEAN-41)](#someone-else-cold-clean-40--clean-41)
@@ -91,6 +92,42 @@ The end-to-end path from a writable repository to a merged PR has never been run
 For each, record: plan quality (would you approve it?), revisions needed, whether the build compiles and its tests pass, whether the PR opened, time and cost from the run's details.
 
 Expect: at least four of five reach a mergeable PR, with no step that needs a workaround in Viberglass itself. Agent mistakes are fine to record; platform failures are blockers.
+
+## One server with Docker Compose (CLEAN-15 – CLEAN-19)
+
+Follow only the README and [Install with Docker → On a server](../../guide/admin/install-docker.md#on-a-server), with [Upgrades and backups](../../guide/admin/upgrades-and-backups.md#docker-on-a-server) for CLEAN-18. Needs: a fresh Linux VM from a cloud provider (2 vCPU, 4 GB RAM, 40 GB disk is a fair small-team size), a domain or subdomain you can point at it, and a published release of the images (`viberglass-backend`, `viberglass-frontend` and the workers on GHCR, public).
+
+### CLEAN-15 · Install with HTTPS
+1. Point the domain's A record at the VM. Install Docker Engine and Compose v2 the way the docs say, and nothing else.
+2. `git clone`, `cp .env.production.example .env`, fill in the required values (generate the three secrets as the file says), set `VIBERGLASS_VERSION` to the release.
+3. `docker compose -f docker-compose.prod.yml --profile https up -d`.
+
+Expect: every required value is explained where you fill it in; a value left empty stops `up` with a message naming it; Caddy gets a certificate on the first request; https://your-domain loads with a valid certificate. Record the time from `git clone` to the sign-in page, and the image download size.
+
+### CLEAN-16 · Setup and a pull request on the server
+1. CLEAN-02 – CLEAN-04 on the server: first admin, model key, repository, space, default agent, a task to a plan, then a PR.
+2. While the build runs, `docker ps` on the server.
+
+Expect: as on a laptop. The agent's container is on the same host and reaches the backend on the bridge address without any setting changed. If `ip addr show docker0` shows something other than `172.17.0.1`, record whether the docs led you to `VIBERGLASS_WORKER_API_BIND`.
+
+### CLEAN-17 · It's only reachable as intended
+1. From another machine: `curl -I http://your-domain` (should redirect to HTTPS), and try the server's IP on ports 3000, 5432, 8080 and 8888.
+2. Sign in from a second browser and invite a member; with `SMTP_URL` set, check the invite email arrives.
+
+Expect: only 80 and 443 answer from outside; plain HTTP redirects; sign-in works over HTTPS. Record any other port that answers, and whether email setup was clear from `.env.production.example`.
+
+### CLEAN-18 · Back up, upgrade, restore
+1. Take the backup the docs describe: the database dump, the data directory and `.env`.
+2. Upgrade to a newer release (or `latest`) as documented.
+3. On a second fresh VM, restore from the backup alone, following the docs.
+
+Expect: the upgrade keeps tasks, secrets and the default agent working; migrations run on start without prompts. The restored server signs in, reads stored secrets (the agent stays Ready), and a resumed task continues. Every step you had to work out yourself is a doc gap.
+
+### CLEAN-19 · Reboot and teardown
+1. Reboot the VM.
+2. Then `docker compose -f docker-compose.prod.yml --profile https down`, and remove the volumes and data directory.
+
+Expect: after the reboot everything comes back on its own, including HTTPS and the agent. After teardown, nothing of Viberglass is left on the host but the clone. Record the monthly cost of the VM size you used.
 
 ## Kubernetes (CLEAN-20 – CLEAN-23)
 
