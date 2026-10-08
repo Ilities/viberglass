@@ -13,7 +13,7 @@ The clean-machine run in [testing/e2e-manual/00-clean-machine.md](testing/e2e-ma
 
 ## Validation still open from the UX review
 
-- A real writable repository from plan to merged PR, closing and reopening the task. Plans in parts are partly tested on token.observer; still to try with a real build: add part 2 to part 1's pull request, mark a part done and skip one, and discard a build that failed before opening its pull request ([ADR 0013](adr/0013-ways-around-building-in-parts.md)).
+- Plans in parts are partly tested on token.observer; still to try with a real build: add part 2 to part 1's pull request, mark a part done and skip one, and discard a build that failed before opening its pull request ([ADR 0013](adr/0013-ways-around-building-in-parts.md)).
 - Native-provider keys tested separately from custom endpoints, including replacing a failed key and timeouts.
 - A manual accessibility pass in both themes: contrast, focus order and restoration, dialogs, keyboard, screen reader.
 - One first-time admin, PM, reviewer and read-only viewer each using it unguided.

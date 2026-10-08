@@ -88,7 +88,7 @@ Gather these first; tests list which they need. Keep keys outside the repo where
 Found while reading the code for this suite (2026-10-05). Check them first; several stop a deployment test outright.
 
 - **Kubernetes** support was merged into `main` on 2026-10-05 (the merge commit may still be pending); its migration is now `101_kubernetes_deployment_strategy`. Clusters installed from the old branch must be recreated. See [06-kubernetes.md](06-kubernetes.md#k8s-00-merge-gate).
-- **GPU deployments created by Viberglass** (Verda/OVH ModelHost) and **Bedrock role auth** are not built. Only hand-made endpoints are testable.
+- **OVH GPU deployments created by Viberglass** and **Bedrock role auth** are not built. Verda deployments work (tested 2026-10-08).
 - **AWS**:
   - Login over HTTPS likely needs `apiDomain` + `appDomain` + `route53ZoneId`.
   - Managed ECS workers don't get `AWS_S3_BUCKET`, so conversation state may not survive between turns.

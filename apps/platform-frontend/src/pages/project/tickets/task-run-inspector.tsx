@@ -77,6 +77,7 @@ function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string 
         <div role="alert" className="mb-5 text-sm">
           <p className="font-semibold text-red-700 dark:text-red-400">{failure.title}</p>
           <p className="mt-1 text-[var(--gray-11)]">{failure.summary}</p>
+          {failure.reported && <p className="mt-1 font-mono text-xs break-words text-[var(--gray-11)]">{failure.reported}</p>}
         </div>
       )}
       {codexPrompt && <div className="mb-5"><CodexDeviceAuthCard prompt={codexPrompt} /></div>}

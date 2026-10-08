@@ -1,4 +1,5 @@
 import { CancelRunButton } from '@/components/cancel-run-button'
+import { failureHeadline } from '@/components/failure-guidance'
 import { Link } from '@/components/link'
 import { useAuth } from '@/context/auth-context'
 import { isRunner } from '@/lib/roles'
@@ -109,6 +110,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnE
   const runParams = new URLSearchParams(searchParams)
   if (entry.jobId) runParams.set('run', entry.jobId)
   runParams.delete('runTab')
+  const reported = entry.status === 'failed' ? failureHeadline(run?.failure).reported : undefined
   const runLink = entry.jobId && isRunner(user?.role) ? `?${runParams}` : null
   // The intent is shown on its own, so the reply starts after it.
   const rest =
@@ -157,6 +159,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnE
             {run?.failure?.title ?? 'This turn failed'}
           </p>
           {retry}
+          {reported && <p className="basis-full font-mono text-xs break-words text-[var(--gray-11)]">{reported}</p>}
         </div>
       )}
       {entry.status === 'cancelled' && (
