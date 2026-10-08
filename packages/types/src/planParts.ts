@@ -22,8 +22,23 @@ export function isPartRange(value: unknown): value is PartRange {
   return Number.isInteger(first) && Number(first) >= 1 && (last === null || (Number.isInteger(last) && Number(last) >= Number(first)))
 }
 
-/** Where a part stands: its state comes from its pull request, never from the plan's text. */
-export type TaskPlanPartStatus = 'not_built' | 'building' | 'open' | 'merged'
+/**
+ * Where a part stands: from its pull request, never from the plan's text, or
+ * from someone marking it done or skipped when that's known some other way.
+ */
+export type TaskPlanPartStatus = 'not_built' | 'building' | 'open' | 'merged' | 'done' | 'skipped'
+
+/** What someone can mark a part instead of merging its pull request. */
+export type TaskPlanPartMark = 'done' | 'skipped'
+
+export function isTaskPlanPartMark(value: unknown): value is TaskPlanPartMark {
+  return value === 'done' || value === 'skipped'
+}
+
+/** A part counts as finished, for building in order and closing the task, once merged, done or skipped. */
+export function isPartFinished(status: TaskPlanPartStatus): boolean {
+  return status === 'merged' || status === 'done' || status === 'skipped'
+}
 
 export interface TaskPlanPart {
   number: number
@@ -36,8 +51,10 @@ export interface TaskPlanPart {
 /** A task's plan, part by part, and what can be built next. */
 export interface TaskPlanParts {
   parts: TaskPlanPart[]
-  /** The parts a pull request that isn't merged yet builds; further builds go into it. */
+  /** The parts a pull request that isn't merged or marked finished yet builds; further builds go into it. */
   open: PartRange | null
+  /** The part the open pull request could take next, built into it rather than one of its own. */
+  addable: number | null
   /** The first part that isn't built, when nothing is open; null when every part is built. */
   next: number | null
 }
@@ -52,6 +69,11 @@ export function partRangeName(range: PartRange): string {
 export function buildPartsMessage(range: PartRange): string {
   if (range.last === null) return range.first === 1 ? 'Build it' : 'Build the rest'
   return `Build ${partRangeName(range)}`
+}
+
+/** What adding a part to the open pull request says in the thread. */
+export function addPartMessage(part: number): string {
+  return `Add part ${part} to the open pull request`
 }
 
 /**

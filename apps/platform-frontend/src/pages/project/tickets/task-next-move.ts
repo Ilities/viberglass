@@ -1,6 +1,6 @@
 import type { JobListItem } from '@/service/api/job-api'
 import type { AgentSession } from '@/service/api/session-api'
-import { partRangeName, type JobFailure, type TaskPlanParts, type Ticket, type TicketWorkflowPhase } from '@viberglass/types'
+import { isPartFinished, partRangeName, type JobFailure, type TaskPlanParts, type Ticket, type TicketWorkflowPhase } from '@viberglass/types'
 
 export type TaskStep = TicketWorkflowPhase
 
@@ -82,12 +82,18 @@ export function describeStep(
   return { position: 'upcoming', label: 'None yet' }
 }
 
-/** "PR open for part 2", "1 of 3 parts merged": how far the code of a plan in parts has got; null for a plan in one part. */
+/**
+ * "PR open for part 2", "1 of 3 parts merged", "2 of 3 parts done": how far the
+ * code of a plan in parts has got, "done" once a part was marked done or
+ * skipped rather than merged; null for a plan in one part.
+ */
 export function codeProgress(state: TaskPlanParts | null): string | null {
   if (!state || state.parts.length < 2) return null
   if (state.open) return `PR open for ${partRangeName(state.open)}`
-  const merged = state.parts.filter((part) => part.status === 'merged').length
-  return merged > 0 ? `${merged} of ${state.parts.length} parts merged` : null
+  const finished = state.parts.filter((part) => isPartFinished(part.status))
+  if (finished.length === 0) return null
+  const merged = finished.every((part) => part.status === 'merged')
+  return `${finished.length} of ${state.parts.length} parts ${merged ? 'merged' : 'done'}`
 }
 
 const CURRENT_LABEL: Record<TaskNextMove['kind'], string> = {

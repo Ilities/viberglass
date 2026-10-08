@@ -50,6 +50,14 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       const next = typeof entry.payload.next === 'number' ? `; part ${entry.payload.next} is next` : ''
       return `${merged}${by}${next}`
     }
+    case 'part_marked': {
+      const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
+      return entry.payload.mark === 'skipped' ? `${who} skipped ${part} of the plan` : `${who} marked ${part} of the plan done`
+    }
+    case 'part_unmarked':
+      return `${who} took back the mark on ${typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'} of the plan`
+    case 'build_discarded':
+      return `${who} discarded the build of ${typeof entry.payload.parts === 'string' ? entry.payload.parts : 'some parts'}, which never opened its pull request`
     case 'comment_added':
       // Entries from before quotes name the line instead.
       if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`

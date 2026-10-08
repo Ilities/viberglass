@@ -47,7 +47,7 @@ export interface PostedMessage {
 export async function postTaskMessage(
   taskId: string,
   body: string,
-  ask: { action?: TaskTurnAction; agentId?: string; parts?: PartRange } = {}
+  ask: { action?: TaskTurnAction; agentId?: string; parts?: PartRange; add?: boolean } = {}
 ): Promise<PostedMessage> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/messages`, {
     method: 'POST',
@@ -62,9 +62,9 @@ export async function postTaskMessage(
 /** Asks the agent for something, as a message from you in the thread. */
 export async function askAgent(
   taskId: string,
-  ask: { action: TaskTurnAction; body?: string; agentId?: string; parts?: PartRange }
+  ask: { action: TaskTurnAction; body?: string; agentId?: string; parts?: PartRange; add?: boolean }
 ): Promise<AskedTurn> {
-  const { turn } = await postTaskMessage(taskId, ask.body ?? '', { action: ask.action, agentId: ask.agentId, parts: ask.parts })
+  const { turn } = await postTaskMessage(taskId, ask.body ?? '', { action: ask.action, agentId: ask.agentId, parts: ask.parts, add: ask.add })
   if (!turn) throw new Error('The agent was not asked')
   return turn
 }

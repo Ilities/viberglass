@@ -1,4 +1,5 @@
 import { codeProgress, decideTaskNextMove, describeStep, type TaskNextMoveInput } from './task-next-move'
+import type { TaskPlanPartStatus } from '@viberglass/types'
 
 type Run = TaskNextMoveInput['runs'][number]
 const run = (jobKind: Run['jobKind'], status: Run['status'], jobId = `${jobKind}-${status}`): Run => ({ jobId, jobKind, status, failure: null })
@@ -89,12 +90,13 @@ describe('describeStep', () => {
 })
 
 describe('codeProgress', () => {
-  const part = (number: number, status: 'not_built' | 'open' | 'merged') => ({ number, title: null, status, pullRequestUrl: null })
+  const part = (number: number, status: TaskPlanPartStatus) => ({ number, title: null, status, pullRequestUrl: null })
 
   it("says how far a plan in parts has got, and nothing for a plan in one part", () => {
-    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'not_built'), part(3, 'not_built')], open: null, next: 2 })).toBe('1 of 3 parts merged')
-    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'open')], open: { first: 2, last: 2 }, next: null })).toBe('PR open for part 2')
-    expect(codeProgress({ parts: [part(1, 'open')], open: { first: 1, last: null }, next: null })).toBeNull()
+    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'not_built'), part(3, 'not_built')], open: null, addable: null, next: 2 })).toBe('1 of 3 parts merged')
+    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'open')], open: { first: 2, last: 2 }, addable: null, next: null })).toBe('PR open for part 2')
+    expect(codeProgress({ parts: [part(1, 'open')], open: { first: 1, last: null }, addable: null, next: null })).toBeNull()
+    expect(codeProgress({ parts: [part(1, 'merged'), part(2, 'skipped'), part(3, 'not_built')], open: null, addable: null, next: 3 })).toBe('2 of 3 parts done')
     expect(codeProgress(null)).toBeNull()
   })
 

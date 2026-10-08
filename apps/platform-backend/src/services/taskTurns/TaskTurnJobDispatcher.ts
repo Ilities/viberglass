@@ -161,7 +161,7 @@ export class TaskTurnJobDispatcher {
       // A build names its pull request's branch; other turns read the code on the latest one, if there's one.
       taskBranch:
         action === "code"
-          ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? undefined)
+          ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? null)
           : ((await this.branches.existing(ticket.id)) ?? undefined),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),

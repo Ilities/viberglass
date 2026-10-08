@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/107_build_plan_parts";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/115_plan_part_marks";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -42,7 +42,7 @@ function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
   return {
     ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null },
     documents: { plan: "" },
-    parts: { building: null, built: null },
+    parts: { building: null, adding: null, addedTo: null, built: null },
     people: [],
     lastAgentCommit: null,
     summary: "",
@@ -152,7 +152,7 @@ describe("TaskTurnPromptBuilder", () => {
   });
 
   it("tells a build of some parts to build only those, in a pull request of its own", async () => {
-    const { prompt } = await builder.build("p", context({ parts: { building: "part 2, “Show it on the slip”", built: "Part 1" } }), "code", true);
+    const { prompt } = await builder.build("p", context({ parts: { building: "part 2, “Show it on the slip”", adding: null, addedTo: null, built: "Part 1" } }), "code", true);
 
     expect(prompt).toContain(
       "This build is part 2, “Show it on the slip” of the plan, in a pull request of its own: build only that, and leave the other parts for later builds.",
@@ -161,8 +161,23 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).not.toContain("Built already");
   });
 
+  it("tells a build adding a part to the open pull request to build on what's there", async () => {
+    const { prompt } = await builder.build(
+      "p",
+      context({ ticket: { ...context().ticket, pullRequestUrl: "https://github.com/acme/app/pull/8" }, parts: { building: null, adding: "part 3", addedTo: "part 2", built: "Part 2" } }),
+      "code",
+      true,
+    );
+
+    expect(prompt).toContain(
+      "This build adds part 3 of the plan to the open pull request, which already builds part 2: build only the part added, on top of what's there, and leave the other parts for later builds.",
+    );
+    expect(prompt).toContain("This continues the task's branch and pull request (https://github.com/acme/app/pull/8)");
+    expect(prompt).not.toContain("in a pull request of its own");
+  });
+
   it("tells a revision of the plan, or a reply, to keep the parts that are built", async () => {
-    const parts = { building: null, built: "Part 1" };
+    const parts = { building: null, adding: null, addedTo: null, built: "Part 1" };
     const revising = await builder.build("p", context({ documents: { plan: "# Plan" }, parts }), "plan", false);
     const replying = await builder.build("p", context({ parts }), "reply", false);
     const building = await builder.build("p", context({ parts }), "code", true);

@@ -24,7 +24,7 @@ import { createBuildPullRequestService } from "../pull-request-reviews/createBui
 import { TaskPartsService } from "../tasks/TaskPartsService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
-import { describeTurnParts } from "./describeTurnParts";
+import { addsToOpen, describeTurnParts } from "./describeTurnParts";
 import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage, TurnPerson } from "./taskTurnContext";
 
 /** How much of the thread a cold start reads, newest last; what the latest summary covers is left to it. */
@@ -86,9 +86,11 @@ export class TaskTurnContextLoader {
     const { ticket } = input;
     const since = await this.lastPromptedAt(input.sessionId, input.turnId);
     const buildParts = input.buildParts ?? null;
-    // A build of new parts opens a pull request of its own; only a continuing build has one to read.
-    const continuesUrl = input.action === "code" && !buildParts ? (ticket.pullRequestUrl ?? null) : null;
-    const [threadMessages, comments, plan, summary, edits, pullRequest, people, answered, agentTurns, parts] = await Promise.all([
+    const parts = await this.deps.parts.state(ticket);
+    // A build of new parts opens a pull request of its own; only a continuing build, or one adding parts to it, has one to read.
+    const continues = input.action === "code" && (!buildParts || addsToOpen(parts, buildParts));
+    const continuesUrl = continues ? (ticket.pullRequestUrl ?? null) : null;
+    const [threadMessages, comments, plan, summary, edits, pullRequest, people, answered, agentTurns] = await Promise.all([
       this.deps.messages.list(ticket.id),
       this.openComments(ticket.id),
       this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING),
@@ -98,7 +100,6 @@ export class TaskTurnContextLoader {
       this.people(ticket.id),
       this.deps.questions.questionsAnsweredBy(ticket.id),
       this.deps.agentTurns.listForTask(ticket.id),
-      this.deps.parts.state(ticket),
     ]);
 
     const messages: TurnMessage[] = [
@@ -124,7 +125,7 @@ export class TaskTurnContextLoader {
         title: ticket.title,
         description: ticket.description,
         externalTicketId: ticket.externalTicketId ?? null,
-        pullRequestUrl: buildParts ? null : (ticket.pullRequestUrl ?? null),
+        pullRequestUrl: continues || !buildParts ? (ticket.pullRequestUrl ?? null) : null,
       },
       documents: { plan: plan.content.trim() },
       parts: describeTurnParts(parts, buildParts),

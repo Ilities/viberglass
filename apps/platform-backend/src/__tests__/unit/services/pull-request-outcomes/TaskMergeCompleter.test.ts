@@ -17,7 +17,7 @@ function setup(state: TaskPlanParts) {
 
 describe("TaskMergeCompleter", () => {
   it("closes a task whose plan has no parts once its pull request merges", async () => {
-    const { deps, completer } = setup({ parts: [], open: null, next: null });
+    const { deps, completer } = setup({ parts: [], open: null, addable: null, next: null });
 
     await completer.onOutcome(URL_1, MERGED);
 
@@ -36,6 +36,24 @@ describe("TaskMergeCompleter", () => {
         { number: 2, title: "B", status: "merged", pullRequestUrl: URL_1 },
       ],
       open: null,
+      addable: null,
+      next: null,
+    });
+
+    await completer.onOutcome(URL_1, MERGED);
+
+    expect(deps.tickets.updateTicket).toHaveBeenCalledWith("task-1", { status: "resolved" });
+  });
+
+  it("closes the task when the parts the merge leaves were done or skipped another way", async () => {
+    const { deps, completer } = setup({
+      parts: [
+        { number: 1, title: "A", status: "merged", pullRequestUrl: URL_1 },
+        { number: 2, title: "B", status: "skipped", pullRequestUrl: null },
+        { number: 3, title: "C", status: "done", pullRequestUrl: null },
+      ],
+      open: null,
+      addable: null,
       next: null,
     });
 
@@ -51,6 +69,7 @@ describe("TaskMergeCompleter", () => {
         { number: 2, title: "B", status: "not_built", pullRequestUrl: null },
       ],
       open: null,
+      addable: null,
       next: 2,
     });
 
@@ -66,7 +85,7 @@ describe("TaskMergeCompleter", () => {
   });
 
   it("does nothing for a pull request that is still open or was closed unmerged", async () => {
-    const { deps, completer } = setup({ parts: [], open: null, next: null });
+    const { deps, completer } = setup({ parts: [], open: null, addable: null, next: null });
 
     await completer.onOutcome(URL_1, { ...MERGED, state: "open", mergedAt: null });
     await completer.onOutcome(URL_1, { ...MERGED, state: "closed", mergedAt: null });

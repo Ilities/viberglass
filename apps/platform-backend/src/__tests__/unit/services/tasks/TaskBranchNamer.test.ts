@@ -40,7 +40,13 @@ describe("TaskBranchNamer", () => {
     expect(stored.deps.branches.claim).not.toHaveBeenCalled();
 
     const none = setup(null);
-    expect(await none.namer.current("t-1", "t-1")).toBe("viberglass/t-1");
-    expect(none.deps.branches.claim).toHaveBeenCalled();
+    expect(await none.namer.current("t-1", "t-1", { first: 2, last: null })).toBe("viberglass/t-1-part-2");
+    expect(none.deps.branches.claim).toHaveBeenCalledWith("t-1", "viberglass/t-1-part-2", { first: 2, last: null });
+  });
+
+  it("previews the name a first build would get without naming it", async () => {
+    const { deps, namer } = setup(null);
+    expect(await namer.preview("t-1", "t-1")).toBe("viberglass/t-1");
+    expect(deps.branches.claim).not.toHaveBeenCalled();
   });
 });

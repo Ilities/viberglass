@@ -105,7 +105,7 @@ describe("TaskTurnJobDispatcher's branch", () => {
 
     await dispatcher.dispatch(input("code", { buildParts: null }), jest.fn());
 
-    expect(branches.nameFor).toHaveBeenCalledWith("t-1", expect.any(String), undefined);
+    expect(branches.nameFor).toHaveBeenCalledWith("t-1", expect.any(String), null);
   });
 
   it.each(["plan", "reply", "summarise"] as const)("reads the latest branch for a %s turn and never names one", async (action) => {

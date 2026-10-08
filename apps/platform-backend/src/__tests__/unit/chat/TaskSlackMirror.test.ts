@@ -43,6 +43,7 @@ const TWO_PARTS: TaskPlanParts = {
     { number: 2, title: "Show it", status: "not_built", pullRequestUrl: null },
   ],
   open: null,
+  addable: null,
   next: 2,
 };
 
@@ -68,7 +69,7 @@ function setup(options: { fromSlack?: boolean; thread?: boolean; parts?: TaskPla
     },
     documents: { getOrCreateDocument: jest.fn().mockResolvedValue({ content: "# Plan\nIt greets." }) },
     tickets: { getSummary: jest.fn().mockResolvedValue({ title: "Greeting", key: "WEB-1", spaceSlug: "web", pullRequestUrl: null }) },
-    parts: { state: jest.fn().mockResolvedValue(options.parts ?? { parts: [], open: null, next: null }) },
+    parts: { state: jest.fn().mockResolvedValue(options.parts ?? { parts: [], open: null, addable: null, next: null }) },
     fromSlack: () => options.fromSlack ?? false,
   };
   return { thread, deps, mirror: new TaskSlackMirror(deps) };

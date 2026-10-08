@@ -1,4 +1,4 @@
-import { buildPartsMessage, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { addPartMessage, buildPartsMessage, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import { AgentSessionDAO, type AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentTurnDAO, type AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
@@ -24,6 +24,8 @@ export interface AskInput {
   fromWebhook?: boolean;
   /** For a build: the plan's parts to build in a new pull request. Without them it continues the open one, else builds what's left. */
   parts?: PartRange;
+  /** For a build: the parts go into the open pull request rather than one of their own. */
+  add?: boolean;
 }
 
 export interface AskResult {
@@ -46,7 +48,7 @@ interface Dependencies {
   turns: Pick<AgentTurnDAO, "nextSequence" | "create" | "getInFlightAssistantTurn">;
   events: Pick<AgentSessionEventDAO, "getMaxSequence" | "create">;
   continuation: Pick<SessionTurnContinuationService, "launchForPendingMessages">;
-  parts: Pick<TaskPartsService, "resolveBuild">;
+  parts: Pick<TaskPartsService, "resolveBuild" | "extendOpen">;
 }
 
 /**
@@ -85,9 +87,13 @@ export class TaskTurnService {
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
     await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
-    const buildParts = action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null) : null;
-    const text = input.message.trim() || (buildParts ? buildPartsMessage(buildParts) : ACTION_MESSAGE[action]);
+    const adding = action === "code" && Boolean(input.add);
+    const buildParts = action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null, { add: adding }) : null;
+    const text =
+      input.message.trim() || (buildParts ? (adding ? addPartMessage(buildParts.first) : buildPartsMessage(buildParts)) : ACTION_MESSAGE[action]);
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
+    // Only once the build can be asked for, so a refused ask leaves the open pull request as it was.
+    if (adding && buildParts) await this.deps.parts.extendOpen(ticket, buildParts);
     const messageId = input.postedMessageId ?? (actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null);
 
     // Locked per task and agent so two asks can't each open a session.

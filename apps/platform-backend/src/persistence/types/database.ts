@@ -135,6 +135,14 @@ export interface TaskPullRequestsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface TaskPlanPartMarksTable {
+  ticket_id: string;
+  part_number: number;
+  mark: "done" | "skipped";
+  marked_by: string | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface IntegrationsTable {
   id: Generated<string>;
   name: string;
@@ -808,6 +816,7 @@ export interface Database {
   media_assets: MediaAssetsTable;
   tickets: TicketsTable;
   task_pull_requests: TaskPullRequestsTable;
+  task_plan_part_marks: TaskPlanPartMarksTable;
   integrations: IntegrationsTable;
   project_integrations: ProjectIntegrationsTable;
   integration_credentials: IntegrationCredentialsTable;
