@@ -14,14 +14,15 @@ import {
 } from '@/service/api/integration-api'
 import { getProjectScmConfig } from '@/service/api/project-api'
 import { useCallback, useEffect, useState } from 'react'
-import { TrackerIssuesCard, type TrackerConnection } from './TrackerIssuesCard'
+import type { TrackerConnection } from './TrackerIssuesCard'
+import { TrackerIssuesList } from './TrackerIssuesList'
 
-const GITHUB_REPOSITORY = /github\.com[/:]([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i
-const OWNER_REPO = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/
-
-function githubRepository(address: string | undefined): string | null {
-  const match = address?.trim().match(GITHUB_REPOSITORY) ?? address?.trim().match(OWNER_REPO)
-  return match ? `${match[1]}/${match[2]}` : null
+/** `owner/repo` of a repository address: a URL, an SSH address or the path itself. */
+function repositoryPath(address: string | undefined): string | null {
+  const trimmed = address?.trim().replace(/\.git$/i, '').replace(/\/+$/, '')
+  if (!trimmed) return null
+  const path = trimmed.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]+\//i, '').replace(/^[^@/]+@[^:/]+:/, '').replace(/^\/+/, '')
+  return path.includes('/') ? path : null
 }
 
 /** Which issues from the workspace's trackers become the space's tasks. */
@@ -41,7 +42,7 @@ export function SpaceIssuesPage() {
         getAvailableIntegrationTypes(),
         getProjectScmConfig(projectId),
       ])
-      setRepository(scm?.integrationSystem === 'github' ? githubRepository(scm.sourceRepository) : null)
+      setRepository(repositoryPath(scm?.sourceRepository))
       const ready = new Set(types.filter((type) => type.status !== 'stub').map((type) => type.id))
       const trackers = workspaceConnections.flatMap((connection) => {
         const tracker = integrationFrontendRegistry.get(connection.system)?.trackerWebhook
@@ -79,8 +80,8 @@ export function SpaceIssuesPage() {
       <PageMeta title={project ? `${project.name} | Incoming issues` : 'Incoming issues'} />
       <Heading>Incoming issues</Heading>
       <Text className="mt-2 max-w-2xl">
-        Issues the space takes become its tasks, linked to the issue: comments go both ways, and the plan, questions,
-        pull request and done are posted back to it. An issue several spaces take gets a task in each.
+        Choose which issues create tasks in this space. Comments sync both ways, and the agent posts plans, questions,
+        pull requests and completion updates back to the issue.
       </Text>
 
       {error && <p className="mt-6 text-sm text-red-600 dark:text-red-400">{error}</p>}
@@ -100,18 +101,14 @@ export function SpaceIssuesPage() {
           />
         </div>
       ) : (
-        <div className="mt-8 space-y-6">
-          {project &&
-            connections.map((connection) => (
-              <TrackerIssuesCard
-                key={connection.id}
-                projectId={project.id}
-                connection={connection}
-                repository={repository}
-                onSaved={(rules) => saved(connection, rules)}
-              />
-            ))}
-        </div>
+        project && (
+          <TrackerIssuesList
+            projectId={project.id}
+            connections={connections}
+            repository={repository}
+            onSaved={saved}
+          />
+        )
       )}
     </>
   )

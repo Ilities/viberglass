@@ -17,5 +17,6 @@ ADRs record the product and architecture decisions, and why they were made.
 | [0009](./0009-the-plan-includes-the-research.md) | The plan includes the research: one artifact before code | Accepted; amended by 0010 | 2026-10-06 |
 | [0010](./0010-building-the-plan-in-parts.md) | Building the plan in parts: one pull request per part, built in order | Accepted; amended by 0013 | 2026-10-06 |
 | [0011](./0011-tracker-issues-are-linked-threads.md) | Tracker issues are linked threads: comments reach the task, milestones go back to the issue | Accepted; amended by 0012 | 2026-10-07 |
-| [0012](./0012-spaces-choose-their-tracker-issues.md) | Spaces choose which tracker issues they take: labels and repository in the space, one webhook per connection | Accepted | 2026-10-08 |
+| [0012](./0012-spaces-choose-their-tracker-issues.md) | Spaces choose which tracker issues they take: labels and repository in the space, one webhook per connection | Accepted; amended by 0014 | 2026-10-08 |
 | [0013](./0013-ways-around-building-in-parts.md) | Ways around building in parts: mark a part done or skipped, discard a build without a pull request, add a part to the open pull request | Accepted | 2026-10-08 |
+| [0014](./0014-spaces-opt-in-to-tracker-issues.md) | Spaces opt in to every tracker's issues: no rules takes none, the same choices for every tracker | Accepted | 2026-10-08 |
