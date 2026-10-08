@@ -2,6 +2,7 @@ import { SettingsNav } from '@/components/settings-nav'
 import { useProject } from '@/context/project-context'
 import {
   CodeIcon,
+  DownloadIcon,
   GearIcon,
   InfoCircledIcon,
   Link2Icon,
@@ -11,7 +12,7 @@ import {
 } from '@radix-ui/react-icons'
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
 
-const MAINTAINERS_ONLY = ['repository', 'task-defaults', 'connections', 'prompt-templates']
+const MAINTAINERS_ONLY = ['repository', 'issues', 'task-defaults', 'connections', 'prompt-templates']
 
 /** A space's settings. Everyone may read what the space is and who's in it; only its maintainers see the rest. */
 export function SettingsLayout() {
@@ -29,6 +30,7 @@ export function SettingsLayout() {
     ...(canMaintain
       ? [
           { name: 'Repository', href: `${base}/repository`, icon: <CodeIcon /> },
+          { name: 'Incoming issues', href: `${base}/issues`, icon: <DownloadIcon /> },
           { name: 'Task defaults', href: `${base}/task-defaults`, icon: <MixerHorizontalIcon /> },
         ]
       : []),

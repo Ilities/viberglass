@@ -29,7 +29,7 @@ describe("github webhook routes", () => {
   it("returns ignored payload with status 200 when service ignores event", async () => {
     const processWebhook = jest.fn().mockResolvedValue({
       status: "ignored",
-      reason: "Event 'issues.closed' not allowed for webhook config 'cfg-github'",
+      reason: "The webhook isn't set to receive 'issues.closed'",
     });
     const app = createApp(processWebhook);
 
@@ -41,7 +41,7 @@ describe("github webhook routes", () => {
     };
 
     const response = await request(app)
-      .post("/api/webhooks/github")
+      .post("/api/webhooks/github/cfg-github-1")
       .set("x-github-event", "issues")
       .set("x-github-delivery", "delivery-ignored-1")
       .set("x-hub-signature-256", "sha256=some-signature")
@@ -50,7 +50,7 @@ describe("github webhook routes", () => {
 
     expect(response.body).toEqual({
       message: "Webhook ignored",
-      reason: "Event 'issues.closed' not allowed for webhook config 'cfg-github'",
+      reason: "The webhook isn't set to receive 'issues.closed'",
     });
     expect(processWebhook).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -60,7 +60,7 @@ describe("github webhook routes", () => {
       payload,
       expect.any(Buffer),
       "tenant-1",
-      { providerName: "github" },
+      { providerName: "github", configId: "cfg-github-1" },
     );
   });
 
@@ -72,7 +72,7 @@ describe("github webhook routes", () => {
     const app = createApp(processWebhook);
 
     const response = await request(app)
-      .post("/api/webhooks/github")
+      .post("/api/webhooks/github/cfg-github-1")
       .set("x-github-event", "issues")
       .set("x-github-delivery", "delivery-rejected-1")
       .set("x-hub-signature-256", "sha256=bad-signature")
@@ -98,7 +98,7 @@ describe("github webhook routes", () => {
       .mockImplementation(() => undefined);
 
     const response = await request(app)
-      .post("/api/webhooks/github")
+      .post("/api/webhooks/github/cfg-github-1")
       .set("x-github-event", "issues")
       .set("x-github-delivery", "delivery-error-1")
       .set("x-hub-signature-256", "sha256=any")

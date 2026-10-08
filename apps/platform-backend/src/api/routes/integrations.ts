@@ -13,6 +13,7 @@ import {
   isIntegrationRouteServiceError,
   type LinkProjectIntegrationInput,
   ProjectIntegrationLinkService,
+  TrackerIssueRuleService,
   type UpdateIntegrationInput,
   type UpsertInboundWebhookConfigInput,
 } from "../services/integrations";
@@ -24,6 +25,7 @@ const router = express.Router();
 const integrationManagementService = new IntegrationManagementService();
 const projectIntegrationLinkService = new ProjectIntegrationLinkService();
 const integrationWebhookService = new IntegrationWebhookService();
+const trackerIssueRuleService = new TrackerIssueRuleService();
 const integrationCredentialDAO = new IntegrationCredentialDAO();
 const secretService = new SecretService();
 
@@ -221,6 +223,29 @@ router.put(
       });
     },
   ),
+);
+
+// Which tracker issues a space takes: visible to read, maintainer to change.
+router.get(
+  "/space/:projectId/issue-rules",
+  withRouteErrorHandling("Error fetching a space's tracker issue rules", async (req, res) => {
+    res.json({ success: true, data: await trackerIssueRuleService.listForSpace(req.params.projectId) });
+  }),
+);
+
+router.put(
+  "/space/:projectId/issue-rules/:integrationId",
+  withRouteErrorHandling("Error saving a space's tracker issue rules", async (req, res) => {
+    const rules = await trackerIssueRuleService.replaceForSpace(req.params.projectId, req.params.integrationId, req.body?.rules);
+    res.json({ success: true, data: rules });
+  }),
+);
+
+router.get(
+  "/:id/issue-rules",
+  withRouteErrorHandling("Error fetching a connection's tracker issue rules", async (req, res) => {
+    res.json({ success: true, data: await trackerIssueRuleService.listForConnection(req.params.id) });
+  }),
 );
 
 // ============================================================================

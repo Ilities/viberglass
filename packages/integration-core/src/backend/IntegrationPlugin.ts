@@ -55,5 +55,4 @@ export interface IntegrationPlugin<Config = object> {
   status?: 'ready' | 'stub'
   webhookProvider?: string
   defaultInboundEvents?: string[]
-  getProviderProjectId?: (config: Record<string, unknown>) => string | null
 }

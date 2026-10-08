@@ -42,7 +42,7 @@ describe("jira webhook routes", () => {
     };
 
     const response = await request(app)
-      .post("/api/webhooks/jira")
+      .post("/api/webhooks/jira/cfg-jira-1")
       .set("x-atlassian-webhook-identifier", "jira-delivery-ignored-1")
       .set("x-atlassian-webhook-signature", "sha256=some-signature")
       .send(payload)
@@ -60,7 +60,7 @@ describe("jira webhook routes", () => {
       payload,
       expect.any(Buffer),
       "tenant-1",
-      { providerName: "jira" },
+      { providerName: "jira", configId: "cfg-jira-1" },
     );
   });
 
@@ -72,7 +72,7 @@ describe("jira webhook routes", () => {
     const app = createApp(processWebhook);
 
     const response = await request(app)
-      .post("/api/webhooks/jira")
+      .post("/api/webhooks/jira/cfg-jira-1")
       .set("x-atlassian-webhook-identifier", "jira-delivery-rejected-1")
       .set("x-atlassian-webhook-signature", "sha256=bad-signature")
       .send({
@@ -97,7 +97,7 @@ describe("jira webhook routes", () => {
       .mockImplementation(() => undefined);
 
     const response = await request(app)
-      .post("/api/webhooks/jira")
+      .post("/api/webhooks/jira/cfg-jira-1")
       .set("x-atlassian-webhook-identifier", "jira-delivery-error-1")
       .set("x-atlassian-webhook-signature", "sha256=any")
       .send({

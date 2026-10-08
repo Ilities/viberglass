@@ -45,7 +45,7 @@ describe("shortcut webhook routes", () => {
     };
 
     const response = await request(app)
-      .post("/api/webhooks/shortcut")
+      .post("/api/webhooks/shortcut/cfg-shortcut-1")
       .set("x-shortcut-delivery", "shortcut-delivery-ignored-1")
       .set("payload-signature", "sha256=signature")
       .send(payload)
@@ -63,7 +63,7 @@ describe("shortcut webhook routes", () => {
       payload,
       expect.any(Buffer),
       "tenant-1",
-      { providerName: "shortcut" },
+      { providerName: "shortcut", configId: "cfg-shortcut-1" },
     );
   });
 
@@ -75,7 +75,7 @@ describe("shortcut webhook routes", () => {
     const app = createApp(processWebhook);
 
     const response = await request(app)
-      .post("/api/webhooks/shortcut")
+      .post("/api/webhooks/shortcut/cfg-shortcut-1")
       .set("x-shortcut-delivery", "shortcut-delivery-rejected-1")
       .set("payload-signature", "sha256=bad-signature")
       .send({
@@ -137,7 +137,7 @@ describe("shortcut webhook routes", () => {
     const app = createApp(processWebhook);
 
     const response = await request(app)
-      .post("/api/webhooks/shortcut")
+      .post("/api/webhooks/shortcut/cfg-shortcut-1")
       .set("x-shortcut-delivery", "shortcut-delivery-error-1")
       .set("payload-signature", "sha256=any")
       .send({

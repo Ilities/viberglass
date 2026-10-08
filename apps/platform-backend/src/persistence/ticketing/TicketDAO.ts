@@ -323,14 +323,14 @@ export class TicketDAO {
   }
 
   /** Just enough of a task to name and link it, e.g. in a notification. */
-  async getSummary(id: string): Promise<{ title: string; key: string; spaceSlug: string; pullRequestUrl: string | null } | null> {
+  async getSummary(id: string): Promise<{ title: string; key: string; spaceSlug: string; spaceName: string; pullRequestUrl: string | null } | null> {
     const row = await db
       .selectFrom("tickets")
       .innerJoin("projects", "projects.id", "tickets.project_id")
-      .select(["tickets.title", "tickets.task_key", latestPullRequestUrl("tickets").as("pull_request_url"), "projects.slug"])
+      .select(["tickets.title", "tickets.task_key", latestPullRequestUrl("tickets").as("pull_request_url"), "projects.slug", "projects.name"])
       .where("tickets.id", "=", id)
       .executeTakeFirst();
-    return row ? { title: row.title, key: row.task_key, spaceSlug: row.slug, pullRequestUrl: row.pull_request_url } : null;
+    return row ? { title: row.title, key: row.task_key, spaceSlug: row.slug, spaceName: row.name, pullRequestUrl: row.pull_request_url } : null;
   }
 
   async findIdByKey(key: string): Promise<string | null> {
@@ -381,10 +381,6 @@ export class TicketDAO {
 
     if (updates.autoFixStatus === "failed" || updates.autoFixStatus === "pending") {
       return TICKET_STATUS.OPEN;
-    }
-
-    if (updates.externalTicketId && updates.externalTicketId.trim().length > 0) {
-      return TICKET_STATUS.RESOLVED;
     }
 
     return undefined;

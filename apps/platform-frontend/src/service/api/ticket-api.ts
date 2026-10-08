@@ -187,6 +187,21 @@ export async function createTicket(
   return data.data
 }
 
+/** Copies a task into another space: a new task with the same title and description, each thread naming the other. */
+export async function copyTask(id: string, spaceId: string): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spaceId }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to copy the task')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
+  return data.data
+}
+
 export async function updateTicket(id: string, updates: UpdateTicketRequest): Promise<Ticket> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}`, {
     method: 'PUT',

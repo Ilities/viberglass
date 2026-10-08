@@ -10,8 +10,6 @@ import {
   getInboundConfigForIntegrationOrThrow,
   normalizeOptionalId,
   resolveProjectId,
-  resolveProviderProjectId,
-  toJsonObject,
 } from "./integrationWebhookOrchestratorUtils";
 
 export class InboundWebhookConfigOrchestrator {
@@ -46,37 +44,29 @@ export class InboundWebhookConfigOrchestrator {
         integrationId,
         "Integration does not support inbound webhooks",
       );
+    if (!providerPolicy.targetsOneSpace) {
+      const existing = await this.webhookConfigDAO.listByIntegrationId(integration.id, { activeOnly: false });
+      if (existing.some((config) => config.provider === provider)) {
+        throw new IntegrationRouteServiceError(409, "The connection already has a webhook");
+      }
+    }
 
     const webhookSecret = input.generateSecret
       ? crypto.randomBytes(32).toString("hex")
       : input.webhookSecret;
-    const projectId = await resolveProjectId(
-      this.projectLinkDAO,
-      integration.id,
-      input.projectId,
-    );
-    const providerProjectId = resolveProviderProjectId(
-      provider,
-      providerPolicy,
-      input.providerProjectId,
-      integration.config,
-    );
-    providerPolicy.validateProviderProjectId(providerProjectId);
-    const labelMappings = providerPolicy.normalizeInboundLabelMappings(
-      input.labelMappings,
-    );
+    const projectId = providerPolicy.targetsOneSpace
+      ? await resolveProjectId(this.projectLinkDAO, integration.id, input.projectId)
+      : null;
     await ensureProjectLink(this.projectLinkDAO, projectId, integration.id);
 
     const created = await this.webhookConfigDAO.createConfig({
       projectId,
       provider,
       integrationId: integration.id,
-      providerProjectId,
       allowedEvents: input.allowedEvents || getDefaultInboundEvents(provider),
-      planNewIssues: input.planNewIssues ?? false,
+      planNewIssues: providerPolicy.targetsOneSpace ? (input.planNewIssues ?? false) : false,
       botUsername: input.botUsername?.trim() || null,
       webhookSecretEncrypted: webhookSecret || null,
-      labelMappings: toJsonObject(labelMappings),
       secretLocation: "database",
       active: input.active ?? true,
     });
@@ -102,31 +92,19 @@ export class InboundWebhookConfigOrchestrator {
     const webhookSecret = input.generateSecret
       ? crypto.randomBytes(32).toString("hex")
       : input.webhookSecret;
-    const providerProjectId =
-      input.providerProjectId !== undefined
-        ? normalizeOptionalId(input.providerProjectId)
-        : existing.providerProjectId;
-    if (input.providerProjectId !== undefined) {
-      providerPolicy.validateProviderProjectId(providerProjectId);
-    }
-    const labelMappings = providerPolicy.normalizeInboundLabelMappings(
-      input.labelMappings,
-      existing.labelMappings,
-    );
-    const nextProjectId =
-      input.projectId !== undefined
-        ? normalizeOptionalId(input.projectId)
-        : existing.projectId;
-    await ensureProjectLink(this.projectLinkDAO, nextProjectId, integration.id);
+    const space = providerPolicy.targetsOneSpace
+      ? {
+          projectId: input.projectId !== undefined ? normalizeOptionalId(input.projectId) : existing.projectId,
+          planNewIssues: input.planNewIssues,
+        }
+      : {};
+    await ensureProjectLink(this.projectLinkDAO, space.projectId ?? null, integration.id);
 
     await this.webhookConfigDAO.updateConfig(configId, {
-      projectId: nextProjectId,
-      providerProjectId,
+      ...space,
       allowedEvents: input.allowedEvents,
-      planNewIssues: input.planNewIssues,
       ...(input.botUsername !== undefined ? { botUsername: input.botUsername?.trim() || null } : {}),
       webhookSecretEncrypted: webhookSecret,
-      labelMappings: toJsonObject(labelMappings),
       active: input.active,
     });
 

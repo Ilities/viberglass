@@ -11,6 +11,7 @@ import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { CopyTaskDialog } from './copy-task-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { TaskActionsMenu } from './task-actions-menu'
@@ -53,6 +54,7 @@ export function TicketDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
   // Hidden panels stay mounted so switching preserves a draft and its scroll position.
   const wide = useMediaQuery('(min-width: 1280px)')
   const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
@@ -190,6 +192,7 @@ export function TicketDetailPage() {
                 onSetDone={(done) => void setDone(done)}
                 onArchive={() => void archive()}
                 onDelete={() => setIsDeleteDialogOpen(true)}
+                onCopy={canInspectRuns ? () => setIsCopyDialogOpen(true) : undefined}
               />
             </>
           }
@@ -299,6 +302,7 @@ export function TicketDetailPage() {
           }
         }}
       />
+      <CopyTaskDialog ticket={ticket} open={isCopyDialogOpen} onClose={() => setIsCopyDialogOpen(false)} onCopied={changed} />
       <DeleteTicketDialog
         ticket={ticket}
         open={isDeleteDialogOpen}

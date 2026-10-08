@@ -3,10 +3,13 @@ import { TaskIssueMirror } from "../../../../services/trackers/TaskIssueMirror";
 
 const LINK = { ticketId: "task-1", provider: "jira", issueKey: "WEB-12", issueUrl: "https://acme.atlassian.net/browse/WEB-12", integrationId: "conn-1", webhookConfigId: null, apiBaseUrl: "https://acme.atlassian.net" };
 
-function setup(options: { linked?: boolean; sources?: Array<string | null>; produced?: string[] } = {}) {
+function setup(options: { linked?: boolean; sources?: Array<string | null>; produced?: string[]; sharing?: number } = {}) {
   const commenter = { postComment: jest.fn() };
   const deps = {
-    links: { getByTicket: jest.fn().mockResolvedValue(options.linked === false ? null : LINK) },
+    links: {
+      getByTicket: jest.fn().mockResolvedValue(options.linked === false ? null : LINK),
+      countSharingIssue: jest.fn().mockResolvedValue(options.sharing ?? 1),
+    },
     commenters: { resolve: jest.fn().mockResolvedValue(commenter) },
     turns: {
       getByJobId: jest.fn().mockResolvedValue({
@@ -18,7 +21,7 @@ function setup(options: { linked?: boolean; sources?: Array<string | null>; prod
     messages: { sourcesAnsweredBy: jest.fn().mockResolvedValue(options.sources ?? [null]) },
     questions: { getById: jest.fn() },
     documents: { getOrCreateDocument: jest.fn().mockResolvedValue({ content: "# Plan\n\nAdd a note field to checkout.\n\n## Part 1: Field" }) },
-    tickets: { getSummary: jest.fn().mockResolvedValue({ title: "Gift notes", key: "WEB-1", spaceSlug: "web", pullRequestUrl: "https://github.com/acme/web/pull/7" }) },
+    tickets: { getSummary: jest.fn().mockResolvedValue({ title: "Gift notes", key: "WEB-1", spaceSlug: "web", spaceName: "Web shop", pullRequestUrl: "https://github.com/acme/web/pull/7" }) },
   };
   return { commenter, deps, mirror: new TaskIssueMirror(deps) };
 }
@@ -58,6 +61,16 @@ describe("TaskIssueMirror", () => {
 
     expect(posted(commenter)[0]).toContain("Pull request opened:** https://github.com/acme/web/pull/7");
     expect(posted(commenter)[1]).toContain("**Done.**");
+  });
+
+  it("names the space when the issue has a task in more than one", async () => {
+    const shared = setup({ sharing: 2, produced: ["code"] });
+    await shared.mirror.onActivity(finished);
+    expect(posted(shared.commenter)[0]).toMatch(/^\*\*Web shop\*\* · \*\*Pull request opened:\*\*/);
+
+    const single = setup({ produced: ["code"] });
+    await single.mirror.onActivity(finished);
+    expect(posted(single.commenter)[0]).toMatch(/^\*\*Pull request opened:\*\*/);
   });
 
   it("does nothing for a task with no linked issue, or for messages written in Viberglass", async () => {

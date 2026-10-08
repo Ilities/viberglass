@@ -115,10 +115,10 @@ export class WebhookDeliveryOrchestrator {
       };
     }
 
-    if (delivery.status !== "failed") {
+    if (delivery.status !== "failed" && delivery.status !== "ignored") {
       throw new IntegrationRouteServiceError(
         409,
-        "Only failed deliveries can be retried",
+        "Only failed or ignored deliveries can be retried",
       );
     }
 

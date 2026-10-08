@@ -47,6 +47,11 @@ export class InboundWebhookDeliveryLifecycle {
       return;
     }
 
+    if (result.ignoredReason) {
+      await this.deliveryDAO.updateDeliveryStatus(deliveryAttemptId, "ignored", result.ignoredReason);
+      return;
+    }
+
     await this.deliveryDAO.updateDeliveryStatus(deliveryAttemptId, "succeeded");
   }
 
@@ -57,10 +62,20 @@ export class InboundWebhookDeliveryLifecycle {
     await this.deduplication.recordDeliveryFailureById(deliveryAttemptId, error);
   }
 
-  async recordRejectedOrIgnored(
+  /** A delivery that was refused, such as one with a bad signature: failed, so it can be retried. */
+  async recordRejected(event: ParsedWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
+    await this.recordUnprocessed(event, config, (id) => this.recordFailure(id, reason));
+  }
+
+  /** A delivery the webhook doesn't act on, such as an event it isn't set to receive. */
+  async recordIgnored(event: ParsedWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
+    await this.recordUnprocessed(event, config, (id) => this.deliveryDAO.updateDeliveryStatus(id, "ignored", reason));
+  }
+
+  private async recordUnprocessed(
     event: ParsedWebhookEvent,
     config: WebhookConfig,
-    reason: string,
+    finish: (deliveryAttemptId: string) => Promise<void>,
   ): Promise<void> {
     try {
       const { shouldProcess } = await this.deduplication.shouldProcessDelivery(
@@ -79,7 +94,7 @@ export class InboundWebhookDeliveryLifecycle {
         payload: event.payload,
       });
 
-      await this.recordFailure(delivery.id, reason);
+      await finish(delivery.id);
     } catch {
       // Ignore recording failures.
     }

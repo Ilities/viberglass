@@ -102,7 +102,7 @@ function AnswerCard({ taskId, question, viewerId, onAnswered }: { taskId: string
               outline
               disabled={sending}
               onClick={() => void send(option)}
-              className="!h-auto min-h-[var(--base-button-height)] max-w-full !whitespace-normal py-1.5 text-left"
+              className="!h-auto !min-h-[var(--base-button-height)] !max-w-full !whitespace-normal !py-1.5 !text-left"
             >
               {option}
             </Button>

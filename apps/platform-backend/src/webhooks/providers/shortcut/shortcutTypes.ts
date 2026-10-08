@@ -51,10 +51,12 @@ export interface ShortcutWebhookPayload {
   refs?: Array<{
     id?: number;
     entity_type?: string;
+    name?: string;
   }>;
   references?: Array<{
     id?: number;
     entity_type?: string;
+    name?: string;
   }>;
   changed_fields?: string[];
   changedFields?: string[];

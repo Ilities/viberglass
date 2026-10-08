@@ -37,13 +37,4 @@ export class IntegrationRegistry {
     }
     return ['*']
   }
-
-  getProviderProjectId(provider: string, config: Record<string, unknown>): string | null {
-    for (const plugin of this.plugins.values()) {
-      if (plugin.webhookProvider === provider && plugin.getProviderProjectId) {
-        return plugin.getProviderProjectId(config)
-      }
-    }
-    return null
-  }
 }

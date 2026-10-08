@@ -408,7 +408,6 @@ export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
   provider: "github" | "jira" | "shortcut" | "custom";
-  provider_project_id: string | null;
   integration_id: string | null;
   secret_location: "database" | "ssm" | "env";
   secret_path: string | null;
@@ -416,10 +415,18 @@ export interface WebhookProviderConfigsTable {
   allowed_events: Generated<string[]>;
   plan_new_issues: Generated<boolean>;
   bot_username: string | null;
-  label_mappings: Generated<JsonObject>;
   active: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
+}
+
+export interface TrackerIssueRulesTable {
+  id: Generated<string>;
+  project_id: string;
+  integration_id: string;
+  label: string | null;
+  plan_new_issues: Generated<boolean>;
+  created_at: Generated<Timestamp>;
 }
 
 export interface WebhookDeliveryAttemptsTable {
@@ -428,7 +435,7 @@ export interface WebhookDeliveryAttemptsTable {
   webhook_config_id: string | null;
   delivery_id: string;
   event_type: string;
-  status: "pending" | "processing" | "succeeded" | "failed";
+  status: "pending" | "processing" | "succeeded" | "failed" | "ignored";
   error_message: string | null;
   payload: Json;
   project_id: string | null;
@@ -835,6 +842,7 @@ export interface Database {
   task_messages: TaskMessagesTable;
   task_mentions: TaskMentionsTable;
   task_issue_links: TaskIssueLinksTable;
+  tracker_issue_rules: TrackerIssueRulesTable;
   task_reads: TaskReadsTable;
   task_summaries: TaskSummariesTable;
   task_activity: TaskActivityTable;

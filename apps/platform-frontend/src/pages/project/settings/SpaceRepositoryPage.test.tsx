@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useProject } from '@/context/project-context'
@@ -15,6 +15,7 @@ import {
   upsertProjectScmConfig,
 } from '@/service/api/project-api'
 import { SpaceRepositoryPage } from './SpaceRepositoryPage'
+import { useSpaceRepositoryForm } from './useSpaceRepositoryForm'
 import type { Project } from '@/service/api/project-api'
 import type { AvailableIntegrationType, ProjectIntegrationWithDetails } from '@/service/api/integration-api'
 import type { ProjectScmConfig, IntegrationCredential } from '@viberglass/types'
@@ -202,6 +203,22 @@ describe('SpaceRepositoryPage', () => {
     mockedUpdateProject.mockResolvedValue(PROJECT as unknown as Project)
     mockedUpsertProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as unknown as ProjectScmConfig)
     mockedDeleteProjectScmConfig.mockResolvedValue()
+  })
+
+  it('keeps the save confirmation when the space context refreshes', async () => {
+    const project: Project = {
+      ...PROJECT,
+      autoFixTags: [],
+      isPrivate: false,
+      defaultReviewerIds: [],
+      questionReminderHours: 4,
+    }
+    const { result, rerender } = renderHook((space) => useSpaceRepositoryForm(space), { initialProps: project })
+    await waitFor(() => expect(result.current.isLoadingConnections || result.current.isLoadingTokens).toBe(false))
+    await act(async () => result.current.save())
+    expect(result.current.success).toBe('Saved.')
+    await act(async () => rerender({ ...project, updatedAt: '2026-10-08T10:00:00Z' }))
+    expect(result.current.success).toBe('Saved.')
   })
 
   it('loads linked ticketing and SCM integrations into the settings form', async () => {

@@ -26,7 +26,7 @@ export function DeliveryHistoryTable({
     <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-sm font-medium text-zinc-900 dark:text-white">{title}</h4>
-        <Button color="zinc" size="small" onClick={onRefreshDeliveries} disabled={isLoadingDeliveries}>
+        <Button outline onClick={onRefreshDeliveries} disabled={isLoadingDeliveries}>
           {isLoadingDeliveries ? 'Refreshing...' : 'Refresh'}
         </Button>
       </div>
@@ -58,13 +58,17 @@ export function DeliveryHistoryTable({
                             ? 'green'
                             : delivery.status === 'failed'
                               ? 'red'
-                              : 'amber'
+                              : delivery.status === 'ignored'
+                                ? 'zinc'
+                                : 'amber'
                         }
                       >
                         {delivery.status}
                       </Badge>
                       {delivery.errorMessage && (
-                        <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+                        <span
+                          className={`ml-2 text-xs ${delivery.status === 'ignored' ? 'text-[var(--gray-10)]' : 'text-red-600 dark:text-red-400'}`}
+                        >
                           {delivery.errorMessage}
                         </span>
                       )}
@@ -85,7 +89,7 @@ export function DeliveryHistoryTable({
                     <td className="px-3 py-2 text-zinc-500">{new Date(delivery.createdAt).toLocaleString()}</td>
                     <td className="px-3 py-2">
                       {(delivery.retryable ?? delivery.status === 'failed') && (
-                        <Button color="zinc" size="small" onClick={() => onRetryDelivery(delivery.id)}>
+                        <Button outline onClick={() => onRetryDelivery(delivery.id)}>
                           Retry
                         </Button>
                       )}

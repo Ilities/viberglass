@@ -7,8 +7,7 @@ import type { WebhookConfig } from "../../../../persistence/webhook/WebhookConfi
 
 function issues() {
   return {
-    opened: jest.fn().mockResolvedValue({ ticketId: "t-1" }),
-    edited: jest.fn().mockResolvedValue({ ticketId: "t-1" }),
+    issue: jest.fn().mockResolvedValue({ ticketId: "t-1" }),
     commented: jest.fn().mockResolvedValue({ ticketId: "t-1" }),
   };
 }
@@ -19,9 +18,8 @@ function context(provider: WebhookConfig["provider"], event: Omit<ParsedWebhookE
     event: { provider, deduplicationId: "d-1", timestamp: at.toISOString(), ...event },
     config: {
       id: "cfg-1",
-      projectId: "space-1",
+      projectId: null,
       provider,
-      providerProjectId: null,
       integrationId: "int-1",
       secretLocation: "database",
       secretPath: null,
@@ -29,7 +27,6 @@ function context(provider: WebhookConfig["provider"], event: Omit<ParsedWebhookE
       allowedEvents: ["*"],
       planNewIssues: false,
       botUsername,
-      labelMappings: {},
       active: true,
       createdAt: at,
       updatedAt: at,
@@ -51,7 +48,7 @@ describe("tracker inbound processors", () => {
       }),
     );
     expect(inbound.commented).toHaveBeenCalledWith(
-      { provider: "jira", projectId: "space-1", integrationId: "int-1", webhookConfigId: "cfg-1" },
+      { provider: "jira", integrationId: "int-1", webhookConfigId: "cfg-1" },
       { issueKey: "OPS-1", author: { name: "Maria", email: "maria@acme.test" }, body: "Can we keep the old flow?", mentionsBot: false },
     );
   });
@@ -72,7 +69,7 @@ describe("tracker inbound processors", () => {
 
   it("asks from a Shortcut comment that mentions the bot", async () => {
     const inbound = issues();
-    await new ShortcutInboundProcessor(inbound, { getIntegrationProjects: jest.fn() }).process(
+    await new ShortcutInboundProcessor(inbound).process(
       context("shortcut", { eventType: "comment_created", metadata: {}, payload: { data: { story_id: 42, text: "@viberator write the plan", author_id: "m-1" } } }),
     );
     expect(inbound.commented).toHaveBeenCalledWith(expect.objectContaining({ provider: "shortcut" }), {
@@ -83,12 +80,16 @@ describe("tracker inbound processors", () => {
     });
   });
 
-  it("updates a GitHub issue's task when it's edited, and skips comments from bots", async () => {
+  it("passes a GitHub issue on with its repository and labels, and skips comments from bots", async () => {
     const inbound = issues();
     const processor = new GitHubInboundProcessor(inbound);
     const repository = { full_name: "acme/shop" };
     await processor.process(
-      context("github", { eventType: "issues", metadata: {}, payload: { action: "edited", repository, issue: { number: 7, title: "New title", body: "New body" } } }),
+      context("github", {
+        eventType: "issues",
+        metadata: {},
+        payload: { action: "labeled", repository, issue: { number: 7, title: "New title", body: "New body", labels: [{ name: "Ready" }] } },
+      }),
     );
     const bot = await processor.process(
       context("github", {
@@ -97,8 +98,30 @@ describe("tracker inbound processors", () => {
         payload: { action: "created", repository, issue: { number: 7 }, comment: { body: "Ship it", user: { login: "ci", type: "Bot" } } },
       }),
     );
-    expect(inbound.edited).toHaveBeenCalledWith(expect.objectContaining({ provider: "github" }), { key: "acme/shop#7", title: "New title", description: "New body" });
+    expect(inbound.issue).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "github" }),
+      expect.objectContaining({ key: "acme/shop#7", title: "New title", description: "New body", labels: ["ready"], repository: "acme/shop" }),
+    );
     expect(bot.ignoredReason).toBe("Written by a bot account");
     expect(inbound.commented).not.toHaveBeenCalled();
+  });
+
+  it("passes a Jira issue on with its labels, and keeps the description an update doesn't carry", async () => {
+    const inbound = issues();
+    const processor = new JiraInboundProcessor(inbound);
+    const issue = { key: "OPS-1", self: "https://acme.atlassian.net/rest/api/2/issue/1", fields: { summary: "Faster checkout", labels: ["Frontend"] } };
+    await processor.process(context("jira", { eventType: "issue_updated", metadata: {}, payload: { issue } }));
+    expect(inbound.issue).toHaveBeenCalledWith(
+      { provider: "jira", integrationId: "int-1", webhookConfigId: "cfg-1" },
+      expect.objectContaining({ key: "OPS-1", title: "Faster checkout", description: undefined, labels: ["frontend"], url: "https://acme.atlassian.net/browse/OPS-1" }),
+    );
+  });
+
+  it("ignores events of a webhook that has lost its connection", async () => {
+    const inbound = issues();
+    const lost = context("jira", { eventType: "issue_created", metadata: {}, payload: { issue: { key: "OPS-1" } } });
+    const result = await new JiraInboundProcessor(inbound).process({ ...lost, config: { ...lost.config, integrationId: null } });
+    expect(result.ignoredReason).toBeDefined();
+    expect(inbound.issue).not.toHaveBeenCalled();
   });
 });

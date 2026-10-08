@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
 import { getOverview } from '@/service/api/home-api'
+import { useApiRefresh } from '@/hooks/useApiRefresh'
 import type { OverviewData, OverviewGroup } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { overviewMetrics } from './overview-metrics'
@@ -49,6 +50,7 @@ export function OverviewPage() {
   const [overview, setOverview] = useState<OverviewData | null>(null)
   const [spaces, setSpaces] = useState<OverviewData['spaces']>([])
   const [failed, setFailed] = useState(false)
+  const revision = useApiRefresh('/api/spaces', '/api/tasks', '/api/jobs', '/api/setup/demo')
 
   useEffect(() => {
     let cancelled = false
@@ -67,7 +69,7 @@ export function OverviewPage() {
       cancelled = true
       clearInterval(timer)
     }
-  }, [space])
+  }, [space, revision])
 
   if (!overview && !failed) return <FunLoading retro />
 

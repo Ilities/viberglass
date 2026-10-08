@@ -9,7 +9,6 @@
 import type { ParsedWebhookEvent, ProviderType } from './WebhookProvider';
 import type { WebhookConfig } from '../persistence/webhook/WebhookConfigDAO';
 import type { TicketDAO } from '../persistence/ticketing/TicketDAO';
-import type { ProjectIntegrationLinkDAO } from '../persistence/integrations/ProjectIntegrationLinkDAO';
 import type { TrackerIssueInbound } from '../services/trackers/TrackerIssueInbound';
 import type { WebhookPlanRequester } from './WebhookPlanRequester';
 import { CustomInboundProcessor } from './inbound-processors/CustomInboundProcessor';
@@ -111,14 +110,13 @@ export class InboundEventProcessorResolver {
 export function createDefaultInboundEventProcessorResolver(
   ticketDAO: TicketDAO,
   planner: Pick<WebhookPlanRequester, 'request'>,
-  issues: Pick<TrackerIssueInbound, 'opened' | 'edited' | 'commented'>,
-  projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
+  issues: Pick<TrackerIssueInbound, 'issue' | 'commented'>,
 ): InboundEventProcessorResolver {
   return new InboundEventProcessorResolver([
     new DefaultInboundProcessor(),
     new GitHubInboundProcessor(issues),
     new JiraInboundProcessor(issues),
-    new ShortcutInboundProcessor(issues, projectIntegrationLinkDAO),
+    new ShortcutInboundProcessor(issues),
     new CustomInboundProcessor(ticketDAO, planner),
   ]);
 }

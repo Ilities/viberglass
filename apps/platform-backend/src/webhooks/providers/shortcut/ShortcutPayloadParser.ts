@@ -251,7 +251,7 @@ function normalizeRefs(
     return undefined;
   }
 
-  type ShortcutRef = { id?: number; entity_type?: string };
+  type ShortcutRef = { id?: number; entity_type?: string; name?: string };
   const refs = value
     .map((ref): ShortcutRef | undefined => {
       const record = isObjectRecord(ref) ? ref : undefined;
@@ -265,13 +265,30 @@ function normalizeRefs(
         return undefined;
       }
 
+      const name = toNonEmptyString(record.name);
       return {
         id,
         entity_type: entityType,
+        ...(name ? { name } : {}),
       };
     })
     .filter((ref): ref is ShortcutRef => typeof ref !== "undefined");
 
+  return refs.length > 0 ? refs : undefined;
+}
+
+/**
+ * The entities an event refers to. A label created along with the change
+ * (typed into a story's labels) arrives as an action of its own rather than
+ * as a reference, so label actions count as references too.
+ */
+function collectRefs(source: Record<string, unknown>): ShortcutWebhookPayload["refs"] | undefined {
+  const actions = Array.isArray(source.actions) ? source.actions : [];
+  const labelActions = actions.filter((action) => isObjectRecord(action) && action.entity_type === "label");
+  const refs = [
+    ...(normalizeRefs(source.refs) || normalizeRefs(source.references) || []),
+    ...(normalizeRefs(labelActions) || []),
+  ];
   return refs.length > 0 ? refs : undefined;
 }
 
@@ -416,7 +433,7 @@ function normalizeShortcutPayload(sourcePayload: Record<string, unknown>): {
       member_id:
         toNonEmptyString(source.member_id) || toNonEmptyString(source.memberId),
       data: normalizedData || resolvedData,
-      refs: normalizeRefs(source.refs) || normalizeRefs(source.references),
+      refs: collectRefs(source),
       changed_fields: changedFields,
     },
   };

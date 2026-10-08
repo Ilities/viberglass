@@ -12,7 +12,7 @@ import {
 } from './routeHelpers';
 
 /**
- * POST /api/webhooks/jira
+ * POST /api/webhooks/jira/:configId
  *
  * Jira webhook endpoint for receiving events from Jira.
  * Handles issue events (created, updated, deleted) and comment events.
@@ -26,7 +26,7 @@ export function createJiraRoutes(getWebhookService: () => WebhookService) {
   const router = express.Router();
 
   router.post(
-    '/',
+    '/:configId',
     async (req: Request, res: Response) => {
       try {
         const service = getWebhookService();
@@ -38,7 +38,7 @@ export function createJiraRoutes(getWebhookService: () => WebhookService) {
           req.body,
           rawBody,
           req.tenantId,
-          { providerName: 'jira' },
+          { providerName: 'jira', configId: req.params.configId },
         );
 
         return respondWithWebhookResult(res, result);

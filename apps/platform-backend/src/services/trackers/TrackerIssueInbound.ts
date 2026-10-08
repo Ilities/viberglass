@@ -1,4 +1,4 @@
-import type { Severity, TicketMetadata, TicketOrigin } from "@viberglass/types";
+import type { Severity, TicketOrigin } from "@viberglass/types";
 import { isViberglassComment } from "@viberglass/integration-core";
 import { createChildLogger } from "../../config/logger";
 import { AgentQuestionDAO } from "../../persistence/agentSession/AgentQuestionDAO";
@@ -8,16 +8,17 @@ import { UserDAO } from "../../persistence/user/UserDAO";
 import type { AgentQuestionAnswerService } from "../questions/AgentQuestionAnswerService";
 import { TaskDiscussionService } from "../tasks/TaskDiscussionService";
 import type { TaskTurnService } from "../taskTurns/TaskTurnService";
-import type { WebhookPlanRequester } from "../../webhooks/WebhookPlanRequester";
+import type { TrackerIssueRouter } from "./TrackerIssueRouter";
+import type { TrackerIssueTaskOpener } from "./TrackerIssueTaskOpener";
+import { trackerPersonId } from "./trackerPersonId";
 
 const logger = createChildLogger({ service: "TrackerIssueInbound" });
 
-/** Where an issue event came from: the tracker, the space it goes to, and the connection it came through. */
+/** Where an issue event came from: the tracker, and the connection and webhook it came through. */
 export interface TrackerContext {
   provider: Extract<TicketOrigin, "jira" | "shortcut" | "github">;
-  projectId: string;
-  integrationId: string | null;
-  webhookConfigId: string | null;
+  integrationId: string;
+  webhookConfigId: string;
 }
 
 export interface TrackerPerson {
@@ -26,17 +27,21 @@ export interface TrackerPerson {
   email: string | null;
 }
 
-export interface OpenedIssue {
+/** An issue as an event shows it. */
+export interface TrackerIssue {
   key: string;
   url: string | null;
   apiBaseUrl: string | null;
-  title: string;
-  description: string;
+  /** Missing when the event doesn't carry it; the task keeps what it has. */
+  title?: string;
+  description?: string;
   author: TrackerPerson | null;
   severity: Severity;
-  /** Whether the agent writes the plan for it straight away. */
-  plan: boolean;
-  /** Tracker details kept on the task, such as the issue type. */
+  /** Lower-cased. */
+  labels: string[];
+  /** `owner/repo`, for GitHub. */
+  repository: string | null;
+  /** Tracker details kept on a new task, such as the issue type. */
   metadata: Record<string, unknown>;
 }
 
@@ -50,31 +55,34 @@ export interface IssueComment {
 
 export interface TrackerEventResult {
   ticketId?: string;
+  projectId?: string;
   jobId?: string;
   ignoredReason?: string;
 }
 
 interface Dependencies {
-  tickets: Pick<TicketDAO, "createTicket" | "updateTicket">;
-  links: Pick<TaskIssueLinkDAO, "create" | "findTicket">;
+  router: Pick<TrackerIssueRouter, "route">;
+  opener: Pick<TrackerIssueTaskOpener, "open">;
+  tickets: Pick<TicketDAO, "updateTicket">;
+  links: Pick<TaskIssueLinkDAO, "findTickets">;
   users: Pick<UserDAO, "findByEmail">;
   discussion: Pick<TaskDiscussionService, "createFromTracker">;
   questions: Pick<AgentQuestionDAO, "listOpenForTasks">;
   answers: Pick<AgentQuestionAnswerService, "answer">;
   turns: Pick<TaskTurnService, "ask">;
-  planner: Pick<WebhookPlanRequester, "request">;
 }
 
 /**
- * A tracker issue as a task's linked thread, whichever tracker it is: a new
- * issue creates the task, an edit updates it, and a comment is a message in
- * its thread. A comment that mentions the bot asks the agent; a reply from the
- * person the agent asked answers its question.
+ * A tracker issue as the linked thread of a task in each space that takes it,
+ * whichever tracker it is. A new or changed issue gets a task in every space
+ * that takes it and doesn't have one yet, and its edits update the tasks it
+ * has. A comment is a message in each task's thread: a mention of the bot asks
+ * the agent, and a reply from the person the agent asked answers its question.
  */
 export class TrackerIssueInbound {
   private readonly deps: Dependencies;
 
-  constructor(deps: Pick<Dependencies, "answers" | "turns" | "planner"> & Partial<Dependencies>) {
+  constructor(deps: Pick<Dependencies, "router" | "opener" | "answers" | "turns"> & Partial<Dependencies>) {
     this.deps = {
       tickets: new TicketDAO(),
       links: new TaskIssueLinkDAO(),
@@ -85,58 +93,43 @@ export class TrackerIssueInbound {
     };
   }
 
-  async opened(context: TrackerContext, issue: OpenedIssue): Promise<TrackerEventResult> {
-    if (await this.deps.links.findTicket(context.provider, issue.key, context.projectId)) {
-      return { ignoredReason: `The ${context.provider} issue '${issue.key}' already has a task` };
-    }
-    const requesterId = issue.author ? await this.personId(issue.author) : null;
-    const tracker: Record<string, unknown> = { ...issue.metadata, provider: context.provider, externalTicketId: issue.key, externalTicketUrl: issue.url };
-    const metadata: TicketMetadata = { timestamp: new Date().toISOString(), timezone: "UTC", ...tracker };
-    const ticket = await this.deps.tickets.createTicket({
-      projectId: context.projectId,
-      title: issue.title,
-      description: issue.description,
-      severity: issue.severity,
-      category: context.provider,
-      metadata,
-      annotations: [],
-      autoFixRequested: false,
-      ticketSystem: context.provider,
-      requesterId: requesterId ?? undefined,
-    });
-    await this.deps.tickets.updateTicket(ticket.id, { externalTicketId: issue.key, externalTicketUrl: issue.url ?? undefined });
-    await this.deps.links.create({
-      ticketId: ticket.id,
-      provider: context.provider,
-      issueKey: issue.key,
-      issueUrl: issue.url,
-      integrationId: context.integrationId,
-      webhookConfigId: context.webhookConfigId,
-      apiBaseUrl: issue.apiBaseUrl,
-    });
-    if (!issue.plan) return { ticketId: ticket.id };
-    return { ticketId: ticket.id, jobId: await this.deps.planner.request(ticket.id) };
-  }
-
-  async edited(context: TrackerContext, issue: { key: string; title?: string; description?: string }): Promise<TrackerEventResult> {
-    const ticketId = await this.deps.links.findTicket(context.provider, issue.key, context.projectId);
-    if (!ticketId) return { ignoredReason: `No task is linked to the ${context.provider} issue '${issue.key}'` };
+  async issue(context: TrackerContext, issue: TrackerIssue): Promise<TrackerEventResult> {
+    const linked = await this.deps.links.findTickets(context.provider, issue.key, context.integrationId);
     const title = issue.title?.trim();
-    await this.deps.tickets.updateTicket(ticketId, {
-      ...(title ? { title } : {}),
-      ...(issue.description !== undefined ? { description: issue.description } : {}),
-    });
-    return { ticketId };
+    for (const { ticketId } of linked) {
+      await this.deps.tickets.updateTicket(ticketId, {
+        ...(title ? { title } : {}),
+        ...(issue.description !== undefined ? { description: issue.description } : {}),
+      });
+    }
+
+    const { spaces, reason } = await this.deps.router.route(context, issue);
+    const fresh = spaces.filter((space) => !linked.some((task) => task.projectId === space.projectId));
+    const first: TrackerEventResult = linked[0] ? { ticketId: linked[0].ticketId, projectId: linked[0].projectId } : {};
+    if (fresh.length === 0) return linked.length > 0 ? first : { ignoredReason: reason ?? "No space takes the issue" };
+    if (!title) return { ...first, ignoredReason: `The ${context.provider} event doesn't carry the issue's title` };
+
+    const opened: TrackerEventResult[] = [];
+    for (const space of fresh) opened.push(await this.deps.opener.open(context, { ...issue, title }, space));
+    return opened[0];
   }
 
   async commented(context: TrackerContext, comment: IssueComment): Promise<TrackerEventResult> {
     if (isViberglassComment(comment.body)) return { ignoredReason: "Posted by Viberglass" };
-    const ticketId = await this.deps.links.findTicket(context.provider, comment.issueKey, context.projectId);
-    if (!ticketId) return { ignoredReason: `No task is linked to the ${context.provider} issue '${comment.issueKey}'` };
+    const linked = await this.deps.links.findTickets(context.provider, comment.issueKey, context.integrationId);
+    if (linked.length === 0) return { ignoredReason: `No task is linked to the ${context.provider} issue '${comment.issueKey}'` };
     const body = comment.body.trim();
-    if (!body) return { ticketId, ignoredReason: "The comment is empty" };
+    if (!body) return { ticketId: linked[0].ticketId, projectId: linked[0].projectId, ignoredReason: "The comment is empty" };
 
-    const userId = await this.personId(comment.author);
+    const userId = await trackerPersonId(this.deps.users, comment.author);
+    const results: TrackerEventResult[] = [];
+    for (const task of linked) {
+      results.push({ projectId: task.projectId, ...(await this.commentOn(task.ticketId, context, comment, userId, body)) });
+    }
+    return results.find((result) => result.jobId) ?? results[0];
+  }
+
+  private async commentOn(ticketId: string, context: TrackerContext, comment: IssueComment, userId: string | null, body: string): Promise<TrackerEventResult> {
     if (userId && !comment.mentionsBot) {
       const open = (await this.deps.questions.listOpenForTasks([ticketId])).get(ticketId) ?? [];
       const theirs = open.find((question) => question.askedOf?.id === userId);
@@ -157,11 +150,5 @@ export class TrackerIssueInbound {
       logger.warn("A tracker comment couldn't ask the agent", { ticketId, reason });
       return { ticketId, ignoredReason: `The agent wasn't asked: ${reason}` };
     }
-  }
-
-  private async personId(person: TrackerPerson): Promise<string | null> {
-    if (!person.email) return null;
-    const user = await this.deps.users.findByEmail(person.email);
-    return user && !user.deactivatedAt ? user.id : null;
   }
 }

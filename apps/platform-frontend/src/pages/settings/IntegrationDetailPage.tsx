@@ -13,11 +13,13 @@ import { Text } from '@/components/text'
 import {
   createIntegration,
   getAvailableIntegrationTypes,
+  getConnectionIssueRules,
   getIntegration,
   getSlackBotStatus,
   testIntegration,
   updateIntegration,
   type AvailableIntegrationType,
+  type ConnectionSpaceRule,
 } from '@/service/api/integration-api'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
@@ -25,7 +27,6 @@ import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import type { Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { toast } from 'sonner'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
@@ -37,23 +38,9 @@ import {
 import { ConnectionNameSection } from './integration-detail/ConnectionNameSection'
 import { CreateIntegrationPrompt } from './integration-detail/CreateIntegrationPrompt'
 import { RemoveIntegrationSection } from './integration-detail/RemoveIntegrationSection'
+import { TrackerWebhookSection } from './integration-detail/TrackerWebhookSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
-
-const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
-
-function normalizeGitHubRequiredLabels(rawLabels: string[]): string[] {
-  const labels: string[] = []
-  for (const rawLabel of rawLabels) {
-    const normalized = rawLabel.trim().toLowerCase()
-    if (!normalized || labels.includes(normalized)) {
-      continue
-    }
-    labels.push(normalized)
-  }
-  return labels
-}
-
 
 /** Connections holding a token: code hosts use it for repositories, trackers to comment on linked issues. */
 const TOKEN_CONNECTIONS = ['github', 'gitlab', 'bitbucket', 'jira', 'shortcut']
@@ -73,6 +60,7 @@ export function IntegrationDetailPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [slackBotConfigured, setSlackBotConfigured] = useState<boolean | null>(null)
+  const [spaceRules, setSpaceRules] = useState<ConnectionSpaceRule[]>([])
 
   const integrationEntityId = existingIntegration?.id
   const integrationSystem = integrationType?.id
@@ -195,6 +183,16 @@ export function IntegrationDetailPage() {
       .catch(() => setSlackBotConfigured(false))
   }, [isSlackIntegration])
 
+  useEffect(() => {
+    if (!integrationEntityId || !integrationSystem || !integrationFrontendRegistry.get(integrationSystem)?.trackerWebhook) {
+      setSpaceRules([])
+      return
+    }
+    getConnectionIssueRules(integrationEntityId)
+      .then(setSpaceRules)
+      .catch(() => setSpaceRules([]))
+  }, [integrationEntityId, integrationSystem])
+
   if (isPageLoading) {
     return <IntegrationDetailLoadingState />
   }
@@ -225,164 +223,7 @@ export function IntegrationDetailPage() {
   // Registry lookup — provides integration-specific section components.
   const frontendPlugin = integrationFrontendRegistry.get(integrationSystem!)
   const AuthSection = frontendPlugin?.AuthSetupSection
-  const RegistryInboundSection = frontendPlugin?.InboundWebhookSection
-
-  // ---- Per-system inbound handlers -------------------------------------------
-
-  const buildGitHubInboundLabelMappings = () => {
-    if (!webhook.planNewIssues) {
-      return {}
-    }
-
-    if (webhook.githubPlanNewIssuesMode === 'label_gated') {
-      const requiredLabels = normalizeGitHubRequiredLabels(webhook.githubRequiredLabels)
-      return {
-        github: {
-          planNewIssuesMode: 'label_gated',
-          requiredLabels,
-        },
-      }
-    }
-
-    return {
-      github: {
-        planNewIssuesMode: 'matching_events',
-      },
-    }
-  }
-
-  const validateGitHubRepositoryMapping = (): string | null => {
-    const repositoryMapping = webhook.selectedInboundProviderProjectId?.trim() || null
-    if (!repositoryMapping) {
-      toast.error('GitHub repository mapping is required')
-      return null
-    }
-
-    if (!GITHUB_REPOSITORY_PATTERN.test(repositoryMapping)) {
-      toast.error('GitHub repository mapping must use owner/repo format')
-      return null
-    }
-
-    return repositoryMapping
-  }
-
-  const handleGitHubCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-      buildGitHubInboundLabelMappings(),
-    )
-  }
-
-  const handleGitHubGenerateSecret = () => {
-    if (webhook.selectedInboundConfig) {
-      const repositoryMapping = validateGitHubRepositoryMapping()
-      if (!repositoryMapping) {
-        return
-      }
-
-      void webhook.handleGenerateSecret(
-        repositoryMapping,
-        webhook.selectedInboundProjectId,
-        buildGitHubInboundLabelMappings(),
-      )
-      return
-    }
-
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-      buildGitHubInboundLabelMappings(),
-    )
-  }
-
-  const handleGitHubSaveInboundWebhook = () => {
-    const repositoryMapping = validateGitHubRepositoryMapping()
-    if (!repositoryMapping) {
-      return
-    }
-
-    if (
-      webhook.githubPlanNewIssuesMode === 'label_gated' &&
-      normalizeGitHubRequiredLabels(webhook.githubRequiredLabels).length === 0
-    ) {
-      toast.error('Add at least one label, or plan every new issue')
-      return
-    }
-
-    void webhook.handleSaveInboundWebhook(
-      repositoryMapping,
-      webhook.selectedInboundProjectId,
-      buildGitHubInboundLabelMappings(),
-    )
-  }
-
-  const handleJiraCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraGenerateSecret = () => {
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutGenerateSecret = () => {
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  // Pick inbound callbacks based on integration system.
-  const onCreateInboundWebhook = isGithubIntegration
-    ? handleGitHubCreateInboundWebhook
-    : isJiraIntegration
-      ? handleJiraCreateInboundWebhook
-      : isShortcutIntegration
-        ? handleShortcutCreateInboundWebhook
-        : () => void webhook.handleCreateInboundWebhook()
-
-  const onGenerateInboundSecret = isGithubIntegration
-    ? handleGitHubGenerateSecret
-    : isJiraIntegration
-      ? handleJiraGenerateSecret
-      : isShortcutIntegration
-        ? handleShortcutGenerateSecret
-        : () => void webhook.handleGenerateSecret()
-
-  const onSaveInboundWebhook = isGithubIntegration
-    ? handleGitHubSaveInboundWebhook
-    : isJiraIntegration
-      ? handleJiraSaveInboundWebhook
-      : isShortcutIntegration
-        ? handleShortcutSaveInboundWebhook
-        : () => void webhook.handleSaveInboundWebhook()
+  const trackerWebhook = frontendPlugin?.trackerWebhook
 
   // ---- Form handlers ---------------------------------------------------------
 
@@ -570,55 +411,26 @@ export function IntegrationDetailPage() {
             onPlanNewIssuesChange={webhook.setPlanNewIssues}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(undefined, projectId)}
+            onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(projectId)}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
             onGenerateSecret={() =>
-              webhook.handleGenerateSecret(undefined, webhook.selectedInboundProjectId)
+              webhook.handleGenerateSecret(webhook.selectedInboundProjectId)
             }
             onInboundActiveChange={webhook.setInboundActive}
             onProjectChange={webhook.setSelectedInboundProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={() => webhook.handleSaveInboundWebhook(undefined, webhook.selectedInboundProjectId)}
+            onSaveWebhook={() => webhook.handleSaveInboundWebhook(webhook.selectedInboundProjectId)}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
-        ) : RegistryInboundSection ? (
-          <RegistryInboundSection
-            planNewIssues={webhook.planNewIssues}
-            botUsername={webhook.botUsername}
-            onBotUsernameChange={webhook.setBotUsername}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundEvents={webhook.inboundEvents}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
+        ) : trackerWebhook ? (
+          <TrackerWebhookSection
+            tracker={trackerWebhook}
+            routesByRepository={isGithubIntegration}
+            webhook={webhook}
+            spaceRules={spaceRules}
             projects={projects}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            selectedInboundProjectId={webhook.selectedInboundProjectId}
-            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
-            showSecret={webhook.showSecret}
-            githubPlanNewIssuesMode={webhook.githubPlanNewIssuesMode}
-            githubRequiredLabels={webhook.githubRequiredLabels}
-            onPlanNewIssuesChange={webhook.setPlanNewIssues}
-            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={onCreateInboundWebhook}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={onGenerateInboundSecret}
-            onGitHubPlanNewIssuesModeChange={webhook.setGitHubPlanNewIssuesMode}
-            onGitHubRequiredLabelsChange={webhook.setGitHubRequiredLabels}
-            onInboundProjectChange={webhook.setSelectedInboundProjectId}
-            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={onSaveInboundWebhook}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleInboundEvent={webhook.handleToggleInboundEvent}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
         ) : (
           <InboundWebhookSection

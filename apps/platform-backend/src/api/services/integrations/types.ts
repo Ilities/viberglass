@@ -18,15 +18,15 @@ export interface LinkProjectIntegrationInput {
 }
 
 export interface UpsertInboundWebhookConfigInput {
+  /** Custom webhooks only: the space their tasks go to. */
   projectId?: string | null
   allowedEvents?: string[]
+  /** Custom webhooks only. */
   planNewIssues?: boolean
   /** The tracker account whose mention in a comment asks the agent. */
   botUsername?: string | null
   webhookSecret?: string
   generateSecret?: boolean
-  providerProjectId?: string | null
-  labelMappings?: Record<string, unknown>
   active?: boolean
 }
 

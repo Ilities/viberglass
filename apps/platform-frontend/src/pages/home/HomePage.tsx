@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
 import { SectionHeader } from '@/components/section-header'
 import { useAuth } from '@/context/auth-context'
+import { useApiRefresh } from '@/hooks/useApiRefresh'
 import { getProjectsList } from '@/data'
 import { isRunner } from '@/lib/roles'
 import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
@@ -38,6 +39,7 @@ export function HomePage() {
   const [filter, setFilter] = useState<HomeFilter>('all')
   const [failed, setFailed] = useState(false)
   const [reloads, setReloads] = useState(0)
+  const revision = useApiRefresh('/api/spaces', '/api/tasks', '/api/setup/space', '/api/setup/demo')
   const reload = () => setReloads((count) => count + 1)
   const landing = landingFor(user?.role)
 
@@ -57,7 +59,7 @@ export function HomePage() {
       cancelled = true
       clearInterval(timer)
     }
-  }, [landing, reloads])
+  }, [landing, reloads, revision])
 
   if (landing !== '/') return <Navigate to={landing} replace />
   if (!home && !failed) return <FunLoading retro />

@@ -1,10 +1,10 @@
 import type { EventProcessingResult, InboundEventContext, InboundEventProcessor } from "../InboundEventProcessorResolver";
 import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
-import type { TrackerIssueInbound } from "../../services/trackers/TrackerIssueInbound";
+import type { TrackerContext, TrackerIssueInbound } from "../../services/trackers/TrackerIssueInbound";
 import { takeBotMention } from "./trackers/botMention";
-import { jiraBrowseUrl, jiraPerson, jiraSeverity, jiraSiteUrl, jiraText } from "./trackers/jiraPayload";
+import { jiraBrowseUrl, jiraLabels, jiraPerson, jiraSeverity, jiraSiteUrl, jiraText } from "./trackers/jiraPayload";
 import { field, recordAt, stringAt } from "./trackers/payloadFields";
-import { trackerContext } from "./trackers/trackerContext";
+import { NO_CONNECTION, trackerContext } from "./trackers/trackerContext";
 
 /** How Jira writes a mention of an account: by account id on Cloud, by user name on Server, or as typed. */
 function jiraMentionForms(botUsername: string | null): string[] {
@@ -15,7 +15,7 @@ function jiraMentionForms(botUsername: string | null): string[] {
 export class JiraInboundProcessor implements InboundEventProcessor {
   readonly provider: ProviderType | "default" = "jira";
 
-  constructor(private readonly issues: Pick<TrackerIssueInbound, "opened" | "edited" | "commented">) {}
+  constructor(private readonly issues: Pick<TrackerIssueInbound, "issue" | "commented">) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
     return event.provider === "jira";
@@ -23,44 +23,38 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
   async process(context: InboundEventContext): Promise<EventProcessingResult> {
     const { event, config } = context;
-    const projectId = config.projectId || context.tenantId || context.defaultTenantId || "default";
-    const tracker = trackerContext("jira", projectId, config);
+    const tracker = trackerContext("jira", config);
+    if (!tracker) return NO_CONNECTION;
     const issue = recordAt(event.payload, "issue");
     const fields = recordAt(issue, "fields");
     const key = stringAt(issue, "key");
     const self = stringAt(issue, "self");
-    if (!key) return { projectId, ignoredReason: "The Jira event has no issue" };
+    if (!key) return { ignoredReason: "The Jira event has no issue" };
 
     switch (event.eventType) {
-      case "issue_created": {
-        const title = stringAt(fields, "summary");
-        if (!title) return { projectId, ignoredReason: `The Jira issue '${key}' has no summary` };
-        const result = await this.issues.opened(tracker, {
+      case "issue_created":
+      case "issue_updated":
+        return this.issues.issue(tracker, {
           key,
           url: jiraBrowseUrl(self, key),
           apiBaseUrl: jiraSiteUrl(self),
-          title,
-          description: jiraText(fields?.description),
-          author: jiraPerson(recordAt(event.payload, "user")) ?? jiraPerson(recordAt(fields, "reporter")),
+          title: stringAt(fields, "summary"),
+          // An update that doesn't carry the description leaves it as it is.
+          description: field(fields, "description") === undefined ? undefined : jiraText(fields?.description),
+          author: event.eventType === "issue_created" ? (jiraPerson(recordAt(event.payload, "user")) ?? jiraPerson(recordAt(fields, "reporter"))) : null,
           severity: jiraSeverity(stringAt(recordAt(fields, "priority"), "name")),
-          plan: config.planNewIssues,
+          labels: jiraLabels(fields),
+          repository: null,
           metadata: { issueType: stringAt(recordAt(fields, "issuetype"), "name"), jiraProjectKey: key.split("-")[0] },
         });
-        return { projectId, ...result };
-      }
-      case "issue_updated": {
-        // An update that doesn't carry the description leaves it as it is.
-        const description = field(fields, "description") === undefined ? undefined : jiraText(fields?.description);
-        return { projectId, ...(await this.issues.edited(tracker, { key, title: stringAt(fields, "summary"), description })) };
-      }
       case "comment_created":
-        return { projectId, ...(await this.comment(context, tracker, key)) };
+        return this.comment(context, tracker, key);
       default:
-        return { projectId, ignoredReason: `Unsupported Jira event '${event.eventType}'` };
+        return { ignoredReason: `Unsupported Jira event '${event.eventType}'` };
     }
   }
 
-  private async comment(context: InboundEventContext, tracker: ReturnType<typeof trackerContext>, issueKey: string) {
+  private async comment(context: InboundEventContext, tracker: TrackerContext, issueKey: string) {
     const { event, config } = context;
     // An issue update about a comment repeats the comment's own event.
     if (event.metadata.action === "issue_commented") return { ignoredReason: "The comment arrives as its own event" };

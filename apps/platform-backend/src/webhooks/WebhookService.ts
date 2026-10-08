@@ -79,22 +79,20 @@ export class WebhookService {
       };
     }
 
-    const dbConfig = await this.configResolver.resolveInboundConfig(event, {
+    const dbConfig = await this.configResolver.resolveInboundConfig({
       providerName,
       configId: options.configId,
-      integrationId: options.integrationId,
-      providerProjectId: options.providerProjectId,
     });
     if (!dbConfig) {
       return {
         status: "ignored",
-        reason: "No webhook configuration found for this repository/project",
+        reason: "No webhook with this address",
       };
     }
 
     if (!dbConfig.active) {
       const reason = `Webhook configuration '${dbConfig.id}' is inactive`;
-      await this.deliveryLifecycle.recordRejectedOrIgnored(event, dbConfig, reason);
+      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
       return {
         status: "ignored",
         reason,
@@ -103,8 +101,8 @@ export class WebhookService {
 
     if (!isEventAllowed(event, dbConfig)) {
       const allowedCandidates = getAllowedEventCandidates(event).join(", ");
-      const reason = `Event '${allowedCandidates}' not allowed for webhook config '${dbConfig.id}'`;
-      await this.deliveryLifecycle.recordRejectedOrIgnored(event, dbConfig, reason);
+      const reason = `The webhook isn't set to receive '${allowedCandidates}'`;
+      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
       return {
         status: "ignored",
         reason,
@@ -125,7 +123,7 @@ export class WebhookService {
     });
     if (!signatureResult.valid) {
       const reason = `Rejected: ${signatureResult.reason ?? "Invalid signature"}`;
-      await this.deliveryLifecycle.recordRejectedOrIgnored(event, dbConfig, reason);
+      await this.deliveryLifecycle.recordRejected(event, dbConfig, reason);
       return {
         status: "rejected",
         reason: signatureResult.reason ?? "Invalid signature",
@@ -210,7 +208,6 @@ function toProviderConfig(dbConfig: WebhookConfig): WebhookProviderConfig {
     algorithm: "sha256",
     allowedEvents: dbConfig.allowedEvents,
     webhookSecret: dbConfig.webhookSecretEncrypted || undefined,
-    providerProjectId: dbConfig.providerProjectId || undefined,
   };
 }
 

@@ -16,4 +16,5 @@ ADRs record the product and architecture decisions, and why they were made.
 | [0008](./0008-tasks-are-conversations.md) | Tasks are conversations: one thread, @mention or action to bring the agent in, agreement instead of approval gates | Accepted; amended by 0009, 0010, 0011 | 2026-10-01 |
 | [0009](./0009-the-plan-includes-the-research.md) | The plan includes the research: one artifact before code | Accepted; amended by 0010 | 2026-10-06 |
 | [0010](./0010-building-the-plan-in-parts.md) | Building the plan in parts: one pull request per part, built in order | Accepted | 2026-10-06 |
-| [0011](./0011-tracker-issues-are-linked-threads.md) | Tracker issues are linked threads: comments reach the task, milestones go back to the issue | Accepted | 2026-10-07 |
+| [0011](./0011-tracker-issues-are-linked-threads.md) | Tracker issues are linked threads: comments reach the task, milestones go back to the issue | Accepted; amended by 0012 | 2026-10-07 |
+| [0012](./0012-spaces-choose-their-tracker-issues.md) | Spaces choose which tracker issues they take: labels and repository in the space, one webhook per connection | Accepted | 2026-10-08 |

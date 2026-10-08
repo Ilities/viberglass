@@ -59,9 +59,7 @@ export class WebhookRetryService {
 
     const dbConfig = delivery.webhookConfigId
       ? await this.configResolver.getConfigById(delivery.webhookConfigId)
-      : await this.configResolver.resolveActiveInboundConfigForProvider(
-          delivery.provider,
-        );
+      : null;
     if (!dbConfig) {
       return {
         status: "failed",

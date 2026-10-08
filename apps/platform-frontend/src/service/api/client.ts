@@ -1,4 +1,5 @@
 import { getStoredAuthToken } from '@/service/auth-storage'
+import { notifyApiChange } from './apiChanges'
 
 export const SERVER_UNREACHABLE_MESSAGE =
   "Can't reach the Viberglass server. It may still be starting; try again in a moment. If this keeps happening, check that the backend container is running."
@@ -33,9 +34,14 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  return fetchOrExplain(input, {
+  const response = await fetchOrExplain(input, {
     ...init,
     headers,
     credentials: 'include',
   })
+  const method = (init.method ?? (typeof input === 'string' ? 'GET' : input.method)).toUpperCase()
+  if (response.ok && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    notifyApiChange(typeof input === 'string' ? input : input.url)
+  }
+  return response
 }

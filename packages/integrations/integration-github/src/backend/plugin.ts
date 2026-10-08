@@ -18,13 +18,7 @@ const githubPlugin: IntegrationPlugin<GitHubConfig> = {
   createCommenter: (config) => new GitHubCommenter(config),
   status: 'ready',
   webhookProvider: 'github',
-  defaultInboundEvents: ['issues.opened', 'issues.edited', 'issue_comment.created'],
-  getProviderProjectId: (config) => {
-    const owner = typeof config.owner === 'string' ? config.owner : null
-    const repo = typeof config.repo === 'string' ? config.repo : null
-    if (owner && repo) return `${owner}/${repo}`
-    return null
-  },
+  defaultInboundEvents: ['issues.opened', 'issues.edited', 'issues.labeled', 'issue_comment.created'],
 }
 
 export default githubPlugin

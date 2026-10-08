@@ -3,6 +3,7 @@ import {
   ShortcutWebhookProvider,
   createShortcutWebhookProviderDependencies,
 } from '../../../../webhooks/providers/ShortcutWebhookProvider';
+import { shortcutLabels } from '../../../../webhooks/inbound-processors/trackers/shortcutLabels';
 
 describe('ShortcutWebhookProvider', () => {
   let provider: ShortcutWebhookProvider;
@@ -15,7 +16,6 @@ describe('ShortcutWebhookProvider', () => {
       algorithm: 'sha256',
       allowedEvents: ['story_created', 'comment_created'],
       webhookSecret: 'secret',
-      providerProjectId: '22',
     }, createShortcutWebhookProviderDependencies());
   });
 
@@ -330,5 +330,37 @@ describe('ShortcutWebhookProvider', () => {
 
     expect(provider.verifySignature(rawBody, signature, secret)).toBe(true);
     expect(provider.verifySignature(rawBody, signature, 'wrong-secret')).toBe(false);
+  });
+
+  it('names the labels of a story update, whether the label existed or was created with it', () => {
+    const update = (extra: { actions?: Array<Record<string, unknown>>; references?: Array<Record<string, unknown>> }) =>
+      provider.parseEvent(
+        {
+          id: 'delivery-1',
+          version: 'v1',
+          primary_id: 40,
+          member_id: 'member-1',
+          actions: [
+            {
+              id: 40,
+              entity_type: 'story',
+              action: 'update',
+              name: 'Add Muse Spark model',
+              story_type: 'feature',
+              changes: { label_ids: { adds: [41] } },
+            },
+            ...(extra.actions ?? []),
+          ],
+          ...(extra.references ? { references: extra.references } : {}),
+        },
+        {},
+      );
+
+    const created = update({ actions: [{ id: 41, entity_type: 'label', action: 'create', name: 'viberglass' }] });
+    const existing = update({ references: [{ id: 41, entity_type: 'label', name: 'Viberglass' }] });
+
+    expect(created.eventType).toBe('story_updated');
+    expect(shortcutLabels(created.payload)).toEqual(['viberglass']);
+    expect(shortcutLabels(existing.payload)).toEqual(['viberglass']);
   });
 });
