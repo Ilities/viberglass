@@ -39,7 +39,7 @@ export interface TrackerIssue {
   severity: Severity;
   /** Lower-cased. */
   labels: string[];
-  /** `owner/repo`, for GitHub. */
+  /** `owner/repo`, for a tracker whose issues belong to a repository. */
   repository: string | null;
   /** Tracker details kept on a new task, such as the issue type. */
   metadata: Record<string, unknown>;

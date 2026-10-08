@@ -36,8 +36,24 @@ describe("TrackerIssueRouter", () => {
     await expect(routing.route(JIRA, { labels: [], repository: null })).resolves.toMatchObject({ spaces: [], reason: expect.stringContaining("no labels") });
   });
 
-  it("sends a GitHub issue to the spaces whose repository it's in, matching the address without regard to case", async () => {
-    const { deps, router: routing } = router([], [
+  it("takes every issue for a rule without a label, for any tracker", async () => {
+    const { router: routing } = router([rule("web", null), rule("api", "backend")]);
+
+    await expect(routing.route(JIRA, { labels: [], repository: null })).resolves.toEqual({ spaces: [{ projectId: "web", plan: false }] });
+  });
+
+  it("takes nothing for a connection no space has rules for", async () => {
+    const { deps, router: routing } = router([], [{ projectId: "shop", sourceRepository: "https://github.com/acme/shop" }]);
+
+    await expect(routing.route(GITHUB, { labels: [], repository: "acme/shop" })).resolves.toEqual({
+      spaces: [],
+      reason: "No space takes this connection's issues",
+    });
+    expect(deps.repositories.listRepositoriesLike).not.toHaveBeenCalled();
+  });
+
+  it("sends an issue in a repository only to spaces using it, matching the address without regard to case", async () => {
+    const { deps, router: routing } = router([rule("shop", null), rule("shop-admin", null), rule("other", null)], [
       { projectId: "shop", sourceRepository: "https://github.com/Acme/Shop.git" },
       { projectId: "shop-admin", sourceRepository: "https://github.com/acme/shop-admin" },
     ]);
@@ -46,7 +62,17 @@ describe("TrackerIssueRouter", () => {
     expect(deps.repositories.listRepositoriesLike).toHaveBeenCalledWith("acme/shop");
   });
 
-  it("lets a space narrow its GitHub issues to labels, and plan them", async () => {
+  it("leaves out a space using the repository that has no rules, so sharing a repository doesn't share its issues", async () => {
+    const repositories = [
+      { projectId: "shop", sourceRepository: "git@github.com:acme/shop.git" },
+      { projectId: "payments", sourceRepository: "https://github.com/acme/shop" },
+    ];
+    const { router: routing } = router([rule("shop", null, true)], repositories);
+
+    await expect(routing.route(GITHUB, { labels: [], repository: "acme/shop" })).resolves.toEqual({ spaces: [{ projectId: "shop", plan: true }] });
+  });
+
+  it("lets a space using the repository take only labelled issues", async () => {
     const repositories = [
       { projectId: "shop", sourceRepository: "https://github.com/acme/shop" },
       { projectId: "shop-ops", sourceRepository: "acme/shop" },
@@ -62,17 +88,17 @@ describe("TrackerIssueRouter", () => {
     });
   });
 
-  it("says why a GitHub issue isn't taken", async () => {
-    const none = router([]);
-    await expect(none.router.route(GITHUB, { labels: [], repository: "acme/other" })).resolves.toEqual({
+  it("says why an issue in a repository isn't taken", async () => {
+    const elsewhere = router([rule("shop", null)], [{ projectId: "shop", sourceRepository: "acme/shop" }]);
+    await expect(elsewhere.router.route(GITHUB, { labels: [], repository: "acme/other" })).resolves.toEqual({
       spaces: [],
-      reason: "No space uses the repository 'acme/other'",
+      reason: "No space taking this connection's issues uses the repository 'acme/other'",
     });
 
     const labelled = router([rule("shop", "ready")], [{ projectId: "shop", sourceRepository: "acme/shop" }]);
     await expect(labelled.router.route(GITHUB, { labels: [], repository: "acme/shop" })).resolves.toMatchObject({
       spaces: [],
-      reason: expect.stringContaining("certain labels"),
+      reason: expect.stringContaining("by label"),
     });
   });
 });

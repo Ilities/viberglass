@@ -1,6 +1,6 @@
 # ADR 0012: Spaces choose which tracker issues they take
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0014](./0014-spaces-opt-in-to-tracker-issues.md)
 - **Date:** 2026-10-08
 - **Decider:** Jussi Hallila
 - **Amends:** [ADR 0011](./0011-tracker-issues-are-linked-threads.md) (which space a new issue's task goes to, and one task per issue)

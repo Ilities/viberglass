@@ -26,26 +26,25 @@ export class TrackerIssueRuleService {
   }
 
   async replaceForSpace(projectId: string, integrationId: string, input: unknown): Promise<TrackerIssueRule[]> {
-    const { integration, provider, providerPolicy } = await this.contextResolver.resolveContextOrThrow(
+    const { integration, providerPolicy } = await this.contextResolver.resolveContextOrThrow(
       integrationId,
       "The connection's issues can't come into a space",
     );
     if (providerPolicy.targetsOneSpace) {
       throw new IntegrationRouteServiceError(400, "The connection's issues can't come into a space");
     }
-    const rules = parseRules(input, provider === "github");
+    const rules = parseRules(input);
     await this.rules.replaceForSpace(projectId, integration.id, rules);
     return (await this.rules.listForSpace(projectId)).filter((rule) => rule.integrationId === integration.id);
   }
 }
 
-/** One rule per label, ignoring case. Only a GitHub rule may leave the label empty, for every issue in the space's repository. */
-function parseRules(input: unknown, labelOptional: boolean): Array<Pick<TrackerIssueRule, "label" | "planNewIssues">> {
+/** One rule per label, ignoring case; a rule without a label takes every issue. No rules, and the space takes none. */
+function parseRules(input: unknown): Array<Pick<TrackerIssueRule, "label" | "planNewIssues">> {
   if (!Array.isArray(input)) throw new IntegrationRouteServiceError(400, "rules must be a list");
   const byLabel = new Map<string, Pick<TrackerIssueRule, "label" | "planNewIssues">>();
   for (const raw of input as TrackerIssueRuleInput[]) {
     const label = typeof raw?.label === "string" && raw.label.trim() ? raw.label.trim() : null;
-    if (!label && !labelOptional) throw new IntegrationRouteServiceError(400, "Each rule needs a label");
     if (label && label.length > MAX_LABEL_LENGTH) throw new IntegrationRouteServiceError(400, `A label can be at most ${MAX_LABEL_LENGTH} characters`);
     byLabel.set(label?.toLowerCase() ?? "", { label, planNewIssues: raw?.planNewIssues === true });
   }

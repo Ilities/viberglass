@@ -29,14 +29,18 @@ describe("TrackerIssueRuleService", () => {
     ]);
   });
 
-  it("needs a label for Jira and Shortcut, and lets GitHub take every issue in the space's repository", async () => {
-    const jira = setup("jira");
-    await expect(jira.service.replaceForSpace("space-1", "conn-1", [{ label: "" }])).rejects.toMatchObject({ statusCode: 400 });
-    expect(jira.rules.replaceForSpace).not.toHaveBeenCalled();
+  it("lets any tracker's space take every issue, with a rule that has no label", async () => {
+    for (const provider of ["jira", "github"] as const) {
+      const { rules, service } = setup(provider);
+      await service.replaceForSpace("space-1", "conn-1", [{ label: "", planNewIssues: true }]);
+      expect(rules.replaceForSpace).toHaveBeenCalledWith("space-1", "conn-1", [{ label: null, planNewIssues: true }]);
+    }
+  });
 
-    const github = setup("github");
-    await github.service.replaceForSpace("space-1", "conn-1", [{ label: null, planNewIssues: true }]);
-    expect(github.rules.replaceForSpace).toHaveBeenCalledWith("space-1", "conn-1", [{ label: null, planNewIssues: true }]);
+  it("turns a space's issues off with no rules", async () => {
+    const { rules, service } = setup("github");
+    await service.replaceForSpace("space-1", "conn-1", []);
+    expect(rules.replaceForSpace).toHaveBeenCalledWith("space-1", "conn-1", []);
   });
 
   it("refuses rules for a connection whose webhooks point at a space of their own", async () => {

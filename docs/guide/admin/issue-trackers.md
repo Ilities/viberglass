@@ -26,7 +26,7 @@ GitHub needs no separate token: Viberglass comments on issues with the token of 
 5. Choose "Let me select individual events" and tick Issues and Issue comments.
 6. Optionally, set the bot account to the GitHub login whose @mention asks the agent. Leave it empty if the connection's token is your own: comments by the bot login are never read back, so yours would be ignored.
 
-GitHub issues go to the space that uses their repository, without any further setup. See [Choose which issues a space takes](#choose-which-issues-a-space-takes) to narrow that down or have the plan written.
+A space then chooses to take the issues of its repository; see [Choose which issues a space takes](#choose-which-issues-a-space-takes).
 
 ### Jira Cloud
 
@@ -62,8 +62,9 @@ Open the space's Space settings → Incoming issues. There's a card for each con
 
 ![A space's Incoming issues: labels for Jira and Shortcut, and its repository for GitHub](../images/incoming-issues.png)
 
-- Jira and Shortcut go by label. List the labels the space takes, separated by commas. An issue with one of them, from any project in the Jira site or Shortcut workspace, becomes the space's task. Case doesn't matter.
-- GitHub goes by repository. Every issue in the space's repository comes in, or choose "Only issues … with one of these labels" and list them.
+- Choose None, Every issue, or Only issues with one of these labels. A space takes nothing from a tracker until it chooses.
+- Labels are separated by commas, and case doesn't matter. For Jira and Shortcut, an issue with one of them from any project in the Jira site or Shortcut workspace becomes the space's task.
+- GitHub issues belong to a repository, so a space only ever takes those in its own repository. Spaces that share a repository each choose for themselves.
 - Write the plan for new issues has the agent start on the plan as soon as an issue arrives. With it off, the task waits until someone asks the agent, in Viberglass or by mentioning the bot on the issue. Nothing is built before there's a plan.
 
 Choose Save after a change. On the connection's page, Spaces taking its issues lists the spaces that have set what they take.

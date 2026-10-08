@@ -25,6 +25,8 @@ export interface TrackerWebhookDescriptor {
   /** What to enter as the bot's name in this tracker. */
   botUsernameHint: string
   botUsernamePlaceholder: string
+  /** Its issues belong to a repository, so a space takes only those in its own repository. */
+  issuesInRepository?: boolean
 }
 
 export interface AuthSetupSectionProps {

@@ -1,6 +1,9 @@
 import db from "../config/database";
 
-/** A space taking a connection's issues: those with the label, or for GitHub with no label, every issue in its repository. */
+/**
+ * A space taking a connection's issues: those with the label, or with no label,
+ * every issue (for a tracker whose issues belong to a repository, every one in the space's).
+ */
 export interface TrackerIssueRule {
   id: string;
   projectId: string;

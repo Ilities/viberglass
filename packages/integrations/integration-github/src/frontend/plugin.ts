@@ -24,6 +24,7 @@ const githubFrontendPlugin: IntegrationFrontendPlugin = {
     botUsernameHint:
       "The GitHub login whose @mention in a comment asks the agent. Comments by this login are never read back, so don't use your own when the token is yours.",
     botUsernamePlaceholder: 'e.g. acme-viberglass',
+    issuesInRepository: true,
   },
 }
 

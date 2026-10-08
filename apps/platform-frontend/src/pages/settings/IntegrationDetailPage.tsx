@@ -427,7 +427,6 @@ export function IntegrationDetailPage() {
         ) : trackerWebhook ? (
           <TrackerWebhookSection
             tracker={trackerWebhook}
-            routesByRepository={isGithubIntegration}
             webhook={webhook}
             spaceRules={spaceRules}
             projects={projects}

@@ -13,8 +13,6 @@ import type { useIntegrationWebhookSettings } from './useIntegrationWebhookSetti
 
 interface TrackerWebhookSectionProps {
   tracker: TrackerWebhookDescriptor
-  /** GitHub issues come into the spaces using their repository without rules. */
-  routesByRepository: boolean
   webhook: ReturnType<typeof useIntegrationWebhookSettings>
   spaceRules: ConnectionSpaceRule[]
   projects: Array<{ id: string; name: string; slug?: string }> | null
@@ -27,7 +25,7 @@ const fieldClass =
  * A tracker connection's one webhook: where the tracker sends its events, and
  * what came in. Which issues become tasks is each space's to say.
  */
-export function TrackerWebhookSection({ tracker, routesByRepository, webhook, spaceRules, projects }: TrackerWebhookSectionProps) {
+export function TrackerWebhookSection({ tracker, webhook, spaceRules, projects }: TrackerWebhookSectionProps) {
   const getTicketUrl = useTicketUrlBuilder(projects)
   const config = webhook.selectedInboundConfig
 
@@ -128,7 +126,7 @@ export function TrackerWebhookSection({ tracker, routesByRepository, webhook, sp
             </Button>
           )}
 
-          <SpacesTakingIssues tracker={tracker} routesByRepository={routesByRepository} rules={spaceRules} />
+          <SpacesTakingIssues tracker={tracker} rules={spaceRules} />
 
           <DeliveryHistoryTable
             title="Deliveries"
@@ -151,15 +149,7 @@ export function TrackerWebhookSection({ tracker, routesByRepository, webhook, sp
   )
 }
 
-function SpacesTakingIssues({
-  tracker,
-  routesByRepository,
-  rules,
-}: {
-  tracker: TrackerWebhookDescriptor
-  routesByRepository: boolean
-  rules: ConnectionSpaceRule[]
-}) {
+function SpacesTakingIssues({ tracker, rules }: { tracker: TrackerWebhookDescriptor; rules: ConnectionSpaceRule[] }) {
   const spaces = new Map<string, { name: string; slug: string; labels: string[]; everything: boolean; plans: boolean }>()
   for (const rule of rules) {
     const space = spaces.get(rule.projectId) ?? { name: rule.projectName, slug: rule.projectSlug, labels: [], everything: false, plans: false }
@@ -172,17 +162,12 @@ function SpacesTakingIssues({
   return (
     <div className="border-t border-[var(--gray-6)] pt-4">
       <h4 className="text-sm font-medium text-[var(--gray-12)]">Spaces taking its {tracker.items}</h4>
-      {routesByRepository && (
-        <Text className="mt-1 text-xs">
-          A space whose repository is on {tracker.tracker} takes its {tracker.items} without any setup. These spaces have
-          narrowed that down or have the plan written.
-        </Text>
+      {tracker.issuesInRepository && (
+        <Text className="mt-1 text-xs">Each space takes only the {tracker.items} in its own repository.</Text>
       )}
       {spaces.size === 0 ? (
         <Text className="mt-2 text-sm">
-          {routesByRepository
-            ? 'No space has changed what it takes.'
-            : `No space takes ${tracker.items} yet. A space chooses its labels in its settings, under Incoming issues.`}
+          No space takes {tracker.items} yet. A space chooses which it takes in its settings, under Incoming issues.
         </Text>
       ) : (
         <ul className="mt-2 space-y-1 text-sm">

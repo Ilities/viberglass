@@ -78,7 +78,7 @@ function renderSection(state: Webhook, rules: ConnectionSpaceRule[] = []) {
   render(
     <Theme>
       <MemoryRouter>
-        <TrackerWebhookSection tracker={TRACKER} routesByRepository={false} webhook={state} spaceRules={rules} projects={[]} />
+        <TrackerWebhookSection tracker={TRACKER} webhook={state} spaceRules={rules} projects={[]} />
       </MemoryRouter>
     </Theme>
   )
