@@ -1,4 +1,4 @@
-import type { ProjectConfig } from "../../../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import type { DemoSeedRecord } from "../../../../persistence/demo/DemoSeedRecordDAO";
 import { DemoWorkspaceService } from "../../../../services/demo/DemoWorkspaceService";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
@@ -6,7 +6,7 @@ import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServi
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 jest.mock("../../../../services/demo/DemoWorkspaceSeeder", () => ({ DemoWorkspaceSeeder: jest.fn() }));
 
-const DEMO_PROJECT: ProjectConfig = {
+const DEMO_PROJECT: Project = {
   id: "demo-project",
   name: "Demo: Acme storefront",
   slug: "demo-acme-storefront",

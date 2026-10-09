@@ -15,7 +15,6 @@
     "sourceMap": true,
     "paths": {
       "@viberglass/types": ["../packages/types/src/index.ts"],
-      "@viberglass/chat-slack": ["../packages/chat-slack/src/index.ts"],
       "@viberglass/model-hosting-verda": ["../packages/model-hosting-verda/src/index.ts"],
       "@viberglass/integration-core": ["../packages/integration-core/src/backend/index.ts"]
     }

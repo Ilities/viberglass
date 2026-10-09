@@ -11,4 +11,3 @@ export {
 } from './IntegrationCredentialDAO'
 
 // Legacy export - will be removed
-export { IntegrationConfigDAO, type StoredIntegrationConfig } from './IntegrationConfigDAO'

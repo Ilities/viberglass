@@ -1,14 +1,13 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
 import { manifest } from '../manifest'
+import { checkGitHubConnection } from './checkGitHubConnection'
 import { GitHubCommenter } from './GitHubCommenter'
-import { GitHubIntegration } from './GitHubIntegration'
 import { GitHubRepositoryHost } from './repository/GitHubRepositoryHost'
-import type { GitHubConfig } from './types'
 import { GitHubWebhookReceiver } from './webhook/GitHubWebhookReceiver'
 
-const githubPlugin: IntegrationPlugin<GitHubConfig> = {
+const githubPlugin: IntegrationPlugin = {
   ...manifest,
-  createIntegration: (config) => new GitHubIntegration(config),
+  checkConnection: checkGitHubConnection,
   createCommenter: (config) => new GitHubCommenter(config),
   webhook: new GitHubWebhookReceiver(),
   repository: new GitHubRepositoryHost(),

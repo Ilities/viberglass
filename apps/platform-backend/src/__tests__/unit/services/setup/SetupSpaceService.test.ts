@@ -1,5 +1,5 @@
 import type { Integration, IntegrationCredential, ProjectScmConfig } from "@viberglass/types";
-import type { ProjectConfig } from "../../../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { SetupSpaceService } from "../../../../services/setup/SetupSpaceService";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
 
@@ -27,7 +27,7 @@ const TOKEN: IntegrationCredential = {
   updatedAt: "",
 };
 
-function project(overrides: Partial<ProjectConfig> = {}): ProjectConfig {
+function project(overrides: Partial<Project> = {}): Project {
   return {
     id: "project-1",
     name: "Web",
@@ -59,7 +59,7 @@ function scmConfig(sourceRepository: string): ProjectScmConfig {
 }
 
 function build(options: {
-  existing?: ProjectConfig | null;
+  existing?: Project | null;
   scm?: ProjectScmConfig | null;
   linked?: boolean;
   integrations?: Integration[];

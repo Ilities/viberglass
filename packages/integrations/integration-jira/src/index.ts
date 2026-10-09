@@ -1,5 +1,4 @@
 export { default } from './backend/plugin'
-export { JiraIntegration } from './backend/JiraIntegration'
 export type { JiraConfig } from './backend/types'
 export { JiraCommenter } from './backend/JiraCommenter'
 export { markdownToJiraWiki } from './backend/jiraWikiMarkup'

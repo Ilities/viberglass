@@ -22,7 +22,7 @@ export interface AdvanceAndRunChainParams {
 export type AdvanceAndRunResult = { jobId: string; status: string };
 
 /**
- * "Do this step now" for Slack and MCP: asks the agent for the step's work.
+ * "Do this step now" for chat and MCP: asks the agent for the step's work.
  * Nothing is approved on the way; the ask is the agreement.
  */
 export class TicketPhaseOrchestrationService {

@@ -1,6 +1,10 @@
 import type { AuditEntry } from '@viberglass/types'
 import { auditDetails, auditSentence } from './audit-entry-text'
 
+jest.mock('@/integrations/integrationLabels', () => ({
+  integrationLabel: (system: string) => (system === 'chatty' ? 'Chatty' : system),
+}))
+
 const entry = (overrides: Partial<AuditEntry>): AuditEntry => ({
   id: 'a-1',
   actor: { id: 'u-1', name: 'Maria' },
@@ -18,13 +22,16 @@ describe('audit entry text', () => {
   it('says who did what, with the system standing in for nobody', () => {
     expect(auditSentence(entry({}))).toBe('Maria changed a secret')
     expect(auditSentence(entry({ actor: null, actorKind: 'system', action: 'run.started' }))).toBe('The system started a run')
-    expect(auditSentence(entry({ actor: null, actorKind: 'system', action: 'run.started', details: { via: 'slack', slackUserId: 'U999' } }))).toBe(
-      'Slack user U999 started a run'
+    expect(auditSentence(entry({ actor: null, actorKind: 'system', action: 'run.started', details: { via: 'chatty', chatUserId: 'U999' } }))).toBe(
+      'Chatty user U999 started a run'
     )
-    expect(auditDetails(entry({ action: 'run.started', details: { step: 'planning', via: 'slack', slackUserId: 'U1' } }), () => '')).toEqual([
+    expect(auditDetails(entry({ action: 'run.started', details: { step: 'planning', via: 'chatty', chatUserId: 'U1' } }), () => '')).toEqual([
       'the plan',
-      'from Slack',
+      'from Chatty',
     ])
+    expect(auditSentence(entry({ actor: null, actorKind: 'system', action: 'run.started', details: { via: 'gone', chatUserId: 'X1' } }))).toBe(
+      'gone user X1 started a run'
+    )
   })
 
   it('puts the listed details in plain words', () => {

@@ -1,5 +1,5 @@
 import type { DemoWorkspace } from "@viberglass/types";
-import type { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { DemoJobDAO } from "../../persistence/demo/DemoJobDAO";
 import { DemoSeedRecordDAO, type DemoSeedRecord } from "../../persistence/demo/DemoSeedRecordDAO";
@@ -18,14 +18,14 @@ const logger = createChildLogger({ service: "DemoWorkspaceService" });
 interface Dependencies {
   records: { list(): Promise<DemoSeedRecord[]>; clear(): Promise<void> };
   projects: {
-    getProject(id: string): Promise<ProjectConfig | null>;
-    findByName(slug: string): Promise<ProjectConfig | null>;
+    getProject(id: string): Promise<Project | null>;
+    findByName(slug: string): Promise<Project | null>;
     deleteProject(id: string): Promise<void>;
   };
   jobs: { deleteJobs(ids: string[]): Promise<void> };
   clankers: { deleteClanker(id: string): Promise<void> };
   users: { deleteUser(id: string): Promise<void> };
-  seeder: { seed(): Promise<ProjectConfig> };
+  seeder: { seed(): Promise<Project> };
 }
 
 const defaults = (): Dependencies => ({

@@ -55,8 +55,8 @@ export class TaskAskPolicyService {
   }
 
   /**
-   * Refuses with a reason the UI and Slack show as is. A null person is the
-   * system, or Slack with no linked account: it may ask for anything but code,
+   * Refuses with a reason the UI and chat show as is. A null person is the
+   * system, or chat with no linked account: it may ask for anything but code,
    * which has to be credited to someone. A webhook may ask for code too: the
    * admin who set it to build on its own agreed to that.
    */
@@ -84,7 +84,7 @@ export class TaskAskPolicyService {
     );
   }
 
-  /** Slack asks arrive without the space guard routes have, so visibility is checked here too. */
+  /** Chat asks arrive without the space guard routes have, so visibility is checked here too. */
   private async canSee(viewer: SpaceViewer, projectId: string): Promise<boolean> {
     try {
       await this.deps.access.assertCanSee(viewer, projectId);

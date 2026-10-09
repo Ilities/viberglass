@@ -3,17 +3,12 @@ import { Heading, Subheading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
-import {
-  getNotificationChannels,
-  linkSlack,
-  sendTestEmail,
-  unlinkSlack,
-  type NotificationChannels,
-} from '@/service/api/me-api'
+import { getNotificationChannels, linkChat, sendTestEmail, unlinkChat } from '@/service/api/me-api'
+import type { ChatNotificationChannel, NotificationChannels } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-/** Where you hear about things outside the app: Slack DMs once linked; email when the workspace has it. In the app, Home shows what needs you. */
+/** Where you hear about things outside the app: chat DMs once linked; email when the workspace has it. In the app, Home shows what needs you. */
 export function NotificationSettingsPage() {
   const { user } = useAuth()
   const [channels, setChannels] = useState<NotificationChannels | null>(null)
@@ -36,18 +31,22 @@ export function NotificationSettingsPage() {
     }
   }
 
-  async function toggleSlack(link: boolean) {
+  async function toggleChat(channel: ChatNotificationChannel, link: boolean) {
     setBusy(true)
     try {
-      await (link ? linkSlack() : unlinkSlack())
+      await (link ? linkChat(channel.system) : unlinkChat(channel.system))
       setChannels(await getNotificationChannels())
-      toast.success(link ? 'Slack linked: you’ll get DMs for reviews, mentions and failures' : 'Slack unlinked')
+      toast.success(
+        link ? `${channel.label} linked: you’ll get DMs for reviews, mentions and failures` : `${channel.label} unlinked`
+      )
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to change Slack')
+      toast.error(error instanceof Error ? error.message : `Failed to change ${channel.label}`)
     } finally {
       setBusy(false)
     }
   }
+
+  const chatNames = joinWithOr(channels?.chat.map((channel) => channel.label) ?? [])
 
   return (
     <>
@@ -63,34 +62,40 @@ export function NotificationSettingsPage() {
               </>
             ) : (
               <>
-                Home shows every task that needs you, with what&apos;s new in each. Review requests, mentions and failures on your
-                tasks can also reach you in Slack.
+                Home shows every task that needs you, with what&apos;s new in each.
+                {chatNames && ` Review requests, mentions and failures on your tasks can also reach you in ${chatNames}.`}
               </>
             )}
           </Text>
         </div>
         {channels && (
           <>
-            <section className="space-y-2">
-              <Subheading>Slack</Subheading>
-              {!channels.slackAvailable ? (
-                <Text>Slack isn't connected to this workspace. An admin can connect it under Settings → Connections.</Text>
-              ) : channels.slackLinked ? (
-                <div className="flex items-center gap-3">
-                  <Text>Linked. You get DMs for review requests, mentions, new tasks you own and failed runs.</Text>
-                  <Button outline disabled={busy} onClick={() => void toggleSlack(false)}>
-                    Unlink
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Text>Viberglass finds your Slack account by your email, {user?.email}.</Text>
-                  <Button color="brand" disabled={busy} onClick={() => void toggleSlack(true)}>
-                    Link Slack
-                  </Button>
-                </div>
-              )}
-            </section>
+            {channels.chat.map((channel) => (
+              <section key={channel.system} className="space-y-2">
+                <Subheading>{channel.label}</Subheading>
+                {!channel.available ? (
+                  <Text>
+                    {channel.label} isn't connected to this workspace. An admin can connect it under Settings → Connections.
+                  </Text>
+                ) : channel.linked ? (
+                  <div className="flex items-center gap-3">
+                    <Text>Linked. You get DMs for review requests, mentions, new tasks you own and failed runs.</Text>
+                    <Button outline disabled={busy} onClick={() => void toggleChat(channel, false)}>
+                      Unlink
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Text>
+                      Viberglass finds your {channel.label} account by your email, {user?.email}.
+                    </Text>
+                    <Button color="brand" disabled={busy} onClick={() => void toggleChat(channel, true)}>
+                      Link {channel.label}
+                    </Button>
+                  </div>
+                )}
+              </section>
+            ))}
             <section className="space-y-2">
               <Subheading>Email</Subheading>
               <Text>
@@ -109,4 +114,9 @@ export function NotificationSettingsPage() {
       </div>
     </>
   )
+}
+
+/** "A", "A or B", "A, B or C". */
+function joinWithOr(names: string[]): string {
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : (names[0] ?? '')
 }

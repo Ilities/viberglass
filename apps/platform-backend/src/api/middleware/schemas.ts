@@ -391,11 +391,6 @@ export const updateSecretSchema = Joi.object({
   secretValue: Joi.string().allow("").optional(),
 });
 
-export const integrationConfigSchema = Joi.object({
-  authType: Joi.string().valid("api_key", "oauth", "basic", "token").required(),
-  values: Joi.object().required(),
-});
-
 const userRoleSchema = Joi.string().valid(...WORKSPACE_ROLES);
 
 /** Any well-formed address: a self-hosted workspace may use an internal domain outside the public top-level domains. */

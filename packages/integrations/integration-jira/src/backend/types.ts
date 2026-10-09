@@ -5,6 +5,4 @@ export interface JiraConfig extends AuthCredentials {
   instanceUrl: string
   /** The account the API token belongs to; Jira Cloud tokens sign in with it. */
   email?: string
-  projectKey: string
-  issueTypeId?: string
 }

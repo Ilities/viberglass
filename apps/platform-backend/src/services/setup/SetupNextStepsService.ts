@@ -4,7 +4,7 @@ import { IntegrationDAO } from "../../persistence/integrations/IntegrationDAO";
 import { InviteDAO } from "../../persistence/user/InviteDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
-import { SlackWebApi } from "../notifications/SlackWebApi";
+import { chatServicesFrom, type ChatService } from "../../chat/chatProviders";
 
 interface Dependencies {
   users: Pick<UserDAO, "listUsers">;
@@ -12,7 +12,7 @@ interface Dependencies {
   demo: Pick<DemoSeedRecordDAO, "list">;
   integrations: Pick<IntegrationDAO, "listIntegrations">;
   isTicketingSystem: (system: TicketSystem) => boolean;
-  slack: Pick<SlackWebApi, "isConfigured">;
+  chatServices: () => ChatService[];
 }
 
 const defaults = (): Dependencies => ({
@@ -21,10 +21,10 @@ const defaults = (): Dependencies => ({
   demo: new DemoSeedRecordDAO(),
   integrations: new IntegrationDAO(),
   isTicketingSystem: (system) => integrationRegistry.get(system)?.category === "ticketing",
-  slack: new SlackWebApi(),
+  chatServices: chatServicesFrom,
 });
 
-/** What's left after setup (invite the team, connect Slack, connect a tracker). */
+/** What's left after setup (invite the team, connect chat, connect a tracker). */
 export class SetupNextStepsService {
   private readonly deps: Dependencies;
 
@@ -42,11 +42,14 @@ export class SetupNextStepsService {
     // The demo workspace's made-up people aren't a team.
     const demoUsers = new Set(demo.flatMap((record) => (record.entityType === "user" ? [record.entityId] : [])));
     const people = users.filter((user) => !demoUsers.has(user.id));
+    const chatServices = this.deps.chatServices();
     return {
       teamInvited: people.length > 1 || invites.length > 0,
-      // Slack can be set up by its bot token in the environment, with no connection saved.
-      slackConnected:
-        this.deps.slack.isConfigured() || integrations.some((integration: Integration) => integration.system === "slack"),
+      // A chat service can be set up in the environment, with no connection saved.
+      chatConnected: chatServices.some(
+        (service) => service.provider.isConfigured() || integrations.some((integration: Integration) => integration.system === service.system),
+      ),
+      chatSystem: chatServices[0]?.system ?? null,
       trackerConnected: integrations.some((integration: Integration) => this.deps.isTicketingSystem(integration.system)),
     };
   }

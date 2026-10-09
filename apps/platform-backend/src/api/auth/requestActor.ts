@@ -4,8 +4,14 @@ import type { NextFunction, Request, Response } from "express";
 interface ActorContext {
   userId: string | null;
   ip: string | null;
-  /** Set when the action came from Slack, linked to a person or not. */
-  slackUserId?: string;
+  /** Set when the action came from a chat service, linked to a person or not. */
+  chat?: ChatActor;
+}
+
+/** The chat account an action came from: the service's adapter name and the person's id there. */
+export interface ChatActor {
+  adapterName: string;
+  chatUserId: string;
 }
 
 const actorStorage = new AsyncLocalStorage<ActorContext>();
@@ -20,8 +26,8 @@ export function withRequestActor(req: Request, _res: Response, next: NextFunctio
   actorStorage.run({ userId: req.authContext?.user.id ?? null, ip: req.ip ?? null }, next);
 }
 
-/** Runs work that has no request (a Slack action) as the person behind it. */
-export function runAsActor<T>(context: { userId: string | null; slackUserId?: string }, work: () => Promise<T>): Promise<T> {
+/** Runs work that has no request (a chat action) as the person behind it. */
+export function runAsActor<T>(context: { userId: string | null; chat?: ChatActor }, work: () => Promise<T>): Promise<T> {
   return actorStorage.run({ ...context, ip: null }, work);
 }
 
@@ -35,7 +41,7 @@ export function currentRequestIp(): string | null {
   return actorStorage.getStore()?.ip ?? null;
 }
 
-/** The Slack user behind the current action, when it came from Slack. */
-export function currentSlackUserId(): string | null {
-  return actorStorage.getStore()?.slackUserId ?? null;
+/** The chat account behind the current action, when it came from chat. */
+export function currentChatActor(): ChatActor | null {
+  return actorStorage.getStore()?.chat ?? null;
 }

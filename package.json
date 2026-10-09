@@ -27,7 +27,6 @@
     "packages/evals",
     "packages/agent-core",
     "packages/agents/*",
-    "packages/chat-slack",
     "packages/model-hosting-verda",
     "packages/platform-ui",
     "packages/mcp-server",

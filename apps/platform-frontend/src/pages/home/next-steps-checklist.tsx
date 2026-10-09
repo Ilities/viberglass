@@ -1,5 +1,6 @@
 import { Button } from '@/components/button'
 import { Link } from '@/components/link'
+import { integrationLabel } from '@/integrations/integrationLabels'
 import { getSetupNextSteps } from '@/service/api/setup-api'
 import type { SetupNextSteps } from '@viberglass/types'
 import { CheckCircledIcon, CircleIcon } from '@radix-ui/react-icons'
@@ -7,11 +8,29 @@ import { useEffect, useState } from 'react'
 
 const DISMISSED_KEY = 'viberglass.nextStepsDismissed'
 
-const ITEMS: Array<{ key: keyof SetupNextSteps; label: string; href: string }> = [
-  { key: 'teamInvited', label: 'Invite your team', href: '/settings/members' },
-  { key: 'slackConnected', label: 'Connect Slack', href: '/settings/connections/new/slack' },
-  { key: 'trackerConnected', label: 'Connect your tracker', href: '/settings/connections' },
-]
+interface NextStep {
+  key: string
+  label: string
+  href: string
+  done: boolean
+}
+
+function nextSteps(steps: SetupNextSteps): NextStep[] {
+  return [
+    { key: 'team', label: 'Invite your team', href: '/settings/members', done: steps.teamInvited },
+    ...(steps.chatSystem
+      ? [
+          {
+            key: 'chat',
+            label: `Connect ${integrationLabel(steps.chatSystem)}`,
+            href: `/settings/connections/new/${steps.chatSystem}`,
+            done: steps.chatConnected,
+          },
+        ]
+      : []),
+    { key: 'tracker', label: 'Connect your tracker', href: '/settings/connections', done: steps.trackerConnected },
+  ]
+}
 
 /** The admin's checklist after setup. Hidden once everything is done, or dismissed. */
 export function NextStepsChecklist() {
@@ -25,7 +44,8 @@ export function NextStepsChecklist() {
       .catch(() => undefined)
   }, [dismissed])
 
-  if (dismissed || !steps || ITEMS.every((item) => steps[item.key])) return null
+  const items = steps ? nextSteps(steps) : []
+  if (dismissed || !steps || items.every((item) => item.done)) return null
 
   function dismiss() {
     localStorage.setItem(DISMISSED_KEY, 'true')
@@ -46,9 +66,9 @@ export function NextStepsChecklist() {
         </Button>
       </div>
       <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        {ITEMS.map((item) => (
+        {items.map((item) => (
           <li key={item.key} className="flex items-center gap-2">
-            {steps[item.key] ? (
+            {item.done ? (
               <>
                 <CheckCircledIcon className="text-green-600" aria-hidden />
                 <span className="text-zinc-500 line-through dark:text-zinc-400">{item.label}</span>

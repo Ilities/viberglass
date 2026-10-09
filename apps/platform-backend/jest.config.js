@@ -10,6 +10,8 @@ export default {
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^uuid$": "<rootDir>/src/__tests__/helpers/uuid.ts",
+    "^chat$": "<rootDir>/src/__tests__/helpers/esmChatStub.ts",
+    "^@chat-adapter/(slack|state-pg)$": "<rootDir>/src/__tests__/helpers/esmChatStub.ts",
   },
   transform: {
     "^.+\\.tsx?$": [

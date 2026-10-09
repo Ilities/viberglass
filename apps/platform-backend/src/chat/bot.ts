@@ -1,12 +1,17 @@
-import { Chat } from "chat";
-import { createSlackAdapter } from "@chat-adapter/slack";
+import { Chat, type Adapter } from "chat";
 import { createPostgresState } from "@chat-adapter/state-pg";
 import { pool } from "../persistence/config/database";
+import { chatServicesFrom } from "./chatProviders";
 
-const adapters: Record<string, ReturnType<typeof createSlackAdapter>> = {};
-if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "not-configured") {
-  adapters.slack = createSlackAdapter();
-}
+/** The chat services this installation set up, by adapter name. */
+const adapters: Record<string, Adapter> = Object.fromEntries(
+  chatServicesFrom()
+    .filter((service) => service.provider.isConfigured())
+    .map((service) => [service.provider.adapterName, service.provider.createAdapter()]),
+);
+
+/** The adapters the bot was built with: none when no chat service is set up. */
+export const chatAdapterNames: string[] = Object.keys(adapters);
 
 const bot = new Chat({
   userName: "viberglass",

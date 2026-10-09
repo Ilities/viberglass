@@ -15,7 +15,7 @@ import {
   getIntegrationManifests,
   getConnectionIssueRules,
   getIntegration,
-  getSlackBotStatus,
+  getChatStatus,
   testIntegration,
   updateIntegration,
   type ConnectionSpaceRule,
@@ -24,7 +24,7 @@ import { getProjects, type Project } from '@/service/api/project-api'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import type { Integration, IntegrationManifest } from '@viberglass/types'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
 import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
@@ -54,7 +54,7 @@ export function IntegrationDetailPage() {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [projects, setProjects] = useState<Project[] | null>(null)
-  const [slackBotConfigured, setSlackBotConfigured] = useState<boolean | null>(null)
+  const [chatBotConfigured, setChatBotConfigured] = useState<boolean | null>(null)
   const [spaceRules, setSpaceRules] = useState<ConnectionSpaceRule[]>([])
 
   const integrationEntityId = existingIntegration?.id
@@ -64,6 +64,11 @@ export function IntegrationDetailPage() {
   const frontendPlugin = integrationSystem ? integrationFrontendRegistry.get(integrationSystem) : undefined
   const AuthSection = frontendPlugin?.AuthSetupSection
   const trackerWebhook = frontendPlugin?.trackerWebhook
+  // Stable, so the install section doesn't refetch the status on every render.
+  const getBotStatus = useCallback(
+    () => (integrationSystem ? getChatStatus(integrationSystem) : Promise.resolve({ configured: false })),
+    [integrationSystem]
+  )
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -166,10 +171,10 @@ export function IntegrationDetailPage() {
     if (!AuthSection) {
       return
     }
-    getSlackBotStatus()
-      .then(({ configured }) => setSlackBotConfigured(configured))
-      .catch(() => setSlackBotConfigured(false))
-  }, [AuthSection])
+    getBotStatus()
+      .then(({ configured }) => setChatBotConfigured(configured))
+      .catch(() => setChatBotConfigured(false))
+  }, [AuthSection, getBotStatus])
 
   useEffect(() => {
     if (!integrationEntityId || !trackerWebhook) {
@@ -197,7 +202,7 @@ export function IntegrationDetailPage() {
     integrationType.status === 'stub'
       ? 'stub'
       : AuthSection
-        ? slackBotConfigured
+        ? chatBotConfigured
           ? 'configured'
           : 'not_configured'
         : isConfigured
@@ -358,8 +363,7 @@ export function IntegrationDetailPage() {
         <ConnectionNameSection integration={existingIntegration} onRenamed={setExistingIntegration} />
       )}
 
-      {/* Auth setup section (e.g. Slack install guide) */}
-      {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
+      {AuthSection && <AuthSection getBotStatus={getBotStatus} />}
 
       {integrationType.configFields.length > 0 && (
         <IntegrationConfigForm

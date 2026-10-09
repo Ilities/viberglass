@@ -32,6 +32,7 @@ import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
 import bot from "../chat";
+import { chatAdapterNames } from "../chat/bot";
 import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 
 // Load environment variables
@@ -172,7 +173,6 @@ function onListening(): void {
         ? "✓"
         : "✗ (using defaults)",
     awsS3: process.env.AWS_ACCESS_KEY_ID ? "✓" : "✗ (not configured)",
-    githubToken: process.env.GITHUB_TOKEN ? "✓" : "✗ (not configured)",
   });
 
   logger.info("Server ready to receive bug reports");
@@ -221,11 +221,11 @@ async function startServer(): Promise<void> {
     );
   }
 
-  // Kick off chat SDK initialization in the background so Slack webhooks
-  // don't time out waiting for PG state connect + Slack auth.test on the
-  // first request.  We don't await it — the server must start listening
-  // immediately.  If init fails it will be retried on the first webhook.
-  if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "not-configured") {
+  // Kick off chat SDK initialization in the background so chat webhooks
+  // don't time out waiting for PG state connect and the services' auth checks
+  // on the first request. We don't await it: the server must start listening
+  // immediately. If init fails it will be retried on the first webhook.
+  if (chatAdapterNames.length > 0) {
     bot.initialize().catch((error) => {
       logger.warn("Background chat bot initialization failed; will retry on first webhook", { error });
     });

@@ -1,7 +1,7 @@
 import type { AuditAction, AuditTargetType } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import { AuditLogDAO } from "../../persistence/audit/AuditLogDAO";
-import { currentActorId, currentRequestIp, currentSlackUserId } from "../../api/auth/requestActor";
+import { currentActorId, currentRequestIp, currentChatActor } from "../../api/auth/requestActor";
 
 const logger = createChildLogger({ service: "AuditRecorder" });
 
@@ -23,9 +23,9 @@ export class AuditRecorder {
   constructor(private readonly log: Pick<AuditLogDAO, "record"> = new AuditLogDAO()) {}
 
   async record(event: AuditEvent): Promise<void> {
-    // A Slack action says so, and names the Slack user even when nobody linked that account.
-    const slackUserId = currentSlackUserId();
-    const details = slackUserId ? { ...event.details, via: "slack", slackUserId } : (event.details ?? {});
+    // A chat action says which service, and names the chat account even when nobody linked it.
+    const chat = currentChatActor();
+    const details = chat ? { ...event.details, via: chat.adapterName, chatUserId: chat.chatUserId } : (event.details ?? {});
     try {
       await this.log.record({
         actorId: event.actorId === undefined ? currentActorId() : event.actorId,

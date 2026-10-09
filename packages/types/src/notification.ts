@@ -1,4 +1,4 @@
-/** What people are told by Slack and email. In the app, Home's Needs you and unread counts are the notifications. */
+/** What people are told by chat and email. In the app, Home's Needs you and unread counts are the notifications. */
 export const NOTIFICATION_KINDS = [
   'review_requested',
   'mentioned',
@@ -58,4 +58,21 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
       return `${merged} of “${taskTitle}” is merged${next}`
     }
   }
+}
+
+/** A chat service a person can be told things on, by direct message. */
+export interface ChatNotificationChannel {
+  /** The chat integration's id. */
+  system: string
+  label: string
+  /** The service is set up on this installation. */
+  available: boolean
+  /** The person linked their account on it. */
+  linked: boolean
+}
+
+/** Where the signed-in person can be told things. */
+export interface NotificationChannels {
+  chat: ChatNotificationChannel[]
+  emailAvailable: boolean
 }

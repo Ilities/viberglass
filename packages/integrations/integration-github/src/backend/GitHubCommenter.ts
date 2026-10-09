@@ -1,5 +1,5 @@
+import type { AuthCredentials } from '@viberglass/types'
 import type { TrackerCommenter, TrackerIssue } from '@viberglass/integration-core'
-import type { GitHubConfig } from './types'
 
 type Fetch = typeof fetch
 
@@ -10,7 +10,7 @@ const ISSUE_KEY = /^([^/\s]+)\/([^#\s]+)#(\d+)$/
 /** Comments on GitHub issues through the REST API; GitHub renders Markdown as is. */
 export class GitHubCommenter implements TrackerCommenter {
   constructor(
-    private readonly config: Pick<GitHubConfig, 'token'> & { baseUrl?: unknown },
+    private readonly config: Pick<AuthCredentials, 'token'> & { baseUrl?: unknown },
     private readonly fetchImpl: Fetch = fetch,
   ) {}
 

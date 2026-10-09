@@ -46,7 +46,6 @@ COPY . .
 # Build shared packages
 RUN npm run build -w @viberglass/types
 RUN npm run build -w @viberglass/telemetry
-RUN npm run build -w @viberglass/chat-slack
 RUN npm run build -w @viberglass/model-hosting-verda
 RUN npm run build -w @viberglass/mcp-server
 

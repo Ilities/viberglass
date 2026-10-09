@@ -17,6 +17,7 @@ import {
   type UpsertInboundWebhookConfigInput,
 } from "../services/integrations";
 import { IntegrationCredentialDAO } from "../../persistence/integrations";
+import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import { SecretService } from "../../services/SecretService";
 import { spaceParamGuard } from "../middleware/spaceAccessGuards";
 
@@ -91,15 +92,10 @@ router.post(
   }),
 );
 
-router.get("/slack/status", (_req, res) => {
-  const token = process.env.SLACK_BOT_TOKEN;
-  const secret = process.env.SLACK_SIGNING_SECRET;
-  const configured =
-    Boolean(token) &&
-    token !== "not-configured" &&
-    Boolean(secret) &&
-    secret !== "not-configured";
-  res.json({ configured });
+// Whether a chat integration's service is set up on this installation; it's set up outside its connection.
+router.get("/:system/chat-status", (req, res) => {
+  const provider = integrationRegistry.get(req.params.system)?.chat;
+  res.json({ configured: provider?.isConfigured() ?? false });
 });
 
 router.get(

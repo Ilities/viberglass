@@ -749,20 +749,19 @@ export async function deleteIntegrationCredential(integrationId: string, credent
 }
 
 /**
- * Check whether the workspace-level Slack bot is configured on the backend.
+ * Check whether a chat integration's workspace-level bot is configured on the backend.
  */
-export async function getSlackBotStatus(): Promise<{ configured: boolean }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/integrations/slack/status`)
+export async function getChatStatus(system: string): Promise<{ configured: boolean }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${encodeURIComponent(system)}/chat-status`)
   if (!response.ok) {
     return { configured: false }
   }
-  return response.json() as Promise<{ configured: boolean }>
+  const status: { configured: boolean } = await response.json()
+  return status
 }
 
 // Re-export types for convenience
 export type {
-  ConfigureIntegrationRequest,
-  IntegrationConfig,
   IntegrationSummary,
   TestIntegrationResponse,
 } from '@viberglass/types'

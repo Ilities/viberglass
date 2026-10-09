@@ -80,7 +80,3 @@ export function getWebhookService(): WebhookService {
 
   return webhookService;
 }
-
-export function resetWebhookServiceForTests(): void {
-  webhookService = null;
-}

@@ -18,7 +18,7 @@ function setup(overrides: { turn?: unknown; reminderHours?: number } = {}) {
         { userId: "u-tomi", name: "Tomi", email: "tomi@example.com", role: "owner", addedAt: "" },
       ]),
     },
-    users: { getContact: jest.fn().mockResolvedValue({ name: "Dev", email: "dev@example.com", slackUserId: null, deactivated: false }) },
+    users: { getContact: jest.fn().mockResolvedValue({ name: "Dev", email: "dev@example.com", deactivated: false }) },
     questions: { create: jest.fn().mockResolvedValue("q-1") },
     activity: { record: jest.fn().mockResolvedValue(undefined) },
     now: () => NOW,

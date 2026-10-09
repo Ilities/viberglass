@@ -1,5 +1,5 @@
+import type { AuthCredentials } from '@viberglass/types'
 import type { TrackerCommenter, TrackerIssue } from '@viberglass/integration-core'
-import type { ShortcutConfig } from './types'
 
 type Fetch = typeof fetch
 
@@ -8,7 +8,7 @@ const SHORTCUT_API = 'https://api.app.shortcut.com/api/v3'
 /** Comments on Shortcut stories through the API; Shortcut renders Markdown as is. */
 export class ShortcutCommenter implements TrackerCommenter {
   constructor(
-    private readonly config: Pick<ShortcutConfig, 'apiKey' | 'token'> & { baseUrl?: unknown },
+    private readonly config: Pick<AuthCredentials, 'apiKey' | 'token'> & { baseUrl?: unknown },
     private readonly fetchImpl: Fetch = fetch,
   ) {}
 

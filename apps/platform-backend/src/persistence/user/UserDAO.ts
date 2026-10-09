@@ -176,29 +176,14 @@ export class UserDAO {
     return rows.map((row) => row.id);
   }
 
-  /** The person's Slack account, once they've linked it, for DMs. */
-  async getContact(userId: string): Promise<{ email: string; name: string; slackUserId: string | null; deactivated: boolean } | null> {
+  /** How to reach the person, for notifications. */
+  async getContact(userId: string): Promise<{ email: string; name: string; deactivated: boolean } | null> {
     const row = await db
       .selectFrom("users")
-      .select(["email", "name", "slack_user_id", "deactivated_at"])
+      .select(["email", "name", "deactivated_at"])
       .where("id", "=", userId)
       .executeTakeFirst();
-    return row ? { email: row.email, name: row.name, slackUserId: row.slack_user_id, deactivated: row.deactivated_at !== null } : null;
-  }
-
-  /** Who acts for a Slack user: the active person who linked that account, if anyone. */
-  async findActiveIdBySlackUserId(slackUserId: string): Promise<string | null> {
-    const row = await db
-      .selectFrom("users")
-      .select("id")
-      .where("slack_user_id", "=", slackUserId)
-      .where("deactivated_at", "is", null)
-      .executeTakeFirst();
-    return row?.id ?? null;
-  }
-
-  async setSlackUserId(userId: string, slackUserId: string | null): Promise<void> {
-    await db.updateTable("users").set({ slack_user_id: slackUserId, updated_at: new Date() }).where("id", "=", userId).execute();
+    return row ? { email: row.email, name: row.name, deactivated: row.deactivated_at !== null } : null;
   }
 
   async countActiveAdmins(): Promise<number> {

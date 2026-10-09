@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { Integration, IntegrationManifest } from '@viberglass/types'
 import { IntegrationFrontendRegistry, type IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
-import { getIntegration, getIntegrationManifests, getSlackBotStatus } from '@/service/api/integration-api'
+import { getIntegration, getIntegrationManifests, getChatStatus } from '@/service/api/integration-api'
 import { IntegrationDetailPage } from './IntegrationDetailPage'
 
 jest.mock('@/service/api/integration-api', () => ({
@@ -11,7 +11,7 @@ jest.mock('@/service/api/integration-api', () => ({
   getConnectionIssueRules: jest.fn().mockResolvedValue([]),
   getIntegration: jest.fn(),
   getIntegrationManifests: jest.fn(),
-  getSlackBotStatus: jest.fn(),
+  getChatStatus: jest.fn(),
   testIntegration: jest.fn(),
   updateIntegration: jest.fn(),
 }))
@@ -100,7 +100,7 @@ function renderAt(path: string) {
 describe('IntegrationDetailPage', () => {
   beforeEach(() => {
     jest.mocked(getIntegrationManifests).mockResolvedValue([TRACKER, JSON_WEBHOOK, INSTALLED_APP])
-    jest.mocked(getSlackBotStatus).mockResolvedValue({ configured: true })
+    jest.mocked(getChatStatus).mockResolvedValue({ configured: true })
   })
 
   it('asks for a name before a new connection is set up', async () => {
@@ -130,5 +130,6 @@ describe('IntegrationDetailPage', () => {
     expect(await screen.findByText('install the app')).toBeInTheDocument()
     expect(screen.queryByText('create prompt')).not.toBeInTheDocument()
     expect(await screen.findByText('Connected')).toBeInTheDocument()
+    expect(getChatStatus).toHaveBeenCalledWith('installed-app')
   })
 })

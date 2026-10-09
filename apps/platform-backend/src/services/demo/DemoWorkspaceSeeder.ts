@@ -11,7 +11,7 @@ import type {
   TicketWorkflowPhase,
 } from "@viberglass/types";
 import { hashPassword } from "../../api/auth/utils";
-import type { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { DeploymentStrategyDAO } from "../../persistence/clanker/DeploymentStrategyDAO";
 import { DemoJobDAO, type FinishedDemoJob } from "../../persistence/demo/DemoJobDAO";
@@ -41,7 +41,7 @@ export interface DemoSeederDependencies {
   users: {
     createUser(input: { email: string; name: string; passwordHash: string; role?: UserRole }): Promise<PublicUser>;
   };
-  projects: { createProject(request: NewProject): Promise<ProjectConfig> };
+  projects: { createProject(request: NewProject): Promise<Project> };
   spaceMembers: Pick<SpaceMemberDAO, "upsert">;
   strategies: { getDeploymentStrategyByName(name: string): Promise<DeploymentStrategy | null> };
   clankers: {
@@ -85,7 +85,7 @@ export class DemoWorkspaceSeeder {
     this.deps = { ...defaults(), ...deps };
   }
 
-  async seed(): Promise<ProjectConfig> {
+  async seed(): Promise<Project> {
     const members = await this.createMembers();
     const runner = await this.createRunner();
     const project = await this.deps.projects.createProject({
