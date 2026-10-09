@@ -1,7 +1,6 @@
 import express, { type Request, type Response } from "express";
 import type {
   CreateIntegrationCredentialRequest,
-  TicketSystem,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
 import logger from "../../config/logger";
@@ -67,7 +66,7 @@ function withRouteErrorHandling(
 router.get(
   "/",
   withRouteErrorHandling("Error fetching integrations", async (req, res) => {
-    const system = req.query.system as TicketSystem | undefined;
+    const system = typeof req.query.system === "string" ? req.query.system : undefined;
     const integrations =
       await integrationManagementService.listIntegrations(system);
 

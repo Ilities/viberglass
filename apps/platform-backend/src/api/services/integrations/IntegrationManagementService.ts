@@ -36,7 +36,7 @@ export class IntegrationManagementService {
       );
     }
 
-    const plugin = integrationRegistry.get(system as TicketSystem);
+    const plugin = integrationRegistry.get(system);
     if (!plugin) {
       throw new IntegrationRouteServiceError(
         400,
@@ -53,7 +53,7 @@ export class IntegrationManagementService {
 
     return this.integrationDAO.createIntegration({
       name,
-      system: system as TicketSystem,
+      system: system,
       config: config || {},
     });
   }

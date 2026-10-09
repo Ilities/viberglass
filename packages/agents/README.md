@@ -103,23 +103,11 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    export default aiderPlugin;
    ```
 
-4. **Add the dependency** in `apps/viberator/package.json`:
+4. **Include it in the build**: add `"@viberglass/agent-aider"` to `agents` in `viberglass.plugins.json` (`npm run new:agent` does this), then run `npm run generate:plugins`. That writes `apps/viberator/src/agents/configuredAgentPlugins.ts` and the dependency in `apps/viberator/package.json`.
 
-   ```json
-   "@viberglass/agent-aider": "*"
-   ```
+5. **Write the Dockerfile fragment** in `Dockerfile.fragment` — agent-specific install, verify, ENV, and LABEL lines. The compose script wraps it with the standard FROM header and CMD footer.
 
-5. **Register the plugin** in `apps/viberator/src/agents/registerPlugins.ts`:
-
-   ```ts
-   import aiderPlugin from "@viberglass/agent-aider";
-   // …
-   .register(aiderPlugin)
-   ```
-
-6. **Write the Dockerfile fragment** in `Dockerfile.fragment` — agent-specific install, verify, ENV, and LABEL lines. The compose script wraps it with the standard FROM header and CMD footer.
-
-7. **Build and regenerate**:
+6. **Build and regenerate**:
 
    ```bash
    npm install
@@ -128,16 +116,13 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    npm run generate:dockerfiles  # creates infra/workers/docker/generated/aider.Dockerfile
    ```
 
-8. **Run tests**:
+7. **Run tests**:
 
    ```bash
    npm test -w @viberglass/agent-aider
    ```
 
-Inside the worker, `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory` and `ConfigManager` are registry-driven. These lists are not, and need the new agent too:
-
-- **Worker build:** the `build:worker` script in the root `package.json`, `PLUGIN_PACKAGES` in `packages/types/scripts/generate-worker-image-catalog.ts`, and a `--agent` line in `infra/workers/docker/scripts/generate-all-dockerfiles.sh`.
-- **Platform**, so runners can use the agent: `AgentType`, `SUPPORTED_AGENT_TYPES`, `AGENT_LABELS` and (to offer it in the UI) `AGENT_OPTIONS` in `packages/types/src/clanker.ts`; `AGENT_VISUALS` in the frontend's `selectionCards.tsx`; the `normalizeAgent` switch in `apps/platform-backend/src/clanker-config/index.ts` and `normalizeGenericAgent` in `legacyMapper.ts` (unknown agents silently become `claude-code`); and a migration that adds the agent to the `check_valid_agent` constraint on `clankers`.
+The worker build, the catalogs and the worker Dockerfiles all follow `viberglass.plugins.json`. The platform still has its own lists, which need the new agent too so runners can use it: `AgentType`, `SUPPORTED_AGENT_TYPES`, `AGENT_LABELS` and (to offer it in the UI) `ALL_AGENT_OPTIONS` in `packages/types/src/clanker.ts`; `AGENT_VISUALS` in the frontend's `selectionCards.tsx`; and the `normalizeAgent` switch in `apps/platform-backend/src/clanker-config/index.ts` and `normalizeGenericAgent` in `legacyMapper.ts` (unknown agents silently become `claude-code`). A harness on those lists but left out of the build config isn't offered for new runners.
 
 Set `docker.testOnly: true` for agents that must never be provisioned in infrastructure or pushed to a registry (see `agent-fake`).
 

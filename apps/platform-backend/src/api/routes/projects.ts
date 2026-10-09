@@ -568,7 +568,7 @@ router.get("/:projectId/integrations", async (req, res) => {
 router.get("/:projectId/integrations/:integrationId", async (req, res) => {
   try {
     const { projectId, integrationId } = req.params;
-    const plugin = integrationRegistry.get(integrationId as TicketSystem);
+    const plugin = integrationRegistry.get(integrationId);
 
     if (!plugin) {
       return res.status(404).json({ error: "Integration not found" });
@@ -576,7 +576,7 @@ router.get("/:projectId/integrations/:integrationId", async (req, res) => {
 
     const record = await integrationConfigDAO.getConfig(
       projectId,
-      integrationId as TicketSystem,
+      integrationId,
     );
 
     if (!record) {
@@ -587,7 +587,7 @@ router.get("/:projectId/integrations/:integrationId", async (req, res) => {
 
     res.json({
       success: true,
-      data: mapConfigRecord(projectId, integrationId as TicketSystem, record),
+      data: mapConfigRecord(projectId, integrationId, record),
     });
   } catch (error) {
     logger.error("Error fetching integration config", {
@@ -603,7 +603,7 @@ router.put(
   async (req, res) => {
     try {
       const { projectId, integrationId } = req.params;
-      const plugin = integrationRegistry.get(integrationId as TicketSystem);
+      const plugin = integrationRegistry.get(integrationId);
 
       if (!plugin) {
         return res.status(404).json({ error: "Integration not found" });
@@ -635,13 +635,13 @@ router.put(
 
       const record = await integrationConfigDAO.upsertConfig(
         projectId,
-        integrationId as TicketSystem,
+        integrationId,
         { authType: body.authType, values },
       );
 
       res.json({
         success: true,
-        data: mapConfigRecord(projectId, integrationId as TicketSystem, record),
+        data: mapConfigRecord(projectId, integrationId, record),
       });
     } catch (error) {
       logger.error("Error saving integration config", {
@@ -658,7 +658,7 @@ router.post(
   async (req, res) => {
     try {
       const { integrationId } = req.params;
-      const plugin = integrationRegistry.get(integrationId as TicketSystem);
+      const plugin = integrationRegistry.get(integrationId);
 
       if (!plugin) {
         return res.status(404).json({ error: "Integration not found" });
@@ -709,7 +709,7 @@ router.post(
 router.delete("/:projectId/integrations/:integrationId", async (req, res) => {
   try {
     const { projectId, integrationId } = req.params;
-    const plugin = integrationRegistry.get(integrationId as TicketSystem);
+    const plugin = integrationRegistry.get(integrationId);
 
     if (!plugin) {
       return res.status(404).json({ error: "Integration not found" });
@@ -717,7 +717,7 @@ router.delete("/:projectId/integrations/:integrationId", async (req, res) => {
 
     const deleted = await integrationConfigDAO.deleteConfig(
       projectId,
-      integrationId as TicketSystem,
+      integrationId,
     );
 
     if (!deleted) {

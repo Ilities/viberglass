@@ -1,25 +1,10 @@
 import { AgentRegistry } from "@viberglass/agent-core";
-import claudeCodePlugin from "@viberglass/agent-claude-code";
-import qwenCodePlugin from "@viberglass/agent-qwen";
-import codexPlugin from "@viberglass/agent-codex";
-import openCodePlugin from "@viberglass/agent-opencode";
-import kimiCodePlugin from "@viberglass/agent-kimi";
-import mistralVibePlugin from "@viberglass/agent-mistral-vibe";
-import antigravityPlugin from "@viberglass/agent-antigravity";
-import piPlugin from "@viberglass/agent-pi";
-import fakePlugin from "@viberglass/agent-fake";
+import { configuredAgentPlugins } from "./configuredAgentPlugins";
 
 export function buildAgentRegistry(): AgentRegistry {
-  return new AgentRegistry()
-    .register(claudeCodePlugin)
-    .register(qwenCodePlugin)
-    .register(codexPlugin)
-    .register(openCodePlugin)
-    .register(kimiCodePlugin)
-    .register(mistralVibePlugin)
-    .register(antigravityPlugin)
-    .register(piPlugin)
-    .register(fakePlugin);
+  const registry = new AgentRegistry();
+  for (const plugin of configuredAgentPlugins) registry.register(plugin);
+  return registry;
 }
 
 // Singleton for places that can't easily receive a reference

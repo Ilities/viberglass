@@ -20,3 +20,4 @@ ADRs record the product and architecture decisions, and why they were made.
 | [0012](./0012-spaces-choose-their-tracker-issues.md) | Spaces choose which tracker issues they take: labels and repository in the space, one webhook per connection | Accepted; amended by 0014 | 2026-10-08 |
 | [0013](./0013-ways-around-building-in-parts.md) | Ways around building in parts: mark a part done or skipped, discard a build without a pull request, add a part to the open pull request | Accepted | 2026-10-08 |
 | [0014](./0014-spaces-opt-in-to-tracker-issues.md) | Spaces opt in to every tracker's issues: no rules takes none, the same choices for every tracker | Accepted | 2026-10-08 |
+| [0015](./0015-harnesses-and-integrations-are-plugins.md) | Harnesses and integrations are plugins, chosen by build config: manifests, capabilities, sign-in as a capability | Accepted | 2026-10-09 |

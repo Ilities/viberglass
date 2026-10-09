@@ -50,7 +50,7 @@ RUN npm run build -w @viberglass/chat-slack
 RUN npm run build -w @viberglass/model-hosting-verda
 RUN npm run build -w @viberglass/mcp-server
 
-# Build integration-core and all integration plugins — backend entry only.
+# Build integration-core and the configured integration plugins — backend entry only.
 # The normal build scripts also compile frontend entries which require
 # @viberglass/platform-ui and React types not present in the backend image.
 # The inline tsup config below skips those frontend builds.
@@ -69,10 +69,8 @@ TSCONFIG
 
 cd /build/packages/integration-core && npx tsup --config /build/tsup.backend-only.ts
 
-for pkg_dir in /build/packages/integrations/*/; do
-  pkg=$(basename "$pkg_dir")
-  [ "$pkg" = "_template" ] && continue
-  cd "$pkg_dir" && npx tsup --config /build/tsup.backend-only.ts
+for pkg_dir in $(node /build/scripts/plugins/list.mjs integrations --dirs); do
+  cd "/build/$pkg_dir" && npx tsup --config /build/tsup.backend-only.ts
 done
 BUILD
 

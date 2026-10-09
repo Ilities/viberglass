@@ -1,4 +1,4 @@
-import type { Severity, TicketOrigin } from "@viberglass/types";
+import type { Severity } from "@viberglass/types";
 import { isViberglassComment } from "@viberglass/integration-core";
 import { createChildLogger } from "../../config/logger";
 import { AgentQuestionDAO } from "../../persistence/agentSession/AgentQuestionDAO";
@@ -16,7 +16,7 @@ const logger = createChildLogger({ service: "TrackerIssueInbound" });
 
 /** Where an issue event came from: the tracker, and the connection and webhook it came through. */
 export interface TrackerContext {
-  provider: Extract<TicketOrigin, "jira" | "shortcut" | "github">;
+  provider: "jira" | "shortcut" | "github";
   integrationId: string;
   webhookConfigId: string;
 }

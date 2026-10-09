@@ -1,4 +1,3 @@
-import type { TicketSystem } from '@viberglass/types'
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/integrations'
 import { ProjectDAO } from '../../../persistence/project/ProjectDAO'
 import { IntegrationRouteServiceError } from './errors'
@@ -62,7 +61,7 @@ export class ProjectIntegrationLinkService {
     integrationId: string
   ): Promise<void> {
     // Determine category from integration system
-    const plugin = integrationRegistry.get(system as TicketSystem)
+    const plugin = integrationRegistry.get(system)
     if (!plugin || plugin.category === 'chat') return
 
     const isScm = plugin.category === 'scm'
@@ -100,7 +99,7 @@ export class ProjectIntegrationLinkService {
     system: string
   ): Promise<void> {
     // Determine category from integration system
-    const plugin = integrationRegistry.get(system as TicketSystem)
+    const plugin = integrationRegistry.get(system)
     if (!plugin) return
 
     const isScm = plugin.category === 'scm'

@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
+import { AVAILABLE_AGENT_TYPES, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -195,7 +195,7 @@ export const clankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid(...SUPPORTED_AGENT_TYPES)
+    .valid(...AVAILABLE_AGENT_TYPES)
     .allow(null)
     .optional(),
   secretBindings: secretBindingsSchema.optional(),
@@ -211,7 +211,7 @@ export const updateClankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid(...SUPPORTED_AGENT_TYPES)
+    .valid(...AVAILABLE_AGENT_TYPES)
     .allow(null)
     .optional(),
   secretBindings: secretBindingsSchema.optional(),

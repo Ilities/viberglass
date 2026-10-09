@@ -7,7 +7,8 @@
 # What it does:
 #   1. Copies packages/agents/_template/ to packages/agents/agent-<name>/
 #   2. Substitutes __NAME__, __DISPLAY_NAME__, __PascalName__, __name__ placeholders
-#   3. Prints next steps
+#   3. Adds it to viberglass.plugins.json and regenerates the plugin registrations
+#   4. Prints next steps
 
 set -euo pipefail
 
@@ -63,6 +64,9 @@ find "$TARGET_DIR" -type f \( -name "*.ts" -o -name "*.json" -o -name "*.js" -o 
     "$file"
 done
 
+node "$WORKSPACE_ROOT/scripts/plugins/add.mjs" agents "@viberglass/agent-$NAME"
+node "$WORKSPACE_ROOT/scripts/plugins/generate.mjs"
+
 echo ""
 echo "Created $TARGET_DIR"
 echo ""
@@ -70,8 +74,5 @@ echo "Next steps:"
 echo "  1. Implement $TARGET_DIR/src/${PASCAL_NAME}Agent.ts"
 echo "  2. Fill in plugin.ts defaultConfig and envAliases"
 echo "  3. Update Dockerfile.fragment with the real install command"
-echo "  4. Add to apps/viberator/package.json:  \"@viberglass/agent-$NAME\": \"*\""
-echo "  5. Add to apps/viberator/src/agents/registerPlugins.ts:"
-echo "       import ${NAME}Plugin from \"@viberglass/agent-$NAME\";"
-echo "       .register(${NAME}Plugin)"
-echo "  6. Run: npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles"
+echo "  4. Run: npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles"
+echo "  5. Add it to the platform lists in packages/agents/README.md so runners can use it"
