@@ -120,4 +120,10 @@ describe('buildSuggestions', () => {
     expect(buildSuggestions(plan(['open', 'not_built'], { first: 1, last: 1 }))).toEqual([])
     expect(buildSuggestions(plan(['merged', 'merged']))).toEqual([])
   })
+
+  it('offers a build that never opened its pull request again, without the rest', () => {
+    expect(buildSuggestions(plan(['merged', 'building', 'not_built', 'not_built'], { first: 2, last: 2 }))).toEqual([
+      { action: 'code', label: 'Build part 2 again', parts: { first: 2, last: 2 } },
+    ])
+  })
 })

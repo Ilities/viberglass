@@ -54,8 +54,11 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
       return entry.payload.mark === 'skipped' ? `${who} skipped ${part} of the plan` : `${who} marked ${part} of the plan done`
     }
-    case 'part_unmarked':
-      return `${who} took back the mark on ${typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'} of the plan`
+    case 'part_unmarked': {
+      const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
+      const reopened = entry.payload.reopened === true ? ', so the task is open again' : ''
+      return `${who} took back the mark on ${part} of the plan${reopened}`
+    }
     case 'build_discarded':
       return `${who} discarded the build of ${typeof entry.payload.parts === 'string' ? entry.payload.parts : 'some parts'}, which never opened its pull request`
     case 'comment_added':

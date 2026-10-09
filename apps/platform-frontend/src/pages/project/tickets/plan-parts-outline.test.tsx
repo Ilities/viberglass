@@ -49,6 +49,19 @@ describe('PlanPartsOutline', () => {
     expect(screen.getByRole('link', { name: "Part 1's pull request" })).toHaveAttribute('href', 'https://github.com/acme/app/pull/7')
   })
 
+  it('stops saying one pull request each once parts share one', () => {
+    const shared = 'https://github.com/acme/app/pull/7'
+    outline({
+      state: {
+        ...PART_ONE_MERGED,
+        parts: PART_ONE_MERGED.parts.map((part) => (part.number === 2 ? { ...part, status: 'merged', pullRequestUrl: shared } : part)),
+        next: 3,
+      },
+    })
+    expect(screen.getByRole('navigation', { name: 'Parts' })).toHaveTextContent('Built in 3 parts')
+    expect(screen.getByRole('navigation', { name: 'Parts' })).not.toHaveTextContent('one pull request each')
+  })
+
   it('offers to build the next part, and asks the agent for just that part', async () => {
     const onAsked = outline()
 

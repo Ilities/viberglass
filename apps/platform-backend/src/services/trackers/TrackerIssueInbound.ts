@@ -134,7 +134,7 @@ export class TrackerIssueInbound {
       const open = (await this.deps.questions.listOpenForTasks([ticketId])).get(ticketId) ?? [];
       const theirs = open.find((question) => question.askedOf?.id === userId);
       if (theirs) {
-        const asked = await this.deps.answers.answer(ticketId, theirs.id, userId, body);
+        const asked = await this.deps.answers.answer(ticketId, theirs.id, userId, body, { source: context.provider });
         return { ticketId, jobId: asked.job.id ?? undefined };
       }
     }

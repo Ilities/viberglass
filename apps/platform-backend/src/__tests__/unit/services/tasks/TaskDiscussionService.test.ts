@@ -32,6 +32,25 @@ describe("TaskDiscussionService", () => {
     });
   });
 
+  it("keeps the tracker a message was written in, for someone with an account", async () => {
+    const { messages, activity, service } = setup();
+
+    await service.create("task-1", "user-1", "North", { source: "github" });
+
+    expect(messages.create).toHaveBeenCalledWith({
+      ticketId: "task-1",
+      authorId: "user-1",
+      body: "North",
+      mentionedUserIds: [],
+      external: { source: "github", authorName: null },
+    });
+    expect(activity.record).toHaveBeenCalledWith("task-1", { type: "human", userId: "user-1" }, "message_posted", {
+      messageId: "message-1",
+      mentioned: [],
+      source: "github",
+    });
+  });
+
   it("refuses a mention of someone who can't see the task, before saving anything", async () => {
     const { messages, service } = setup();
 

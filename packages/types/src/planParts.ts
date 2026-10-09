@@ -78,11 +78,17 @@ export function addPartMessage(part: number): string {
 
 /**
  * The build to offer next: a plan in one part, or none, is built as a whole;
- * a plan in parts, its next part on its own, once nothing is open.
+ * a plan in parts, its next part on its own, once nothing is open. A build
+ * that stopped before opening its pull request is offered again, on its branch.
  */
 export function nextBuild(state: TaskPlanParts): { label: string; parts?: PartRange } | null {
   if (state.parts.length <= 1) return { label: 'Build it' }
-  if (state.open || state.next === null) return null
+  const open = state.open
+  if (open) {
+    const unopened = state.parts.some((part) => part.status === 'building' && part.number >= open.first && (open.last === null || part.number <= open.last))
+    return unopened ? { label: `${buildPartsMessage(open)} again`, parts: open } : null
+  }
+  if (state.next === null) return null
   const parts = { first: state.next, last: state.next }
   return { label: buildPartsMessage(parts), parts }
 }
