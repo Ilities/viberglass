@@ -1,7 +1,7 @@
 [
   {
     "agent": "claude-code",
-    "displayName": "Claude Code",
+    "label": "Claude Code",
     "description": "General-purpose coding agent with strong code editing reliability.",
     "logo": "/logos/agents/claude-code.ico",
     "default": true,
@@ -21,7 +21,7 @@
   },
   {
     "agent": "qwen-cli",
-    "displayName": "Qwen CLI",
+    "label": "Qwen CLI",
     "description": "Fast tool execution with endpoint flexibility for Qwen-compatible APIs.",
     "logo": "/logos/agents/qwen-cli.ico",
     "default": false,
@@ -43,7 +43,7 @@
   },
   {
     "agent": "codex",
-    "displayName": "OpenAI Codex",
+    "label": "OpenAI Codex",
     "description": "Reasoning-focused coding agent with API key and device auth support.",
     "logo": "/logos/agents/codex.ico",
     "default": false,
@@ -63,7 +63,7 @@
   },
   {
     "agent": "opencode",
-    "displayName": "OpenCode",
+    "label": "OpenCode",
     "description": "OpenAI-compatible orchestration with customizable base URL and model.",
     "logo": "/logos/agents/opencode.ico",
     "default": false,
@@ -87,7 +87,7 @@
   },
   {
     "agent": "kimi-code",
-    "displayName": "Kimi Code",
+    "label": "Kimi Code",
     "description": "Moonshot/Kimi based coding agent tuned for high-context completion.",
     "logo": "/logos/agents/kimi-code.ico",
     "default": false,
@@ -111,7 +111,7 @@
   },
   {
     "agent": "mistral-vibe",
-    "displayName": "Mistral Vibe",
+    "label": "Mistral Vibe",
     "description": "Mistral-native coding option optimized for quick iterative execution.",
     "logo": "/logos/agents/mistral-vibe.ico",
     "default": false,
@@ -130,7 +130,7 @@
   },
   {
     "agent": "antigravity",
-    "displayName": "Google Antigravity",
+    "label": "Google Antigravity",
     "description": "Google's agent harness on Gemini models, with a selectable model.",
     "logo": "/logos/agents/antigravity.svg",
     "default": false,
@@ -145,7 +145,7 @@
   },
   {
     "agent": "pi",
-    "displayName": "Pi",
+    "label": "Pi",
     "description": "Minimal, extensible coding agent that runs models from many providers.",
     "logo": "/logos/agents/pi.svg",
     "default": false,
@@ -166,7 +166,7 @@
   },
   {
     "agent": "fake",
-    "displayName": "Fake (end-to-end tests)",
+    "label": "Fake (end-to-end tests)",
     "description": "Deterministic agent for end-to-end tests. Needs no model key.",
     "logo": null,
     "default": false,

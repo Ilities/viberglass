@@ -1,4 +1,4 @@
-import type { ModelApiFormat, WorkerModelEndpoint } from "@viberglass/types";
+import type { ModelApiFormat, PluginManifest, WorkerModelEndpoint } from "@viberglass/types";
 import { Logger } from "winston";
 import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
@@ -38,15 +38,8 @@ export interface AgentProviderBinding {
   endpoint?: string;
 }
 
-export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
-  /** Unique identifier, matches BaseAgentConfig.name (e.g. "pi") */
-  readonly id: string;
-
-  /** Name shown in the UI and logs (e.g. "Pi") */
-  readonly displayName: string;
-
-  /** One sentence the runner form shows under the name. */
-  readonly description: string;
+/** `id` matches BaseAgentConfig.name (e.g. "pi"); `description` is shown under the name on the runner form. */
+export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extends Readonly<PluginManifest> {
 
   /** Logo file, relative to the package root; the catalog generator copies it into the frontend. */
   readonly logo?: string;

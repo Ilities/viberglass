@@ -1,17 +1,10 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
+import { manifest } from '../manifest'
 import { SlackIntegration } from './SlackIntegration'
 import type { SlackConfig } from './types'
 
 const slackPlugin: IntegrationPlugin<SlackConfig> = {
-  id: 'slack',
-  label: 'Slack',
-  category: 'chat',
-  authTypes: ['token'],
-  configFields: [
-    { key: 'channelId', label: 'Channel ID', type: 'string', required: true, description: 'Slack channel ID (for example C12345678).' },
-    { key: 'channelName', label: 'Channel Name', type: 'string', description: 'Optional channel name if you prefer using #bugs.' },
-  ],
-  supports: { issues: true, webhooks: false },
+  ...manifest,
   createIntegration: (config) => new SlackIntegration(config),
 }
 

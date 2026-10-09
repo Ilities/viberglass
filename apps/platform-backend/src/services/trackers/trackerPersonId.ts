@@ -1,5 +1,5 @@
 import type { UserDAO } from "../../persistence/user/UserDAO";
-import type { TrackerPerson } from "./TrackerIssueInbound";
+import type { TrackerPerson } from "@viberglass/types";
 
 /** The active Viberglass account with the tracker person's email, if the tracker shares it. */
 export async function trackerPersonId(users: Pick<UserDAO, "findByEmail">, person: TrackerPerson): Promise<string | null> {

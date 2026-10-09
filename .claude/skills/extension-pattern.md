@@ -107,17 +107,14 @@ registerSlackHandlers(bot, slackServices);
 
 ### Integrations (GitHub, GitLab, Shortcut…)
 
-**Extension packages:** `packages/integration-github`, `packages/integration-gitlab`, etc.
-- `types.ts` — `IntegrationProviderServices` interface; domain ticket/webhook types from `@viberglass/types`
-- `index.ts` — `registerGitHubProvider(registry: ProviderRegistry, services: IntegrationProviderServices)`
+**Extension packages:** `packages/integrations/integration-<name>`, listed in `viberglass.plugins.json`.
+- `src/manifest.ts` — plain data (`IntegrationManifest` from `@viberglass/types`) that the backend and frontend entries both spread: label, description, category, config fields, `credentialUse`, `webhookProvider`.
+- `src/backend/plugin.ts` — the manifest plus capabilities: `createIntegration`, `createCommenter` for trackers, `webhook` (a `WebhookReceiver`) when it receives webhooks, `repository` (a `RepositoryHost`) for a code host.
+- `src/frontend/plugin.ts` — the manifest plus `Icon` and optional slots (`trackerWebhook`, `AuthSetupSection`).
 
-**Generic infrastructure to preserve:**
-- `webhooks/ProviderRegistry.ts` — already generic; `register(provider)` is the extension point
-- `webhooks/InboundEventProcessorResolver.ts` — already generic
+**Generic infrastructure:** the webhook pipeline (`webhooks/WebhookService.ts`, `InboundEventHandler.ts`, one `/api/webhooks/:provider/:configId` route) finds the receiver by provider and acts on what it reads: an issue, a comment, a task, or ignored. It never names a provider. The same goes for repositories: the platform finds the space's code host by its connection and calls its `RepositoryHost`; the worker only runs git, with the username the job carries, and asks the platform to open pull requests.
 
-**What to remove:** The `switch(providerName)` blocks in `WebhookService.ts`, `WebhookRetryService.ts`, and `ProviderRegistry.setupHeaderMappings()`. Replace by adding `detectionHeaders: string[]` to the `WebhookProvider` base class so routing is data-driven — each provider declares its own headers.
-
-**Composition root:** `webhooks/webhookServiceFactory.ts` — one `register()` call per provider bundle.
+**Composition root:** generated from the build config (`npm run generate:plugins`); nothing to register by hand.
 
 ### Agents (claude-code, qwen-cli, codex…)
 

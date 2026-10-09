@@ -1,11 +1,11 @@
 import { Theme } from '@radix-ui/themes'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { getAvailableIntegrationTypes, getIntegrations } from '@/service/api/integration-api'
+import { getIntegrationManifests, getIntegrations } from '@/service/api/integration-api'
 import { NewProjectPage } from './NewProjectPage'
 
 jest.mock('@/service/api/integration-api', () => ({
-  getAvailableIntegrationTypes: jest.fn(),
+  getIntegrationManifests: jest.fn(),
   getIntegrations: jest.fn(),
   getIntegrationCredentials: jest.fn(async () => []),
   linkIntegrationToProject: jest.fn(),
@@ -27,7 +27,7 @@ beforeAll(() => {
 
 describe('NewProjectPage', () => {
   it('asks for the repository in the same words as the space settings, with the rest folded under Advanced', async () => {
-    jest.mocked(getAvailableIntegrationTypes).mockResolvedValue([])
+    jest.mocked(getIntegrationManifests).mockResolvedValue([])
     jest.mocked(getIntegrations).mockResolvedValue([])
     render(
       <Theme>

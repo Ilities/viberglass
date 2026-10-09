@@ -5,7 +5,7 @@ import { PiCodingAgent } from "./PiCodingAgent";
 
 const piPlugin: AgentPlugin<PiConfig> = {
   id: "pi",
-  displayName: "Pi",
+  label: "Pi",
   description: "Minimal, extensible coding agent that runs models from many providers.",
   logo: "logo.svg",
 

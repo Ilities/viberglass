@@ -4,13 +4,13 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Text } from '@/components/text'
-import type { IntegrationFieldDefinition, IntegrationMetadata } from '@viberglass/types'
+import type { IntegrationFieldDefinition, IntegrationManifest } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 type FieldValue = string | number | boolean | string[]
 
 interface IntegrationConfigFormProps {
-  integration: IntegrationMetadata
+  integration: IntegrationManifest
   initialValues?: Record<string, FieldValue>
   onSubmit: (values: Record<string, FieldValue>) => void
   onTest?: (values: Record<string, FieldValue>) => Promise<void>

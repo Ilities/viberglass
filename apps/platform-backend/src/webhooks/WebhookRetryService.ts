@@ -1,11 +1,9 @@
-import type { ParsedWebhookEvent, ProviderType } from "./WebhookProvider";
-import type { ProviderRegistry } from "./ProviderRegistry";
-import type { InboundEventProcessorResolver } from "./InboundEventProcessorResolver";
+import type { InboundEventHandler } from "./InboundEventHandler";
+import type { WebhookReceivers } from "./webhookReceivers";
 import type {
   WebhookDeliveryAttempt,
   WebhookDeliveryDAO,
 } from "../persistence/webhook/WebhookDeliveryDAO";
-import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 import type {
   RetryDeliveryOptions,
   WebhookProcessingResult,
@@ -13,19 +11,22 @@ import type {
 } from "./webhookServiceTypes";
 import type { WebhookConfigResolver } from "./WebhookConfigResolver";
 import type { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
-import type { ProviderWebhookPolicyResolver } from "./ProviderWebhookPolicyResolver";
 import { createChildLogger } from "../config/logger";
 
 const logger = createChildLogger({ service: "WebhookRetryService" });
 
+type RetryDeliveries = Pick<
+  WebhookDeliveryDAO,
+  "getDeliveryById" | "getDeliveryByIdForConfig" | "getDeliveryByDeliveryId"
+>;
+
 export class WebhookRetryService {
   constructor(
-    private registry: ProviderRegistry,
-    private configResolver: WebhookConfigResolver,
+    private receivers: WebhookReceivers,
+    private configResolver: Pick<WebhookConfigResolver, "getConfigById">,
     private deliveryLifecycle: InboundWebhookDeliveryLifecycle,
-    private providerPolicyResolver: ProviderWebhookPolicyResolver,
-    private processorResolver: InboundEventProcessorResolver,
-    private deliveryDAO: WebhookDeliveryDAO,
+    private handler: Pick<InboundEventHandler, "handle">,
+    private deliveryDAO: RetryDeliveries,
     private config: WebhookServiceConfig = {},
   ) {}
 
@@ -49,8 +50,8 @@ export class WebhookRetryService {
       };
     }
 
-    const provider = this.registry.get(delivery.provider);
-    if (!provider) {
+    const receiver = this.receivers.get(delivery.provider);
+    if (!receiver) {
       return {
         status: "failed",
         reason: `Provider '${delivery.provider}' not registered`,
@@ -76,20 +77,17 @@ export class WebhookRetryService {
     });
 
     try {
-      const retryHeaders = this.providerPolicyResolver
-        .resolve(delivery.provider)
-        .buildRetryHeaders({
-          deliveryId: delivery.deliveryId,
-          eventType: delivery.eventType,
-        });
-
-      const event = provider.parseEvent(delivery.payload, retryHeaders);
-      const result = await processProviderEvent(
-        this.processorResolver,
-        this.config,
+      const retryHeaders = receiver.retryHeaders({
+        deliveryId: delivery.deliveryId,
+        eventType: delivery.eventType,
+      });
+      const event = receiver.parseEvent(delivery.payload, retryHeaders);
+      const result = await this.handler.handle({
         event,
-        dbConfig,
-      );
+        config: dbConfig,
+        receiver,
+        defaultTenantId: this.config.defaultTenantId,
+      });
 
       await this.deliveryLifecycle.recordSuccess(delivery.id, result);
 
@@ -146,7 +144,7 @@ export class WebhookRetryService {
 }
 
 async function resolveRetryDelivery(
-  deliveryDAO: WebhookDeliveryDAO,
+  deliveryDAO: RetryDeliveries,
   deliveryId: string,
   options: RetryDeliveryOptions,
 ): Promise<WebhookDeliveryAttempt | null> {
@@ -166,37 +164,4 @@ async function resolveRetryDelivery(
   }
 
   return deliveryDAO.getDeliveryByDeliveryId(deliveryId);
-}
-
-async function processProviderEvent(
-  processorResolver: InboundEventProcessorResolver,
-  config: WebhookServiceConfig,
-  event: ParsedWebhookEvent,
-  webhookConfig: WebhookConfig,
-): Promise<{
-  ticketId?: string;
-  jobId?: string;
-  projectId?: string;
-  ignoredReason?: string;
-}> {
-  const processor = processorResolver.resolve(toProviderType(event.provider));
-
-  return processor.process({
-    event,
-    config: webhookConfig,
-    tenantId: undefined,
-    defaultTenantId: config.defaultTenantId,
-  });
-}
-
-function toProviderType(provider: string): ProviderType | undefined {
-  switch (provider) {
-    case "github":
-    case "jira":
-    case "shortcut":
-    case "custom":
-      return provider;
-    default:
-      return undefined;
-  }
 }

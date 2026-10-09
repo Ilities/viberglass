@@ -1,5 +1,6 @@
 import { Logger } from "winston";
 import { TurnCallbackClient } from "./TurnCallbackClient";
+import { RepositoryCallbackClient } from "./RepositoryCallbackClient";
 import type { ExecutionManifest } from "@viberglass/telemetry";
 import type { SkillFile } from "@viberglass/types";
 import {
@@ -39,9 +40,10 @@ export interface CallbackResult {
   runManifest?: ExecutionManifest;
 }
 
-/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`. */
+/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`, a repository's on `repository`. */
 export class CallbackClient {
   readonly turn: TurnCallbackClient;
+  readonly repository: RepositoryCallbackClient;
   private apiUrl: string;
   private maxRetries: number;
   private retryDelay: number;
@@ -63,12 +65,14 @@ export class CallbackClient {
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 1000;
     this.callbackToken = config.callbackToken;
-    this.turn = new TurnCallbackClient(logger, {
+    const target = {
       apiUrl: this.apiUrl,
       maxRetries: this.maxRetries,
       retryDelay: this.retryDelay,
       callbackToken: this.callbackToken,
-    });
+    };
+    this.turn = new TurnCallbackClient(logger, target);
+    this.repository = new RepositoryCallbackClient(target);
   }
 
   async sendResult(

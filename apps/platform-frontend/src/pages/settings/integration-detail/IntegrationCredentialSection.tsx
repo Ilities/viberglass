@@ -20,16 +20,8 @@ import { toast } from 'sonner'
 
 interface IntegrationCredentialSectionProps {
   integrationId: string
-  integrationSystem: string
-}
-
-/** Connections whose credential is a token, and what Viberglass uses it for. */
-const TOKEN_USE: Record<string, string> = {
-  github: "Spaces use it to clone, push and open pull requests, and to comment on linked issues.",
-  gitlab: 'Spaces use it to clone, push and open merge requests.',
-  bitbucket: 'Spaces use it to clone, push and open pull requests.',
-  jira: "Viberglass uses it to comment on the Jira issues tasks are linked to. Use an API token of the account set as the bot.",
-  shortcut: "Viberglass uses it to comment on the Shortcut stories tasks are linked to. Use an API token of the member set as the bot.",
+  /** What Viberglass uses the token for. */
+  credentialUse: string
 }
 
 const LOCATION_OPTIONS: Array<{ value: SecretLocation; label: string; helper: string }> = [
@@ -58,7 +50,7 @@ const LOCATION_BADGES: Record<SecretLocation, { label: string; color: string }> 
 
 type SecretSource = 'existing' | 'new'
 
-export function IntegrationCredentialSection({ integrationId, integrationSystem }: IntegrationCredentialSectionProps) {
+export function IntegrationCredentialSection({ integrationId, credentialUse }: IntegrationCredentialSectionProps) {
   const [credentials, setCredentials] = useState<IntegrationCredential[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -85,7 +77,6 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const [editIsDefault, setEditIsDefault] = useState(false)
   const [editSecretValue, setEditSecretValue] = useState('')
 
-  const tokenUse = TOKEN_USE[integrationSystem]
 
   // Get secrets not already linked to this integration
   const availableSecrets = useMemo(() => {
@@ -295,17 +286,13 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     return secret?.name || 'Unknown'
   }
 
-  if (!tokenUse) {
-    return null
-  }
-
   return (
     <section className="app-frame rounded-lg p-6">
       <div className="flex items-center justify-between">
         <div>
           <Subheading>Credentials</Subheading>
           <Text className="text-sm text-[var(--gray-9)]">
-            {tokenUse} The default credential is used unless a space picks another.
+            {credentialUse} The default credential is used unless a space picks another.
           </Text>
         </div>
         {!isCreating && (

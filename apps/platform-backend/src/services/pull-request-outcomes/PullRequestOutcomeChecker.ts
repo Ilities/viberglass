@@ -1,30 +1,29 @@
 import { createChildLogger } from "../../config/logger";
 import type { PullRequestOutcomeDAO } from "../../persistence/job/PullRequestOutcomeDAO";
-import type { ProjectScmTokenResolver } from "./ProjectScmTokenResolver";
-import type { PullRequestOutcome, PullRequestOutcomeListener, PullRequestOutcomeSource } from "./pullRequestOutcomeTypes";
+import type { PullRequestOutcome } from "@viberglass/types";
+import type { ProjectRepositoryResolver } from "../repositories/ProjectRepositoryResolver";
+import type { PullRequestOutcomeListener } from "./pullRequestOutcomeTypes";
 
 const logger = createChildLogger({ service: "PullRequestOutcomeChecker" });
 
-/** Reads one pull request's outcome from its SCM, records it, and tells the listeners (a merge closes the task). */
+/** Reads one pull request's outcome from the space's code host, records it, and tells the listeners (a merge closes the task). */
 export class PullRequestOutcomeChecker {
   constructor(
     private readonly outcomes: Pick<PullRequestOutcomeDAO, "recordOutcome">,
-    private readonly tokens: Pick<ProjectScmTokenResolver, "resolve">,
-    private readonly sources: PullRequestOutcomeSource[],
+    private readonly repositories: Pick<ProjectRepositoryResolver, "resolve">,
     private readonly listeners: PullRequestOutcomeListener[] = [],
   ) {}
 
   /** Returns why no outcome was recorded, or null when one was. */
   async check(pullRequestUrl: string, projectId: string | null): Promise<string | null> {
-    const source = this.sources.find((candidate) => candidate.supports(pullRequestUrl));
-    if (!source) return "No outcome source supports this URL";
     if (!projectId) return "No project recorded for this pull request";
 
     try {
-      const token = await this.tokens.resolve(projectId);
-      if (!token) return "Project has no SCM token credential";
+      const repository = await this.repositories.resolve(projectId);
+      if ("unavailable" in repository) return repository.unavailable;
+      if (!repository.host.ownsPullRequest(pullRequestUrl)) return "The space's code host doesn't host this pull request";
 
-      const outcome = await source.fetchOutcome(pullRequestUrl, token);
+      const outcome = await repository.host.fetchPullRequestOutcome(pullRequestUrl, repository.token);
       await this.outcomes.recordOutcome(pullRequestUrl, outcome);
       await this.tell(pullRequestUrl, outcome);
       return null;

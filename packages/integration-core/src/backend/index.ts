@@ -1,15 +1,10 @@
 export { BasePMIntegration } from './BasePMIntegration'
 export type { IntegrationPlugin } from './IntegrationPlugin'
-export type {
-  IntegrationCategory,
-  IntegrationFieldDefinition,
-  IntegrationFieldOption,
-  IntegrationFieldType,
-  IntegrationSupport,
-  WebhookEventDefinition,
-} from './IntegrationPlugin'
 export { IntegrationRegistry } from './IntegrationRegistry'
+export { manifestOf } from './manifestOf'
 export type { AutoFixDetectionConfig, CustomFieldMapping, PMIntegration } from './types'
 export { UnimplementedIntegration } from './UnimplementedIntegration'
 export type { TrackerCommenter, TrackerIssue } from './TrackerCommenter'
 export { isViberglassComment, VIBERGLASS_COMMENT_MARK, withViberglassMark } from './TrackerCommenter'
+export * from './webhooks'
+export * from './repository'

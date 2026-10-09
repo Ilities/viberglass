@@ -1,17 +1,12 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
+import { manifest } from '../manifest'
 import { CustomInboundIntegration } from './CustomInboundIntegration'
+import { CustomWebhookReceiver } from './CustomWebhookReceiver'
 
 const customPlugin: IntegrationPlugin = {
-  id: 'custom',
-  label: 'Custom Webhook',
-  category: 'inbound',
-  authTypes: [],
-  configFields: [],
-  supports: { issues: false, webhooks: true, pullRequests: false },
+  ...manifest,
   createIntegration: (config) => new CustomInboundIntegration(config),
-  status: 'ready',
-  webhookProvider: 'custom',
-  defaultInboundEvents: ['ticket_created'],
+  webhook: new CustomWebhookReceiver(),
 }
 
 export default customPlugin

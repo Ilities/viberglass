@@ -1,7 +1,7 @@
 import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
 import { Fact, FactList } from '@/components/fact-list'
-import { formatTicketSystem } from '@/lib/formatters'
+import { integrationLabel } from '@/integrations/integrationLabels'
 import { initialsOf } from '@/lib/initials'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { TaskParticipant, Ticket } from '@viberglass/types'
@@ -94,7 +94,7 @@ export function TaskContextLine({ ticket, people }: { ticket: Ticket; people: Ta
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current"
                 >
-                  {formatTicketSystem(ticket.ticketSystem)}
+                  {integrationLabel(ticket.ticketSystem)}
                   {ticket.externalTicketId ? ` #${ticket.externalTicketId}` : ''}
                   <ExternalLinkIcon className="size-3" />
                 </a>

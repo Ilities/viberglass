@@ -49,7 +49,7 @@ interface LoadedPlugin {
   packageName: string;
   packageDir: string;
   id: string;
-  displayName: string;
+  label: string;
   description: string;
   logo?: string;
   testOnly: boolean;
@@ -90,7 +90,7 @@ function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
   if (!plugin?.docker) {
     throw new Error(`Plugin at ${distPath} has no docker descriptor`);
   }
-  for (const field of ["displayName", "description"]) {
+  for (const field of ["label", "description"]) {
     if (typeof plugin[field] !== "string" || plugin[field].trim() === "") {
       throw new Error(`Plugin ${packageName} needs a ${field}.`);
     }
@@ -99,7 +99,7 @@ function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
     packageName,
     packageDir,
     id: plugin.id as string,
-    displayName: plugin.displayName as string,
+    label: plugin.label as string,
     description: plugin.description as string,
     logo: plugin.logo as string | undefined,
     testOnly: plugin.docker.testOnly === true,
@@ -279,7 +279,7 @@ function publishLogo(p: LoadedPlugin): string | null {
 // shows, the env var names it reads its key and endpoint from, and the config files it accepts.
 const agentPlugins = loadedPlugins.map((p) => ({
   agent: p.id,
-  displayName: p.displayName,
+  label: p.label,
   description: p.description,
   logo: publishLogo(p),
   default: p.id === defaultAgentId,

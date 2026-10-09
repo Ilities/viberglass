@@ -5,14 +5,11 @@
  */
 
 import express, { Request, Response } from 'express';
-import {
-  WebhookConfigDAO,
-  type WebhookProvider,
-} from '../../../persistence/webhook/WebhookConfigDAO';
+import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDeliveryDAO';
 import type { WebhookService } from '../../../webhooks/WebhookService';
-
-const SHORTCUT_PROVIDER: WebhookProvider = 'shortcut';
+import { integrationRegistry } from '../../../integrations/registerIntegrationPlugins';
+import { webhookReceiversFrom } from '../../../webhooks/webhookReceivers';
 
 /**
  * Create management routes
@@ -34,35 +31,18 @@ export function createManagementRoutes(getWebhookService: () => WebhookService) 
       // Get failed deliveries count
       const failedDeliveries = await service.getFailedDeliveries(100);
 
-      // Get delivery stats by provider
-      const githubStats = await deliveryDAO.getDeliveryStatsByProvider('github');
-      const jiraStats = await deliveryDAO.getDeliveryStatsByProvider('jira');
-      const shortcutStats =
-        await deliveryDAO.getDeliveryStatsByProvider(SHORTCUT_PROVIDER);
-
-      // Get active configurations
       const configs = await configDAO.listActiveConfigs(10);
+      const providers: Record<string, { configured: boolean; stats: unknown }> = {};
+      for (const provider of webhookReceiversFrom(integrationRegistry).providers()) {
+        providers[provider] = {
+          configured: configs.some((c) => c.provider === provider),
+          stats: await deliveryDAO.getDeliveryStatsByProvider(provider),
+        };
+      }
 
       res.json({
         status: 'operational',
-        providers: {
-          github: {
-            configured: configs.some((c) => c.provider === 'github'),
-            stats: githubStats,
-          },
-          jira: {
-            configured: configs.some((c) => c.provider === 'jira'),
-            stats: jiraStats,
-          },
-          shortcut: {
-            configured: configs.some((c) => c.provider === SHORTCUT_PROVIDER),
-            stats: shortcutStats,
-          },
-          custom: {
-            configured: configs.some((c) => c.provider === 'custom'),
-            stats: null,
-          },
-        },
+        providers,
         failedDeliveries: {
           count: failedDeliveries.length,
           recent: failedDeliveries.slice(0, 10).map((d) => ({

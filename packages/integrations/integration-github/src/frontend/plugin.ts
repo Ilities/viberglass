@@ -1,7 +1,10 @@
 import type { IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
+import { GitHubLogoIcon } from '@radix-ui/react-icons'
+import { manifest } from '../manifest'
 
 const githubFrontendPlugin: IntegrationFrontendPlugin = {
-  id: 'github',
+  ...manifest,
+  Icon: GitHubLogoIcon,
   trackerWebhook: {
     tracker: 'GitHub',
     item: 'issue',

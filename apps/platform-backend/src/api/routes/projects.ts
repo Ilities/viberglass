@@ -26,7 +26,6 @@ import {
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
 import { PromptTemplateService } from "../../services/PromptTemplateService";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
-import type { IntegrationFieldDefinition } from "@viberglass/integration-core";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
@@ -37,12 +36,13 @@ import type {
   AuthCredentials,
   ConfigureIntegrationRequest,
   IntegrationConfig,
+  IntegrationFieldDefinition,
   IntegrationSummary,
   TestIntegrationResponse,
   TicketSystem,
   UpsertProjectScmConfigRequest,
 } from "@viberglass/types";
-import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
+import { manifestOf } from "@viberglass/integration-core";
 import { AGENT_SESSION_ACTIVE_STATUSES } from "../../types/agentSession";
 import { ProjectReadinessService } from "../../services/ProjectReadinessService";
 import { spaceParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards";
@@ -99,19 +99,11 @@ const buildIntegrationSummary = (
     throw new Error("Integration plugin not found");
   }
 
-  const status = plugin.status ?? "ready";
   const configStatus =
-    status === "stub" ? "stub" : config ? "configured" : "not_configured";
+    plugin.status === "stub" ? "stub" : config ? "configured" : "not_configured";
 
   return {
-    id: plugin.id,
-    label: plugin.label,
-    category: plugin.category,
-    description: INTEGRATION_DESCRIPTIONS[plugin.id] || plugin.label,
-    authTypes: plugin.authTypes,
-    configFields: plugin.configFields,
-    supports: plugin.supports,
-    status,
+    ...manifestOf(plugin),
     configStatus,
     configuredAt: config?.createdAt,
   };

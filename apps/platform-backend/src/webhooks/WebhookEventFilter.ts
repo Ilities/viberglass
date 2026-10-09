@@ -1,8 +1,8 @@
-import type { ParsedWebhookEvent } from "./WebhookProvider";
+import type { InboundWebhookEvent } from "@viberglass/integration-core";
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 
 export function isEventAllowed(
-  event: ParsedWebhookEvent,
+  event: InboundWebhookEvent,
   config: WebhookConfig,
 ): boolean {
   if (!config.allowedEvents || config.allowedEvents.length === 0) {
@@ -18,7 +18,7 @@ export function isEventAllowed(
   return candidates.some((candidate) => allowedEvents.has(candidate));
 }
 
-export function getAllowedEventCandidates(event: ParsedWebhookEvent): string[] {
+export function getAllowedEventCandidates(event: InboundWebhookEvent): string[] {
   const candidates = new Set<string>([event.eventType]);
   const dotIndex = event.eventType.indexOf(".");
 

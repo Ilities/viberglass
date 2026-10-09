@@ -55,6 +55,8 @@ export interface ScmPayload {
   credentialSecretId?: string | null;
   /** The env var among the run's credentials that holds the repository token. */
   credentialEnvVar?: string | null;
+  /** The username git sends with the token, which depends on the code host. */
+  gitUsername?: string;
 }
 
 export interface TicketMediaPayload {

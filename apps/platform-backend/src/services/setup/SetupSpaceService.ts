@@ -20,7 +20,7 @@ import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
-import { parseGitHubRepository } from "./gitHubRepository";
+import { findSetupCodeHost, requireSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
 
 export interface CreateSpaceInput {
   name: string;
@@ -45,8 +45,8 @@ interface Links {
   linkIntegration(input: CreateProjectIntegrationLinkInput): Promise<unknown>;
 }
 
-interface GitHubConnection {
-  listIntegrations(system: "github"): Promise<Integration[]>;
+interface CodeHostConnections {
+  listIntegrations(system: string): Promise<Integration[]>;
 }
 
 interface Credentials {
@@ -54,14 +54,13 @@ interface Credentials {
 }
 
 /**
- * The repository's address: the URL the repository step returned (GitHub's
- * `html_url`, so Enterprise hosts work), or `owner/repo` on github.com.
+ * The repository's address: the URL the repository step returned (the host's
+ * own address for it, so self-hosted servers work), or a name the host reads.
  */
-function toRepositoryUrl(input: string): string | null {
+function toRepositoryUrl(input: string, codeHost: SetupCodeHost): string | null {
   const trimmed = input.trim().replace(/\/+$/, "");
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  const ref = parseGitHubRepository(trimmed);
-  return ref ? `https://github.com/${ref.owner}/${ref.repo}` : null;
+  return codeHost.repository.parseRepository(trimmed)?.url ?? null;
 }
 
 function sameRepository(a: string, b: string): boolean {
@@ -80,8 +79,9 @@ export class SetupSpaceService {
     private readonly projects: Projects = new ProjectDAO(),
     private readonly scmConfigs: ScmConfigs = new ProjectScmConfigDAO(),
     private readonly links: Links = new ProjectIntegrationLinkDAO(),
-    private readonly integrations: GitHubConnection = new IntegrationDAO(),
+    private readonly integrations: CodeHostConnections = new IntegrationDAO(),
     private readonly credentials: Credentials = new IntegrationCredentialDAO(),
+    private readonly codeHost: () => SetupCodeHost | null = findSetupCodeHost,
   ) {}
 
   /** `createdBy` becomes the new space's first maintainer. */
@@ -94,14 +94,15 @@ export class SetupSpaceService {
         "Give the space a name with at least one letter or number.",
       );
     }
-    const repositoryUrl = toRepositoryUrl(input.repository);
+    const codeHost = requireSetupCodeHost(this.codeHost);
+    const repositoryUrl = toRepositoryUrl(input.repository, codeHost);
     if (!repositoryUrl) {
       throw new SetupServiceError(
         SETUP_SERVICE_ERROR_CODE.REPOSITORY_INVALID,
-        "Enter the repository as owner/name or its GitHub address, for example acme/web.",
+        `Enter the repository as owner/name or its ${codeHost.label} address, for example acme/web.`,
       );
     }
-    const { integration, credential } = await this.getGitHubConnection();
+    const { integration, credential } = await this.getConnection(codeHost);
 
     const project = await this.findOrCreateProject(name, slug, repositoryUrl, createdBy);
     if (!(await this.links.isLinked(project.id, integration.id))) {
@@ -118,8 +119,8 @@ export class SetupSpaceService {
     return { projectId: project.id, name: project.name, slug: project.slug, repositoryUrl, baseBranch };
   }
 
-  private async getGitHubConnection(): Promise<{ integration: Integration; credential: IntegrationCredential }> {
-    const integration = (await this.integrations.listIntegrations("github")).find((i) => i.isActive);
+  private async getConnection(codeHost: SetupCodeHost): Promise<{ integration: Integration; credential: IntegrationCredential }> {
+    const integration = (await this.integrations.listIntegrations(codeHost.system)).find((i) => i.isActive);
     const credential = integration ? await this.credentials.getDefaultForIntegration(integration.id) : null;
     if (!integration || !credential) {
       throw new SetupServiceError(

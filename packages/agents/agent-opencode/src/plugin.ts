@@ -56,7 +56,7 @@ function resolveOpenCodeSettings(
 
 const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
   id: "opencode",
-  displayName: "OpenCode",
+  label: "OpenCode",
   description: "OpenAI-compatible orchestration with customizable base URL and model.",
   logo: "logo.ico",
 

@@ -10,7 +10,8 @@ import db from "../config/database";
  */
 
 export type SecretLocation = "database" | "ssm" | "env";
-export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
+/** The webhook provider an integration's manifest names. */
+export type WebhookProvider = string;
 
 /**
  * Webhook configuration as stored in database
@@ -275,7 +276,7 @@ export class WebhookConfigDAO {
     return {
       id: String(row.id),
       projectId: row.project_id ? String(row.project_id) : null,
-      provider: row.provider as WebhookProvider,
+      provider: String(row.provider),
       integrationId: row.integration_id ? String(row.integration_id) : null,
       secretLocation: row.secret_location as SecretLocation,
       secretPath: row.secret_path ? String(row.secret_path) : null,

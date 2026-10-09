@@ -1,6 +1,7 @@
 import { PullRequestOutcomeChecker } from '../../../services/pull-request-outcomes/PullRequestOutcomeChecker';
 import { PullRequestOutcomeSweeper } from '../../../workers/PullRequestOutcomeSweeper';
-import type { PullRequestOutcome, PullRequestOutcomeSource } from '../../../services/pull-request-outcomes/pullRequestOutcomeTypes';
+import type { PullRequestOutcome } from '@viberglass/types';
+import { fakeRepositoryHost } from '../../helpers/fakeRepositoryHost';
 
 const URL_1 = 'https://github.com/acme/app/pull/1';
 const MERGED: PullRequestOutcome = {
@@ -17,21 +18,18 @@ describe('PullRequestOutcomeSweeper', () => {
     recordOutcome: jest.fn(),
     recordError: jest.fn(),
   };
-  const tokens = { resolve: jest.fn() };
-  const source: jest.Mocked<PullRequestOutcomeSource> = {
-    supports: jest.fn(),
-    fetchOutcome: jest.fn(),
-  };
+  const host = fakeRepositoryHost();
+  const repositories = { resolve: jest.fn() };
   let sweeper: PullRequestOutcomeSweeper;
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.useFakeTimers();
     outcomes.listDueForCheck.mockResolvedValue([{ pullRequestUrl: URL_1, projectId: 'project-1' }]);
-    tokens.resolve.mockResolvedValue('tok');
-    source.supports.mockReturnValue(true);
-    source.fetchOutcome.mockResolvedValue(MERGED);
-    sweeper = new PullRequestOutcomeSweeper(outcomes, new PullRequestOutcomeChecker(outcomes, tokens, [source]), { recheckAfterMs: 60_000, batchSize: 10 });
+    repositories.resolve.mockResolvedValue({ host, token: 'tok' });
+    host.ownsPullRequest.mockReturnValue(true);
+    host.fetchPullRequestOutcome.mockResolvedValue(MERGED);
+    sweeper = new PullRequestOutcomeSweeper(outcomes, new PullRequestOutcomeChecker(outcomes, repositories), { recheckAfterMs: 60_000, batchSize: 10 });
   });
 
   afterEach(() => {
@@ -50,8 +48,8 @@ describe('PullRequestOutcomeSweeper', () => {
   it('records the outcome read with the project token', async () => {
     await expect(sweeper.sweep()).resolves.toBe(1);
 
-    expect(tokens.resolve).toHaveBeenCalledWith('project-1');
-    expect(source.fetchOutcome).toHaveBeenCalledWith(URL_1, 'tok');
+    expect(repositories.resolve).toHaveBeenCalledWith('project-1');
+    expect(host.fetchPullRequestOutcome).toHaveBeenCalledWith(URL_1, 'tok');
     expect(outcomes.recordOutcome).toHaveBeenCalledWith(URL_1, MERGED);
     expect(outcomes.recordError).not.toHaveBeenCalled();
   });
@@ -62,7 +60,7 @@ describe('PullRequestOutcomeSweeper', () => {
       { pullRequestUrl: URL_1, projectId: 'project-1' },
       { pullRequestUrl: URL_2, projectId: 'project-1' },
     ]);
-    source.fetchOutcome.mockRejectedValueOnce(new Error('GitHub returned 404'));
+    host.fetchPullRequestOutcome.mockRejectedValueOnce(new Error('GitHub returned 404'));
 
     await expect(sweeper.sweep()).resolves.toBe(1);
     expect(outcomes.recordError).toHaveBeenCalledWith(URL_1, 'GitHub returned 404');
@@ -71,7 +69,7 @@ describe('PullRequestOutcomeSweeper', () => {
 
   it('sweeps on start and on each interval until stopped', async () => {
     outcomes.listDueForCheck.mockResolvedValue([]);
-    sweeper = new PullRequestOutcomeSweeper(outcomes, new PullRequestOutcomeChecker(outcomes, tokens, [source]), { sweepIntervalMs: 1_000 });
+    sweeper = new PullRequestOutcomeSweeper(outcomes, new PullRequestOutcomeChecker(outcomes, repositories), { sweepIntervalMs: 1_000 });
 
     sweeper.start();
     expect(sweeper.isRunning()).toBe(true);

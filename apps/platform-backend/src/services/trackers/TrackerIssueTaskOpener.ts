@@ -3,7 +3,8 @@ import type { TaskIssueLinkDAO } from "../../persistence/ticketing/TaskIssueLink
 import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import type { UserDAO } from "../../persistence/user/UserDAO";
 import type { WebhookPlanRequester } from "../../webhooks/WebhookPlanRequester";
-import type { TrackerContext, TrackerEventResult, TrackerIssue } from "./TrackerIssueInbound";
+import type { InboundIssue } from "@viberglass/types";
+import type { TrackerContext, TrackerEventResult } from "./TrackerIssueInbound";
 import type { RoutedSpace } from "./TrackerIssueRouter";
 import { trackerPersonId } from "./trackerPersonId";
 
@@ -18,7 +19,7 @@ interface Dependencies {
 export class TrackerIssueTaskOpener {
   constructor(private readonly deps: Dependencies) {}
 
-  async open(context: TrackerContext, issue: TrackerIssue & { title: string }, space: RoutedSpace): Promise<TrackerEventResult> {
+  async open(context: TrackerContext, issue: InboundIssue & { title: string }, space: RoutedSpace): Promise<TrackerEventResult> {
     const requesterId = issue.author ? await trackerPersonId(this.deps.users, issue.author) : null;
     const tracker: Record<string, unknown> = { ...issue.metadata, provider: context.provider, externalTicketId: issue.key, externalTicketUrl: issue.url };
     const metadata: TicketMetadata = { timestamp: new Date().toISOString(), timezone: "UTC", ...tracker };

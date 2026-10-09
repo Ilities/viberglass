@@ -1,8 +1,9 @@
-import type { TrackerContext, TrackerIssue } from "../../../../services/trackers/TrackerIssueInbound";
+import type { InboundIssue } from "@viberglass/types";
+import type { TrackerContext } from "../../../../services/trackers/TrackerIssueInbound";
 import { TrackerIssueTaskOpener } from "../../../../services/trackers/TrackerIssueTaskOpener";
 
 const CONTEXT: TrackerContext = { provider: "jira", integrationId: "conn-1", webhookConfigId: "hook-1" };
-const ISSUE: TrackerIssue & { title: string } = {
+const ISSUE: InboundIssue & { title: string } = {
   key: "WEB-12",
   url: "https://acme.atlassian.net/browse/WEB-12",
   apiBaseUrl: "https://acme.atlassian.net",

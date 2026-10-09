@@ -40,7 +40,7 @@ COPY packages/agent-core ./packages/agent-core
 COPY apps/platform-backend ./apps/platform-backend
 
 # Build shared workspace packages (needed before backend can start)
-# Note: tsx resolves integration packages via tsconfig paths, no dist/ needed
+# Integration packages resolve to their dist/, which compose mounts from the host
 RUN npm run build -w @viberglass/types && npm run build -w @viberglass/telemetry && npm run build -w @viberglass/chat-slack && npm run build -w @viberglass/model-hosting-verda && npm run build -w @viberglass/mcp-server
 # Expose backend API port
 EXPOSE 8888

@@ -1,5 +1,6 @@
 import { Button } from '@/components/button'
 import { Timestamp } from '@/components/timestamp'
+import { integrationLabel } from '@/integrations/integrationLabels'
 import type { TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useState } from 'react'
 import { describeActivity } from './activity-sentence'
@@ -8,12 +9,10 @@ import { ThreadItem } from './thread-item'
 
 const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { plan: 'Plan' }
 
-const TRACKER_NAME: Record<string, string> = { jira: 'Jira', shortcut: 'Shortcut', github: 'GitHub' }
-
 /** "on Jira": where a message from a linked tracker issue was written. */
 export function trackerNote(source: string | null | undefined): string | undefined {
   if (!source) return undefined
-  return `on ${TRACKER_NAME[source] ?? source}`
+  return `on ${integrationLabel(source)}`
 }
 
 /** What someone wrote in the thread, or to the agent in its session; a comment on a linked tracker issue says where. */

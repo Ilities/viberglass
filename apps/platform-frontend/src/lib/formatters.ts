@@ -1,23 +1,5 @@
 import type { ClankerStatus, DeploymentStrategy } from '@viberglass/types'
 
-// Ticket formatting utilities
-
-export function formatTicketSystem(system: string): string {
-  const systems: Record<string, string> = {
-    github: 'GitHub',
-    gitlab: 'GitLab',
-    bitbucket: 'Bitbucket',
-    jira: 'Jira',
-    linear: 'Linear',
-    monday: 'Monday',
-    shortcut: 'Shortcut',
-    slack: 'Slack',
-    custom: 'Custom Webhook',
-    native: 'Viberglass',
-  }
-  return systems[system] || system
-}
-
 export function formatTimestamp(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   const now = new Date()

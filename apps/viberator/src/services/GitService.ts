@@ -1,24 +1,18 @@
 import { Logger } from "winston";
 import { simpleGit, SimpleGit } from "simple-git";
 import * as path from "path";
-import axios from "axios";
-import { SCMAuthFactory } from "../scm";
+import { gitAuthEnvironment, toRemoteUrl, type GitAuth } from "./gitAuth";
 import { GitConfig } from "../types";
 
 /**
  * simple-git blocks GIT_CONFIG_COUNT by default. Credentials are supplied through
- * it (see SCMAuthFactory.buildGitAuthEnvironment), so authenticated invocations
+ * it (see gitAuthEnvironment), so authenticated invocations
  * have to opt in. `http.<origin>.extraheader` is not separately block-listed, so
  * this flag alone is enough.
  */
 const AUTHENTICATED_GIT_OPTIONS = {
   unsafe: { allowUnsafeConfigEnvCount: true },
 } as const;
-
-interface PullRequestOptions {
-  sourceRepositoryUrl?: string;
-  destinationRepositoryUrl?: string;
-}
 
 class GitService {
   private gitConfig: GitConfig;
@@ -64,9 +58,9 @@ class GitService {
    */
   private buildGitEnvironment(
     repoUrl: string,
-    scmToken?: string,
+    auth?: GitAuth,
   ): NodeJS.ProcessEnv {
-    const authEnv = SCMAuthFactory.buildGitAuthEnvironment(repoUrl, scmToken);
+    const authEnv = gitAuthEnvironment(repoUrl, auth);
 
     if (Object.keys(authEnv).length === 0) {
       this.logger.warn(
@@ -84,9 +78,9 @@ class GitService {
 
   /**
    * Auth for talking to origin. The remote URL stays credential-free; auth is
-   * attached per invocation, and the origin says which provider's to use.
+   * attached per invocation for the origin's host.
    */
-  private async originEnvironment(git: SimpleGit, scmToken?: string): Promise<NodeJS.ProcessEnv> {
+  private async originEnvironment(git: SimpleGit, auth?: GitAuth): Promise<NodeJS.ProcessEnv> {
     const remotes = await git.getRemotes(true);
     const origin = remotes.find((r) => r.name === "origin");
     const originUrl = origin?.refs.push || origin?.refs.fetch;
@@ -95,7 +89,7 @@ class GitService {
       throw new Error("No 'origin' remote found in repository");
     }
 
-    return this.buildGitEnvironment(originUrl, scmToken);
+    return this.buildGitEnvironment(originUrl, auth);
   }
 
   /**
@@ -105,13 +99,13 @@ class GitService {
     repoUrl: string,
     branch: string,
     workDir: string,
-    scmToken?: string,
+    auth?: GitAuth,
   ): Promise<void> {
     try {
       this.logger.info("Cloning repository", { repoUrl, branch });
 
-      const remoteUrl = SCMAuthFactory.toRemoteUrl(repoUrl);
-      const env = this.buildGitEnvironment(repoUrl, scmToken);
+      const remoteUrl = toRemoteUrl(repoUrl);
+      const env = this.buildGitEnvironment(repoUrl, auth);
 
       const git = simpleGit({ baseDir: workDir, ...AUTHENTICATED_GIT_OPTIONS });
       const repoPath = path.join(workDir, "repo");
@@ -193,10 +187,10 @@ class GitService {
   public async checkoutRemoteBranch(
     repoDir: string,
     branchName: string,
-    scmToken?: string,
+    auth?: GitAuth,
   ): Promise<boolean> {
     const git = simpleGit({ baseDir: repoDir, ...AUTHENTICATED_GIT_OPTIONS });
-    const env = await this.originEnvironment(git, scmToken);
+    const env = await this.originEnvironment(git, auth);
 
     const heads = await git.env(env).listRemote(["--heads", "origin", branchName]);
     const exists = heads
@@ -252,10 +246,10 @@ class GitService {
   /**
    * Push branch using simple-git
    */
-  public async pushBranch(repoDir: string, branchName: string, scmToken?: string): Promise<void> {
+  public async pushBranch(repoDir: string, branchName: string, auth?: GitAuth): Promise<void> {
     try {
       const git = simpleGit({ baseDir: repoDir, ...AUTHENTICATED_GIT_OPTIONS });
-      const env = await this.originEnvironment(git, scmToken);
+      const env = await this.originEnvironment(git, auth);
 
       await git.env(env).push("origin", branchName, ["--set-upstream"]);
       this.logger.info("Branch pushed", { branchName });
@@ -267,239 +261,6 @@ class GitService {
     }
   }
 
-  /**
-   * Create a pull request using the GitHub REST API
-   */
-  public async createPullRequest(
-    repoDir: string,
-    sourceBranch: string,
-    targetBranch: string,
-    title: string,
-    description?: string,
-    options?: PullRequestOptions,
-    scmToken?: string,
-  ): Promise<string> {
-    const sourceRepo = options?.sourceRepositoryUrl
-      ? this.getRepoMetadataFromUrl(options.sourceRepositoryUrl)
-      : await this.getRepoMetadata(repoDir);
-    const destinationRepo = options?.destinationRepositoryUrl
-      ? this.getRepoMetadataFromUrl(options.destinationRepositoryUrl)
-      : sourceRepo;
-    const isCrossRepositoryPullRequest =
-      sourceRepo.owner !== destinationRepo.owner ||
-      sourceRepo.repo !== destinationRepo.repo;
-    const isSameOwnerCrossRepositoryPullRequest =
-      isCrossRepositoryPullRequest &&
-      sourceRepo.owner === destinationRepo.owner;
-    const headRef = isCrossRepositoryPullRequest
-      ? `${sourceRepo.owner}:${sourceBranch}`
-      : sourceBranch;
-    const existingPullRequestHeadRef = `${sourceRepo.owner}:${sourceBranch}`;
-    let token: string | undefined;
-
-    const providerLookupUrl =
-      options?.sourceRepositoryUrl ||
-      options?.destinationRepositoryUrl ||
-      `https://github.com/${sourceRepo.owner}/${sourceRepo.repo}`;
-    try {
-      token = scmToken || SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
-
-      if (!token) {
-        throw new Error(
-          "Unable to retrieve authentication token from SCMAuthFactory",
-        );
-      }
-
-      this.logger.info("Creating pull request via GitHub API", {
-        sourceRepo: `${sourceRepo.owner}/${sourceRepo.repo}`,
-        destinationRepo: `${destinationRepo.owner}/${destinationRepo.repo}`,
-        head: headRef,
-        base: targetBranch,
-        headRepo: isSameOwnerCrossRepositoryPullRequest
-          ? sourceRepo.repo
-          : undefined,
-      });
-
-      // Use provided description or fall back to default
-      const prBody = description
-        ? `${description}\n\n---\n🤖 Generated by Viberator`
-        : "🤖 Automated fix by Viberator\n\nThis PR was generated automatically.";
-      const pullRequestPayload: {
-        title: string;
-        head: string;
-        base: string;
-        body: string;
-        maintainer_can_modify: boolean;
-        head_repo?: string;
-      } = {
-        title: title,
-        head: headRef,
-        base: targetBranch,
-        body: prBody,
-        maintainer_can_modify: true,
-      };
-
-      // GitHub requires head_repo for cross-repo PRs within the same owner/org.
-      if (isSameOwnerCrossRepositoryPullRequest) {
-        pullRequestPayload.head_repo = sourceRepo.repo;
-      }
-
-      const response = await axios.post(
-        `https://api.github.com/repos/${destinationRepo.owner}/${destinationRepo.repo}/pulls`,
-        pullRequestPayload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-        },
-      );
-
-      const prUrl = response.data.html_url;
-      this.logger.info("Pull request successfully created", {
-        prUrl,
-        id: response.data.id,
-      });
-      return prUrl;
-    } catch (error) {
-      let errorMessage = "Unknown error";
-      let details: unknown = null;
-      if (axios.isAxiosError(error)) {
-        const responseData = error.response?.data as
-          | { message?: string; errors?: unknown }
-          | undefined;
-        errorMessage = responseData?.message || error.message;
-        details = responseData?.errors;
-
-        // Handle specific case: PR already exists
-        if (
-          error.response?.status === 422 &&
-          Array.isArray(details) &&
-          details.some(
-            (detail) =>
-              typeof detail?.message === "string" &&
-              detail.message.includes("A pull request already exists"),
-          )
-        ) {
-          const existingPullRequestToken =
-            token || SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
-          if (!existingPullRequestToken) {
-            throw new Error(
-              "Unable to retrieve authentication token from SCMAuthFactory",
-            );
-          }
-
-          this.logger.warn("Pull request already exists for this branch");
-          return this.getExistingPullRequestUrl(
-            destinationRepo,
-            existingPullRequestHeadRef,
-            existingPullRequestToken,
-          );
-        }
-
-        if (Array.isArray(details)) {
-          const detailMessages = details
-            .map((detail) => {
-              if (typeof detail?.message === "string") {
-                return detail.message;
-              }
-              if (typeof detail?.code === "string") {
-                return detail.code;
-              }
-              return null;
-            })
-            .filter((message): message is string => Boolean(message));
-
-          if (detailMessages.length > 0) {
-            errorMessage = `${errorMessage}: ${detailMessages.join("; ")}`;
-          }
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      this.logger.error("Failed to create pull request via API", {
-        error: errorMessage,
-        details,
-      });
-      throw new Error(`GitHub PR Creation Failed: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Internal helper to extract owner and repo name from git remote
-   */
-  private async getRepoMetadata(
-    repoDir: string,
-  ): Promise<{ owner: string; repo: string }> {
-    try {
-      const git = simpleGit({ baseDir: repoDir });
-      const remotes = await git.getRemotes(true);
-      const origin = remotes.find((r) => r.name === "origin") || remotes[0];
-
-      if (!origin) {
-        throw new Error("No git remotes found");
-      }
-
-      // Regex to handle both HTTPS and SSH formats
-      // e.g., https://github.com/owner/repo.git OR git@github.com:owner/repo.git
-      const remoteUrl = origin.refs.push;
-      const match = remoteUrl.match(
-        /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i,
-      );
-
-      if (!match) {
-        throw new Error(`Could not parse owner/repo from URL: ${remoteUrl}`);
-      }
-
-      return {
-        owner: match[1],
-        repo: match[2],
-      };
-    } catch (error) {
-      this.logger.error("Failed to parse repository metadata", { error });
-      throw error;
-    }
-  }
-
-  /**
-   * Fallback to find an existing PR URL if creation fails because it already exists
-   */
-  private async getExistingPullRequestUrl(
-    destinationRepo: { owner: string; repo: string },
-    head: string,
-    token: string,
-  ): Promise<string> {
-    const response = await axios.get(
-      `https://api.github.com/repos/${destinationRepo.owner}/${destinationRepo.repo}/pulls`,
-      {
-        params: { head, state: "open" },
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    return (
-      response.data[0]?.html_url ||
-      `https://github.com/${destinationRepo.owner}/${destinationRepo.repo}/pulls`
-    );
-  }
-
-  private getRepoMetadataFromUrl(repoUrl: string): {
-    owner: string;
-    repo: string;
-  } {
-    const match = repoUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i);
-
-    if (!match) {
-      throw new Error(`Could not parse owner/repo from URL: ${repoUrl}`);
-    }
-
-    return {
-      owner: match[1],
-      repo: match[2],
-    };
-  }
 }
 
 export default GitService;

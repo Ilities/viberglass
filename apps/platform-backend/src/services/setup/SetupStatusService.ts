@@ -19,11 +19,13 @@ import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigD
 import { ModelEndpointDAO } from "../../persistence/modelEndpoint/ModelEndpointDAO";
 import { SecretDAO } from "../../persistence/secret/SecretDAO";
 import { DEFAULT_AGENT_SLUG } from "./SetupAgentService";
+import { findSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
 import { DemoWorkspaceService } from "../demo/DemoWorkspaceService";
 
 interface Dependencies {
   secrets: { getLatestSecretForProvider(provider: ModelProviderId): Promise<{ id: string } | null> };
-  integrations: { listIntegrations(system: "github"): Promise<Integration[]> };
+  integrations: { listIntegrations(system: string): Promise<Integration[]> };
+  codeHost: () => SetupCodeHost | null;
   credentials: { getDefaultForIntegration(integrationId: string): Promise<IntegrationCredential | null> };
   projects: { listProjects(limit?: number): Promise<ProjectConfig[]> };
   scmConfigs: { getByProjectId(projectId: string): Promise<ProjectScmConfig | null> };
@@ -38,6 +40,7 @@ interface Dependencies {
 const defaults = (): Dependencies => ({
   secrets: new SecretDAO(),
   integrations: new IntegrationDAO(),
+  codeHost: findSetupCodeHost,
   credentials: new IntegrationCredentialDAO(),
   projects: new ProjectDAO(),
   scmConfigs: new ProjectScmConfigDAO(),
@@ -97,8 +100,10 @@ export class SetupStatusService {
   }
 
   private async isRepositoryConnected(): Promise<boolean> {
-    const github = (await this.deps.integrations.listIntegrations("github")).find((i) => i.isActive);
-    return github ? (await this.deps.credentials.getDefaultForIntegration(github.id)) !== null : false;
+    const codeHost = this.deps.codeHost();
+    if (!codeHost) return false;
+    const connection = (await this.deps.integrations.listIntegrations(codeHost.system)).find((i) => i.isActive);
+    return connection ? (await this.deps.credentials.getDefaultForIntegration(connection.id)) !== null : false;
   }
 
   private async findSpace(): Promise<SetupStatus["space"]> {

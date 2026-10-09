@@ -1,18 +1,12 @@
-import type {
-  ParsedWebhookEvent,
-  ProviderType,
-  WebhookProvider,
-  WebhookProviderConfig,
-} from "./WebhookProvider";
-import type { ProviderRegistry } from "./ProviderRegistry";
+import { InvalidWebhookPayloadError, type InboundWebhookEvent, type WebhookReceiver } from "@viberglass/integration-core";
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 import type { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import type { DeduplicationService } from "./DeduplicationService";
 import type { WebhookSecretService } from "./WebhookSecretService";
-import type { InboundEventProcessorResolver } from "./InboundEventProcessorResolver";
+import type { InboundEventHandler } from "./InboundEventHandler";
 import type { WebhookConfigResolver } from "./WebhookConfigResolver";
 import type { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
-import type { ProviderWebhookPolicyResolver } from "./ProviderWebhookPolicyResolver";
+import type { WebhookReceivers } from "./webhookReceivers";
 import type {
   RetryDeliveryOptions,
   WebhookProcessingOptions,
@@ -31,14 +25,13 @@ export type {
 
 export class WebhookService {
   constructor(
-    private registry: ProviderRegistry,
-    private deduplication: DeduplicationService,
-    private secretService: WebhookSecretService,
-    private processorResolver: InboundEventProcessorResolver,
-    private configResolver: WebhookConfigResolver,
-    private providerPolicyResolver: ProviderWebhookPolicyResolver,
+    private receivers: WebhookReceivers,
+    private deduplication: Pick<DeduplicationService, "shouldProcessDelivery" | "getFailedDeliveries">,
+    private secretService: Pick<WebhookSecretService, "getSecret">,
+    private handler: Pick<InboundEventHandler, "handle">,
+    private configResolver: Pick<WebhookConfigResolver, "resolveInboundConfig">,
     private deliveryLifecycle: InboundWebhookDeliveryLifecycle,
-    private retryService: WebhookRetryService,
+    private retryService: Pick<WebhookRetryService, "retryDelivery">,
     private config: WebhookServiceConfig = {},
   ) {}
 
@@ -46,48 +39,25 @@ export class WebhookService {
     headers: Record<string, string | string[] | undefined>,
     payload: unknown,
     rawBody: Buffer,
-    tenantId?: string,
-    options: WebhookProcessingOptions = {},
+    tenantId: string | undefined,
+    options: WebhookProcessingOptions,
   ): Promise<WebhookProcessingResult> {
     const normalizedHeaders = normalizeHeaders(headers);
 
-    const provider = options.providerName
-      ? this.registry.get(options.providerName)
-      : this.registry.getProviderForHeaders(normalizedHeaders);
-    if (!provider) {
-      return {
-        status: "ignored",
-        reason: "No matching provider for request headers",
-      };
+    const receiver = this.receivers.get(options.providerName);
+    const dbConfig = receiver ? await this.configResolver.resolveInboundConfig(options) : null;
+    if (!receiver || !dbConfig) {
+      return { status: "not_found", reason: "No webhook with this address" };
     }
 
-    let event: ParsedWebhookEvent;
+    let event: InboundWebhookEvent;
     try {
-      event = provider.parseEvent(payload, normalizedHeaders);
+      event = receiver.parseEvent(payload, normalizedHeaders);
     } catch (error) {
-      return {
-        status: "ignored",
-        reason: `Event parsing failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-
-    const providerName = resolveProviderName(provider.name, options.providerName);
-    if (!providerName) {
-      return {
-        status: "ignored",
-        reason: `Provider '${provider.name}' is not supported by webhook orchestration`,
-      };
-    }
-
-    const dbConfig = await this.configResolver.resolveInboundConfig({
-      providerName,
-      configId: options.configId,
-    });
-    if (!dbConfig) {
-      return {
-        status: "ignored",
-        reason: "No webhook with this address",
-      };
+      const reason = error instanceof Error ? error.message : "Unknown error";
+      return error instanceof InvalidWebhookPayloadError
+        ? { status: "invalid", reason }
+        : { status: "ignored", reason: `Event parsing failed: ${reason}` };
     }
 
     if (!dbConfig.active) {
@@ -109,15 +79,11 @@ export class WebhookService {
       };
     }
 
-    const signatureHeader = this.providerPolicyResolver
-      .resolve(dbConfig.provider)
-      .getSignatureHeader(normalizedHeaders);
     const signatureResult = await verifySignature({
       secretService: this.secretService,
-      provider,
-      providerConfig: toProviderConfig(dbConfig),
-      providerName: dbConfig.provider,
-      signatureHeader,
+      receiver,
+      config: dbConfig,
+      signature: receiver.signatureOf(normalizedHeaders),
       rawBody,
       tenantId,
     });
@@ -152,13 +118,13 @@ export class WebhookService {
     });
 
     try {
-      const result = await processProviderEvent(
-        this.processorResolver,
-        this.config,
+      const result = await this.handler.handle({
         event,
-        dbConfig,
+        config: dbConfig,
+        receiver,
         tenantId,
-      );
+        defaultTenantId: this.config.defaultTenantId,
+      });
       await this.deliveryLifecycle.recordSuccess(delivery.id, result);
 
       if (result.ignoredReason) {
@@ -200,63 +166,39 @@ export class WebhookService {
   }
 }
 
-function toProviderConfig(dbConfig: WebhookConfig): WebhookProviderConfig {
-  return {
-    type: dbConfig.provider,
-    secretLocation: dbConfig.secretLocation,
-    secretPath: dbConfig.secretPath || undefined,
-    algorithm: "sha256",
-    allowedEvents: dbConfig.allowedEvents,
-    webhookSecret: dbConfig.webhookSecretEncrypted || undefined,
-  };
-}
-
 async function verifySignature(params: {
-  secretService: WebhookSecretService;
-  provider: WebhookProvider;
-  providerConfig: WebhookProviderConfig;
-  providerName: WebhookConfig["provider"];
-  signatureHeader?: string;
+  secretService: Pick<WebhookSecretService, "getSecret">;
+  receiver: WebhookReceiver;
+  config: WebhookConfig;
+  signature?: string;
   rawBody: Buffer;
   tenantId?: string;
 }): Promise<{ valid: boolean; reason?: string }> {
-  // Every provider must have a configured secret. An unsigned delivery is an
-  // unauthenticated request that can create tickets, and ticket bodies reach the
-  // agent prompt verbatim.
+  // Every webhook must have a secret. An unsigned delivery is an unauthenticated
+  // request that can create tickets, and ticket bodies reach the agent prompt verbatim.
   let secret: string | undefined;
   try {
     secret = await params.secretService.getSecret(
-      params.providerConfig,
+      {
+        secretLocation: params.config.secretLocation,
+        secretPath: params.config.secretPath || undefined,
+        webhookSecret: params.config.webhookSecretEncrypted || undefined,
+      },
       params.tenantId,
     );
   } catch {
-    return {
-      valid: false,
-      reason: "Webhook secret is not configured",
-    };
+    return { valid: false, reason: "Webhook secret is not configured" };
   }
 
   if (!secret) {
-    return {
-      valid: false,
-      reason: "Webhook secret is not configured",
-    };
+    return { valid: false, reason: "Webhook secret is not configured" };
   }
-
-  if (!params.signatureHeader) {
-    return {
-      valid: false,
-      reason: "Missing signature header",
-    };
+  if (!params.signature) {
+    return { valid: false, reason: "Missing signature header" };
   }
-
-  if (!params.provider.verifySignature(params.rawBody, params.signatureHeader, secret)) {
-    return {
-      valid: false,
-      reason: "Invalid signature",
-    };
+  if (!params.receiver.verifySignature(params.rawBody, params.signature, secret)) {
+    return { valid: false, reason: "Invalid signature" };
   }
-
   return { valid: true };
 }
 
@@ -274,57 +216,4 @@ function normalizeHeaders(
   }
 
   return normalized;
-}
-
-async function processProviderEvent(
-  processorResolver: InboundEventProcessorResolver,
-  config: WebhookServiceConfig,
-  event: ParsedWebhookEvent,
-  webhookConfig: WebhookConfig,
-  tenantId?: string,
-): Promise<{
-  ticketId?: string;
-  jobId?: string;
-  projectId?: string;
-  ignoredReason?: string;
-}> {
-  const processor = processorResolver.resolve(toProviderType(event.provider));
-
-  return processor.process({
-    event,
-    config: webhookConfig,
-    tenantId,
-    defaultTenantId: config.defaultTenantId,
-  });
-}
-
-function resolveProviderName(
-  providerName: string,
-  explicit?: WebhookProcessingOptions["providerName"],
-): WebhookConfig["provider"] | undefined {
-  if (explicit) {
-    return explicit;
-  }
-
-  switch (providerName) {
-    case "github":
-    case "jira":
-    case "shortcut":
-    case "custom":
-      return providerName;
-    default:
-      return undefined;
-  }
-}
-
-function toProviderType(provider: string): ProviderType | undefined {
-  switch (provider) {
-    case "github":
-    case "jira":
-    case "shortcut":
-    case "custom":
-      return provider;
-    default:
-      return undefined;
-  }
 }
