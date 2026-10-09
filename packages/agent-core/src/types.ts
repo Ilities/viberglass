@@ -71,6 +71,8 @@ export interface ExecutionContext {
   jobKind?: string;
 
   agent?: string;
+  /** The agent's `gen_ai.provider.name`, which its plugin declares. */
+  telemetryProvider?: string;
   promptOverride?: string;
 
   // ACP interactive session fields

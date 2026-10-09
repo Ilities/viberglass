@@ -3,6 +3,7 @@ import {
   AGENT_PROVIDER_BINDINGS,
   getAgentEnvVarNames,
   getModelProvider,
+  isTestOnlyAgent,
   type AgentType,
   type ModelProviderId,
   type SecretBinding,
@@ -19,8 +20,8 @@ export interface ProviderOption {
 }
 
 export function providerOptionsForAgent(agent: AgentType | ''): ProviderOption[] {
-  if (!agent) return []
-  return AGENT_PROVIDER_BINDINGS.filter((binding) => binding.agent === agent && binding.provider !== 'fake').map(
+  if (!agent || isTestOnlyAgent(agent)) return []
+  return AGENT_PROVIDER_BINDINGS.filter((binding) => binding.agent === agent).map(
     (binding) => ({
       provider: binding.provider,
       label: getModelProvider(binding.provider).displayName,

@@ -6,6 +6,9 @@ import { MistralVibeAgent } from "./MistralVibeAgent";
 const mistralVibePlugin: AgentPlugin<MistralVibeConfig> = {
   id: "mistral-vibe",
   displayName: "Mistral Vibe",
+  description: "Mistral-native coding option optimized for quick iterative execution.",
+  logo: "logo.ico",
+  telemetryProvider: "mistral_ai",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new MistralVibeAgent(config, logger, gitService);

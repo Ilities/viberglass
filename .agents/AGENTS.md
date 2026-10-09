@@ -74,7 +74,7 @@ These are the single source of truth instructions for agent behavior and backend
 3. Write `Dockerfile.fragment` — install command, ENV, LABEL.
 4. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
 
-The worker is registry-driven. The platform still keeps its own lists of harnesses (`AgentType` and the labels, options and per-harness config in `@viberglass/types`, the backend agent normalisers, the frontend runner form); `packages/agents/README.md` lists them, and the platform won't run the agent until they are updated.
+The worker is registry-driven. The platform still keeps its own lists of harnesses (`AgentType` and the per-harness config in `@viberglass/types`, the backend agent normalisers, the frontend runner form fields); `packages/agents/README.md` lists them, and the platform won't run the agent until they are updated.
 
 ### 5) Naming Conventions
 

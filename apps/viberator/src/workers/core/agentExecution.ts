@@ -12,7 +12,6 @@ import {
   ATTR_VG_TENANT_ID,
   definedAttributes,
   markSpanFailed,
-  providerNameForAgent,
   SpanKind,
   withSpan,
 } from "@viberglass/telemetry";
@@ -23,6 +22,7 @@ import { failingWith, JobFailureError } from "./JobFailureError";
 import type { AgentAuthContext } from "./agentAuthLifecycle";
 import type { JobRunnerParams, ManifestScratch } from "./jobPipeline";
 import { installSkills } from "./installSkills";
+import { agentRegistry } from "../../agents/registerPlugins";
 
 export interface AgentExecutionResult {
   success: boolean;
@@ -53,6 +53,7 @@ export async function executeAgentWithRetry(
   const availableAgents = orchestrator.getAvailableAgents();
   const selectedAgent = selectAgentForExecution(availableAgents);
   executionContext.agent = selectedAgent.name;
+  executionContext.telemetryProvider = agentRegistry().getTelemetryProvider(selectedAgent.name);
 
   const authContext: AgentAuthContext = {
     agentName: selectedAgent.name,
@@ -83,7 +84,7 @@ export async function executeAgentWithRetry(
       kind: SpanKind.INTERNAL,
       attributes: definedAttributes({
         [ATTR_GEN_AI_AGENT_NAME]: selectedAgent.name,
-        [ATTR_GEN_AI_PROVIDER_NAME]: providerNameForAgent(selectedAgent.name),
+        [ATTR_GEN_AI_PROVIDER_NAME]: executionContext.telemetryProvider,
         [ATTR_VG_JOB_ID]: data.id,
         [ATTR_VG_TENANT_ID]: data.tenantId,
         [ATTR_VG_AGENT_SESSION_ID]: params.agentSessionId,

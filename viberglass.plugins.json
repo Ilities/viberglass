@@ -1,4 +1,5 @@
 {
+  "defaultAgent": "@viberglass/agent-claude-code",
   "agents": [
     "@viberglass/agent-claude-code",
     "@viberglass/agent-qwen",

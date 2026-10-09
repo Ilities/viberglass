@@ -6,6 +6,9 @@ import { ClaudeCodeAgent } from "./ClaudeCodeAgent";
 const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
   id: "claude-code",
   displayName: "Claude Code",
+  description: "General-purpose coding agent with strong code editing reliability.",
+  logo: "logo.ico",
+  telemetryProvider: "anthropic",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new ClaudeCodeAgent(config, logger, gitService);

@@ -1,5 +1,6 @@
 import { isObjectRecord } from "./clankerConfig";
-import { SUPPORTED_AGENT_TYPES, type AgentType } from "./clanker";
+import type { AgentType } from "./clanker";
+import { AGENT_CATALOG, type AgentCatalogEntry } from "./agentCatalog";
 import catalog from "./agentPluginCatalog.json";
 
 export type ModelApiFormat =
@@ -131,26 +132,16 @@ export function getAgentModelApiFormats(
     : [];
 }
 
-/** Harnesses tried first for an endpoint: those custom endpoints were proven on. */
-const PREFERRED_ENDPOINT_AGENTS: readonly string[] = ["opencode", "pi"];
-
 /**
- * The harness that runs a model endpoint speaking this API format: OpenCode for
- * Chat Completions, else Pi, else any other harness that speaks it. Null when no
+ * The harness that runs a model endpoint speaking this API format: the
+ * lowest-ranked one that speaks it, as the plugins rank themselves. Null when no
  * harness here speaks it yet.
  */
 export function agentForModelApiFormat(format: ModelApiFormat): AgentType | null {
-  const rank = (agent: string) => {
-    const index = PREFERRED_ENDPOINT_AGENTS.indexOf(agent);
-    return index === -1 ? PREFERRED_ENDPOINT_AGENTS.length : index;
-  };
-  const entries = [...catalog].sort((a, b) => rank(a.agent) - rank(b.agent));
-  for (const entry of entries) {
-    const formats: readonly string[] = "modelApiFormats" in entry && Array.isArray(entry.modelApiFormats) ? entry.modelApiFormats : [];
-    const agent = SUPPORTED_AGENT_TYPES.find((type) => type === entry.agent);
-    if (agent && agent !== "fake" && formats.includes(format)) return agent;
-  }
-  return null;
+  const rank = (entry: AgentCatalogEntry) => entry.endpointRank ?? Number.POSITIVE_INFINITY;
+  const entries = AGENT_CATALOG.filter((entry) => !entry.testOnly).sort((a, b) => rank(a) - rank(b));
+  const match = entries.find((entry) => getAgentModelApiFormats(entry.agent).includes(format));
+  return match?.agent ?? null;
 }
 
 export function readWorkerModelEndpoint(

@@ -27,8 +27,7 @@ export function readPlugins(kind) {
   if (!kindDir) {
     throw new Error(`Unknown plugin kind '${kind}'. Expected one of: ${PLUGIN_KINDS.join(", ")}.`);
   }
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
-  const names = config[kind] ?? [];
+  const names = readConfig()[kind] ?? [];
   if (!Array.isArray(names) || names.some((name) => typeof name !== "string")) {
     throw new Error(`'${kind}' in ${CONFIG_PATH} must be a list of package names.`);
   }
@@ -42,6 +41,19 @@ export function readPlugins(kind) {
     if (!dir) throw new Error(`${name} in ${CONFIG_PATH} is not a package under ${kindDir}/.`);
     return { name, dir };
   });
+}
+
+/** The package of the harness new runners get unless they choose another; one of the configured agents. */
+export function readDefaultAgent() {
+  const name = readConfig().defaultAgent;
+  if (!readPlugins("agents").some((plugin) => plugin.name === name)) {
+    throw new Error(`defaultAgent in ${CONFIG_PATH} must be one of its agents, got '${name}'.`);
+  }
+  return name;
+}
+
+function readConfig() {
+  return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
 }
 
 function packageDirsByName(kindDir) {

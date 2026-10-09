@@ -31,7 +31,7 @@ import {
   GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT,
   hashPrompt,
   markSpanFailed,
-  providerNameForAgent,
+  GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
   recordSpanError,
   SpanKind,
   withSpan,
@@ -94,7 +94,7 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
         attributes: definedAttributes({
           [ATTR_GEN_AI_OPERATION_NAME]: GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT,
           [ATTR_GEN_AI_AGENT_NAME]: this.config.name,
-          [ATTR_GEN_AI_PROVIDER_NAME]: providerNameForAgent(this.config.name),
+          [ATTR_GEN_AI_PROVIDER_NAME]: context.telemetryProvider ?? GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
           // The configured model is a request-time intent; the CLI may
           // override it, which is why the response model is recorded too.
           [ATTR_GEN_AI_REQUEST_MODEL]:

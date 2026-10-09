@@ -1,4 +1,5 @@
 import { Logger } from "winston";
+import { GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN } from "@viberglass/telemetry";
 import type { AgentPlugin } from "./AgentPlugin";
 import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
@@ -40,6 +41,11 @@ export class AgentRegistry {
 
   getAcpEventMapper(id: string): AcpEventMapper {
     return this.tryGet(id)?.acpEventMapper ?? defaultAcpEventMapper;
+  }
+
+  /** The `gen_ai.provider.name` for the agent's traces: unknown unless its plugin names one. */
+  getTelemetryProvider(id: string): string {
+    return this.tryGet(id)?.telemetryProvider ?? GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN;
   }
 
   getDefaultConfigs(): Record<string, unknown> {

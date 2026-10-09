@@ -57,6 +57,8 @@ function resolveOpenCodeSettings(
 const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
   id: "opencode",
   displayName: "OpenCode",
+  description: "OpenAI-compatible orchestration with customizable base URL and model.",
+  logo: "logo.ico",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new OpenCodeAgent(config, logger, gitService);
@@ -90,7 +92,7 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
     endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
-  customEndpoints: { apiFormats: ["openai-chat"], environment: (endpoint) => new OpenCodeModelEndpointEnvironment(endpoint) },
+  customEndpoints: { apiFormats: ["openai-chat"], environment: (endpoint) => new OpenCodeModelEndpointEnvironment(endpoint), rank: 0 },
 
   stateDirs: [".local/share/opencode"],
   stateExcludes: [".local/share/opencode/auth.json", ".local/share/opencode/log"],

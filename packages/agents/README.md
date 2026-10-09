@@ -122,7 +122,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    npm test -w @viberglass/agent-aider
    ```
 
-The worker build, the catalogs and the worker Dockerfiles all follow `viberglass.plugins.json`. The platform still has its own lists, which need the new agent too so runners can use it: `AgentType`, `SUPPORTED_AGENT_TYPES`, `AGENT_LABELS` and (to offer it in the UI) `ALL_AGENT_OPTIONS` in `packages/types/src/clanker.ts`; `AGENT_VISUALS` in the frontend's `selectionCards.tsx`; and the `normalizeAgent` switch in `apps/platform-backend/src/clanker-config/index.ts` and `normalizeGenericAgent` in `legacyMapper.ts` (unknown agents silently become `claude-code`). A harness on those lists but left out of the build config isn't offered for new runners.
+The worker build, the catalogs and the worker Dockerfiles all follow `viberglass.plugins.json`, and the runner form takes each harness's name, description and logo from the catalog. The platform still has its own lists, which need the new agent too so runners can use it: `AgentType` and `SUPPORTED_AGENT_TYPES` in `packages/types/src/clanker.ts`, and the `normalizeAgent` switch in `apps/platform-backend/src/clanker-config/index.ts` and `normalizeGenericAgent` in `legacyMapper.ts` (unknown agents silently become `claude-code`). A harness on those lists but left out of the build config isn't offered for new runners. `defaultAgent` in the build config names the harness new runners get.
 
 Set `docker.testOnly: true` for agents that must never be provisioned in infrastructure or pushed to a registry (see `agent-fake`).
 
@@ -133,7 +133,10 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | Field | Required | Description |
 |---|---|---|
 | `id` | ✅ | Unique agent identifier (matches `BaseAgentConfig.name`). Use kebab-case. |
-| `displayName` | ✅ | Human-readable name shown in UI / logs. |
+| `displayName` | ✅ | Name shown in the UI and logs. |
+| `description` | ✅ | One sentence the runner form shows under the name. |
+| `logo` | — | Logo file relative to the package root, e.g. `logo.svg`. `npm run generate:catalog` copies it into the frontend. |
+| `telemetryProvider` | — | The `gen_ai.provider.name` the harness's traces carry. Leave unset when the provider depends on configuration. |
 | `create(config, logger, gitService?)` | ✅ | Factory function; returns a `BaseAgent` instance. |
 | `defaultConfig` | ✅ | Default config values (`Omit<C, "name">`). |
 | `envAliases.apiKey` | — | Env var names the harness reads the API key from. |
@@ -145,6 +148,7 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `acpEventMapper` | — | Custom ACP event mapper. Falls back to the generic mapper if absent. |
 | `authLifecycle(ctx)` | — | Returns an `AgentAuthLifecycle` for agents that require device auth (e.g. Codex). |
 | `endpointEnvironment(ctx)` | — | Returns an `AgentEndpointEnvironment` for agents whose API endpoint is resolved at runtime. |
+| `customEndpoints` | — | `{ apiFormats, environment, rank? }`: the model API formats the harness runs a workspace's custom endpoint with. A custom endpoint runs on the lowest-`rank` harness that speaks its format; unranked harnesses come last. |
 | `providers` | — | Model providers this harness can run: `{ provider, envVar, default?, model?, endpoint? }`. `provider` is an id from `MODEL_PROVIDERS` (`packages/types/src/modelProviders.ts`); `envVar` is where the harness reads the key, and setup stores the key as a secret with that name. Exactly one harness is `default` per provider; setup uses it for pasted keys. `model`/`endpoint` go into the runner config when the harness can't infer them. Feeds `agentProviderCatalog.json`. |
 | `docker.variant` | ✅ | Docker image variant name (e.g. `"aider"`). Used as filename: `generated/aider.Dockerfile`. |
 | `docker.repositoryName` | ✅ | ECR repository name (e.g. `"viberator-worker-aider"`). |

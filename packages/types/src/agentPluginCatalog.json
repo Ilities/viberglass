@@ -1,15 +1,12 @@
 [
   {
-    "agent": "antigravity",
-    "apiKey": [
-      "GEMINI_API_KEY"
-    ],
-    "endpoint": [],
-    "harnessConfigFiles": [],
-    "modelApiFormats": []
-  },
-  {
     "agent": "claude-code",
+    "displayName": "Claude Code",
+    "description": "General-purpose coding agent with strong code editing reliability.",
+    "logo": "/logos/agents/claude-code.ico",
+    "default": true,
+    "testOnly": false,
+    "endpointRank": null,
     "apiKey": [
       "ANTHROPIC_API_KEY",
       "ANTHROPIC_AUTH_TOKEN"
@@ -23,7 +20,35 @@
     ]
   },
   {
+    "agent": "qwen-cli",
+    "displayName": "Qwen CLI",
+    "description": "Fast tool execution with endpoint flexibility for Qwen-compatible APIs.",
+    "logo": "/logos/agents/qwen-cli.ico",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": null,
+    "apiKey": [
+      "QWEN_CLI_API_KEY"
+    ],
+    "endpoint": [
+      "QWEN_API_ENDPOINT",
+      "OPENAI_BASE_URL"
+    ],
+    "harnessConfigFiles": [],
+    "modelApiFormats": [
+      "openai-chat",
+      "openai-responses",
+      "anthropic-messages"
+    ]
+  },
+  {
     "agent": "codex",
+    "displayName": "OpenAI Codex",
+    "description": "Reasoning-focused coding agent with API key and device auth support.",
+    "logo": "/logos/agents/codex.ico",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": null,
     "apiKey": [
       "OPENAI_API_KEY"
     ],
@@ -37,14 +62,37 @@
     ]
   },
   {
-    "agent": "fake",
-    "apiKey": [],
-    "endpoint": [],
-    "harnessConfigFiles": [],
-    "modelApiFormats": []
+    "agent": "opencode",
+    "displayName": "OpenCode",
+    "description": "OpenAI-compatible orchestration with customizable base URL and model.",
+    "logo": "/logos/agents/opencode.ico",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": 0,
+    "apiKey": [
+      "OPENCODE_API_KEY",
+      "OPENAI_API_KEY"
+    ],
+    "endpoint": [
+      "OPENCODE_BASE_URL",
+      "OPENCODE_ENDPOINT",
+      "OPENAI_BASE_URL"
+    ],
+    "harnessConfigFiles": [
+      "opencode.json"
+    ],
+    "modelApiFormats": [
+      "openai-chat"
+    ]
   },
   {
     "agent": "kimi-code",
+    "displayName": "Kimi Code",
+    "description": "Moonshot/Kimi based coding agent tuned for high-context completion.",
+    "logo": "/logos/agents/kimi-code.ico",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": null,
     "apiKey": [
       "KIMI_API_KEY",
       "MOONSHOT_API_KEY"
@@ -63,6 +111,12 @@
   },
   {
     "agent": "mistral-vibe",
+    "displayName": "Mistral Vibe",
+    "description": "Mistral-native coding option optimized for quick iterative execution.",
+    "logo": "/logos/agents/mistral-vibe.ico",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": null,
     "apiKey": [
       "MISTRAL_API_KEY"
     ],
@@ -75,25 +129,28 @@
     ]
   },
   {
-    "agent": "opencode",
+    "agent": "antigravity",
+    "displayName": "Google Antigravity",
+    "description": "Google's agent harness on Gemini models, with a selectable model.",
+    "logo": "/logos/agents/antigravity.svg",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": null,
     "apiKey": [
-      "OPENCODE_API_KEY",
-      "OPENAI_API_KEY"
+      "GEMINI_API_KEY"
     ],
-    "endpoint": [
-      "OPENCODE_BASE_URL",
-      "OPENCODE_ENDPOINT",
-      "OPENAI_BASE_URL"
-    ],
-    "harnessConfigFiles": [
-      "opencode.json"
-    ],
-    "modelApiFormats": [
-      "openai-chat"
-    ]
+    "endpoint": [],
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "pi",
+    "displayName": "Pi",
+    "description": "Minimal, extensible coding agent that runs models from many providers.",
+    "logo": "/logos/agents/pi.svg",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": 1,
     "apiKey": [
       "ANTHROPIC_API_KEY"
     ],
@@ -108,19 +165,16 @@
     ]
   },
   {
-    "agent": "qwen-cli",
-    "apiKey": [
-      "QWEN_CLI_API_KEY"
-    ],
-    "endpoint": [
-      "QWEN_API_ENDPOINT",
-      "OPENAI_BASE_URL"
-    ],
+    "agent": "fake",
+    "displayName": "Fake (end-to-end tests)",
+    "description": "Deterministic agent for end-to-end tests. Needs no model key.",
+    "logo": null,
+    "default": false,
+    "testOnly": true,
+    "endpointRank": null,
+    "apiKey": [],
+    "endpoint": [],
     "harnessConfigFiles": [],
-    "modelApiFormats": [
-      "openai-chat",
-      "openai-responses",
-      "anthropic-messages"
-    ]
+    "modelApiFormats": []
   }
 ]
