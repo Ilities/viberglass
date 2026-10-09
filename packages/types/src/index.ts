@@ -19,6 +19,7 @@ export * from './integration'
 
 // Clanker types
 export * from './clanker'
+export * from './agentCatalog'
 export * from './clankerConfig'
 export * from './runnerReadiness'
 export * from './job'

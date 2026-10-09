@@ -42,8 +42,20 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
   /** Unique identifier, matches BaseAgentConfig.name (e.g. "pi") */
   readonly id: string;
 
-  /** Human-readable name (e.g. "Pi Coding Agent") */
+  /** Name shown in the UI and logs (e.g. "Pi") */
   readonly displayName: string;
+
+  /** One sentence the runner form shows under the name. */
+  readonly description: string;
+
+  /** Logo file, relative to the package root; the catalog generator copies it into the frontend. */
+  readonly logo?: string;
+
+  /**
+   * The `gen_ai.provider.name` its traces carry. Leave unset when the backing
+   * provider depends on configuration: a wrong label is worse than none.
+   */
+  readonly telemetryProvider?: string;
 
   /** Factory — replaces AgentFactory switch.
    * Pass gitService to inject a real git implementation (apps/viberator injects GitService).
@@ -103,17 +115,19 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
   /** Optional per-agent endpoint environment (e.g. OpenCode, Qwen) */
   readonly endpointEnvironment?: (ctx: AgentRuntimeContext) => AgentEndpointEnvironment;
 
+  readonly customEndpoints?: {
+    apiFormats: readonly ModelApiFormat[];
+    environment(endpoint: WorkerModelEndpoint): AgentEndpointEnvironment;
+    /** Harnesses with a lower rank run a custom endpoint first; unranked ones come last. */
+    rank?: number;
+  };
+
   /**
    * Model providers this harness can run — feeds the generated
    * agentProviderCatalog.json, which platform setup uses to pick a harness
    * for a pasted key. Provider ids come from `MODEL_PROVIDERS` in
    * @viberglass/types; the catalog generator rejects unknown ones.
    */
-  readonly customEndpoints?: {
-    apiFormats: readonly ModelApiFormat[];
-    environment(endpoint: WorkerModelEndpoint): AgentEndpointEnvironment;
-  };
-
   readonly providers?: readonly AgentProviderBinding[];
 
   /** Docker image metadata — feeds the generated workerImageCatalog.json */

@@ -6,7 +6,6 @@
 import type { RunnerReadiness } from './runnerReadiness'
 import type { ModelEndpointSelection } from './modelEndpoints'
 import type { SecretBinding } from './secret'
-import agentPluginCatalog from './agentPluginCatalog.json'
 
 // Status of a clanker
 export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
@@ -23,8 +22,6 @@ export type AgentType =
   | 'pi'
   | 'fake'
 
-export const DEFAULT_AGENT_TYPE: AgentType = 'claude-code'
-
 export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'claude-code',
   'qwen-cli',
@@ -34,53 +31,9 @@ export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'antigravity',
   'mistral-vibe',
   'pi',
-  // Deterministic e2e test agent. Accepted by the API, not offered in AGENT_OPTIONS.
+  // Deterministic e2e test agent. Accepted by the API; its plugin is test only, so it isn't offered.
   'fake',
 ]
-
-const builtAgents = new Set(agentPluginCatalog.map((entry) => entry.agent))
-
-/** The supported harnesses this build includes; new runners can only use these. */
-export const AVAILABLE_AGENT_TYPES: AgentType[] = SUPPORTED_AGENT_TYPES.filter((agent) => builtAgents.has(agent))
-
-export const AGENT_LABELS: Record<AgentType, string> = {
-  'claude-code': 'Claude Code',
-  'qwen-cli': 'Qwen CLI',
-  codex: 'OpenAI Codex',
-  opencode: 'OpenCode',
-  'kimi-code': 'Kimi Code',
-  antigravity: 'Google Antigravity',
-  'mistral-vibe': 'Mistral Vibe',
-  pi: 'Pi',
-  fake: 'Fake (end-to-end tests)',
-}
-
-export interface AgentOption {
-  value: AgentType
-  label: string
-  recommended?: boolean
-}
-
-const ALL_AGENT_OPTIONS: AgentOption[] = [
-  { value: 'claude-code', label: AGENT_LABELS['claude-code'] },
-  { value: 'qwen-cli', label: AGENT_LABELS['qwen-cli'] },
-  { value: 'codex', label: AGENT_LABELS.codex },
-  { value: 'opencode', label: AGENT_LABELS.opencode },
-  { value: 'kimi-code', label: AGENT_LABELS['kimi-code'] },
-  { value: 'antigravity', label: AGENT_LABELS.antigravity },
-  { value: 'mistral-vibe', label: AGENT_LABELS['mistral-vibe'] },
-  { value: 'pi', label: AGENT_LABELS.pi },
-]
-
-export const AGENT_OPTIONS: AgentOption[] = ALL_AGENT_OPTIONS.filter((option) => builtAgents.has(option.value))
-
-export function getAgentLabel(agent?: AgentType | null): string {
-  if (!agent) {
-    return AGENT_LABELS[DEFAULT_AGENT_TYPE]
-  }
-
-  return AGENT_LABELS[agent] || AGENT_LABELS[DEFAULT_AGENT_TYPE]
-}
 
 // Deployment strategy entity
 export interface DeploymentStrategy {

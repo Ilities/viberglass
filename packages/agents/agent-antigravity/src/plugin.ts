@@ -6,6 +6,9 @@ import { ANTIGRAVITY_STATE_DIR } from "./antigravitySettings";
 const antigravityPlugin: AgentPlugin<AntigravityConfig> = {
   id: "antigravity",
   displayName: "Google Antigravity",
+  description: "Google's agent harness on Gemini models, with a selectable model.",
+  logo: "logo.svg",
+  telemetryProvider: "gcp.gemini",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new AntigravityAgent(config, logger, gitService);

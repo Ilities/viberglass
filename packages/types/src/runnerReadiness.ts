@@ -1,3 +1,4 @@
+import { isTestOnlyAgent } from './agentCatalog'
 import { AGENT_PROVIDER_BINDINGS, getAgentEnvVarNames } from './agentProviders'
 import type { Clanker } from './clanker'
 import { isClankerConfigV1 } from './clankerConfig'
@@ -54,7 +55,7 @@ export function runnerCredentialProblem(
       : { state: 'needs_login', problem: 'Not connected to ChatGPT yet. An admin can connect it from the agent.' }
   }
   // An agent with no provider to pick, like the test agent, needs no key.
-  if (!AGENT_PROVIDER_BINDINGS.some((binding) => binding.agent === agent && binding.provider !== 'fake')) return null
+  if (isTestOnlyAgent(agent) || !AGENT_PROVIDER_BINDINGS.some((binding) => binding.agent === agent)) return null
   const keyVars = new Set(getAgentEnvVarNames(agent).apiKey)
   const modelKey = clanker.secretBindings.find((binding) => keyVars.has(binding.envVar))
   if (!modelKey) return { state: 'needs_key', problem: 'No model key: tasks would fail. An admin can edit the agent to choose one.' }

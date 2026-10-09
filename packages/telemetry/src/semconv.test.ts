@@ -41,8 +41,6 @@ import {
   GEN_AI_PROVIDER_NAME_VALUE_MISTRAL_AI,
   GEN_AI_PROVIDER_NAME_VALUE_OPENAI,
   GENAI_SEMCONV_REVISION,
-  providerNameForAgent,
-  GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
 } from "./semconv";
 
 describe("pinned GenAI semantic conventions", () => {
@@ -101,29 +99,5 @@ describe("pinned GenAI semantic conventions", () => {
     const upstream = (incubating as Record<string, unknown>)[exportName];
     expect(upstream).toBeDefined();
     expect(ourValue).toBe(upstream);
-  });
-});
-
-describe("providerNameForAgent", () => {
-  it("maps known agents to their provider", () => {
-    expect(providerNameForAgent("claude-code")).toBe(
-      GEN_AI_PROVIDER_NAME_VALUE_ANTHROPIC,
-    );
-    expect(providerNameForAgent("codex")).toBe(GEN_AI_PROVIDER_NAME_VALUE_OPENAI);
-    expect(providerNameForAgent("antigravity")).toBe(
-      GEN_AI_PROVIDER_NAME_VALUE_GCP_GEMINI,
-    );
-  });
-
-  it("does not guess a provider for harness-configurable agents", () => {
-    expect(providerNameForAgent("opencode")).toBe(GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN);
-    expect(providerNameForAgent("pi")).toBe(GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN);
-  });
-
-  it("falls back for unregistered and missing agents", () => {
-    expect(providerNameForAgent("some-future-agent")).toBe(
-      GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
-    );
-    expect(providerNameForAgent(undefined)).toBe(GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN);
   });
 });

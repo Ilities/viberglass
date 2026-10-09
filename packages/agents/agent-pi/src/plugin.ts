@@ -5,7 +5,9 @@ import { PiCodingAgent } from "./PiCodingAgent";
 
 const piPlugin: AgentPlugin<PiConfig> = {
   id: "pi",
-  displayName: "Pi Coding Agent",
+  displayName: "Pi",
+  description: "Minimal, extensible coding agent that runs models from many providers.",
+  logo: "logo.svg",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new PiCodingAgent(config, logger, gitService);
@@ -37,7 +39,7 @@ const piPlugin: AgentPlugin<PiConfig> = {
     apiKey: ["ANTHROPIC_API_KEY"],
   },
 
-  customEndpoints: { apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"], environment: (endpoint) => new PiModelEndpointEnvironment(endpoint) },
+  customEndpoints: { apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"], environment: (endpoint) => new PiModelEndpointEnvironment(endpoint), rank: 1 },
 
   stateDirs: [".pi"],
   // mcp.json holds the run's MCP server headers, and is written fresh each run.

@@ -17,6 +17,9 @@ function usesModelEndpoint(clankerConfig: Record<string, unknown> | undefined): 
 const codexPlugin: AgentPlugin<CodexConfig> = {
   id: "codex",
   displayName: "OpenAI Codex",
+  description: "Reasoning-focused coding agent with API key and device auth support.",
+  logo: "logo.ico",
+  telemetryProvider: "openai",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new CodexAgent(config, logger, gitService);

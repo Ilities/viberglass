@@ -9,20 +9,13 @@ The target for every step: nothing outside a plugin's package names it, except t
 - `viberglass.plugins.json` lists the plugins in a build. `npm run generate:plugins` writes the registrations for the worker, backend and frontend, and each app's plugin dependencies. The worker build, the frontend and backend build scripts, amplify, the Dockerfiles, the catalogs and the generated worker Dockerfiles read it. The scaffolding scripts add new plugins to it.
 - `TicketSystem` is an open string, and the database no longer constrains harness, ticket system or webhook provider ids.
 - New runners can only use harnesses in the build (`AVAILABLE_AGENT_TYPES`); stored runners keep theirs and fail at the worker if it's left out.
+- Harness name, description, logo, default, test-only flag, custom endpoint rank and telemetry provider come from the plugins (`agentCatalog.ts`, `AgentRegistry.getTelemetryProvider`). The default harness is `defaultAgent` in the build config.
 
 ## Harnesses
 
-### H1. UI data from the manifest
+### H1 leftovers
 
-- A shared kernel for both kinds of plugin: the base manifest type (id, label, description, icon, test only), the settings field type (moved from `IntegrationFieldDefinition`, which exists in both `integration-core` and `types`), and a generic registry.
-- Manifest gains `description`, `icon`, the telemetry provider name and the endpoint preference.
-- These derive from the manifest:
-  - `AGENT_LABELS`, `AGENT_OPTIONS` and `DEFAULT_AGENT_TYPE` in `packages/types/src/clanker.ts`
-  - `AGENT_VISUALS` in `selectionCards.tsx`
-  - `AGENT_PROVIDER` in `packages/telemetry/src/semconv.ts`, which today has `qwen` where the id is `qwen-cli`
-  - `PREFERRED_ENDPOINT_AGENTS` in `modelEndpoints.ts`
-- `testOnly` replaces the `!== 'fake'` checks in `runnerReadiness.ts`, `modelEndpoints.ts` and `modelKey.ts`.
-- The logos move into the plugin packages.
+- A shared kernel for both kinds of plugin: the base manifest type, the settings field type (moved from `IntegrationFieldDefinition`, which exists in both `integration-core` and `types`), and a generic registry. Do it with I1, when the integration manifest gains the same fields.
 
 ### H2. Settings as fields
 

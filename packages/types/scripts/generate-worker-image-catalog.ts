@@ -16,7 +16,7 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { MODEL_PROVIDERS } from "../src/modelProviders";
-import { readPlugins, WORKSPACE_ROOT } from "../../../scripts/plugins/pluginConfig.mjs";
+import { readDefaultAgent, readPlugins, WORKSPACE_ROOT } from "../../../scripts/plugins/pluginConfig.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -46,7 +46,14 @@ interface PluginEnvAliases {
 }
 
 interface LoadedPlugin {
+  packageName: string;
+  packageDir: string;
   id: string;
+  displayName: string;
+  description: string;
+  logo?: string;
+  testOnly: boolean;
+  endpointRank?: number;
   docker: PluginDockerMeta;
   providers: PluginProviderBinding[];
   envAliases: PluginEnvAliases;
@@ -69,7 +76,7 @@ interface CatalogEntry {
 }
 
 /** Load a plugin's catalog metadata from its built CJS dist. */
-function loadPlugin(packageDir: string): LoadedPlugin {
+function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
   const distPath = path.join(WORKSPACE_ROOT, packageDir, "dist/index.js");
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -83,8 +90,20 @@ function loadPlugin(packageDir: string): LoadedPlugin {
   if (!plugin?.docker) {
     throw new Error(`Plugin at ${distPath} has no docker descriptor`);
   }
+  for (const field of ["displayName", "description"]) {
+    if (typeof plugin[field] !== "string" || plugin[field].trim() === "") {
+      throw new Error(`Plugin ${packageName} needs a ${field}.`);
+    }
+  }
   return {
+    packageName,
+    packageDir,
     id: plugin.id as string,
+    displayName: plugin.displayName as string,
+    description: plugin.description as string,
+    logo: plugin.logo as string | undefined,
+    testOnly: plugin.docker.testOnly === true,
+    endpointRank: plugin.customEndpoints?.rank as number | undefined,
     docker: plugin.docker as PluginDockerMeta,
     providers: (plugin.providers ?? []) as PluginProviderBinding[],
     envAliases: (plugin.envAliases ?? {}) as PluginEnvAliases,
@@ -114,7 +133,11 @@ function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
 }
 
 // Load the configured plugins
-const loadedPlugins = readPlugins("agents").map((plugin) => loadPlugin(plugin.dir));
+const loadedPlugins = readPlugins("agents").map((plugin) => loadPlugin(plugin.name, plugin.dir));
+const defaultAgentPackage = readDefaultAgent();
+const defaultAgent = loadedPlugins.find((p) => p.packageName === defaultAgentPackage);
+if (!defaultAgent) throw new Error(`Default agent ${defaultAgentPackage} isn't among the configured agents.`);
+const defaultAgentId = defaultAgent.id;
 const plugins = loadedPlugins.map((p) => p.docker);
 
 // All agent IDs for the multi-agent image (sorted for determinism)
@@ -177,8 +200,7 @@ const STATIC_ENTRIES: CatalogEntry[] = [
     isAgentImage: false,
     // Multi-agent image supports all known agents
     supportedAgents: allAgentIds,
-    // claude-code is the default agent for the multi-agent image
-    defaultForAgents: ["claude-code"],
+    defaultForAgents: [defaultAgentId],
   },
 ];
 
@@ -242,16 +264,32 @@ console.log(
   `Generated agentProviderCatalog.json with ${providerBindings.length} bindings`,
 );
 
-// Per harness: env var names it reads its key and endpoint from, and config files it accepts.
-const agentPlugins = loadedPlugins
-  .map((p) => ({
-    agent: p.id,
-    apiKey: p.envAliases.apiKey ?? [],
-    endpoint: p.envAliases.endpoint ?? [],
-    harnessConfigFiles: p.harnessConfigPatterns,
-    modelApiFormats: p.modelApiFormats,
-  }))
-  .sort((a, b) => a.agent.localeCompare(b.agent));
+// Logos are served by the frontend; the folder holds only the configured harnesses' logos.
+const LOGO_DIR = path.join(WORKSPACE_ROOT, "apps/platform-frontend/public/logos/agents");
+fs.rmSync(LOGO_DIR, { recursive: true, force: true });
+fs.mkdirSync(LOGO_DIR, { recursive: true });
+function publishLogo(p: LoadedPlugin): string | null {
+  if (!p.logo) return null;
+  const fileName = `${p.id}${path.extname(p.logo)}`;
+  fs.copyFileSync(path.join(WORKSPACE_ROOT, p.packageDir, p.logo), path.join(LOGO_DIR, fileName));
+  return `/logos/agents/${fileName}`;
+}
+
+// Per harness, in config order (the order the runner form offers them): what the platform
+// shows, the env var names it reads its key and endpoint from, and the config files it accepts.
+const agentPlugins = loadedPlugins.map((p) => ({
+  agent: p.id,
+  displayName: p.displayName,
+  description: p.description,
+  logo: publishLogo(p),
+  default: p.id === defaultAgentId,
+  testOnly: p.testOnly,
+  endpointRank: p.endpointRank ?? null,
+  apiKey: p.envAliases.apiKey ?? [],
+  endpoint: p.envAliases.endpoint ?? [],
+  harnessConfigFiles: p.harnessConfigPatterns,
+  modelApiFormats: p.modelApiFormats,
+}));
 
 fs.writeFileSync(
   path.join(__dirname, "..", "src", "agentPluginCatalog.json"),

@@ -74,31 +74,3 @@ export const GEN_AI_PROVIDER_NAME_VALUE_MOONSHOT = "moonshot";
 export const GEN_AI_PROVIDER_NAME_VALUE_ALIBABA_QWEN = "alibaba.qwen";
 /** Agents that are harness-configurable and whose backing provider we cannot know here. */
 export const GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN = "_OTHER";
-
-/**
- * Maps a Viberglass agent plugin id to a `gen_ai.provider.name` value.
- *
- * Deliberately conservative: an agent whose provider depends on runtime
- * configuration resolves to `_OTHER` rather than to a guess, because a wrong
- * provider label is worse than an absent one when the traces are later used as
- * an eval corpus.
- */
-const AGENT_PROVIDER: Readonly<Record<string, string>> = {
-  "claude-code": GEN_AI_PROVIDER_NAME_VALUE_ANTHROPIC,
-  codex: GEN_AI_PROVIDER_NAME_VALUE_OPENAI,
-  antigravity: GEN_AI_PROVIDER_NAME_VALUE_GCP_GEMINI,
-  "mistral-vibe": GEN_AI_PROVIDER_NAME_VALUE_MISTRAL_AI,
-  "kimi-code": GEN_AI_PROVIDER_NAME_VALUE_MOONSHOT,
-  qwen: GEN_AI_PROVIDER_NAME_VALUE_ALIBABA_QWEN,
-  // opencode and pi are provider-agnostic — the backing model is chosen by
-  // harness config we do not see at this layer.
-  opencode: GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
-  pi: GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
-};
-
-export function providerNameForAgent(agentId: string | undefined): string {
-  if (!agentId) {
-    return GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN;
-  }
-  return AGENT_PROVIDER[agentId] ?? GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN;
-}

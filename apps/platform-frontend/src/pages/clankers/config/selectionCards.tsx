@@ -2,51 +2,6 @@ import { CheckCircledIcon } from '@radix-ui/react-icons'
 import clsx from 'clsx'
 import { AGENT_OPTIONS, type AgentType, type DeploymentStrategy } from '@viberglass/types'
 
-interface AgentVisual {
-  logoPath: string
-  summary: string
-}
-
-const AGENT_VISUALS: Record<AgentType, AgentVisual> = {
-  'claude-code': {
-    logoPath: '/logos/agents/claude-code.ico',
-    summary: 'General-purpose coding agent with strong code editing reliability.',
-  },
-  'qwen-cli': {
-    logoPath: '/logos/agents/qwen-cli.ico',
-    summary: 'Fast tool execution with endpoint flexibility for Qwen-compatible APIs.',
-  },
-  codex: {
-    logoPath: '/logos/agents/codex.ico',
-    summary: 'Reasoning-focused coding agent with API key and device auth support.',
-  },
-  opencode: {
-    logoPath: '/logos/agents/opencode.ico',
-    summary: 'OpenAI-compatible orchestration with customizable base URL and model.',
-  },
-  'kimi-code': {
-    logoPath: '/logos/agents/kimi-code.ico',
-    summary: 'Moonshot/Kimi based coding agent tuned for high-context completion.',
-  },
-  antigravity: {
-    logoPath: '/logos/agents/antigravity.svg',
-    summary: "Google's agent harness on Gemini models, with a selectable model.",
-  },
-  'mistral-vibe': {
-    logoPath: '/logos/agents/mistral-vibe.ico',
-    summary: 'Mistral-native coding option optimized for quick iterative execution.',
-  },
-  pi: {
-    logoPath: '/logos/agents/pi.svg',
-    summary: 'Minimal, extensible coding agent that runs models from many providers.',
-  },
-  // Not in AGENT_OPTIONS, so never rendered as a card; present to keep the record total.
-  fake: {
-    logoPath: '/logos/viberglass.svg',
-    summary: 'Deterministic agent for end-to-end tests. Needs no model key.',
-  },
-}
-
 interface StrategyVisual {
   logoPath: string
   logoAlt: string
@@ -101,7 +56,6 @@ export function AgentSelectionCards({
       <div role="radiogroup" aria-label="Agent selection" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {AGENT_OPTIONS.map((option) => {
           const selected = value === option.value
-          const visual = AGENT_VISUALS[option.value]
 
           return (
             <button
@@ -121,18 +75,13 @@ export function AgentSelectionCards({
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-white p-1.5 dark:border-zinc-700 dark:bg-zinc-950">
-                    <img src={visual.logoPath} alt={`${option.label} logo`} className="h-full w-full object-contain" />
+                    <img src={option.logo ?? '/logos/viberglass.svg'} alt={`${option.label} logo`} className="h-full w-full object-contain" />
                   </span>
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-950 dark:text-white">{option.label}</p>
-                    {option.recommended && (
-                      <p className="mt-0.5 text-xs font-medium text-brand-burnt-orange">Recommended</p>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold text-zinc-950 dark:text-white">{option.label}</p>
                 </div>
                 {selected && <CheckCircledIcon className="h-5 w-5 text-brand-burnt-orange" aria-hidden="true" />}
               </div>
-              <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{visual.summary}</p>
+              <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{option.description}</p>
             </button>
           )
         })}
