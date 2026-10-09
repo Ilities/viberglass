@@ -10,12 +10,17 @@ The target for every step: nothing outside a plugin's package names it, except t
 - `TicketSystem` is an open string, and the database no longer constrains harness, ticket system or webhook provider ids.
 - New runners can only use harnesses in the build (`AVAILABLE_AGENT_TYPES`); stored runners keep theirs and fail at the worker if it's left out.
 - Harness name, description, logo, default, test-only flag, custom endpoint rank and telemetry provider come from the plugins (`agentCatalog.ts`, `AgentRegistry.getTelemetryProvider`). The default harness is `defaultAgent` in the build config.
+- Inbound webhooks are an integration capability: each tracker's and the custom webhook's `WebhookReceiver` (signature, parsing, retry headers, reading an event into an issue, comment or task) lives in its package with its tests. The backend has one route, `/api/webhooks/:provider/:configId`, and one handler; an unknown address answers 404, a payload the sender has to fix 400.
+- Repositories are an integration capability: a code host's `RepositoryHost` (git username, parsing and checking a repository, opening a pull request, reading its outcome and review) lives in its package. The worker only clones and pushes, with the username the job names, and asks the platform to open the pull request (`POST /api/jobs/:jobId/pull-request`). The platform picks the host by the space's code-host connection, not the URL. Setup connects the build's code host.
+- Both kinds of plugin share `PluginManifest` (id, label, description). Each integration package has a `src/manifest.ts` its backend and frontend entries spread; the API sends it as is. Icons are frontend plugin components. The connection screen goes by the manifest: config form when it has `configFields`, token section when it has `credentialUse`, webhook section when it has `webhookProvider` (the tracker one when the frontend plugin has `trackerWebhook`), install section instead of a name prompt when it has `AuthSetupSection`.
+
+## Learned so far
+
+- Plugin data that nothing reads goes stale, and then the UI overrides it by id: GitHub declared connection fields the screen hid, Shortcut declared an API key but was treated as a token. Make each manifest field drive something, and test the screen with made-up plugins rather than real ids.
+- A generic registry wasn't worth it: the agent and integration registries share three lines and differ in what an unknown id does.
+- `category` names the slot a connection fills for a space (primary code host, primary tracker); that is a real concept and stays. Capabilities sit beside it.
 
 ## Harnesses
-
-### H1 leftovers
-
-- A shared kernel for both kinds of plugin: the base manifest type, the settings field type (moved from `IntegrationFieldDefinition`, which exists in both `integration-core` and `types`), and a generic registry. Do it with I1, when the integration manifest gains the same fields.
 
 ### H2. Settings as fields
 
@@ -50,53 +55,26 @@ The target for every step: nothing outside a plugin's package names it, except t
 
 ## Integrations
 
-### I1. UI data from the manifest
+### I1 leftovers
 
-- Manifest gains `description`, `icon`, the credential use text and `capabilities`.
-- These derive from the manifest:
-  - `INTEGRATION_DESCRIPTIONS` and `INTEGRATION_ICONS` in `packages/types/src/integration.ts`
-  - `INTEGRATION_ICON_COMPONENTS` in `integration-visuals.tsx`
-  - `formatTicketSystem`
-  - `TRACKER_NAME` in `thread-entries.tsx`
-  - `TOKEN_USE` and `TOKEN_CONNECTIONS`
-  - `INTEGRATION_CAPABILITIES` in `capabilities.ts`
-- `IntegrationDetailPage`'s `isGithub`, `isJira`, `isShortcut`, `isCustom` and `isSlack` flags become capability checks. The custom inbound webhook section becomes a frontend plugin slot, like `AuthSetupSection`.
-- The integration category labels come from capabilities.
-- Copy naming specific trackers ("GitHub, Jira or Shortcut") lists the included trackers instead.
+- Stub manifests (GitLab, Bitbucket, Linear, Monday) still declare aspirational `supports` and config fields; fix them when each is built.
+- The per-space integration config endpoints in `api/routes/projects.ts` (`/:projectId/integrations/:integrationId`) have no callers; remove them, and with them the legacy `PMIntegration` config fields (GitHub's owner and repo, Slack's channel).
 
-### I2. Inbound webhooks capability
+### I2 leftovers
 
-- `integration-core` gains the webhook interface:
-  - detection headers or body keys
-  - signature header and verification
-  - retry headers
-  - payload parsing
-  - mapping events to inbound actions
-- The backend's `webhooks/providers/*`, `inbound-processors/*` and the per-tracker payload helpers in `services/trackers/` move into the packages.
-- One `/webhooks/:provider` route replaces the per-provider route files.
-- The registry replaces:
-  - the sniffing and `setupHeaderMappings` switch in `ProviderRegistry`
-  - the policy classes in `ProviderWebhookPolicyResolver` and `IntegrationWebhookProviderPolicyResolver`
-  - the `toProviderType` switches in `WebhookService` and `WebhookRetryService`
-  - the instantiation in `webhookServiceFactory` and `InboundEventProcessorResolver`
-  - the provider list in `management.routes.ts`
-- The webhook provider unions in `database.ts`, the webhook DAOs, `WebhookProvider.ts`, `webhookServiceTypes.ts` and `TrackerIssueInbound.ts` become strings.
+- The legacy `PMIntegration.handleWebhook` and `registerWebhook` in the integration classes duplicate the receivers' parsing and aren't called by the webhook pipeline; remove them with the per-space endpoints above.
+- `IntegrationRegistry.getWebhookProvider` and the manifest's `webhookProvider` equal the integration id everywhere; it could become a flag.
 
-### I3. Repository capability
+### I3 leftovers
 
-- `integration-core` gains the repository interface:
-  - git auth for the worker
-  - opening a pull request
-  - reading its outcome and review comments
-  - checking a repository during setup
-- GitHub implements it, with code moved from:
-  - the worker's `GitService` and `scm/`
-  - the backend's `pull-request-outcomes/` and `pull-request-reviews/`
-  - setup's `GitHubRepositoryChecker`
-- Setup asks for a repository integration instead of `github`.
+- GitHub Enterprise: the API address follows `GITHUB_API_URL`, but the GitHub host's URL patterns (repository addresses, pull request addresses, clone URLs) still only recognise github.com.
+- The frontend still assumes github.com in a few places: the setup screen's token help (kept on purpose while GitHub is the only code host), placeholders, and `run-facts.tsx`, `run-record-panel.tsx`, `run-activity.tsx` and `build-pull-request-panel.tsx`, which read a bare `owner/repo` as github.com or strip `github.com/` for display.
+- `api/server.ts` logs a `GITHUB_TOKEN` status line at startup; the worker no longer reads `GITHUB_TOKEN`, `GITLAB_*` or `BITBUCKET_*` from its environment, so the CLI help in `cli-handler.ts` that suggests `-e GITHUB_TOKEN` is out of date.
+- `GitHubIntegration.createPullRequest` and `linkPullRequestToIssue` are unused copies of what the host does; remove them with the other legacy `PMIntegration` methods.
 
 ### I4. Chat capability
 
 - `chat-slack` registers as an integration with the chat capability.
 - `chat/index.ts` wires the included chat plugins from the registry.
+- The connection screen still asks `getSlackBotStatus` whether an app-installed connection is connected; the plugin should say how.
 - The `system === "slack"` checks and the `/slack/status` route become capability-driven.

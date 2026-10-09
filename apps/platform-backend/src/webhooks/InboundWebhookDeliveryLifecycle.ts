@@ -1,6 +1,6 @@
 import { isObjectRecord } from "@viberglass/types";
-import type { ParsedWebhookEvent } from "./WebhookProvider";
-import type { EventProcessingResult } from "./InboundEventProcessorResolver";
+import type { InboundWebhookEvent } from "@viberglass/integration-core";
+import type { EventProcessingResult } from "./InboundEventHandler";
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 import type {
   WebhookDeliveryAttempt,
@@ -18,8 +18,11 @@ interface DeliveryStartInput {
 
 export class InboundWebhookDeliveryLifecycle {
   constructor(
-    private deduplication: DeduplicationService,
-    private deliveryDAO: WebhookDeliveryDAO,
+    private deduplication: Pick<
+      DeduplicationService,
+      "shouldProcessDelivery" | "recordDeliveryStart" | "recordDeliverySuccessById" | "recordDeliveryFailureById"
+    >,
+    private deliveryDAO: Pick<WebhookDeliveryDAO, "updateDeliveryStatus">,
   ) {}
 
   async recordStart(
@@ -63,17 +66,17 @@ export class InboundWebhookDeliveryLifecycle {
   }
 
   /** A delivery that was refused, such as one with a bad signature: failed, so it can be retried. */
-  async recordRejected(event: ParsedWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
+  async recordRejected(event: InboundWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
     await this.recordUnprocessed(event, config, (id) => this.recordFailure(id, reason));
   }
 
   /** A delivery the webhook doesn't act on, such as an event it isn't set to receive. */
-  async recordIgnored(event: ParsedWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
+  async recordIgnored(event: InboundWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
     await this.recordUnprocessed(event, config, (id) => this.deliveryDAO.updateDeliveryStatus(id, "ignored", reason));
   }
 
   private async recordUnprocessed(
-    event: ParsedWebhookEvent,
+    event: InboundWebhookEvent,
     config: WebhookConfig,
     finish: (deliveryAttemptId: string) => Promise<void>,
   ): Promise<void> {

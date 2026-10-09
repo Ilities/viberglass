@@ -17,18 +17,12 @@ import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
-import { GitHubRepositoryChecker } from "./GitHubRepositoryChecker";
-import { parseGitHubRepository, type GitHubRepositoryRef } from "./gitHubRepository";
+import { RepositoryAccessError, type RepositoryRef } from "@viberglass/integration-core";
 import { SetupSecretStore } from "./SetupSecretStore";
-
-const TOKEN_SECRET_NAME = "GITHUB_TOKEN";
-
-interface RepositoryChecker {
-  check(ref: GitHubRepositoryRef, token: string): Promise<RepositoryAccess>;
-}
+import { findSetupCodeHost, requireSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
 
 interface Integrations {
-  listIntegrations(system: "github"): Promise<Integration[]>;
+  listIntegrations(system: string): Promise<Integration[]>;
   createIntegration(input: CreateIntegrationInput): Promise<Integration>;
 }
 
@@ -40,24 +34,25 @@ interface Credentials {
 
 /**
  * Setup step "Point at your repository": checks that the token can read and
- * push to the repository, then saves it as the GitHub connection's default
+ * push to the repository, then saves it as the code host connection's default
  * credential. The connection and credential are reused when they exist, so
  * running setup again replaces the token instead of adding another.
  */
 export class SetupRepositoryService {
   constructor(
-    private readonly checker: RepositoryChecker = new GitHubRepositoryChecker(),
+    private readonly codeHost: () => SetupCodeHost | null = findSetupCodeHost,
     private readonly integrations: Integrations = new IntegrationDAO(),
     private readonly credentials: Credentials = new IntegrationCredentialDAO(),
     private readonly secrets: Pick<SetupSecretStore, "saveByName" | "replaceById"> = new SetupSecretStore(),
   ) {}
 
   async saveRepository(repository: string, rawToken: string): Promise<SavedRepository> {
-    const ref = parseGitHubRepository(repository);
+    const codeHost = requireSetupCodeHost(this.codeHost);
+    const ref = codeHost.repository.parseRepository(repository);
     if (!ref) {
       throw new SetupServiceError(
         SETUP_SERVICE_ERROR_CODE.REPOSITORY_INVALID,
-        "Enter the repository as owner/name or its GitHub address, for example acme/web.",
+        `Enter the repository as owner/name or its ${codeHost.label} address, for example acme/web.`,
       );
     }
     const token = rawToken.trim();
@@ -68,18 +63,29 @@ export class SetupRepositoryService {
       );
     }
 
-    const access = await this.checker.check(ref, token);
-    const integration = await this.findOrCreateGitHubIntegration();
-    const credentialId = await this.saveToken(integration.id, token);
+    const access = await this.checkAccess(codeHost, ref, token);
+    const integration = await this.findOrCreateIntegration(codeHost);
+    const credentialId = await this.saveToken(codeHost, integration.id, token);
     return { ...access, integrationId: integration.id, credentialId };
   }
 
-  private async findOrCreateGitHubIntegration(): Promise<Integration> {
-    const existing = (await this.integrations.listIntegrations("github")).find((i) => i.isActive);
-    return existing ?? this.integrations.createIntegration({ name: "GitHub", system: "github", config: {} });
+  private async checkAccess(codeHost: SetupCodeHost, ref: RepositoryRef, token: string): Promise<RepositoryAccess> {
+    try {
+      return await codeHost.repository.checkAccess(ref, token);
+    } catch (error) {
+      if (error instanceof RepositoryAccessError) {
+        throw new SetupServiceError(SETUP_SERVICE_ERROR_CODE[error.code], error.message);
+      }
+      throw error;
+    }
   }
 
-  private async saveToken(integrationId: string, token: string): Promise<string> {
+  private async findOrCreateIntegration(codeHost: SetupCodeHost): Promise<Integration> {
+    const existing = (await this.integrations.listIntegrations(codeHost.system)).find((i) => i.isActive);
+    return existing ?? this.integrations.createIntegration({ name: codeHost.label, system: codeHost.system, config: {} });
+  }
+
+  private async saveToken(codeHost: SetupCodeHost, integrationId: string, token: string): Promise<string> {
     const tokens = (await this.credentials.listByIntegrationId(integrationId)).filter(
       (credential) => credential.credentialType === "token",
     );
@@ -90,10 +96,11 @@ export class SetupRepositoryService {
       return current.id;
     }
 
-    const secretId = await this.secrets.saveByName(TOKEN_SECRET_NAME, token);
+    const secretName = `${codeHost.system.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_TOKEN`;
+    const secretId = await this.secrets.saveByName(secretName, token);
     const created = await this.credentials.create({
       integrationId,
-      name: "GitHub token",
+      name: `${codeHost.label} token`,
       credentialType: "token",
       secretId,
       isDefault: true,

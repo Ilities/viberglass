@@ -1,4 +1,4 @@
-import type { Severity } from "@viberglass/types";
+import type { InboundComment, InboundIssue } from "@viberglass/types";
 import { isViberglassComment } from "@viberglass/integration-core";
 import { createChildLogger } from "../../config/logger";
 import { AgentQuestionDAO } from "../../persistence/agentSession/AgentQuestionDAO";
@@ -16,41 +16,10 @@ const logger = createChildLogger({ service: "TrackerIssueInbound" });
 
 /** Where an issue event came from: the tracker, and the connection and webhook it came through. */
 export interface TrackerContext {
-  provider: "jira" | "shortcut" | "github";
+  /** The webhook provider, which names the tracker. */
+  provider: string;
   integrationId: string;
   webhookConfigId: string;
-}
-
-export interface TrackerPerson {
-  name: string;
-  /** Matches them to a Viberglass account when the tracker shares it. */
-  email: string | null;
-}
-
-/** An issue as an event shows it. */
-export interface TrackerIssue {
-  key: string;
-  url: string | null;
-  apiBaseUrl: string | null;
-  /** Missing when the event doesn't carry it; the task keeps what it has. */
-  title?: string;
-  description?: string;
-  author: TrackerPerson | null;
-  severity: Severity;
-  /** Lower-cased. */
-  labels: string[];
-  /** `owner/repo`, for a tracker whose issues belong to a repository. */
-  repository: string | null;
-  /** Tracker details kept on a new task, such as the issue type. */
-  metadata: Record<string, unknown>;
-}
-
-export interface IssueComment {
-  issueKey: string;
-  author: TrackerPerson;
-  body: string;
-  /** Whether it mentions the connection's bot account, which asks the agent; the mention is already taken out of `body`. */
-  mentionsBot: boolean;
 }
 
 export interface TrackerEventResult {
@@ -93,7 +62,7 @@ export class TrackerIssueInbound {
     };
   }
 
-  async issue(context: TrackerContext, issue: TrackerIssue): Promise<TrackerEventResult> {
+  async issue(context: TrackerContext, issue: InboundIssue): Promise<TrackerEventResult> {
     const linked = await this.deps.links.findTickets(context.provider, issue.key, context.integrationId);
     const title = issue.title?.trim();
     for (const { ticketId } of linked) {
@@ -114,7 +83,7 @@ export class TrackerIssueInbound {
     return opened[0];
   }
 
-  async commented(context: TrackerContext, comment: IssueComment): Promise<TrackerEventResult> {
+  async commented(context: TrackerContext, comment: InboundComment): Promise<TrackerEventResult> {
     if (isViberglassComment(comment.body)) return { ignoredReason: "Posted by Viberglass" };
     const linked = await this.deps.links.findTickets(context.provider, comment.issueKey, context.integrationId);
     if (linked.length === 0) return { ignoredReason: `No task is linked to the ${context.provider} issue '${comment.issueKey}'` };
@@ -129,7 +98,7 @@ export class TrackerIssueInbound {
     return results.find((result) => result.jobId) ?? results[0];
   }
 
-  private async commentOn(ticketId: string, context: TrackerContext, comment: IssueComment, userId: string | null, body: string): Promise<TrackerEventResult> {
+  private async commentOn(ticketId: string, context: TrackerContext, comment: InboundComment, userId: string | null, body: string): Promise<TrackerEventResult> {
     if (userId && !comment.mentionsBot) {
       const open = (await this.deps.questions.listOpenForTasks([ticketId])).get(ticketId) ?? [];
       const theirs = open.find((question) => question.askedOf?.id === userId);

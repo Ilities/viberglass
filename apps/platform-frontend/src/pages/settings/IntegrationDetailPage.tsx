@@ -12,23 +12,21 @@ import {
 import { Text } from '@/components/text'
 import {
   createIntegration,
-  getAvailableIntegrationTypes,
+  getIntegrationManifests,
   getConnectionIssueRules,
   getIntegration,
   getSlackBotStatus,
   testIntegration,
   updateIntegration,
-  type AvailableIntegrationType,
   type ConnectionSpaceRule,
 } from '@/service/api/integration-api'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type { Integration } from '@viberglass/types'
+import type { Integration, IntegrationManifest } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
-import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
 import {
   IntegrationDetailErrorState,
@@ -39,11 +37,8 @@ import { ConnectionNameSection } from './integration-detail/ConnectionNameSectio
 import { CreateIntegrationPrompt } from './integration-detail/CreateIntegrationPrompt'
 import { RemoveIntegrationSection } from './integration-detail/RemoveIntegrationSection'
 import { TrackerWebhookSection } from './integration-detail/TrackerWebhookSection'
-import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
 
-/** Connections holding a token: code hosts use it for repositories, trackers to comment on linked issues. */
-const TOKEN_CONNECTIONS = ['github', 'gitlab', 'bitbucket', 'jira', 'shortcut']
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
   const { integrationEntityId: integrationEntityIdParam, integrationSystem: integrationSystemParam } = useParams<{
@@ -51,7 +46,7 @@ export function IntegrationDetailPage() {
     integrationSystem?: string
   }>()
 
-  const [integrationType, setIntegrationType] = useState<AvailableIntegrationType | null>(null)
+  const [integrationType, setIntegrationType] = useState<IntegrationManifest | null>(null)
   const [existingIntegration, setExistingIntegration] = useState<Integration | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -65,17 +60,14 @@ export function IntegrationDetailPage() {
   const integrationEntityId = existingIntegration?.id
   const integrationSystem = integrationType?.id
   const isConfigured = Boolean(existingIntegration)
-  const isGithubIntegration = integrationSystem === 'github'
-  const isJiraIntegration = integrationSystem === 'jira'
-  const isShortcutIntegration = integrationSystem === 'shortcut'
-  const isCustomIntegration = integrationSystem === 'custom'
-  const isSlackIntegration = integrationSystem === 'slack'
+  // Registry lookup: the integration's own components.
+  const frontendPlugin = integrationSystem ? integrationFrontendRegistry.get(integrationSystem) : undefined
+  const AuthSection = frontendPlugin?.AuthSetupSection
+  const trackerWebhook = frontendPlugin?.trackerWebhook
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
   })
-
-  const capabilities = getIntegrationDetailCapabilities(integrationSystem)
 
   const initialValues = useMemo(
     () => (existingIntegration?.config as Record<string, string | number | boolean | string[]>) || {},
@@ -98,7 +90,7 @@ export function IntegrationDetailPage() {
       setLoadError(null)
 
       try {
-        const availableTypes = await getAvailableIntegrationTypes()
+        const availableTypes = await getIntegrationManifests()
         if (!isActive) {
           return
         }
@@ -134,13 +126,8 @@ export function IntegrationDetailPage() {
         setIntegrationType(type)
         setExistingIntegration(fullIntegration)
 
-        // Load projects for integration-scoped project mapping controls.
-        if (
-          fullIntegration.system === 'custom' ||
-          fullIntegration.system === 'github' ||
-          fullIntegration.system === 'shortcut' ||
-          fullIntegration.system === 'jira'
-        ) {
+        // Spaces, for choosing which space a webhook's deliveries go to.
+        if (type.webhookProvider) {
           try {
             const loadedProjects = await getProjects()
             if (isActive) {
@@ -174,24 +161,25 @@ export function IntegrationDetailPage() {
     }
   }, [integrationEntityIdParam, integrationSystemParam, navigate])
 
+  // A connection made by installing an app is connected when the app is installed.
   useEffect(() => {
-    if (!isSlackIntegration) {
+    if (!AuthSection) {
       return
     }
     getSlackBotStatus()
       .then(({ configured }) => setSlackBotConfigured(configured))
       .catch(() => setSlackBotConfigured(false))
-  }, [isSlackIntegration])
+  }, [AuthSection])
 
   useEffect(() => {
-    if (!integrationEntityId || !integrationSystem || !integrationFrontendRegistry.get(integrationSystem)?.trackerWebhook) {
+    if (!integrationEntityId || !trackerWebhook) {
       setSpaceRules([])
       return
     }
     getConnectionIssueRules(integrationEntityId)
       .then(setSpaceRules)
       .catch(() => setSpaceRules([]))
-  }, [integrationEntityId, integrationSystem])
+  }, [integrationEntityId, trackerWebhook])
 
   if (isPageLoading) {
     return <IntegrationDetailLoadingState />
@@ -208,7 +196,7 @@ export function IntegrationDetailPage() {
   const configStatus =
     integrationType.status === 'stub'
       ? 'stub'
-      : isSlackIntegration
+      : AuthSection
         ? slackBotConfigured
           ? 'configured'
           : 'not_configured'
@@ -219,11 +207,6 @@ export function IntegrationDetailPage() {
   const status = getIntegrationStatusConfig(configStatus)
   const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
-
-  // Registry lookup — provides integration-specific section components.
-  const frontendPlugin = integrationFrontendRegistry.get(integrationSystem!)
-  const AuthSection = frontendPlugin?.AuthSetupSection
-  const trackerWebhook = frontendPlugin?.trackerWebhook
 
   // ---- Form handlers ---------------------------------------------------------
 
@@ -363,7 +346,7 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
-      {!existingIntegration && (isCustomIntegration || isShortcutIntegration || isJiraIntegration || isGithubIntegration) ? (
+      {!existingIntegration && !AuthSection ? (
         <CreateIntegrationPrompt
           label={integrationType.label}
           system={integrationType.id}
@@ -378,7 +361,7 @@ export function IntegrationDetailPage() {
       {/* Auth setup section (e.g. Slack install guide) */}
       {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
 
-      {!isCustomIntegration && !isShortcutIntegration && !isGithubIntegration && !isSlackIntegration && (
+      {integrationType.configFields.length > 0 && (
         <IntegrationConfigForm
           integration={integrationType}
           initialValues={initialValues}
@@ -392,8 +375,8 @@ export function IntegrationDetailPage() {
       )}
 
       {/* Inbound webhook section */}
-      {(isConfigured || isCustomIntegration) && capabilities.supportsInboundWebhooks && (
-        isCustomIntegration ? (
+      {isConfigured && integrationType.webhookProvider && (
+        !trackerWebhook ? (
           <CustomInboundWebhookSection
             planNewIssues={webhook.planNewIssues}
             deliveries={webhook.deliveries}
@@ -424,45 +407,20 @@ export function IntegrationDetailPage() {
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
-        ) : trackerWebhook ? (
+        ) : (
           <TrackerWebhookSection
             tracker={trackerWebhook}
             webhook={webhook}
             spaceRules={spaceRules}
             projects={projects}
           />
-        ) : (
-          <InboundWebhookSection
-            planNewIssues={webhook.planNewIssues}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
-            projects={projects}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
-            showSecret={webhook.showSecret}
-            onPlanNewIssuesChange={webhook.setPlanNewIssues}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={() => webhook.handleCreateInboundWebhook()}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={() => webhook.handleGenerateSecret()}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={() => webhook.handleSaveInboundWebhook()}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
-          />
         )
       )}
 
-      {isConfigured && existingIntegration && integrationSystem && TOKEN_CONNECTIONS.includes(integrationSystem) && (
+      {existingIntegration && integrationType.credentialUse && (
         <IntegrationCredentialSection
           integrationId={existingIntegration.id}
-          integrationSystem={integrationSystem}
+          credentialUse={integrationType.credentialUse}
         />
       )}
 

@@ -7,7 +7,7 @@ import {
 import { WebhookConfigDAO } from "../../../persistence/webhook/WebhookConfigDAO";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
 import type { TicketSystem } from "@viberglass/types";
-import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
+import { manifestOf } from "@viberglass/integration-core";
 import { IntegrationRouteServiceError } from "./errors";
 import type { CreateIntegrationInput, UpdateIntegrationInput } from "./types";
 import { ConnectionCredentialsResolver } from "../../../services/trackers/ConnectionCredentialsResolver";
@@ -146,16 +146,7 @@ export class IntegrationManagementService {
   }
 
   async listAvailableTypes() {
-    const plugins = integrationRegistry.list();
-    return plugins.map((plugin) => ({
-      id: plugin.id,
-      label: plugin.label,
-      category: plugin.category,
-      description: INTEGRATION_DESCRIPTIONS[plugin.id] || plugin.label,
-      configFields: plugin.configFields,
-      supports: plugin.supports,
-      status: plugin.status,
-    }));
+    return integrationRegistry.list().map(manifestOf);
   }
 
   private async getIntegrationOrThrow(integrationId: string) {

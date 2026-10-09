@@ -1,9 +1,8 @@
 import { getErrorMessage } from '@/lib/project-form'
 import {
-  getAvailableIntegrationTypes,
+  getIntegrationManifests,
   getIntegrationCredentials,
   getProjectIntegrations,
-  type AvailableIntegrationType,
   type ProjectIntegrationWithDetails,
 } from '@/service/api/integration-api'
 import {
@@ -14,7 +13,7 @@ import {
   type Project,
   type ProjectScmConfig,
 } from '@/service/api/project-api'
-import type { IntegrationCategory, IntegrationCredential, TicketSystem } from '@viberglass/types'
+import type { IntegrationCategory, IntegrationCredential, IntegrationManifest, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { NO_SELECTION, connectionOptionLabel, type ConnectionOption } from './RepositoryFields'
 
@@ -30,7 +29,7 @@ function normalizeOptionalText(value: string): string | null {
 
 function mapLinkedConnections(
   links: ProjectIntegrationWithDetails[],
-  typeBySystem: Map<TicketSystem, AvailableIntegrationType>
+  typeBySystem: Map<TicketSystem, IntegrationManifest>
 ): LinkedConnection[] {
   return links.map((link) => {
     const type = typeBySystem.get(link.integration.system)
@@ -106,7 +105,7 @@ export function useSpaceRepositoryForm(project: Project | null) {
       setConnectionsError(null)
       try {
         const [availableTypes, links] = await Promise.all([
-          getAvailableIntegrationTypes(),
+          getIntegrationManifests(),
           getProjectIntegrations(project.id),
         ])
         if (!isActive) return

@@ -17,7 +17,7 @@ describe("__PascalName__Agent", () => {
 
   it("plugin has required metadata", () => {
     expect(__name__Plugin.id).toBe("__NAME__");
-    expect(__name__Plugin.displayName).toBeTruthy();
+    expect(__name__Plugin.label).toBeTruthy();
     expect(__name__Plugin.docker.variant).toBe("__NAME__");
     expect(__name__Plugin.docker.supportedAgents).toContain("__NAME__");
   });

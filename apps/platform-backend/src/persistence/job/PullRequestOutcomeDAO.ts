@@ -1,4 +1,4 @@
-import type { PullRequestOutcome } from "../../services/pull-request-outcomes/pullRequestOutcomeTypes";
+import type { PullRequestOutcome } from "@viberglass/types";
 import db from "../config/database";
 
 export interface PullRequestDueForCheck {

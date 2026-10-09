@@ -1,10 +1,6 @@
 import type { Request, Response } from 'express';
 import type { WebhookProcessingResult } from '../../../webhooks/WebhookService';
-import type { ExtendedRequest } from '../../../webhooks/middleware/rawBody';
-import {
-  SignatureValidatorFactory,
-  type SignatureValidator,
-} from '../../../webhooks/SignatureValidator';
+import type { ExtendedRequest } from '../../../webhooks/ExtendedRequest';
 
 export interface WebhookResultResponseOptions {
   duplicateMessage?: string;
@@ -52,6 +48,15 @@ export function respondWithWebhookResult(
         message: duplicateMessage,
         ...(includeExistingId ? { existingId: result.existingId } : {}),
       });
+    case 'invalid':
+      return res.status(400).json({
+        error: 'Invalid webhook payload',
+        reason: result.reason,
+      });
+    case 'not_found':
+      return res.status(404).json({
+        error: 'Webhook configuration not found',
+      });
     case 'failed':
       return res.status(failedStatusCode).json({
         error: failedError,
@@ -62,16 +67,6 @@ export function respondWithWebhookResult(
         error: unknownError,
       });
   }
-}
-
-export function createSha256SignatureValidator(
-  headerName: string,
-): SignatureValidator {
-  return SignatureValidatorFactory.custom({
-    algorithm: 'sha256',
-    headerName,
-    prefix: 'sha256=',
-  });
 }
 
 export function getRequestRawBody(req: Request): Buffer {

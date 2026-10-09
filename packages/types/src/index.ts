@@ -5,6 +5,9 @@
 // Common types
 export * from './common'
 
+// What plugins say about themselves
+export * from './plugin'
+
 // Project types
 export * from './project'
 
@@ -16,6 +19,9 @@ export * from './externalTicket'
 
 // Integration types
 export * from './integration'
+
+// What inbound webhooks carry
+export * from './trackerInbound'
 
 // Clanker types
 export * from './clanker'
@@ -29,6 +35,7 @@ export * from './runRecord'
 
 // Asking for changes on a build
 export * from './buildRevision'
+export * from './pullRequest'
 
 // Claw types (scheduled task execution)
 export * from './claw'

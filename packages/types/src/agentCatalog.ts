@@ -23,7 +23,7 @@ function toEntry(entry: (typeof agentPluginCatalog)[number]): AgentCatalogEntry[
   return [
     {
       agent,
-      label: entry.displayName,
+      label: entry.label,
       description: entry.description,
       logo: entry.logo,
       isDefault: entry.default,

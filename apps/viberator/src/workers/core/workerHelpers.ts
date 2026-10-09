@@ -3,6 +3,7 @@ import type GitService from "../../services/GitService";
 import * as fs from "fs";
 import { Logger } from "winston";
 import type { CallbackClient } from "../infrastructure/CallbackClient";
+import type { GitAuth } from "../../services/gitAuth";
 
 export async function sendWorkerProgress(
   client: CallbackClient,
@@ -42,10 +43,10 @@ export async function cloneFreshRepository(
   repository: string,
   branch: string,
   workDir: string,
-  scmToken?: string,
+  gitAuth?: GitAuth,
 ): Promise<string> {
   const repoDir = path.join(workDir, "repo");
   if (fs.existsSync(repoDir)) fs.rmSync(repoDir, { recursive: true, force: true });
-  await git.cloneRepository(repository, branch, workDir, scmToken);
+  await git.cloneRepository(repository, branch, workDir, gitAuth);
   return repoDir;
 }

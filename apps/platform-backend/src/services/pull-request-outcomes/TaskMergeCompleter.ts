@@ -3,7 +3,7 @@ import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestD
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { TaskPartsService } from "../tasks/TaskPartsService";
-import type { PullRequestOutcome } from "./pullRequestOutcomeTypes";
+import type { PullRequestOutcome } from "@viberglass/types";
 
 interface Dependencies {
   tasks: Pick<TaskPullRequestDAO, "listOpenTaskIds">;

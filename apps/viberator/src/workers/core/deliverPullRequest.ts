@@ -13,7 +13,7 @@ import {
 import type { JobResult } from "./types";
 import { failingWith } from "./JobFailureError";
 import type { JobRunnerParams } from "./jobPipeline";
-import { resolvePullRequestDescription, resolvePullRequestTitle } from "./pullRequestContent";
+import { pullRequestBody, resolvePullRequestDescription, resolvePullRequestTitle } from "./pullRequestContent";
 import type { TaskBranch } from "./taskBranch";
 
 export interface DeliveryInput {
@@ -65,7 +65,7 @@ export async function deliverPullRequest(
     "git.push",
     { attributes: definedAttributes({ [ATTR_VG_BRANCH]: branch.name, [ATTR_VG_COMMIT_SHA]: commitHash }) },
     async () =>
-      failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () => gitService.pushBranch(repoDir, branch.name, params.scmToken)),
+      failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () => gitService.pushBranch(repoDir, branch.name, params.gitAuth)),
   );
 
   await sendProgress("pr", "Creating pull request");
@@ -81,18 +81,14 @@ export async function deliverPullRequest(
     },
     async (span) => {
       const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
-        gitService.createPullRequest(
-          repoDir,
-          branch.name,
-          pullRequestBaseBranch,
-          title,
-          description,
-          {
-            sourceRepositoryUrl: scm?.sourceRepository || repository,
-            destinationRepositoryUrl: pullRequestRepository,
-          },
-          params.scmToken,
-        ),
+        params.callbackClient.repository.openPullRequest(params.data.id, params.data.tenantId, {
+            sourceRepository: scm?.sourceRepository || repository,
+            destinationRepository: pullRequestRepository,
+            head: branch.name,
+            base: pullRequestBaseBranch,
+            title: title,
+            body: pullRequestBody(description),
+          }),
       );
       if (url) span.setAttribute(ATTR_VG_PULL_REQUEST_URL, url);
       return url;

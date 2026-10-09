@@ -6,7 +6,7 @@ import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useProject } from '@/context/project-context'
 import {
-  getAvailableIntegrationTypes,
+  getIntegrationManifests,
   getIntegrations,
   getProjectIntegrations,
   linkIntegrationToProject,
@@ -49,7 +49,7 @@ export function ProjectIntegrationsPage() {
       const [workspaceConnections, links, types] = await Promise.all([
         getIntegrations(),
         getProjectIntegrations(project.id),
-        getAvailableIntegrationTypes(),
+        getIntegrationManifests(),
       ])
       const linkedIds = new Set(links.map((link) => link.integration.id))
       const typeBySystem = new Map(types.map((type) => [type.id, type]))

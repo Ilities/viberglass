@@ -30,6 +30,7 @@ import {
   TICKET_SERVICE_ERROR_CODE,
 } from "./errors/TicketServiceError";
 import logger from "../config/logger";
+import { integrationRegistry } from "../integrations/registerIntegrationPlugins";
 import {
   ATTR_VG_CLANKER_ID,
   ATTR_VG_JOB_ID,
@@ -411,6 +412,9 @@ export function buildScmPayloadFromContext(
     branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
     credentialSecretId: scmCredentialSecretId || undefined,
     credentialEnvVar: scmCredentialSecretId ? SCM_TOKEN_ENV_VAR : undefined,
+    gitUsername: scmConfig.integrationSystem
+      ? integrationRegistry.get(scmConfig.integrationSystem)?.repository?.gitUsername
+      : undefined,
   };
   return payload;
 }

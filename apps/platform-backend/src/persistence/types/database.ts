@@ -373,7 +373,7 @@ export interface JobLogLinesTable {
 export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
-  provider: "github" | "jira" | "shortcut" | "custom";
+  provider: string;
   integration_id: string | null;
   secret_location: "database" | "ssm" | "env";
   secret_path: string | null;
@@ -397,7 +397,7 @@ export interface TrackerIssueRulesTable {
 
 export interface WebhookDeliveryAttemptsTable {
   id: Generated<string>;
-  provider: "github" | "jira" | "shortcut" | "custom";
+  provider: string;
   webhook_config_id: string | null;
   delivery_id: string;
   event_type: string;

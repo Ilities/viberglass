@@ -9,7 +9,8 @@ import db from "../config/database";
  * for failed deliveries.
  */
 
-export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
+/** The webhook provider an integration's manifest names. */
+export type WebhookProvider = string;
 export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed" | "ignored";
 
 /**
@@ -402,7 +403,7 @@ export class WebhookDeliveryDAO {
   private mapRowToDeliveryAttempt(row: Record<string, unknown>): WebhookDeliveryAttempt {
     return {
       id: String(row.id),
-      provider: row.provider as WebhookProvider,
+      provider: String(row.provider),
       webhookConfigId: row.webhook_config_id
         ? String(row.webhook_config_id)
         : null,

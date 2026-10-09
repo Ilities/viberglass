@@ -1,6 +1,6 @@
 import type { TaskPlanParts } from "@viberglass/types";
 import { TaskMergeCompleter } from "../../../../services/pull-request-outcomes/TaskMergeCompleter";
-import type { PullRequestOutcome } from "../../../../services/pull-request-outcomes/pullRequestOutcomeTypes";
+import type { PullRequestOutcome } from "@viberglass/types";
 
 const URL_1 = "https://github.com/acme/app/pull/1";
 const MERGED: PullRequestOutcome = { state: "merged", mergedAt: new Date(), closedAt: new Date(), commentCount: 0, reviewCommentCount: 0, mergedBy: "dev-koskinen" };

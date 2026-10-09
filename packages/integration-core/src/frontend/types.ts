@@ -1,4 +1,4 @@
-import type { TicketSystem } from '@viberglass/types'
+import type { IntegrationManifest } from '@viberglass/types'
 import type { ComponentType } from 'react'
 
 /** An event a tracker's webhook can send, as the connection screen offers it. */
@@ -34,8 +34,8 @@ export interface AuthSetupSectionProps {
   getBotStatus?: () => Promise<{ configured: boolean }>
 }
 
-export interface IntegrationFrontendPlugin {
-  id: TicketSystem
+export interface IntegrationFrontendPlugin extends IntegrationManifest {
+  Icon: ComponentType<{ className?: string }>
   /** Set for trackers whose issues spaces take as linked tasks. */
   trackerWebhook?: TrackerWebhookDescriptor
   /** Additional auth/install section (e.g. Slack OAuth); undefined = show nothing */

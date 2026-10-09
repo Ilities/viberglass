@@ -1,4 +1,4 @@
-import { getAvailableIntegrationTypes, getIntegrationCredentials, getIntegrations } from '@/service/api/integration-api'
+import { getIntegrationManifests, getIntegrationCredentials, getIntegrations } from '@/service/api/integration-api'
 import type { IntegrationCredential } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { NO_SELECTION, connectionOptionLabel, type ConnectionOption } from './RepositoryFields'
@@ -15,7 +15,7 @@ export function useWorkspaceConnections(codeHostId: string) {
 
   useEffect(() => {
     let isActive = true
-    Promise.all([getAvailableIntegrationTypes(), getIntegrations()])
+    Promise.all([getIntegrationManifests(), getIntegrations()])
       .then(([types, connections]) => {
         if (!isActive) return
         const typeBySystem = new Map(types.map((type) => [type.id, type]))

@@ -1,17 +1,8 @@
 import { TaskBuildDAO } from "../../persistence/job/TaskBuildDAO";
-import { IntegrationCredentialDAO } from "../../persistence/integrations/IntegrationCredentialDAO";
-import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
-import { ProjectScmTokenResolver } from "../pull-request-outcomes/ProjectScmTokenResolver";
-import { SecretResolutionService } from "../SecretResolutionService";
+import { createProjectRepositoryResolver } from "../repositories/createProjectRepositoryResolver";
 import { BuildPullRequestService } from "./BuildPullRequestService";
-import { GitHubPullRequestReviewSource } from "./GitHubPullRequestReviewSource";
 
 export function createBuildPullRequestService(): BuildPullRequestService {
-  return new BuildPullRequestService(
-    new GitHubPullRequestReviewSource(),
-    new ProjectScmTokenResolver(new ProjectScmConfigDAO(), new IntegrationCredentialDAO(), new SecretResolutionService()),
-    new TaskBuildDAO(),
-    new TaskPullRequestDAO(),
-  );
+  return new BuildPullRequestService(createProjectRepositoryResolver(), new TaskBuildDAO(), new TaskPullRequestDAO());
 }

@@ -23,6 +23,7 @@ import { WorkerStorageService, signWorkerStorageUrl } from "../../services/job/W
 import { JobBootstrapService } from "../../services/job/JobBootstrapService";
 import { registerQuestionCallbackRoute } from "./jobs/questionCallbackRoute";
 import { registerPartialResultRoute } from "./jobs/partialResultRoute";
+import { registerPullRequestRoute } from "./jobs/pullRequestRoute";
 import { registerSkillCallbackRoute } from "./jobs/skillCallbackRoute";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { RunRecordDAO } from "../../persistence/job/RunRecordDAO";
@@ -231,6 +232,7 @@ registerJobResultRoute(router);
 registerCodexAuthCacheRoute(router);
 registerQuestionCallbackRoute(router);
 registerPartialResultRoute(router);
+registerPullRequestRoute(router);
 registerSkillCallbackRoute(router);
 
 

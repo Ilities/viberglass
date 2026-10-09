@@ -85,7 +85,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
 
    const aiderPlugin: AgentPlugin<AiderConfig> = {
      id: "aider",
-     displayName: "Aider",
+     label: "Aider",
      create: (config, logger, gitService) => new AiderAgent(config, logger, gitService),
      defaultConfig: { … },
      envAliases: { apiKey: ["AIDER_API_KEY"] },
@@ -133,7 +133,7 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | Field | Required | Description |
 |---|---|---|
 | `id` | ✅ | Unique agent identifier (matches `BaseAgentConfig.name`). Use kebab-case. |
-| `displayName` | ✅ | Name shown in the UI and logs. |
+| `label` | ✅ | Name shown in the UI and logs. |
 | `description` | ✅ | One sentence the runner form shows under the name. |
 | `logo` | — | Logo file relative to the package root, e.g. `logo.svg`. `npm run generate:catalog` copies it into the frontend. |
 | `telemetryProvider` | — | The `gen_ai.provider.name` the harness's traces carry. Leave unset when the provider depends on configuration. |

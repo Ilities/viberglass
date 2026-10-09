@@ -1,5 +1,6 @@
 export interface WebhookProcessingResult {
-  status: "processed" | "ignored" | "rejected" | "duplicate" | "failed";
+  /** `invalid`: the sender has to fix its request; `not_found`: no webhook has this address. */
+  status: "processed" | "ignored" | "rejected" | "duplicate" | "failed" | "invalid" | "not_found";
   ticketId?: string;
   jobId?: string;
   reason?: string;
@@ -12,7 +13,8 @@ export interface WebhookServiceConfig {
 }
 
 export interface WebhookProcessingOptions {
-  providerName?: "github" | "jira" | "shortcut" | "custom";
+  /** The webhook provider in the delivery's address. */
+  providerName: string;
   configId?: string;
 }
 

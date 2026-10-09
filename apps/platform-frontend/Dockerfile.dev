@@ -32,7 +32,7 @@ COPY viberglass.plugins.json ./
 COPY scripts ./scripts
 
 # Build shared packages (needed before frontend can start)
-RUN bash scripts/build-frontend-deps.sh
+RUN sh scripts/build-frontend-deps.sh
 
 # Expose Vite default port
 EXPOSE 3000

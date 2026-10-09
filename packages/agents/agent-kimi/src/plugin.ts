@@ -32,7 +32,7 @@ function resolveKimiSettings(clankerConfig?: Record<string, unknown>): { endpoin
 
 const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
   id: "kimi-code",
-  displayName: "Kimi Code",
+  label: "Kimi Code",
   description: "Moonshot/Kimi based coding agent tuned for high-context completion.",
   logo: "logo.ico",
   telemetryProvider: "moonshot",

@@ -72,7 +72,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       jobId: data.id,
       tenantId: data.tenantId,
       allowCode: params.allowCode,
-      scmToken: params.scmToken,
+      gitAuth: params.gitAuth,
       git: params.gitService,
       callbacks: params.callbackClient.turn,
       logger,

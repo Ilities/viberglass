@@ -1,9 +1,7 @@
 import { IntegrationDAO } from "../../../persistence/integrations";
 import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfigDAO";
-import {
-  createDefaultIntegrationWebhookProviderPolicyResolver,
-  type IntegrationWebhookProviderPolicyResolver,
-} from "./IntegrationWebhookProviderPolicyResolver";
+import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
+import { webhookReceiversFrom, type WebhookReceivers } from "../../../webhooks/webhookReceivers";
 import type { IntegrationWebhookProviderPolicy } from "./IntegrationWebhookProviderPolicy";
 import { IntegrationRouteServiceError } from "./errors";
 import { mapSystemToWebhookProvider } from "./shared";
@@ -23,7 +21,7 @@ export interface ResolvedIntegrationWebhookContext {
 export class IntegrationWebhookContextResolver {
   constructor(
     private readonly integrationDAO = new IntegrationDAO(),
-    private readonly providerPolicyResolver: IntegrationWebhookProviderPolicyResolver = createDefaultIntegrationWebhookProviderPolicyResolver(),
+    private readonly receivers: WebhookReceivers = webhookReceiversFrom(integrationRegistry),
   ) {}
 
   async getIntegrationOrThrow(integrationId: string): Promise<IntegrationWithConfig> {
@@ -53,6 +51,10 @@ export class IntegrationWebhookContextResolver {
   }
 
   resolveProviderPolicy(provider: WebhookProvider): IntegrationWebhookProviderPolicy {
-    return this.providerPolicyResolver.resolve(provider);
+    const receiver = this.receivers.get(provider);
+    if (!receiver) {
+      throw new Error(`No integration receives '${provider}' webhooks`);
+    }
+    return { provider, targetsOneSpace: receiver.targetsOneSpace };
   }
 }

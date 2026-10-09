@@ -16,7 +16,7 @@ export interface TaskBranch {
  */
 export async function prepareTaskBranch(params: JobRunnerParams, name: string, repoDir: string): Promise<TaskBranch> {
   const continued = await failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
-    params.gitService.checkoutRemoteBranch(repoDir, name, params.scmToken),
+    params.gitService.checkoutRemoteBranch(repoDir, name, params.gitAuth),
   );
   return { name, continued };
 }

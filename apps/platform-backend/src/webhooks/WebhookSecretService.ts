@@ -1,6 +1,5 @@
 import * as crypto from "node:crypto";
 import type { CredentialProvider } from "../credentials";
-import type { WebhookProviderConfig } from "./WebhookProvider";
 
 /**
  * Webhook secret service
@@ -14,6 +13,14 @@ import type { WebhookProviderConfig } from "./WebhookProvider";
  */
 
 const IV_LENGTH = 12; // 96 bits for GCM
+
+/** Where a webhook's secret is kept. */
+export interface WebhookSecretSource {
+  secretLocation?: "database" | "ssm" | "env";
+  secretPath?: string;
+  /** The secret itself, for database storage. */
+  webhookSecret?: string;
+}
 
 export class WebhookSecretService {
   private encryptionKey: Buffer;
@@ -39,7 +46,7 @@ export class WebhookSecretService {
    * @returns The plaintext webhook secret
    */
   async getSecret(
-    config: WebhookProviderConfig,
+    config: WebhookSecretSource,
     projectId?: string,
   ): Promise<string> {
     const location = config.secretLocation ?? "database";

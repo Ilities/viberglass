@@ -9,7 +9,7 @@ import { existsSync } from "fs";
 import cookieParser from "cookie-parser";
 import logger from "../config/logger";
 import passport from "passport";
-import type { ExtendedRequest } from "../webhooks/middleware/rawBody";
+import type { ExtendedRequest } from "../webhooks/ExtendedRequest";
 
 import projectsRouter from "./routes/projects";
 import integrationsRouter from "./routes/integrations";

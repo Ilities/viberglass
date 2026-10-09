@@ -1,7 +1,10 @@
 import type { IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
+import { JiraIcon } from './JiraIcon'
+import { manifest } from '../manifest'
 
 const jiraFrontendPlugin: IntegrationFrontendPlugin = {
-  id: 'jira',
+  ...manifest,
+  Icon: JiraIcon,
   trackerWebhook: {
     tracker: 'Jira',
     item: 'issue',

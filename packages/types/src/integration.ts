@@ -3,6 +3,7 @@
  */
 
 import type { TicketSystem } from './common'
+import type { PluginManifest } from './plugin'
 import type { AuthCredentialType } from './project'
 import type { SecretLocation } from './secret'
 
@@ -45,16 +46,23 @@ export interface IntegrationSupport {
 // Integration configuration status
 export type IntegrationConfigStatus = 'configured' | 'not_configured' | 'stub'
 
-// Integration metadata from plugin registry
-export interface IntegrationMetadata {
+/** What an integration package says about itself; its backend and frontend entries share it. */
+export interface IntegrationManifest extends PluginManifest {
   id: TicketSystem
-  label: string
+  /** The slot it fills for a space: one primary code host and one primary issue tracker. */
   category: IntegrationCategory
-  description: string
+  /** A stub is listed as coming soon and can't be connected. */
+  status: 'ready' | 'stub'
   authTypes: AuthCredentialType[]
+  /** Settings the connection screen edits; empty when the connection has none. */
   configFields: IntegrationFieldDefinition[]
   supports: IntegrationSupport
-  status: 'ready' | 'stub'
+  /** Set when the connection holds a token: what Viberglass uses it for, shown where the token is entered. */
+  credentialUse?: string
+  /** Set when the connection receives webhooks: the provider its deliveries are routed to. */
+  webhookProvider?: string
+  /** Events a new webhook subscribes to; all of them when unset. */
+  defaultInboundEvents?: string[]
 }
 
 // Top-level Integration entity (stored in integrations table)
@@ -123,7 +131,7 @@ export interface UpdateIntegrationCredentialRequest {
 }
 
 // Integration with configuration status for a specific project
-export interface IntegrationSummary extends IntegrationMetadata {
+export interface IntegrationSummary extends IntegrationManifest {
   configStatus: IntegrationConfigStatus
   configuredAt?: string
   lastTestedAt?: string
@@ -187,38 +195,4 @@ export interface TestIntegrationResponse {
     accessibleProjects?: string[]
     errorCode?: string
   }
-}
-
-// Integration icon mapping (for frontend use)
-export const INTEGRATION_ICONS: Record<TicketSystem, string> = {
-  jira: 'jira',
-  linear: 'linear',
-  github: 'github',
-  gitlab: 'gitlab',
-  bitbucket: 'bitbucket',
-  azure: 'azure',
-  asana: 'asana',
-  trello: 'trello',
-  monday: 'monday',
-  clickup: 'clickup',
-  shortcut: 'shortcut',
-  slack: 'slack',
-  custom: 'custom',
-}
-
-// Integration descriptions (for frontend use)
-export const INTEGRATION_DESCRIPTIONS: Record<TicketSystem, string> = {
-  jira: 'New Jira issues become tasks; comments reach the task, and the plan, pull request and done come back to the issue.',
-  linear: 'Streamlined issue tracking with Linear. Perfect for modern product teams.',
-  github: 'Pull requests for your repositories, and GitHub issues as tasks linked to their issue.',
-  gitlab: 'GitLab Issues integration with CI/CD pipeline connectivity.',
-  bitbucket: 'Atlassian Bitbucket issue tracking for teams using Bitbucket Git.',
-  azure: 'Azure DevOps Boards integration for Microsoft-centric workflows.',
-  asana: 'Project management and issue tracking with Asana.',
-  trello: 'Kanban-style issue organization using Trello boards.',
-  monday: 'Work operating system for issue and project management.',
-  clickup: 'All-in-one productivity platform for issue tracking.',
-  shortcut: 'New Shortcut stories become tasks; comments reach the task, and the plan, pull request and done come back to the story.',
-  slack: 'Send notifications and create issues directly from Slack channels.',
-  custom: 'Create tasks from any system with a simple JSON webhook.',
 }

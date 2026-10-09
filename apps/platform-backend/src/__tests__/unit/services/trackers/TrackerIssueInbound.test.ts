@@ -1,9 +1,10 @@
 import { withViberglassMark } from "@viberglass/integration-core";
-import { TrackerIssueInbound, type TrackerContext, type TrackerIssue } from "../../../../services/trackers/TrackerIssueInbound";
+import type { InboundIssue } from "@viberglass/types";
+import { TrackerIssueInbound, type TrackerContext } from "../../../../services/trackers/TrackerIssueInbound";
 import type { RoutedSpace } from "../../../../services/trackers/TrackerIssueRouter";
 
 const CONTEXT: TrackerContext = { provider: "jira", integrationId: "conn-1", webhookConfigId: "hook-1" };
-const ISSUE: TrackerIssue = {
+const ISSUE: InboundIssue = {
   key: "WEB-12",
   url: "https://acme.atlassian.net/browse/WEB-12",
   apiBaseUrl: "https://acme.atlassian.net",
@@ -22,7 +23,7 @@ function setup(options: { linked?: Linked; routed?: RoutedSpace[]; users?: Recor
   const deps = {
     router: { route: jest.fn().mockResolvedValue({ spaces: options.routed ?? [], reason: "No space takes issues labelled 'web'" }) },
     opener: {
-      open: jest.fn().mockImplementation(async (_context: TrackerContext, _issue: TrackerIssue, space: RoutedSpace) => ({
+      open: jest.fn().mockImplementation(async (_context: TrackerContext, _issue: InboundIssue, space: RoutedSpace) => ({
         ticketId: `task-in-${space.projectId}`,
         projectId: space.projectId,
       })),

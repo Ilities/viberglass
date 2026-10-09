@@ -1,7 +1,10 @@
 import type { IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
+import { BitbucketIcon } from './BitbucketIcon'
+import { manifest } from '../manifest'
 
 const bitbucketFrontendPlugin: IntegrationFrontendPlugin = {
-  id: 'bitbucket',
+  ...manifest,
+  Icon: BitbucketIcon,
 }
 
 export default bitbucketFrontendPlugin

@@ -36,6 +36,8 @@ export interface JobScmConfig {
   credentialSecretId?: string | null;
   /** The env var the worker finds the repository token in. */
   credentialEnvVar?: string | null;
+  /** The username git sends with the token, which depends on the code host. */
+  gitUsername?: string;
 }
 
 // Override configuration for per-ticket/enhance screen overrides

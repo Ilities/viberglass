@@ -1,6 +1,8 @@
 import type { Integration, IntegrationCredential } from "@viberglass/types";
 import { SetupRepositoryService } from "../../../../services/setup/SetupRepositoryService";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
+import { RepositoryAccessError } from "@viberglass/integration-core";
+import { fakeRepositoryHost } from "../../../helpers/fakeRepositoryHost";
 
 jest.mock("../../../../persistence/integrations/IntegrationDAO", () => ({ IntegrationDAO: jest.fn() }));
 jest.mock("../../../../persistence/integrations/IntegrationCredentialDAO", () => ({
@@ -44,7 +46,14 @@ function credential(overrides: Partial<IntegrationCredential> = {}): Integration
 }
 
 function build(options: { integrations?: Integration[]; credentials?: IntegrationCredential[] } = {}) {
-  const check = jest.fn(async () => ACCESS);
+  const host = fakeRepositoryHost();
+  // Reads owner/name and github.com addresses, the way the GitHub host does.
+  host.parseRepository.mockImplementation((input: string) => {
+    const match = input.match(/^(?:https:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+    return match ? { fullName: `${match[1]}/${match[2]}`, url: `https://github.com/${match[1]}/${match[2]}` } : null;
+  });
+  host.checkAccess.mockResolvedValue(ACCESS);
+  const check = host.checkAccess;
   const listIntegrations = jest.fn(async () => options.integrations ?? []);
   const createIntegration = jest.fn(async () => integration({ id: "integration-new" }));
   const listByIntegrationId = jest.fn(async () => options.credentials ?? []);
@@ -53,7 +62,7 @@ function build(options: { integrations?: Integration[]; credentials?: Integratio
   const saveByName = jest.fn(async () => "secret-new");
   const replaceById = jest.fn(async (id: string) => id);
   const service = new SetupRepositoryService(
-    { check },
+    () => ({ system: "github", label: "GitHub", repository: host }),
     { listIntegrations, createIntegration },
     { listByIntegrationId, create, update },
     { saveByName, replaceById },
@@ -67,7 +76,7 @@ describe("SetupRepositoryService", () => {
 
     const saved = await service.saveRepository("https://github.com/acme/web.git", " ghp_abc ");
 
-    expect(check).toHaveBeenCalledWith({ owner: "acme", repo: "web" }, "ghp_abc");
+    expect(check).toHaveBeenCalledWith({ fullName: "acme/web", url: "https://github.com/acme/web" }, "ghp_abc");
     expect(createIntegration).toHaveBeenCalledWith({ name: "GitHub", system: "github", config: {} });
     expect(saveByName).toHaveBeenCalledWith("GITHUB_TOKEN", "ghp_abc");
     expect(create).toHaveBeenCalledWith({
@@ -123,6 +132,22 @@ describe("SetupRepositoryService", () => {
       code: SETUP_SERVICE_ERROR_CODE.REPOSITORY_INVALID,
     });
     expect(check).not.toHaveBeenCalled();
+  });
+
+  it("passes on why the code host refused the token, as a setup error", async () => {
+    const { service, check } = build();
+    check.mockRejectedValue(new RepositoryAccessError("HOST_RATE_LIMITED", "Wait a few minutes."));
+
+    await expect(service.saveRepository("acme/web", "t")).rejects.toMatchObject({
+      code: SETUP_SERVICE_ERROR_CODE.HOST_RATE_LIMITED,
+      message: "Wait a few minutes.",
+    });
+  });
+
+  it("explains that the installation has no code host to connect", async () => {
+    const service = new SetupRepositoryService(() => null);
+
+    await expect(service.saveRepository("acme/web", "t")).rejects.toMatchObject({ code: SETUP_SERVICE_ERROR_CODE.HOST_ERROR });
   });
 
   it("saves nothing when the check fails", async () => {

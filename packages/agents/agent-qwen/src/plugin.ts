@@ -50,7 +50,7 @@ function resolveQwenEndpoint(
 
 const qwenCodePlugin: AgentPlugin<QwenCodeConfig> = {
   id: "qwen-cli",
-  displayName: "Qwen CLI",
+  label: "Qwen CLI",
   description: "Fast tool execution with endpoint flexibility for Qwen-compatible APIs.",
   logo: "logo.ico",
   telemetryProvider: "alibaba.qwen",

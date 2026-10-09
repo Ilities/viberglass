@@ -4,9 +4,10 @@ import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useProject } from '@/context/project-context'
+import { trackerNames } from '@/integrations/integrationLabels'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import {
-  getAvailableIntegrationTypes,
+  getIntegrationManifests,
   getConnectionIssueRules,
   getIntegrationInboundWebhooks,
   getIntegrations,
@@ -39,7 +40,7 @@ export function SpaceIssuesPage() {
     try {
       const [workspaceConnections, types, scm] = await Promise.all([
         getIntegrations(),
-        getAvailableIntegrationTypes(),
+        getIntegrationManifests(),
         getProjectScmConfig(projectId),
       ])
       setRepository(repositoryPath(scm?.sourceRepository))
@@ -92,7 +93,7 @@ export function SpaceIssuesPage() {
         <div className="mt-6">
           <EmptyState
             title="No trackers connected"
-            description="Connect GitHub, Jira or Shortcut in the workspace settings first."
+            description={`Connect ${trackerNames()} in the workspace settings first.`}
             action={
               <Button outline href="/settings/connections">
                 Workspace connections

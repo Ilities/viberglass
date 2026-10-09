@@ -121,10 +121,11 @@ export class ViberatorWorker {
     this.currentJobId = data.id;
     this.currentTenantId = data.tenantId;
 
-    // Resolve per-project SCM token from fetched credentials
+    // The space's token comes with the run's credentials; the payload says which, and the username its code host takes.
     const scmToken = data.scm?.credentialEnvVar
       ? this.fetchedCredentials?.[data.scm.credentialEnvVar]
       : undefined;
+    const gitAuth = scmToken && data.scm?.gitUsername ? { username: data.scm.gitUsername, token: scmToken } : undefined;
 
     try {
       const jobRunner =
@@ -166,12 +167,12 @@ export class ViberatorWorker {
             message,
             details,
           ),
-        scmToken,
+        gitAuth,
         objectStorage: this.objectStorage,
         mcpServers: this.settings.mcpServers,
         skills: this.settings.skills,
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
-          cloneFreshRepository(this.services.gitService, repository, branch, workDir, scmToken),
+          cloneFreshRepository(this.services.gitService, repository, branch, workDir, gitAuth),
       });
     } finally {
       // Cleanup runs after sendResult has already been called inside jobRunner,

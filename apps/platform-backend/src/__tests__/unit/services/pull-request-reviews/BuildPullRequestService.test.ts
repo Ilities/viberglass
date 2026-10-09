@@ -1,20 +1,21 @@
 import { BuildPullRequestService } from "../../../../services/pull-request-reviews/BuildPullRequestService";
+import { fakeRepositoryHost } from "../../../helpers/fakeRepositoryHost";
 
 const TICKET = { id: "ticket-1", projectId: "project-1", pullRequestUrl: "https://github.com/acme/app/pull/7" };
 
 describe("BuildPullRequestService", () => {
-  const reviews = { supports: jest.fn(), fetchReview: jest.fn() };
-  const tokens = { resolve: jest.fn() };
+  const host = fakeRepositoryHost();
+  const repositories = { resolve: jest.fn() };
   const builds = { lastBuildFinishedAt: jest.fn() };
   const pullRequests = { listForTask: jest.fn() };
-  const service = new BuildPullRequestService(reviews, tokens, builds, pullRequests);
+  const service = new BuildPullRequestService(repositories, builds, pullRequests);
 
   beforeEach(() => {
     jest.resetAllMocks();
-    reviews.supports.mockReturnValue(true);
-    tokens.resolve.mockResolvedValue("tok");
+    host.ownsPullRequest.mockReturnValue(true);
+    repositories.resolve.mockResolvedValue({ host, token: "tok" });
     builds.lastBuildFinishedAt.mockResolvedValue(new Date("2026-09-05T00:00:00Z"));
-    reviews.fetchReview.mockResolvedValue({ details: { title: "fix", state: "open" }, comments: [{ kind: "thread", body: "fix" }] });
+    host.fetchPullRequestReview.mockResolvedValue({ details: { title: "fix", state: "open" }, comments: [{ kind: "thread", body: "fix" }] });
   });
 
   it("reads the pull request's comments since the last build, with the space's token", async () => {
@@ -24,8 +25,8 @@ describe("BuildPullRequestService", () => {
       comments: [{ kind: "thread", body: "fix" }],
       unavailableReason: null,
     });
-    expect(tokens.resolve).toHaveBeenCalledWith("project-1");
-    expect(reviews.fetchReview).toHaveBeenCalledWith(TICKET.pullRequestUrl, "tok", new Date("2026-09-05T00:00:00Z"));
+    expect(repositories.resolve).toHaveBeenCalledWith("project-1");
+    expect(host.fetchPullRequestReview).toHaveBeenCalledWith(TICKET.pullRequestUrl, "tok", new Date("2026-09-05T00:00:00Z"));
   });
 
   it("lists every pull request the task's builds opened, with the parts each builds", async () => {
@@ -41,14 +42,14 @@ describe("BuildPullRequestService", () => {
       { pullRequestUrl: "https://github.com/acme/app/pull/9", branch: "viberglass/t-1-part-2", firstPart: 2, lastPart: null },
     ]);
     expect(listed[1]?.details).toEqual({ title: "fix", state: "open" });
-    expect(reviews.fetchReview).toHaveBeenCalledWith("https://github.com/acme/app/pull/9", "tok", new Date("2026-09-05T00:00:00Z"));
+    expect(host.fetchPullRequestReview).toHaveBeenCalledWith("https://github.com/acme/app/pull/9", "tok", new Date("2026-09-05T00:00:00Z"));
   });
 
   const cases: Array<[string, typeof TICKET | { id: string; projectId: string }, () => void, string]> = [
     ["no pull request", { id: TICKET.id, projectId: TICKET.projectId }, () => {}, "no pull request"],
-    ["a non-GitHub pull request", TICKET, () => { reviews.supports.mockReturnValue(false); }, "GitHub"],
-    ["no token", TICKET, () => { tokens.resolve.mockResolvedValue(null); }, "no token"],
-    ["a GitHub error", TICKET, () => { reviews.fetchReview.mockRejectedValue(new Error("GitHub returned 401")); }, "GitHub returned 401"],
+    ["a pull request on another host", TICKET, () => { host.ownsPullRequest.mockReturnValue(false); }, "isn't on the space's code host"],
+    ["no token", TICKET, () => { repositories.resolve.mockResolvedValue({ unavailable: "The space's repository connection has no token" }); }, "no token"],
+    ["a GitHub error", TICKET, () => { host.fetchPullRequestReview.mockRejectedValue(new Error("GitHub returned 401")); }, "GitHub returned 401"],
   ];
 
   it.each(cases)("says why it has no comments for %s", async (_label, ticket, arrange, reason) => {

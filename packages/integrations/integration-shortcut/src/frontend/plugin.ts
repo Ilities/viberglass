@@ -1,7 +1,10 @@
 import type { IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
+import { ShortcutIcon } from './ShortcutIcon'
+import { manifest } from '../manifest'
 
 const shortcutFrontendPlugin: IntegrationFrontendPlugin = {
-  id: 'shortcut',
+  ...manifest,
+  Icon: ShortcutIcon,
   trackerWebhook: {
     tracker: 'Shortcut',
     item: 'story',

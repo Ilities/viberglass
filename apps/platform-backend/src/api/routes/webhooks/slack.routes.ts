@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from "express";
 import bot from "../../../chat";
 import logger from "../../../config/logger";
-import type { ExtendedRequest } from "../../../webhooks/middleware/rawBody";
+import type { ExtendedRequest } from "../../../webhooks/ExtendedRequest";
 
 export function createSlackRoutes() {
   const router = express.Router();

@@ -1,20 +1,15 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
+import { manifest } from '../manifest'
 import { ShortcutCommenter } from './ShortcutCommenter'
 import { ShortcutIntegration } from './ShortcutIntegration'
 import type { ShortcutConfig } from './types'
+import { ShortcutWebhookReceiver } from './webhook/ShortcutWebhookReceiver'
 
 const shortcutPlugin: IntegrationPlugin<ShortcutConfig> = {
-  id: 'shortcut',
-  label: 'Shortcut',
-  category: 'ticketing',
-  authTypes: ['api_key'],
-  configFields: [],
-  supports: { issues: true, webhooks: true },
+  ...manifest,
   createIntegration: (config) => new ShortcutIntegration(config),
   createCommenter: (config) => new ShortcutCommenter(config),
-  status: 'ready',
-  webhookProvider: 'shortcut',
-  defaultInboundEvents: ['story_created', 'story_updated', 'comment_created'],
+  webhook: new ShortcutWebhookReceiver(),
 }
 
 export default shortcutPlugin

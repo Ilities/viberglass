@@ -2,13 +2,11 @@ import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
-  AuthCredentialType,
   CreateIntegrationCredentialRequest,
   CreateIntegrationRequest,
   Integration,
-  IntegrationCategory,
   IntegrationCredential,
-  IntegrationFieldType,
+  IntegrationManifest,
   IntegrationSummary,
   ProjectIntegrationLink,
   TestIntegrationResponse,
@@ -230,40 +228,17 @@ export async function setPrimaryIntegration(
 // Available Integration Types
 // ============================================================================
 
-export interface AvailableIntegrationType {
-  id: TicketSystem
-  label: string
-  category: IntegrationCategory
-  description: string
-  authTypes: AuthCredentialType[]
-  configFields: Array<{
-    key: string
-    label: string
-    type: IntegrationFieldType
-    required?: boolean
-    description?: string
-    options?: Array<{ label: string; value: string }>
-    placeholder?: string
-  }>
-  supports: {
-    issues: boolean
-    webhooks?: boolean
-    pullRequests?: boolean
-  }
-  status: 'ready' | 'stub'
-}
-
 /**
  * Get all available integration types
  */
-export async function getAvailableIntegrationTypes(): Promise<AvailableIntegrationType[]> {
+export async function getIntegrationManifests(): Promise<IntegrationManifest[]> {
   const response = await apiFetch(`${API_BASE_URL}/api/integrations/types/available`)
 
   if (!response.ok) {
     throw new Error('Failed to fetch available integration types')
   }
 
-  const data: ApiResponse<AvailableIntegrationType[]> = await response.json()
+  const data: ApiResponse<IntegrationManifest[]> = await response.json()
   return data.data
 }
 
@@ -275,7 +250,7 @@ export async function getProjectIntegrationSummaries(
   projectId: string
 ): Promise<IntegrationSummary[]> {
   const [availableTypes, projectIntegrations] = await Promise.all([
-    getAvailableIntegrationTypes(),
+    getIntegrationManifests(),
     getProjectIntegrations(projectId),
   ])
 
@@ -308,7 +283,7 @@ export async function getProjectIntegrationSummaries(
  */
 export async function getAllIntegrationSummaries(): Promise<IntegrationSummary[]> {
   const [availableTypes, allIntegrations] = await Promise.all([
-    getAvailableIntegrationTypes(),
+    getIntegrationManifests(),
     getIntegrations(),
   ])
 
@@ -362,7 +337,7 @@ export interface IntegrationSettingsListItem extends Omit<IntegrationSummary, 'i
  */
 export async function getIntegrationSettingsListItems(): Promise<IntegrationSettingsListItem[]> {
   const [availableTypes, allIntegrations] = await Promise.all([
-    getAvailableIntegrationTypes(),
+    getIntegrationManifests(),
     getIntegrations(),
   ])
 

@@ -25,7 +25,7 @@ export interface SavedModelKey {
 }
 
 export interface RepositoryAccess {
-  /** GitHub's canonical owner/name. */
+  /** The code host's canonical name for the repository, such as owner/name. */
   fullName: string
   url: string
   defaultBranch: string

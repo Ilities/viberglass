@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useProject } from '@/context/project-context'
 import {
-  getAvailableIntegrationTypes,
+  getIntegrationManifests,
   getIntegrationCredentials,
   getProjectIntegrations,
 } from '@/service/api/integration-api'
@@ -17,15 +17,15 @@ import {
 import { SpaceRepositoryPage } from './SpaceRepositoryPage'
 import { useSpaceRepositoryForm } from './useSpaceRepositoryForm'
 import type { Project } from '@/service/api/project-api'
-import type { AvailableIntegrationType, ProjectIntegrationWithDetails } from '@/service/api/integration-api'
-import type { ProjectScmConfig, IntegrationCredential } from '@viberglass/types'
+import type { ProjectIntegrationWithDetails } from '@/service/api/integration-api'
+import type { ProjectScmConfig, IntegrationCredential, IntegrationManifest } from '@viberglass/types'
 
 jest.mock('@/context/project-context', () => ({
   useProject: jest.fn(),
 }))
 
 jest.mock('@/service/api/integration-api', () => ({
-  getAvailableIntegrationTypes: jest.fn(),
+  getIntegrationManifests: jest.fn(),
   getIntegrationCredentials: jest.fn(),
   getProjectIntegrations: jest.fn(),
 }))
@@ -38,8 +38,8 @@ jest.mock('@/service/api/project-api', () => ({
 }))
 
 const mockedUseProject = useProject as jest.MockedFunction<typeof useProject>
-const mockedGetAvailableIntegrationTypes = getAvailableIntegrationTypes as jest.MockedFunction<
-  typeof getAvailableIntegrationTypes
+const mockedGetIntegrationManifests = getIntegrationManifests as jest.MockedFunction<
+  typeof getIntegrationManifests
 >
 const mockedGetIntegrationCredentials = getIntegrationCredentials as jest.MockedFunction<
   typeof getIntegrationCredentials
@@ -113,7 +113,7 @@ function renderPage() {
 
 async function waitForInitialLoad(expectedCredentialIntegrationId: string = INITIAL_SCM_CONFIG.integrationId) {
   await waitFor(() => {
-    expect(mockedGetAvailableIntegrationTypes).toHaveBeenCalled()
+    expect(mockedGetIntegrationManifests).toHaveBeenCalled()
     expect(mockedGetProjectIntegrations).toHaveBeenCalledWith(PROJECT.id)
     expect(mockedGetProjectScmConfig).toHaveBeenCalledWith(PROJECT.id)
     expect(mockedGetIntegrationCredentials).toHaveBeenCalledWith(expectedCredentialIntegrationId)
@@ -130,7 +130,7 @@ describe('SpaceRepositoryPage', () => {
       error: null,
     })
 
-    mockedGetAvailableIntegrationTypes.mockResolvedValue([
+    mockedGetIntegrationManifests.mockResolvedValue([
       {
         id: 'jira',
         label: 'Jira',
@@ -140,7 +140,7 @@ describe('SpaceRepositoryPage', () => {
         configFields: [],
         supports: { issues: true },
         status: 'ready',
-      } as AvailableIntegrationType,
+      } as IntegrationManifest,
       {
         id: 'github',
         label: 'GitHub',
@@ -150,7 +150,7 @@ describe('SpaceRepositoryPage', () => {
         configFields: [],
         supports: { issues: true, pullRequests: true },
         status: 'ready',
-      } as AvailableIntegrationType,
+      } as IntegrationManifest,
     ])
 
     mockedGetProjectIntegrations.mockResolvedValue([
