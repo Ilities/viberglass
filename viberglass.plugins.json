@@ -1,0 +1,24 @@
+{
+  "agents": [
+    "@viberglass/agent-claude-code",
+    "@viberglass/agent-qwen",
+    "@viberglass/agent-codex",
+    "@viberglass/agent-opencode",
+    "@viberglass/agent-kimi",
+    "@viberglass/agent-mistral-vibe",
+    "@viberglass/agent-antigravity",
+    "@viberglass/agent-pi",
+    "@viberglass/agent-fake"
+  ],
+  "integrations": [
+    "@viberglass/integration-github",
+    "@viberglass/integration-jira",
+    "@viberglass/integration-slack",
+    "@viberglass/integration-gitlab",
+    "@viberglass/integration-bitbucket",
+    "@viberglass/integration-linear",
+    "@viberglass/integration-monday",
+    "@viberglass/integration-shortcut",
+    "@viberglass/integration-custom"
+  ]
+}

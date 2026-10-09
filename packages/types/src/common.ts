@@ -5,33 +5,20 @@
 // Severity levels for bug reports
 export type Severity = 'low' | 'medium' | 'high' | 'critical'
 
-// Supported ticket/project management systems
-export const TICKET_SYSTEMS = [
-  'jira',
-  'linear',
-  'github',
-  'gitlab',
-  'bitbucket',
-  'azure',
-  'asana',
-  'trello',
-  'monday',
-  'clickup',
-  'shortcut',
-  'slack',
-  'custom',
-] as const
-
-export type TicketSystem = (typeof TICKET_SYSTEMS)[number]
+/**
+ * Id of a connected system, such as an issue tracker or source host. Each one is an
+ * integration plugin; the integration registry knows which a build includes.
+ */
+export type TicketSystem = string
 
 /** Tasks made in Viberglass itself, rather than taken from a connected system. */
 export const NATIVE_TICKET_ORIGIN = 'native'
 
-/** Where a task, or a space's tasks, come from. */
-export type TicketOrigin = TicketSystem | typeof NATIVE_TICKET_ORIGIN
+/** Where a task, or a space's tasks, come from: a connected system's id, or native. */
+export type TicketOrigin = TicketSystem
 
 export function isTicketOrigin(value: unknown): value is TicketOrigin {
-  return value === NATIVE_TICKET_ORIGIN || TICKET_SYSTEMS.some((system) => system === value)
+  return typeof value === 'string' && value.length > 0
 }
 
 // Auto-fix processing status

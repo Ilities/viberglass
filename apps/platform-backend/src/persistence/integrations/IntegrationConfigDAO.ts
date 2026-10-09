@@ -128,7 +128,7 @@ export class IntegrationConfigDAO {
     return {
       id: String(row.id),
       projectId,
-      system: row.system as TicketSystem,
+      system: String(row.system),
       config: parsedConfig,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at as Date,

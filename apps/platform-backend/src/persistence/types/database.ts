@@ -34,21 +34,7 @@ export interface ProjectsTable {
   id: Generated<string>;
   name: string;
   slug: string;
-  ticket_system:
-    | "jira"
-    | "linear"
-    | "github"
-    | "gitlab"
-    | "bitbucket"
-    | "azure"
-    | "asana"
-    | "trello"
-    | "monday"
-    | "clickup"
-    | "shortcut"
-    | "slack"
-    | "custom"
-    | "native";
+  ticket_system: string;
   credentials: Json | null;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
@@ -96,22 +82,7 @@ export interface TicketsTable {
   annotations: Generated<Json>;
   external_ticket_id: string | null;
   external_ticket_url: string | null;
-  ticket_system:
-    | 2
-    | "jira"
-    | "linear"
-    | "github"
-    | "gitlab"
-    | "bitbucket"
-    | "azure"
-    | "asana"
-    | "trello"
-    | "monday"
-    | "clickup"
-    | "shortcut"
-    | "slack"
-    | "custom"
-    | "native";
+  ticket_system: 2 | string;
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "in_review" | "resolved">;
@@ -146,20 +117,7 @@ export interface TaskPlanPartMarksTable {
 export interface IntegrationsTable {
   id: Generated<string>;
   name: string;
-  system:
-    | "jira"
-    | "linear"
-    | "github"
-    | "gitlab"
-    | "bitbucket"
-    | "azure"
-    | "asana"
-    | "trello"
-    | "monday"
-    | "clickup"
-    | "shortcut"
-    | "slack"
-    | "custom";
+  system: string;
   config: Json;
   is_active: Generated<boolean>;
   created_at: Generated<Timestamp>;

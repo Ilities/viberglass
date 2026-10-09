@@ -2,7 +2,8 @@
 /**
  * Generates packages/types/src/workerImageCatalog.json,
  * packages/types/src/agentProviderCatalog.json and
- * packages/types/src/agentPluginCatalog.json from agent plugin metadata.
+ * packages/types/src/agentPluginCatalog.json from the metadata of the harnesses
+ * in viberglass.plugins.json.
  *
  * Run after building all agent packages:
  *   npm run generate:catalog
@@ -15,10 +16,10 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { MODEL_PROVIDERS } from "../src/modelProviders";
+import { readPlugins, WORKSPACE_ROOT } from "../../../scripts/plugins/pluginConfig.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const WORKSPACE_ROOT = path.resolve(__dirname, "../../..");
 
 interface PluginDockerMeta {
   variant: string;
@@ -68,13 +69,8 @@ interface CatalogEntry {
 }
 
 /** Load a plugin's catalog metadata from its built CJS dist. */
-function loadPlugin(packageDirName: string): LoadedPlugin {
-  const distPath = path.join(
-    WORKSPACE_ROOT,
-    "packages/agents",
-    packageDirName,
-    "dist/index.js",
-  );
+function loadPlugin(packageDir: string): LoadedPlugin {
+  const distPath = path.join(WORKSPACE_ROOT, packageDir, "dist/index.js");
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Built dist not found: ${distPath}\n` +
@@ -97,19 +93,6 @@ function loadPlugin(packageDirName: string): LoadedPlugin {
   };
 }
 
-// All agent plugin packages (order only affects multi-agent supportedAgents sort)
-const PLUGIN_PACKAGES = [
-  "agent-antigravity",
-  "agent-claude-code",
-  "agent-codex",
-  "agent-fake",
-  "agent-kimi",
-  "agent-mistral-vibe",
-  "agent-opencode",
-  "agent-pi",
-  "agent-qwen",
-];
-
 function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
   const isAgentImage = docker.isAgentImage !== false;
   const dockerfilePath =
@@ -130,8 +113,8 @@ function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
   };
 }
 
-// Load all plugins
-const loadedPlugins = PLUGIN_PACKAGES.map(loadPlugin);
+// Load the configured plugins
+const loadedPlugins = readPlugins("agents").map((plugin) => loadPlugin(plugin.dir));
 const plugins = loadedPlugins.map((p) => p.docker);
 
 // All agent IDs for the multi-agent image (sorted for determinism)
@@ -240,9 +223,11 @@ const providerBindings = loadedPlugins
   )
   .sort((a, b) => a.provider.localeCompare(b.provider) || a.agent.localeCompare(b.agent));
 
+// A provider none of the configured harnesses runs isn't offered by this build.
 for (const providerId of knownProviders) {
-  const defaults = providerBindings.filter((b) => b.provider === providerId && b.default);
-  if (defaults.length !== 1) {
+  const bindings = providerBindings.filter((b) => b.provider === providerId);
+  const defaults = bindings.filter((b) => b.default);
+  if (bindings.length > 0 && defaults.length !== 1) {
     throw new Error(
       `Provider '${providerId}' needs exactly one default harness, found ${defaults.length}: ${defaults.map((d) => d.agent).join(", ") || "none"}.`,
     );

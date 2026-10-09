@@ -6,6 +6,7 @@
 import type { RunnerReadiness } from './runnerReadiness'
 import type { ModelEndpointSelection } from './modelEndpoints'
 import type { SecretBinding } from './secret'
+import agentPluginCatalog from './agentPluginCatalog.json'
 
 // Status of a clanker
 export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
@@ -37,6 +38,11 @@ export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'fake',
 ]
 
+const builtAgents = new Set(agentPluginCatalog.map((entry) => entry.agent))
+
+/** The supported harnesses this build includes; new runners can only use these. */
+export const AVAILABLE_AGENT_TYPES: AgentType[] = SUPPORTED_AGENT_TYPES.filter((agent) => builtAgents.has(agent))
+
 export const AGENT_LABELS: Record<AgentType, string> = {
   'claude-code': 'Claude Code',
   'qwen-cli': 'Qwen CLI',
@@ -49,11 +55,13 @@ export const AGENT_LABELS: Record<AgentType, string> = {
   fake: 'Fake (end-to-end tests)',
 }
 
-export const AGENT_OPTIONS: Array<{
+export interface AgentOption {
   value: AgentType
   label: string
   recommended?: boolean
-}> = [
+}
+
+const ALL_AGENT_OPTIONS: AgentOption[] = [
   { value: 'claude-code', label: AGENT_LABELS['claude-code'] },
   { value: 'qwen-cli', label: AGENT_LABELS['qwen-cli'] },
   { value: 'codex', label: AGENT_LABELS.codex },
@@ -63,6 +71,8 @@ export const AGENT_OPTIONS: Array<{
   { value: 'mistral-vibe', label: AGENT_LABELS['mistral-vibe'] },
   { value: 'pi', label: AGENT_LABELS.pi },
 ]
+
+export const AGENT_OPTIONS: AgentOption[] = ALL_AGENT_OPTIONS.filter((option) => builtAgents.has(option.value))
 
 export function getAgentLabel(agent?: AgentType | null): string {
   if (!agent) {

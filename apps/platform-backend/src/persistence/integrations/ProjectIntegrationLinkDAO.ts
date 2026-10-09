@@ -290,7 +290,7 @@ export class ProjectIntegrationLinkDAO {
       integration: {
         id: String(row.integration_id),
         name: String(row.integration_name),
-        system: row.integration_system as TicketSystem,
+        system: String(row.integration_system),
         isActive: Boolean(row.integration_is_active),
       },
     }

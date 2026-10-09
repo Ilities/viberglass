@@ -5,8 +5,7 @@ npm run build -w @viberglass/types -w @viberglass/telemetry
 
 npm run build -w @viberglass/platform-ui -w @viberglass/chat-slack -w @viberglass/model-hosting-verda -w @viberglass/mcp-server -w @viberglass/integration-core
 
-integration_ws=$(npm query '.workspace[name^=@viberglass/integration-]:not([name=@viberglass/integration-core]):not([name*=__])' --json \
-  | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>console.log(JSON.parse(d).map(p=>"-w "+p.name).join(" ")))')
+integration_ws=$(node "$(dirname "$0")/plugins/list.mjs" integrations)
 
 if [ -n "$integration_ws" ]; then
   npm run build $integration_ws

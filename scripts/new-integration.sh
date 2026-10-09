@@ -7,7 +7,8 @@
 # What it does:
 #   1. Copies packages/integrations/_template/ to packages/integrations/integration-<name>/
 #   2. Substitutes __NAME__, __DISPLAY_NAME__, __PascalName__, __name__ placeholders
-#   3. Prints next steps
+#   3. Adds it to viberglass.plugins.json and regenerates the plugin registrations
+#   4. Prints next steps
 
 set -euo pipefail
 
@@ -58,20 +59,14 @@ find "$TARGET_DIR" -type f \( -name "*.ts" -o -name "*.json" -o -name "*.js" \) 
     "$file"
 done
 
+node "$WORKSPACE_ROOT/scripts/plugins/add.mjs" integrations "@viberglass/integration-$NAME"
+node "$WORKSPACE_ROOT/scripts/plugins/generate.mjs"
+
 echo ""
 echo "Created $TARGET_DIR"
 echo ""
 echo "Next steps:"
-echo "  0. If '$NAME' is not yet in packages/types/src/common.ts TICKET_SYSTEMS, add it first."
 echo "  1. Implement $TARGET_DIR/src/backend/${PASCAL_NAME}Integration.ts"
 echo "  2. Fill in configFields and supports in src/backend/plugin.ts"
 echo "  3. Add custom section components to src/frontend/ if needed"
-echo "  4. Add to apps/platform-backend/package.json:  \"@viberglass/integration-$NAME\": \"*\""
-echo "  5. Import in apps/platform-backend/src/integrations/registerIntegrationPlugins.ts:"
-echo "       import ${NAME}Plugin from \"@viberglass/integration-$NAME\";"
-echo "       .register(${NAME}Plugin)"
-echo "  6. Add to apps/platform-frontend/package.json:  \"@viberglass/integration-$NAME\": \"*\""
-echo "  7. Import in apps/platform-frontend/src/integrations/registerFrontendIntegrationPlugins.ts:"
-echo "       import ${NAME}Frontend from \"@viberglass/integration-$NAME/frontend\";"
-echo "       .register(${NAME}Frontend)"
-echo "  8. Run: npm install && npm run build"
+echo "  4. Run: npm install && npm run build"

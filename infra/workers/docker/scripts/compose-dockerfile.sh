@@ -2,11 +2,11 @@
 # Compose an agent Dockerfile from the standard header + plugin fragment.
 #
 # Usage:
-#   ./compose-dockerfile.sh --agent <variant>
+#   ./compose-dockerfile.sh --agent <variant> [--dir <package dir>]
 #
 # Examples:
 #   ./compose-dockerfile.sh --agent pi
-#   ./compose-dockerfile.sh --agent antigravity
+#   ./compose-dockerfile.sh --agent mistral --dir packages/agents/agent-mistral-vibe
 #
 # Output: infra/workers/docker/generated/<variant>.Dockerfile
 #
@@ -16,27 +16,26 @@ set -euo pipefail
 
 WORKSPACE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 AGENT=""
-PACKAGE=""  # defaults to AGENT if not set
+PACKAGE_DIR=""  # defaults to packages/agents/agent-<variant>
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --agent)   AGENT="$2";   shift 2 ;;
-    --package) PACKAGE="$2"; shift 2 ;;
+    --dir)     PACKAGE_DIR="$2"; shift 2 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 
 if [[ -z "$AGENT" ]]; then
-  echo "Usage: $(basename "$0") --agent <variant> [--package <packageDirSuffix>]" >&2
+  echo "Usage: $(basename "$0") --agent <variant> [--dir <package dir>]" >&2
   echo "Example: $(basename "$0") --agent pi" >&2
-  echo "Example: $(basename "$0") --agent mistral --package mistral-vibe" >&2
+  echo "Example: $(basename "$0") --agent mistral --dir packages/agents/agent-mistral-vibe" >&2
   exit 1
 fi
 
-# Package dir suffix defaults to the agent variant when they match
-PACKAGE="${PACKAGE:-$AGENT}"
+PACKAGE_DIR="${PACKAGE_DIR:-packages/agents/agent-$AGENT}"
 
-FRAGMENT_FILE="$WORKSPACE_ROOT/packages/agents/agent-$PACKAGE/Dockerfile.fragment"
+FRAGMENT_FILE="$WORKSPACE_ROOT/$PACKAGE_DIR/Dockerfile.fragment"
 if [[ ! -f "$FRAGMENT_FILE" ]]; then
   echo "Error: Fragment not found: $FRAGMENT_FILE" >&2
   exit 1

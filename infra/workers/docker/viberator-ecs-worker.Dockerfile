@@ -12,6 +12,8 @@ COPY packages/types/ ./packages/types/
 COPY packages/telemetry/ ./packages/telemetry/
 COPY packages/agent-core/ ./packages/agent-core/
 COPY packages/agents/ ./packages/agents/
+COPY viberglass.plugins.json ./
+COPY scripts/plugins/ ./scripts/plugins/
 RUN npm install --workspace=@viberator/orchestrator
 COPY apps/viberator ./apps/viberator
 RUN npm run build:worker

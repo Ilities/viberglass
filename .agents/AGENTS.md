@@ -66,15 +66,15 @@ These are the single source of truth instructions for agent behavior and backend
 - Domain types used by extensions belong in `@viberglass/types` — import them, never redefine them.
 - Generic infrastructure (DAOs, registries, bridges) must not reference any specific provider by name.
 
-**Adding a new agent:** The agent system uses a plugin registry. Use `npm run new:agent <name>` to scaffold from the template, then:
+**Plugins in a build:** `viberglass.plugins.json` lists the harness and integration packages a build includes. `npm run generate:plugins` writes the worker, backend and frontend registrations (`configured*Plugins.ts`, don't edit them) and each app's plugin dependencies from it; the build scripts, catalogs and worker Dockerfiles read it too.
+
+**Adding a new agent:** Use `npm run new:agent <name>` to scaffold from the template; it adds the package to `viberglass.plugins.json` and regenerates the registrations. Then:
 1. Implement the agent class in `packages/agents/agent-<name>/src/<Name>Agent.ts` (extend `BaseAgent`).
 2. Fill in `plugin.ts` — `defaultConfig`, `envAliases`, `stateDirs` (and `stateExcludes` for credential files), `docker` metadata.
 3. Write `Dockerfile.fragment` — install command, ENV, LABEL.
-4. Add `"@viberglass/agent-<name>": "*"` to `apps/viberator/package.json`.
-5. Add one line in `apps/viberator/src/agents/registerPlugins.ts`: `.register(myPlugin)`.
-6. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
+4. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
 
-Inside the worker, `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory` and `ConfigManager` are registry-driven. Several lists are not: the worker build script, the catalog generator, the Dockerfile generator, the platform's `AgentType` and backend agent normalisers, and a database constraint. `packages/agents/README.md` lists them all; the platform won't run the agent until they are updated.
+The worker is registry-driven. The platform still keeps its own lists of harnesses (`AgentType` and the labels, options and per-harness config in `@viberglass/types`, the backend agent normalisers, the frontend runner form); `packages/agents/README.md` lists them, and the platform won't run the agent until they are updated.
 
 ### 5) Naming Conventions
 

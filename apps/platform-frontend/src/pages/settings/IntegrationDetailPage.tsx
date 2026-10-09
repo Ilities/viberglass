@@ -24,7 +24,7 @@ import {
 import { getProjects, type Project } from '@/service/api/project-api'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type { Integration, TicketSystem } from '@viberglass/types'
+import type { Integration } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
@@ -106,7 +106,7 @@ export function IntegrationDetailPage() {
         const typeMap = new Map(availableTypes.map((type) => [type.id, type]))
 
         if (integrationSystemParam) {
-          const type = typeMap.get(integrationSystemParam as TicketSystem)
+          const type = typeMap.get(integrationSystemParam)
           setIntegrationType(type || null)
           setExistingIntegration(null)
           return

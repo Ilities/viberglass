@@ -25,7 +25,7 @@ export class IntegrationRegistry {
   }
 
   getWebhookProvider(system: string): string | null {
-    const plugin = this.plugins.get(system as TicketSystem)
+    const plugin = this.plugins.get(system)
     return plugin?.webhookProvider ?? null
   }
 
