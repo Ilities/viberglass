@@ -38,7 +38,8 @@ export class TaskDiscussionService {
   }
 
   /** Posts the message and returns its id. */
-  async create(ticketId: string, authorId: string, body: string): Promise<string> {
+  /** With `source`, the message was written in that tracker, by someone with an account here. */
+  async create(ticketId: string, authorId: string, body: string, { source }: { source?: string } = {}): Promise<string> {
     const text = body.trim();
     if (!text || text.length > MAX_BODY) {
       throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.MESSAGE_INVALID, "Write a message of up to 20,000 characters.");
@@ -48,11 +49,17 @@ export class TaskDiscussionService {
       await this.deps.visibility.assertCanSeeTask(ticketId, userId);
     }
 
-    const messageId = await this.deps.messages.create({ ticketId, authorId, body: text, mentionedUserIds: mentioned });
+    const messageId = await this.deps.messages.create({
+      ticketId,
+      authorId,
+      body: text,
+      mentionedUserIds: mentioned,
+      ...(source ? { external: { source, authorName: null } } : {}),
+    });
     for (const userId of mentioned) {
       await this.deps.participants.add(ticketId, userId, "watcher", authorId);
     }
-    await this.deps.activity.record(ticketId, { type: "human", userId: authorId }, "message_posted", { messageId, mentioned });
+    await this.deps.activity.record(ticketId, { type: "human", userId: authorId }, "message_posted", { messageId, mentioned, ...(source ? { source } : {}) });
     return messageId;
   }
 

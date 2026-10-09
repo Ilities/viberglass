@@ -29,6 +29,7 @@ function setup(options: { before?: TaskPlanParts; after?: TaskPlanParts; open?: 
     marks: { set: jest.fn().mockResolvedValue(undefined), clear: jest.fn().mockResolvedValue(undefined) },
     pullRequests: { discardUnopened: jest.fn().mockResolvedValue(true) },
     activity: { record: jest.fn().mockResolvedValue(undefined) },
+    lifecycle: { synchronize: jest.fn().mockResolvedValue("in_review") },
   };
   return { deps, service: new TaskPartMarksService(deps) };
 }
@@ -74,6 +75,17 @@ describe("TaskPartMarksService", () => {
 
     expect(deps.marks.clear).toHaveBeenCalledWith("t-1", 2);
     expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "maria" }, "part_unmarked", { part: 2 });
+    expect(deps.tickets.updateTicket).not.toHaveBeenCalled();
+  });
+
+  it("opens a finished task again when a mark is taken back", async () => {
+    const { deps, service } = setup({ status: "resolved" });
+
+    await service.unmark("t-1", "maria", 3);
+
+    expect(deps.tickets.updateTicket).toHaveBeenCalledWith("t-1", { status: "open" });
+    expect(deps.lifecycle.synchronize).toHaveBeenCalledWith("t-1");
+    expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "maria" }, "part_unmarked", { part: 3, reopened: true });
   });
 
   it("discards a build that never opened its pull request", async () => {

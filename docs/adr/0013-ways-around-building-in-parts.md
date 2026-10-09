@@ -26,4 +26,5 @@ ADR 0010 made a part's state come only from its pull request, and let a later pa
 - The Code tab's progress reads "2 of 3 parts done" once a part was marked rather than merged.
 - The build prompt has a sentence for a build that adds parts to the open pull request. A revision of the plan is told done parts are built; skipped ones aren't.
 - Activity records each mark, each mark taken back and each discarded build.
+- A build that stopped before opening its pull request is offered again ("Build part 2 again"), on the same branch. It isn't discarded on its own: resuming a paused agent continues it, so discarding is left to a person giving up on it. Taking back a mark on a finished task opens it again.
 - ADR 0010: a part's state comes from its pull request or a person's mark, never from the plan's text; parts are built in order unless added to the open pull request.

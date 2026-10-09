@@ -98,7 +98,8 @@ export function buildSuggestions(planParts: TaskPlanParts | null): TaskSuggestio
   if (!next) return []
   const offered: TaskSuggestion[] = [{ action: 'code', label: next.label, ...(next.parts ? { parts: next.parts } : {}) }]
   const left = planParts?.parts.filter((part) => part.status === 'not_built') ?? []
-  if (next.parts && left.length > 1) {
+  // A build offered again keeps its parts; the rest go with it only once nothing is open.
+  if (next.parts && !planParts?.open && left.length > 1) {
     const rest = { first: next.parts.first, last: null }
     offered.push({ action: 'code', label: buildPartsMessage(rest), parts: rest })
   }

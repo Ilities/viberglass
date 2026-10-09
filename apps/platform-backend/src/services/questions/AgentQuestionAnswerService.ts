@@ -38,7 +38,8 @@ export class AgentQuestionAnswerService {
     };
   }
 
-  async answer(taskId: string, questionId: string, userId: string, text: string): Promise<AskResult> {
+  /** `source` is the tracker the answer was written in, so the agent's reply goes back there. */
+  async answer(taskId: string, questionId: string, userId: string, text: string, { source }: { source?: string } = {}): Promise<AskResult> {
     const answer = text.trim();
     if (!answer) throw new AgentQuestionError(AGENT_QUESTION_ERROR_CODE.NO_ANSWER, "Write an answer.");
 
@@ -56,7 +57,7 @@ export class AgentQuestionAnswerService {
       const action = askedIn?.action ?? "reply";
       await this.deps.policy.assertCanAsk(userId, taskId, action);
       // Linked to its question before the agent is asked, so the turn's prompt says what it answers.
-      const messageId = await this.deps.discussion.create(taskId, userId, answer);
+      const messageId = await this.deps.discussion.create(taskId, userId, answer, source ? { source } : {});
       await this.deps.questions.answer(question.id, { by: userId, text: answer, messageId });
       const asked = await this.deps.asker.ask(taskId, userId, {
         message: answer,

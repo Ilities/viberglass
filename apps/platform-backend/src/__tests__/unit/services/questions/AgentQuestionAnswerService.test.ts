@@ -50,7 +50,7 @@ describe("AgentQuestionAnswerService", () => {
     await service.answer("t-1", "q-1", "u-maria", "  North  ");
 
     expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("u-maria", "t-1", "plan");
-    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "u-maria", "North");
+    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "u-maria", "North", {});
     // Linked before the agent is asked, so the turn's prompt can say what the message answers.
     expect(deps.questions.answer.mock.invocationCallOrder[0]).toBeLessThan(deps.asker.ask.mock.invocationCallOrder[0]);
     expect(deps.questions.answer).toHaveBeenCalledWith("q-1", { by: "u-maria", text: "North", messageId: "m-1" });

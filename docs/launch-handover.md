@@ -16,10 +16,7 @@ Since the last handover: the trackers' webhooks were tested against real GitHub,
 - `TaskBranchDAO.claim` reuses the latest live branch only when a build continues it or it covers the parts asked for. That rule has no unit test (it's a query).
 - Bug fixed on the way: looking at a task's code branch (the task page, MCP) claimed a branch for the whole plan, so every part read "Building" and part 1 couldn't be built. Reads now only preview the name; taking the work over claims it, for the parts left.
 
-Known gaps:
-- Taking a mark back on a finished task doesn't reopen it.
-- The parts box header still says "one pull request each" after parts are added together.
-- A build that fails before opening its pull request isn't discarded on its own; someone has to press Discard.
+Gaps fixed on 2026-10-09 (uncommitted): taking a mark back on a finished task opens it again; the parts box header drops "one pull request each" once parts share one; a build that stopped before opening its pull request is offered again ("Build part 2 again", same branch) rather than discarded on its own, since resuming a paused agent continues it; an answer to the agent's question written in a tracker is stored with that tracker as its source, so the agent's reply is posted back.
 
 Also late on 2026-10-08, uncommitted with the above:
 - Eleven token.observer tasks showed every part as Building from the branch-claim bug; their stray rows were deleted from the dev DB (none had a build).
@@ -80,8 +77,8 @@ Trackers as linked threads ([ADR 0011](adr/0011-tracker-issues-are-linked-thread
 
 ## Start here
 
-1. Finish trying the parts work on a real build in token.observer: add part 2 to part 1's pull request and check the agent pushes to the same one, mark a part done and check the task finishes, then a failed build and Discard.
-2. Fix whichever of the known gaps above and below matter after that.
+1. Finish trying the parts work on a real build in token.observer: add part 2 to part 1's pull request and check the agent pushes to the same one, mark a part done and check the task finishes and that taking the mark back reopens it, then a failed build, "Build part N again" and Discard.
+2. Fix whichever of the known gaps below matter after that.
 3. Then the manual steps below and the rest of launch-todo.
 
 The dev stack is `docker compose up -d` (app on :3000, API on :8888). After changing `packages/types`, run its build and touch a backend file so nodemon restarts; the dev backend runs new migrations on start. Integration packages are baked into the dev frontend image: after changing a package's frontend code, rebuild the package and run `docker compose up -d --build frontend`. A tracker needs a tunnel to reach the webhook URL (`ngrok http 8888`); the GitHub connection's webhook is `497130fc-…`.
@@ -90,7 +87,6 @@ The dev stack is `docker compose up -d` (app on :3000, API on :8888). After chan
 
 - Shortcut comment events carry the author only as a member id, so commenters show as "A Shortcut member". The delivery history has real payloads to check against.
 - Closing or reopening an issue doesn't change its task. Jira mentions written in rich text only match when the bot account is set to the mention's display text; wiki-markup bodies match by account ID.
-- An answer given from a tracker isn't marked as coming from the issue, so the agent's reply to it isn't posted back (the plan and other milestones still are).
 - The Markdown to Jira wiki conversion is deliberately simple.
 - The generic connection configuration form (now only used by Jira) is plain; worth a look once Jira works.
 - Not checked visually: outside authors in the thread, the GitHub and Shortcut connection screens after the rewording, the forgot-password page.

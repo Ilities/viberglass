@@ -4,6 +4,7 @@ import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestD
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
 import { TaskAskPolicyService } from "../taskTurns/TaskAskPolicyService";
+import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "./TaskActivityRecorder";
 import { TaskPartsService } from "./TaskPartsService";
 
@@ -14,6 +15,7 @@ interface Dependencies {
   marks: Pick<TaskPlanPartMarkDAO, "set" | "clear">;
   pullRequests: Pick<TaskPullRequestDAO, "discardUnopened">;
   activity: Pick<TaskActivityRecorder, "record">;
+  lifecycle: Pick<TicketLifecycleStatusService, "synchronize">;
 }
 
 /**
@@ -33,6 +35,7 @@ export class TaskPartMarksService {
       marks: new TaskPlanPartMarkDAO(),
       pullRequests: new TaskPullRequestDAO(),
       activity: new TaskActivityRecorder(),
+      lifecycle: new TicketLifecycleStatusService(),
       ...deps,
     };
   }
@@ -54,10 +57,20 @@ export class TaskPartMarksService {
     }
   }
 
+  /** Taking back the mark on a finished task opens it again, since a part is left to build. */
   async unmark(taskId: string, actorId: string, partNumber: number): Promise<void> {
-    await this.allowed(taskId, actorId);
+    const ticket = await this.allowed(taskId, actorId);
     await this.deps.marks.clear(taskId, partNumber);
-    await this.deps.activity.record(taskId, { type: "human", userId: actorId }, "part_unmarked", { part: partNumber });
+
+    const reopened = ticket.status === TICKET_STATUS.RESOLVED;
+    if (reopened) {
+      await this.deps.tickets.updateTicket(taskId, { status: TICKET_STATUS.OPEN });
+      await this.deps.lifecycle.synchronize(taskId);
+    }
+    await this.deps.activity.record(taskId, { type: "human", userId: actorId }, "part_unmarked", {
+      part: partNumber,
+      ...(reopened ? { reopened: true } : {}),
+    });
   }
 
   /** Forgets the open build's branch when it never opened its pull request, so its parts can be built again. */

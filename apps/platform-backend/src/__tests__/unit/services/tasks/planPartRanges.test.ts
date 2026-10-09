@@ -43,4 +43,16 @@ describe("nextBuild", () => {
     expect(nextBuild({ parts: [part(1, "open"), part(2, "not_built")], open: { first: 1, last: 1 }, addable: null, next: null })).toBeNull();
     expect(nextBuild({ parts: [part(1, "merged"), part(2, "merged")], open: null, addable: null, next: null })).toBeNull();
   });
+
+  it("offers a build that never opened its pull request again, for the same parts", () => {
+    const parts = [part(1, "merged"), part(2, "building"), part(3, "building")];
+    expect(nextBuild({ parts, open: { first: 2, last: 2 }, addable: null, next: null })).toEqual({
+      label: "Build part 2 again",
+      parts: { first: 2, last: 2 },
+    });
+    expect(nextBuild({ parts, open: { first: 2, last: null }, addable: null, next: null })).toEqual({
+      label: "Build the rest again",
+      parts: { first: 2, last: null },
+    });
+  });
 });

@@ -114,7 +114,7 @@ describe("TrackerIssueInbound", () => {
     const result = await inbound.commented(CONTEXT, { issueKey: "WEB-12", author: { name: "Maria", email: "maria@example.com" }, body: "North", mentionsBot: false });
 
     expect(result).toEqual({ ticketId: "task-api", projectId: "api", jobId: "job-answer" });
-    expect(deps.answers.answer).toHaveBeenCalledWith("task-api", "q-task-api", "user-maria", "North");
+    expect(deps.answers.answer).toHaveBeenCalledWith("task-api", "q-task-api", "user-maria", "North", { source: "jira" });
     expect(deps.discussion.createFromTracker).toHaveBeenCalledTimes(1);
     expect(deps.discussion.createFromTracker).toHaveBeenCalledWith("task-web", { userId: "user-maria", name: "Maria", source: "jira" }, "North");
   });

@@ -26,7 +26,7 @@ const STATUS: Record<TaskPlanPartStatus, { label: string; color: 'zinc' | 'blue'
 }
 
 /**
- * The parts a plan is built in, each one pull request, with where each stands
+ * The parts a plan is built in, usually one pull request each, with where each stands
  * and a build for the next one; nothing for a plan that's one part. Past the
  * usual order, a part can be added to the open pull request, marked done or
  * skipped, and a build that never opened its pull request discarded.
@@ -56,6 +56,7 @@ export function PlanPartsOutline({
   const statusOf = (number: number) => state?.parts.find((part) => part.number === number)
   const next = state && canBuild ? nextBuild(state) : null
   const addable = state && canBuild && state.open ? state.addable : null
+  const onePullRequestEach = !state || !sharesPullRequest(state)
 
   async function run(action: () => Promise<unknown>, failure: string) {
     setBusy(true)
@@ -76,7 +77,9 @@ export function PlanPartsOutline({
 
   return (
     <nav aria-label="Parts" className="mb-4 rounded-lg border border-[var(--gray-5)] px-4 py-3">
-      <p className="text-sm font-medium text-[var(--gray-12)]">Built in {parts.length} parts, one pull request each</p>
+      <p className="text-sm font-medium text-[var(--gray-12)]">
+        Built in {parts.length} parts{onePullRequestEach && ', one pull request each'}
+      </p>
       <ol className="mt-2 space-y-2 text-sm text-[var(--gray-11)]">
         {parts.map((part) => {
           const status = statusOf(part.number)
@@ -129,6 +132,13 @@ export function PlanPartsOutline({
       </ol>
     </nav>
   )
+}
+
+/** Some parts were built together: the open build covers several, or two parts share a pull request. */
+function sharesPullRequest(state: TaskPlanParts): boolean {
+  if (state.open && state.open.last !== state.open.first) return true
+  const urls = state.parts.flatMap((part) => (part.pullRequestUrl ? [part.pullRequestUrl] : []))
+  return new Set(urls).size < urls.length
 }
 
 function PartMenu({
