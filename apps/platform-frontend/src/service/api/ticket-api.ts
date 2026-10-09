@@ -12,7 +12,6 @@ import type {
   TicketStats,
   TicketWorkflowPhase,
   UpdateTicketRequest,
-  WebhookStatus,
 } from '@viberglass/types'
 
 export interface TicketListResponse {
@@ -427,16 +426,6 @@ export async function setTicketStatus(id: string, status: TicketLifecycleStatus)
     throw new Error(error.error || error.message || 'Failed to set task status')
   }
   const data: ApiResponse<Ticket> = await response.json()
-  return data.data
-}
-
-// Webhook Status API
-export async function getWebhookStatus(): Promise<WebhookStatus> {
-  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch webhook status')
-  }
-  const data: ApiResponse<WebhookStatus> = await response.json()
   return data.data
 }
 

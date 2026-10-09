@@ -1,8 +1,8 @@
 import { Actions, Button, Card, CardText } from "chat";
-import { MAX_OPTION_BUTTONS, SLACK_ACTION, answerValue, askValue } from "@viberglass/chat-slack";
+import { CHAT_ACTION, MAX_OPTION_BUTTONS, answerValue, askValue } from "@viberglass/integration-core";
 import { withPlainMentions, type AgentQuestion, type PartRange } from "@viberglass/types";
 
-/** Slack takes about 4,000 characters a message; long replies end with a link to the rest. */
+/** Under the shortest message limit of the chat services posted to (Slack takes about 4,000 characters); long replies end with a link to the rest. */
 const REPLY_LIMIT = 3_000;
 
 const DOING: Record<string, string> = {
@@ -43,7 +43,7 @@ export function nextBuildCard(ticketId: string, build: { label: string; parts?: 
   return Card({
     children: [
       CardText(intro),
-      Actions([Button({ id: SLACK_ACTION.ask, label: build.label, style: "primary", value: askValue(ticketId, "code", build.parts) })]),
+      Actions([Button({ id: CHAT_ACTION.ask, label: build.label, style: "primary", value: askValue(ticketId, "code", build.parts) })]),
     ],
   });
 }
@@ -64,7 +64,7 @@ export function questionCard(question: AgentQuestion) {
           Actions(
             question.options
               .slice(0, MAX_OPTION_BUTTONS)
-              .map((option, index) => Button({ id: SLACK_ACTION.answers[index], label: option, value: answerValue(question.id, index) })),
+              .map((option, index) => Button({ id: CHAT_ACTION.answers[index], label: option, value: answerValue(question.id, index) })),
           ),
         ]
       : []),

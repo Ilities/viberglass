@@ -1,13 +1,13 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
 import { manifest } from '../manifest'
+import { checkJiraConnection } from './checkJiraConnection'
 import { JiraCommenter } from './JiraCommenter'
-import { JiraIntegration } from './JiraIntegration'
 import { JiraWebhookReceiver } from './JiraWebhookReceiver'
 import type { JiraConfig } from './types'
 
 const jiraPlugin: IntegrationPlugin<JiraConfig> = {
   ...manifest,
-  createIntegration: (config) => new JiraIntegration(config),
+  checkConnection: checkJiraConnection,
   createCommenter: (config) => new JiraCommenter(config),
   webhook: new JiraWebhookReceiver(),
 }

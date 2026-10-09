@@ -1,8 +1,8 @@
 import { SCM_TOKEN_ENV_VAR, type Clanker, type ProjectScmConfig } from "@viberglass/types";
-import type { ProjectConfig } from "../../../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { buildScmPayloadFromContext, prepareTicketRunContext } from "../../../../services/ticketRunOrchestration";
 
-const project: ProjectConfig = {
+const project: Project = {
   id: "project-1",
   name: "Web",
   slug: "web",

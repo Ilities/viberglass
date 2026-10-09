@@ -1,6 +1,4 @@
 export { default } from './plugin'
-export { GitHubIntegration } from './GitHubIntegration'
-export type { GitHubConfig } from './types'
 export { GitHubCommenter } from './GitHubCommenter'
 export { GitHubWebhookReceiver } from './webhook/GitHubWebhookReceiver'
 export { GitHubRepositoryHost, type GitHubRepositoryHostOptions } from './repository/GitHubRepositoryHost'

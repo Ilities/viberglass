@@ -12,6 +12,8 @@ The target for every step: nothing outside a plugin's package names it, except t
 - Harness name, description, logo, default, test-only flag, custom endpoint rank and telemetry provider come from the plugins (`agentCatalog.ts`, `AgentRegistry.getTelemetryProvider`). The default harness is `defaultAgent` in the build config.
 - Inbound webhooks are an integration capability: each tracker's and the custom webhook's `WebhookReceiver` (signature, parsing, retry headers, reading an event into an issue, comment or task) lives in its package with its tests. The backend has one route, `/api/webhooks/:provider/:configId`, and one handler; an unknown address answers 404, a payload the sender has to fix 400.
 - Repositories are an integration capability: a code host's `RepositoryHost` (git username, parsing and checking a repository, opening a pull request, reading its outcome and review) lives in its package. The worker only clones and pushes, with the username the job names, and asks the platform to open the pull request (`POST /api/jobs/:jobId/pull-request`). The platform picks the host by the space's code-host connection, not the URL. Setup connects the build's code host.
+- Chat is an integration capability: a `ChatProvider` (the chat SDK adapter and its handlers, direct messages, finding an account by email, mention syntax) lives in the integration's package; `chat-slack` merged into `integration-slack`. The bot, the task mirror, thread inbound, account links (`user_chat_identities`), DMs, status and the webhook route work for any chat service.
+- "Test connection" calls the plugin's optional `checkConnection`; the legacy `PMIntegration` classes, the per-space integration config endpoints and their DAO are gone.
 - Both kinds of plugin share `PluginManifest` (id, label, description). Each integration package has a `src/manifest.ts` its backend and frontend entries spread; the API sends it as is. Icons are frontend plugin components. The connection screen goes by the manifest: config form when it has `configFields`, token section when it has `credentialUse`, webhook section when it has `webhookProvider` (the tracker one when the frontend plugin has `trackerWebhook`), install section instead of a name prompt when it has `AuthSetupSection`.
 
 ## Learned so far
@@ -58,23 +60,16 @@ The target for every step: nothing outside a plugin's package names it, except t
 ### I1 leftovers
 
 - Stub manifests (GitLab, Bitbucket, Linear, Monday) still declare aspirational `supports` and config fields; fix them when each is built.
-- The per-space integration config endpoints in `api/routes/projects.ts` (`/:projectId/integrations/:integrationId`) have no callers; remove them, and with them the legacy `PMIntegration` config fields (GitHub's owner and repo, Slack's channel).
 
 ### I2 leftovers
 
-- The legacy `PMIntegration.handleWebhook` and `registerWebhook` in the integration classes duplicate the receivers' parsing and aren't called by the webhook pipeline; remove them with the per-space endpoints above.
 - `IntegrationRegistry.getWebhookProvider` and the manifest's `webhookProvider` equal the integration id everywhere; it could become a flag.
 
 ### I3 leftovers
 
 - GitHub Enterprise: the API address follows `GITHUB_API_URL`, but the GitHub host's URL patterns (repository addresses, pull request addresses, clone URLs) still only recognise github.com.
 - The frontend still assumes github.com in a few places: the setup screen's token help (kept on purpose while GitHub is the only code host), placeholders, and `run-facts.tsx`, `run-record-panel.tsx`, `run-activity.tsx` and `build-pull-request-panel.tsx`, which read a bare `owner/repo` as github.com or strip `github.com/` for display.
-- `api/server.ts` logs a `GITHUB_TOKEN` status line at startup; the worker no longer reads `GITHUB_TOKEN`, `GITLAB_*` or `BITBUCKET_*` from its environment, so the CLI help in `cli-handler.ts` that suggests `-e GITHUB_TOKEN` is out of date.
-- `GitHubIntegration.createPullRequest` and `linkPullRequestToIssue` are unused copies of what the host does; remove them with the other legacy `PMIntegration` methods.
 
-### I4. Chat capability
+### I4 leftovers
 
-- `chat-slack` registers as an integration with the chat capability.
-- `chat/index.ts` wires the included chat plugins from the registry.
-- The connection screen still asks `getSlackBotStatus` whether an app-installed connection is connected; the plugin should say how.
-- The `system === "slack"` checks and the `/slack/status` route become capability-driven.
+- Slack is still set up only by environment variables (`SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`); its connection row doesn't hold the token. Moving that into the connection would let the UI set it up.

@@ -121,7 +121,6 @@ services:
       - ./apps/platform-backend:/app/apps/platform-backend:cached
       - ./packages/types:/app/packages/types:cached
       - ./packages/telemetry:/app/packages/telemetry:cached
-      - ./packages/chat-slack:/app/packages/chat-slack:cached
       - ./packages/model-hosting-verda:/app/packages/model-hosting-verda:cached
       - ./packages/integration-core:/app/packages/integration-core:cached
       - ./packages/platform-ui:/app/packages/platform-ui:cached

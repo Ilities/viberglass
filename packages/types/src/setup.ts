@@ -80,7 +80,10 @@ export interface SetupStatus {
 export interface SetupNextSteps {
   /** Someone besides the first admin has an account or an open invite. */
   teamInvited: boolean
-  slackConnected: boolean
+  /** A chat service is set up, so tasks can be started and followed there. */
+  chatConnected: boolean
+  /** The chat integration to set up, when the build includes one. */
+  chatSystem: string | null
   /** A ticketing connection (Jira, Linear, GitHub Issues…) exists. */
   trackerConnected: boolean
 }

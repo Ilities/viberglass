@@ -170,7 +170,7 @@ Slack workspace
 
 Task activity (from anywhere)
   │
-  TaskSlackMirror (activity listener) → taskMirrorPosts → thread.post(...)
+  TaskChatMirror (activity listener) → taskMirrorPosts → thread.post(...)
 ```
 
 Everything a Slack user does is run as their linked Viberglass user, with the Slack user ID recorded on the action (it shows up in the audit log). The mirror uses that to skip posting messages and answers that came from Slack.
@@ -181,23 +181,23 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 
 | File | Purpose |
 |------|---------|
-| `packages/chat-slack/src/index.ts` | `registerSlackHandlers`, registers every handler on the bot |
-| `packages/chat-slack/src/types.ts` | `SlackHandlerServices`, what the backend provides to the handlers |
-| `packages/chat-slack/src/actions.ts` | Button IDs (`task_ask`, `question_answer_0`–`4`) and button values |
-| `packages/chat-slack/src/handlers/slashCommand.ts` | `/viberglass` opens the launch form |
-| `packages/chat-slack/src/handlers/modalSubmit.ts` | Creates the task, starts and links its thread, asks the agent |
-| `packages/chat-slack/src/handlers/threadMessage.ts` | Sends messages in a task's thread to the task |
-| `packages/chat-slack/src/handlers/buttonActions.ts` | Build it and option buttons |
-| `apps/platform-backend/src/chat/bot.ts` | Chat SDK instance with the Slack adapter and PostgreSQL state |
-| `apps/platform-backend/src/chat/index.ts` | Wires the handlers to backend services and registers the mirror |
+| `packages/integrations/integration-slack/src/backend/SlackChatProvider.ts` | Slack's chat capability: the adapter, its handlers, DMs, finding an account by email, Slack's mention syntax |
+| `packages/integrations/integration-slack/src/backend/SlackWebApi.ts` | The Slack Web API calls DMs and account linking use |
+| `packages/integrations/integration-slack/src/backend/chat/slashCommand.ts` | `/viberglass` opens the launch form |
+| `packages/integrations/integration-slack/src/backend/chat/modalSubmit.ts` | Creates the task, starts and links its thread, asks the agent |
+| `packages/integrations/integration-slack/src/backend/chat/threadMessage.ts` | Sends messages in a task's thread to the task |
+| `packages/integrations/integration-slack/src/backend/chat/buttonActions.ts` | Build it and option buttons |
+| `packages/integration-core/src/backend/chat/` | `ChatProvider` and `ChatHandlerServices`, and the button IDs (`task_ask`, `question_answer_0`–`4`) and values |
+| `apps/platform-backend/src/chat/bot.ts` | Chat SDK instance with an adapter for each chat service that is set up, and PostgreSQL state |
+| `apps/platform-backend/src/chat/index.ts` | Wires each chat service's handlers to backend services and registers the mirror |
 | `apps/platform-backend/src/chat/TaskThreadInbound.ts` | Does thread messages, asks and answers as the linked user |
-| `apps/platform-backend/src/chat/TaskSlackMirror.ts` | Turns task activity into posts in the task's thread |
+| `apps/platform-backend/src/chat/TaskChatMirror.ts` | Turns task activity into posts in the task's thread |
 | `apps/platform-backend/src/chat/taskMirrorPosts.ts` | The posts and cards themselves |
 | `apps/platform-backend/src/chat/ticketThreadMap.ts` | Task ↔ thread mapping, with an in-memory cache |
 | `apps/platform-backend/src/chat/platformLinks.ts` | Task links from `PLATFORM_FRONTEND_URL` |
-| `apps/platform-backend/src/api/routes/webhooks/slack.routes.ts` | `POST /api/webhooks/slack`, hands requests to the Chat SDK |
-| `apps/platform-backend/src/api/routes/me.ts` | `POST /api/me/slack-link`, links a Slack account by email |
-| `apps/platform-backend/src/services/notifications/SlackDmChannel.ts` | DMs to linked users |
+| `apps/platform-backend/src/api/routes/webhooks/chat.routes.ts` | `POST /api/webhooks/slack` (any chat service's adapter name), hands requests to the Chat SDK |
+| `apps/platform-backend/src/api/routes/me.ts` | `POST /api/me/chat-links/slack`, links a Slack account by email; links are kept in `user_chat_identities` |
+| `apps/platform-backend/src/services/notifications/ChatDmChannel.ts` | DMs to linked users |
 | `apps/platform-backend/slack-app-manifest.json` | Slack app manifest |
 
 ## Troubleshooting

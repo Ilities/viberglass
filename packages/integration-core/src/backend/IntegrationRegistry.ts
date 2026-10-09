@@ -29,11 +29,6 @@ export class IntegrationRegistry {
     return plugin?.webhookProvider ?? null
   }
 
-  /** The integration whose webhooks a stored webhook config names. */
-  getByWebhookProvider(provider: string): IntegrationPlugin | undefined {
-    return this.list().find((plugin) => plugin.webhookProvider === provider)
-  }
-
   getDefaultInboundEvents(provider: string): string[] {
     for (const plugin of this.plugins.values()) {
       if (plugin.webhookProvider === provider) {

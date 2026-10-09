@@ -433,7 +433,13 @@ export interface UsersTable {
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
   deactivated_at: Timestamp | null;
-  slack_user_id: string | null;
+}
+
+export interface UserChatIdentitiesTable {
+  user_id: string;
+  adapter_name: string;
+  chat_user_id: string;
+  created_at: Generated<Timestamp>;
 }
 
 export interface InvitesTable {
@@ -770,6 +776,7 @@ export interface ApiTokensTable {
 }
 
 export interface Database {
+  user_chat_identities: UserChatIdentitiesTable;
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
   tickets: TicketsTable;

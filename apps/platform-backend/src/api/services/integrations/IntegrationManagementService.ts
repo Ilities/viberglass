@@ -125,10 +125,7 @@ export class IntegrationManagementService {
     const credentials = await this.credentials.resolve(integration);
 
     try {
-      const integrationInstance = plugin.createIntegration(
-        credentials,
-      );
-      await integrationInstance.authenticate(credentials);
+      await plugin.checkConnection?.(credentials);
 
       return {
         success: true,

@@ -7,7 +7,7 @@ import type {
   ProjectScmConfig,
   UpsertProjectScmConfigRequest,
 } from "@viberglass/types";
-import type { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { ProjectDAO, slugify } from "../../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { IntegrationDAO } from "../../persistence/integrations/IntegrationDAO";
@@ -31,8 +31,8 @@ export interface CreateSpaceInput {
 
 
 interface Projects {
-  findByName(slug: string): Promise<ProjectConfig | null>;
-  createProject(request: NewProject, maintainerId?: string): Promise<ProjectConfig>;
+  findByName(slug: string): Promise<Project | null>;
+  createProject(request: NewProject, maintainerId?: string): Promise<Project>;
 }
 
 interface ScmConfigs {
@@ -136,7 +136,7 @@ export class SetupSpaceService {
     slug: string,
     repositoryUrl: string,
     createdBy: string | undefined,
-  ): Promise<ProjectConfig> {
+  ): Promise<Project> {
     const existing = await this.projects.findByName(slug);
     if (!existing) {
       return this.projects.createProject({

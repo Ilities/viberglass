@@ -1,5 +1,5 @@
 import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ModelEndpoint, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
-import type { ProjectConfig } from "../../../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { SetupStatusService } from "../../../../services/setup/SetupStatusService";
 
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
@@ -26,7 +26,7 @@ const TOKEN: IntegrationCredential = {
   updatedAt: "",
 };
 
-const PROJECT: ProjectConfig = {
+const PROJECT: Project = {
   id: "project-1",
   name: "Web",
   slug: "web",

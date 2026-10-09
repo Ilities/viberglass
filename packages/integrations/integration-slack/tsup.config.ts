@@ -9,7 +9,7 @@ export default defineConfig([
     dts: { compilerOptions: { skipLibCheck: true } },
     clean: true,
     splitting: false,
-    external: ['@viberglass/types', '@viberglass/integration-core'],
+    external: ['@viberglass/types', '@viberglass/integration-core', 'chat', '@chat-adapter/slack'],
   },
   {
     entry: { index: 'src/frontend/index.ts' },

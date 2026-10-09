@@ -10,9 +10,6 @@ const mockProjectScmConfigDAO = {
   upsertByProjectId: jest.fn(),
   deleteByProjectId: jest.fn(),
 };
-const mockIntegrationConfigDAO = {
-  listConfigs: jest.fn(),
-};
 const mockProjectIntegrationLinkDAO = {
   isLinked: jest.fn(),
 };
@@ -36,10 +33,6 @@ jest.mock("../../../../persistence/project/ProjectDAO", () => ({
 
 jest.mock("../../../../persistence/project/ProjectScmConfigDAO", () => ({
   ProjectScmConfigDAO: jest.fn(() => mockProjectScmConfigDAO),
-}));
-
-jest.mock("../../../../persistence/integrations/IntegrationConfigDAO", () => ({
-  IntegrationConfigDAO: jest.fn(() => mockIntegrationConfigDAO),
 }));
 
 jest.mock(

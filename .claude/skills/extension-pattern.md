@@ -54,11 +54,11 @@ The `*Services` interface in the package must be:
 4. **Named for intent** — `launchSession()` not `agentSessionLaunchService.launch()`.
 
 ```typescript
-// packages/chat-slack/src/types.ts
+// a package's types.ts
 import type { AgentSessionMode } from "@viberglass/types";  // ← import, never redefine
 import type { Thread } from "chat";
 
-export interface SlackHandlerServices {
+export interface ExampleHandlerServices {
   listProjects(): Promise<Array<{ id: string; name: string }>>;
   launchSession(params: {
     ticketId: string;
@@ -75,33 +75,19 @@ The package lists `@viberglass/types` as a peer dependency.
 
 ---
 
-## Canonical Example — chat-slack
+## Canonical Example — chat (Slack)
 
-**Package:** `packages/chat-slack`
-- `src/types.ts` — `SlackHandlerServices` importing domain types from `@viberglass/types`
-- `src/handlers/` — 5 Slack-specific handlers (slash command, modal, thread reply, mention, approval)
-- `src/index.ts` — `registerSlackHandlers(bot: Chat, services: SlackHandlerServices): void`
+**Contract:** `packages/integration-core/src/backend/chat/` — `ChatProvider` (adapter, handlers, DMs, account lookup, mention syntax) and `ChatHandlerServices` (what the platform does for the handlers, keyed by `chatUserId`).
+
+**Package:** `packages/integrations/integration-slack` — `SlackChatProvider` on the plugin's `chat`, with the Slack handlers under `src/backend/chat/`.
 
 **Generic infrastructure (backend):**
-- `persistence/chat/ChatSessionThreadDAO.ts` — stores `adapter_name` column, no "slack" anywhere
-- `chat/sessionThreadMap.ts` — `linkSessionThread(sessionId, thread, adapterName)`
-- `chat/ChatSessionBridgeService.ts` — polls and posts events; works with any `Thread`
+- `chat/bot.ts` — one adapter per chat service that is set up
+- `chat/index.ts` — builds `ChatHandlerServices` per service and calls `provider.registerHandlers`
+- `chat/TaskChatMirror.ts`, `TaskThreadInbound.ts`, `ticketThreadMap.ts` — work with any `Thread`; nothing names Slack
+- `persistence/user/ChatIdentityDAO.ts` — linked accounts by adapter name
 
-**Composition root:** `chat/index.ts`
-```typescript
-const slackServices: SlackHandlerServices = {
-  listProjects: () => projectDAO.listProjects(),
-  launchSession: (params) => launchService.launch(params),  // types align — both use AgentSessionMode
-  linkSessionThread: (sessionId, thread) => linkSessionThread(sessionId, thread, "slack"),
-  replyToSession: async (sessionId, text) => { await interactionService.reply(sessionId, text); },
-  // ...
-};
-registerSlackHandlers(bot, slackServices);
-```
-
-**Adding Discord:** create `packages/chat-discord`, implement `SlackHandlerServices` (rename to `ChatHandlerServices` if sharing), add one `registerDiscordHandlers(bot, discordServices)` call to `chat/index.ts`. No changes to DAO, bridge, or session map.
-
----
+**Adding Discord:** an integration package whose plugin sets `chat` to a `ChatProvider`. No changes to the bot, mirror, DAO or routes.
 
 ## Applying to Other Domains
 

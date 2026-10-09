@@ -30,7 +30,7 @@ export interface TrackerWebhookDescriptor {
 }
 
 export interface AuthSetupSectionProps {
-  // For OAuth/install flows like Slack - extend as needed
+  /** Whether the integration's workspace-level bot or app is set up, for install-style connections. */
   getBotStatus?: () => Promise<{ configured: boolean }>
 }
 
@@ -38,6 +38,6 @@ export interface IntegrationFrontendPlugin extends IntegrationManifest {
   Icon: ComponentType<{ className?: string }>
   /** Set for trackers whose issues spaces take as linked tasks. */
   trackerWebhook?: TrackerWebhookDescriptor
-  /** Additional auth/install section (e.g. Slack OAuth); undefined = show nothing */
+  /** Additional auth/install section, such as an app install guide; undefined = show nothing */
   AuthSetupSection?: ComponentType<AuthSetupSectionProps>
 }

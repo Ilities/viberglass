@@ -93,7 +93,7 @@ Options:
 
 Examples:
   # Direct JSON input
-  worker --job-data '{"jobId":"job-123","tenantId":"tenant-abc","workerType":"docker","repository":"https://github.com/user/repo","task":"Fix the bug","requiredCredentials":["GITHUB_TOKEN"],"instructionFiles":[],"clankerId":"clanker-1"}'
+  worker --job-data '{"jobId":"job-123","tenantId":"tenant-abc","workerType":"docker","repository":"https://github.com/user/repo","task":"Fix the bug","requiredCredentials":["VIBERGLASS_SCM_TOKEN"],"scm":{"credentialEnvVar":"VIBERGLASS_SCM_TOKEN","gitUsername":"x-access-token"},"instructionFiles":[],"clankerId":"clanker-1"}'
 
   # File input
   worker --job-file /tmp/job.json
@@ -111,8 +111,9 @@ Environment Variables:
   TENANT_ID                 Tenant identifier used for bootstrap auth header
 
 Docker Credential Flow:
-  Credentials are passed via environment variables at container start (docker run -e GITHUB_TOKEN=...).
+  Credentials are passed via environment variables at container start (docker run -e VIBERGLASS_SCM_TOKEN=...).
   The CredentialProvider checks process.env before SSM, so Docker workers receive credentials from the host.
+  Git uses the token named by scm.credentialEnvVar, with the username in scm.gitUsername.
 `);
 }
 

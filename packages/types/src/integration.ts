@@ -138,19 +138,6 @@ export interface IntegrationSummary extends IntegrationManifest {
   errorMessage?: string
 }
 
-// Integration configuration values stored per project (legacy - will be removed)
-// Now replaced by the top-level Integration entity
-/** @deprecated Use Integration instead */
-export interface IntegrationConfig {
-  projectId: string
-  integrationId: TicketSystem
-  authType: AuthCredentialType
-  // Dynamic configuration values based on integration's configFields
-  values: Record<string, unknown>
-  createdAt: string
-  updatedAt: string
-}
-
 // Request to create a new integration
 export interface CreateIntegrationRequest {
   name: string
@@ -165,24 +152,6 @@ export interface UpdateIntegrationRequest {
   // Non-sensitive configuration (baseUrl, owner, repo, etc.)
   config?: Record<string, unknown>
   isActive?: boolean
-}
-
-// Request to link an integration to a project
-export interface LinkIntegrationToProjectRequest {
-  integrationId: string
-  isPrimary?: boolean
-}
-
-// Request to unlink an integration from a project
-export interface UnlinkIntegrationFromProjectRequest {
-  integrationId: string
-}
-
-// Request to configure an integration (legacy - use CreateIntegrationRequest or UpdateIntegrationRequest instead)
-/** @deprecated Use CreateIntegrationRequest or UpdateIntegrationRequest instead */
-export interface ConfigureIntegrationRequest {
-  authType: AuthCredentialType
-  values: Record<string, unknown>
 }
 
 // Response from testing an integration connection

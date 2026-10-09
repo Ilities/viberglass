@@ -1,3 +1,4 @@
+import { integrationLabel } from '@/integrations/integrationLabels'
 import { AUDIT_ACTION_TEXT, type AuditEntry, type AuditTargetType } from '@viberglass/types'
 
 export const AREA_LABEL: Record<AuditTargetType, string> = {
@@ -15,11 +16,16 @@ export const AREA_LABEL: Record<AuditTargetType, string> = {
 
 const STEP_NOUN: Record<string, string> = { planning: 'plan', execution: 'build' }
 
-/** "Maria approved a step"; a Slack user nobody linked is named by their Slack id, and the system stands in for nobody. */
+/** The chat service an entry came from, by its name, when it came from chat. */
+function chatService(entry: AuditEntry): string | null {
+  return typeof entry.details.via === 'string' && entry.details.via ? integrationLabel(entry.details.via) : null
+}
+
+/** "Maria approved a step"; a chat user nobody linked is named by their chat id, and the system stands in for nobody. */
 export function auditSentence(entry: AuditEntry): string {
-  const slackUser = entry.details.via === 'slack' && typeof entry.details.slackUserId === 'string' ? entry.details.slackUserId : null
-  const who =
-    entry.actor?.name ?? (slackUser ? `Slack user ${slackUser}` : entry.actorKind === 'system' ? 'The system' : 'Someone who has left')
+  const service = chatService(entry)
+  const chatUser = service && typeof entry.details.chatUserId === 'string' ? `${service} user ${entry.details.chatUserId}` : null
+  const who = entry.actor?.name ?? chatUser ?? (entry.actorKind === 'system' ? 'The system' : 'Someone who has left')
   return `${who} ${AUDIT_ACTION_TEXT[entry.action]}`
 }
 
@@ -32,6 +38,7 @@ export function auditDetails(entry: AuditEntry, personName: (id: string) => stri
   const role = text('role')
   const direction = text('direction')
   const removedFile = text('removedFile')
+  const service = chatService(entry)
   const fields = Array.isArray(entry.details.fields) ? entry.details.fields.filter((field) => typeof field === 'string') : []
   return [
     step && `the ${STEP_NOUN[step] ?? step}`,
@@ -43,6 +50,6 @@ export function auditDetails(entry: AuditEntry, personName: (id: string) => stri
     direction && `${direction} webhooks`,
     removedFile && `removed ${removedFile}`,
     fields.length > 0 && `changed ${fields.join(', ')}`,
-    entry.details.via === 'slack' && 'from Slack',
+    service && `from ${service}`,
   ].filter((fact): fact is string => typeof fact === 'string' && fact.length > 0)
 }

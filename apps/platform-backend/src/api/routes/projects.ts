@@ -2,17 +2,15 @@ import express from "express";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ProjectDeletionSummaryDAO } from "../../persistence/project/ProjectDeletionSummaryDAO";
-import { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import {
-  IntegrationConfigDAO,
   IntegrationCredentialDAO,
   IntegrationDAO,
   ProjectIntegrationLinkDAO,
 } from "../../persistence/integrations";
 import {
   validateCreateProject,
-  validateIntegrationConfig,
   validateProjectScmConfig,
   validateUpdateProject,
   validateUuidParam,
@@ -33,16 +31,8 @@ import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPend
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import type {
   AgentSessionStatus,
-  AuthCredentials,
-  ConfigureIntegrationRequest,
-  IntegrationConfig,
-  IntegrationFieldDefinition,
-  IntegrationSummary,
-  TestIntegrationResponse,
-  TicketSystem,
   UpsertProjectScmConfigRequest,
 } from "@viberglass/types";
-import { manifestOf } from "@viberglass/integration-core";
 import { AGENT_SESSION_ACTIVE_STATUSES } from "../../types/agentSession";
 import { ProjectReadinessService } from "../../services/ProjectReadinessService";
 import { spaceParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards";
@@ -65,7 +55,6 @@ async function everyoneCanSeeSpace(projectId: string, userIds: string[]): Promis
 }
 const projectDeletionSummaryDAO = new ProjectDeletionSummaryDAO();
 const projectScmConfigDAO = new ProjectScmConfigDAO();
-const integrationConfigDAO = new IntegrationConfigDAO();
 const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
 const integrationDAO = new IntegrationDAO();
 const integrationCredentialDAO = new IntegrationCredentialDAO();
@@ -91,64 +80,6 @@ router.param("name", spaceGuard);
 
 registerSpaceMemberRoutes(router, new SpaceMembershipService());
 
-const buildIntegrationSummary = (
-  plugin: ReturnType<typeof integrationRegistry.get>,
-  config: IntegrationConfig | null,
-): IntegrationSummary => {
-  if (!plugin) {
-    throw new Error("Integration plugin not found");
-  }
-
-  const configStatus =
-    plugin.status === "stub" ? "stub" : config ? "configured" : "not_configured";
-
-  return {
-    ...manifestOf(plugin),
-    configStatus,
-    configuredAt: config?.createdAt,
-  };
-};
-
-const mapConfigRecord = (
-  projectId: string,
-  integrationId: TicketSystem,
-  record: {
-    config: { authType: string; values: Record<string, unknown> };
-    createdAt: Date;
-    updatedAt: Date;
-  },
-): IntegrationConfig => {
-  return {
-    projectId,
-    integrationId,
-    authType: record.config.authType as IntegrationConfig["authType"],
-    values: record.config.values ?? {},
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString(),
-  };
-};
-
-const isMissingRequiredField = (
-  field: IntegrationFieldDefinition,
-  value: unknown,
-): boolean => {
-  if (value === null || value === undefined) return true;
-
-  switch (field.type) {
-    case "boolean":
-      return typeof value !== "boolean";
-    case "number":
-      return typeof value !== "number" || Number.isNaN(value);
-    case "multiselect":
-      return !Array.isArray(value) || value.length === 0;
-    case "string":
-    case "select":
-    case "secret":
-    default:
-      return String(value).trim().length === 0;
-  }
-};
-
 const normalizeOptionalString = (value?: string | null): string | null => {
   if (value === undefined || value === null) return null;
   const trimmed = value.trim();
@@ -161,8 +92,8 @@ const normalizeOptionalString = (value?: string | null): string | null => {
  * when the deprecated ticketSystem field is not set or needs to be overridden.
  */
 async function enrichProjectWithDerivedTicketSystem(
-  project: ProjectConfig,
-): Promise<ProjectConfig> {
+  project: Project,
+): Promise<Project> {
   // If we have a primaryTicketingIntegrationId, derive the ticketSystem from it
   if (project.primaryTicketingIntegrationId) {
     try {
@@ -191,8 +122,8 @@ async function enrichProjectWithDerivedTicketSystem(
  * Enrich multiple projects with derived ticket systems
  */
 async function enrichProjectsWithDerivedTicketSystems(
-  projects: ProjectConfig[],
-): Promise<ProjectConfig[]> {
+  projects: Project[],
+): Promise<Project[]> {
   return Promise.all(projects.map(enrichProjectWithDerivedTicketSystem));
 }
 
@@ -529,203 +460,6 @@ router.delete(
     }
   },
 );
-
-// Integration configuration endpoints
-router.get("/:projectId/integrations", async (req, res) => {
-  try {
-    const projectId = req.params.projectId;
-    const configs = await integrationConfigDAO.listConfigs(projectId);
-    const configMap = new Map(
-      configs.map((record) => [
-        record.system,
-        mapConfigRecord(projectId, record.system, record),
-      ]),
-    );
-
-    const integrations = integrationRegistry
-      .list()
-      .map((plugin) =>
-        buildIntegrationSummary(plugin, configMap.get(plugin.id) ?? null),
-      );
-
-    res.json({ success: true, data: integrations });
-  } catch (error) {
-    logger.error("Error fetching integrations", {
-      error: error instanceof Error ? error.message : error,
-    });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-router.get("/:projectId/integrations/:integrationId", async (req, res) => {
-  try {
-    const { projectId, integrationId } = req.params;
-    const plugin = integrationRegistry.get(integrationId);
-
-    if (!plugin) {
-      return res.status(404).json({ error: "Integration not found" });
-    }
-
-    const record = await integrationConfigDAO.getConfig(
-      projectId,
-      integrationId,
-    );
-
-    if (!record) {
-      return res
-        .status(404)
-        .json({ error: "Integration configuration not found" });
-    }
-
-    res.json({
-      success: true,
-      data: mapConfigRecord(projectId, integrationId, record),
-    });
-  } catch (error) {
-    logger.error("Error fetching integration config", {
-      error: error instanceof Error ? error.message : error,
-    });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-router.put(
-  "/:projectId/integrations/:integrationId",
-  validateIntegrationConfig,
-  async (req, res) => {
-    try {
-      const { projectId, integrationId } = req.params;
-      const plugin = integrationRegistry.get(integrationId);
-
-      if (!plugin) {
-        return res.status(404).json({ error: "Integration not found" });
-      }
-
-      if (plugin.status === "stub") {
-        return res
-          .status(400)
-          .json({ error: "Integration is not available yet" });
-      }
-
-      const body = req.body as ConfigureIntegrationRequest;
-      const values = body.values || {};
-
-      const missing = plugin.configFields
-        .filter((field) => field.required)
-        .filter((field) => isMissingRequiredField(field, values[field.key]))
-        .map((field) => field.key);
-
-      if (missing.length > 0) {
-        return res.status(400).json({
-          error: "Missing required fields",
-          details: missing.map((field) => ({
-            field,
-            message: "This field is required",
-          })),
-        });
-      }
-
-      const record = await integrationConfigDAO.upsertConfig(
-        projectId,
-        integrationId,
-        { authType: body.authType, values },
-      );
-
-      res.json({
-        success: true,
-        data: mapConfigRecord(projectId, integrationId, record),
-      });
-    } catch (error) {
-      logger.error("Error saving integration config", {
-        error: error instanceof Error ? error.message : error,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.post(
-  "/:projectId/integrations/:integrationId/test",
-  validateIntegrationConfig,
-  async (req, res) => {
-    try {
-      const { integrationId } = req.params;
-      const plugin = integrationRegistry.get(integrationId);
-
-      if (!plugin) {
-        return res.status(404).json({ error: "Integration not found" });
-      }
-
-      if (plugin.status === "stub") {
-        return res
-          .status(400)
-          .json({ error: "Integration is not available yet" });
-      }
-
-      const body = req.body as ConfigureIntegrationRequest;
-      const config = {
-        type: body.authType,
-        ...body.values,
-      } as AuthCredentials & Record<string, unknown>;
-
-      try {
-        const integration = plugin.createIntegration(config);
-        await integration.authenticate(config);
-
-        const response: TestIntegrationResponse = {
-          success: true,
-          message: "Connection successful",
-        };
-
-        return res.json({ success: true, data: response });
-      } catch (error) {
-        const response: TestIntegrationResponse = {
-          success: false,
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to authenticate integration",
-        };
-
-        return res.json({ success: true, data: response });
-      }
-    } catch (error) {
-      logger.error("Error testing integration config", {
-        error: error instanceof Error ? error.message : error,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.delete("/:projectId/integrations/:integrationId", async (req, res) => {
-  try {
-    const { projectId, integrationId } = req.params;
-    const plugin = integrationRegistry.get(integrationId);
-
-    if (!plugin) {
-      return res.status(404).json({ error: "Integration not found" });
-    }
-
-    const deleted = await integrationConfigDAO.deleteConfig(
-      projectId,
-      integrationId,
-    );
-
-    if (!deleted) {
-      return res
-        .status(404)
-        .json({ error: "Integration configuration not found" });
-    }
-
-    res.status(204).send();
-  } catch (error) {
-    logger.error("Error deleting integration config", {
-      error: error instanceof Error ? error.message : error,
-    });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 // GET /api/spaces/:id/prompt-templates
 router.get(

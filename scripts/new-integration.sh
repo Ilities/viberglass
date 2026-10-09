@@ -45,9 +45,6 @@ echo "Scaffolding @viberglass/integration-$NAME …"
 cp -r "$TEMPLATE_DIR" "$TARGET_DIR"
 
 # Rename placeholder source files
-if [[ -f "$TARGET_DIR/src/backend/__PascalName__Integration.ts" ]]; then
-  mv "$TARGET_DIR/src/backend/__PascalName__Integration.ts" "$TARGET_DIR/src/backend/${PASCAL_NAME}Integration.ts"
-fi
 if [[ -f "$TARGET_DIR/src/frontend/__PascalName__Icon.tsx" ]]; then
   mv "$TARGET_DIR/src/frontend/__PascalName__Icon.tsx" "$TARGET_DIR/src/frontend/${PASCAL_NAME}Icon.tsx"
 fi
@@ -69,7 +66,7 @@ echo ""
 echo "Created $TARGET_DIR"
 echo ""
 echo "Next steps:"
-echo "  1. Implement $TARGET_DIR/src/backend/${PASCAL_NAME}Integration.ts"
+echo "  1. Add its capabilities to src/backend/plugin.ts (checkConnection, createCommenter, webhook, repository, chat)"
 echo "  2. Fill in src/manifest.ts: description, category, configFields, credentialUse, webhookProvider"
 echo "  3. Replace the icon in src/frontend/, and add trackerWebhook or AuthSetupSection if needed"
 echo "  4. Run: npm install && npm run build"

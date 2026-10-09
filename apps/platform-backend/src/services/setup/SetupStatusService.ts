@@ -10,7 +10,7 @@ import {
   type ProjectScmConfig,
   type SetupStatus,
 } from "@viberglass/types";
-import type { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { IntegrationCredentialDAO } from "../../persistence/integrations/IntegrationCredentialDAO";
 import { IntegrationDAO } from "../../persistence/integrations/IntegrationDAO";
@@ -27,7 +27,7 @@ interface Dependencies {
   integrations: { listIntegrations(system: string): Promise<Integration[]> };
   codeHost: () => SetupCodeHost | null;
   credentials: { getDefaultForIntegration(integrationId: string): Promise<IntegrationCredential | null> };
-  projects: { listProjects(limit?: number): Promise<ProjectConfig[]> };
+  projects: { listProjects(limit?: number): Promise<Project[]> };
   scmConfigs: { getByProjectId(projectId: string): Promise<ProjectScmConfig | null> };
   clankers: {
     getClankerBySlug(slug: string): Promise<Clanker | null>;

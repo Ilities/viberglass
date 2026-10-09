@@ -30,7 +30,6 @@ import {
   setupRepositorySchema,
   setupSpaceSchema,
   setupAgentSchema,
-  integrationConfigSchema,
   registerSchema,
   createUserSchema,
   updateUserRoleSchema,
@@ -163,9 +162,6 @@ export const validateSetupRepository = createValidator(setupRepositorySchema, {
 });
 export const validateSetupSpace = createValidator(setupSpaceSchema, { name: "setupSpace" });
 export const validateSetupAgent = createValidator(setupAgentSchema, { name: "setupAgent" });
-export const validateIntegrationConfig = createValidator(
-  integrationConfigSchema,
-);
 export const validateRegister = createValidator(registerSchema);
 export const validateCreateUser = createValidator(createUserSchema);
 export const validateUpdateUserRole = createValidator(updateUserRoleSchema);

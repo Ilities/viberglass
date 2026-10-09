@@ -31,7 +31,7 @@ const text = (value: unknown): string | null => (typeof value === "string" ? val
  * Posts a task's milestones to the tracker issue it's linked to: the plan,
  * the agent's questions, the pull request and done. The agent's reply goes
  * too when it was asked from the issue. Hears the task's Activity, like the
- * Slack mirror, so it doesn't matter where a change started.
+ * chat mirror, so it doesn't matter where a change started.
  */
 export class TaskIssueMirror implements ActivityListener {
   private readonly deps: Dependencies;
