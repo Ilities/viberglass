@@ -32,6 +32,9 @@ export function createEmail(config: InfrastructureConfig): EmailOutputs | undefi
   const identity = new aws.sesv2.EmailIdentity(`${config.environment}-viberglass-email`, {
     emailIdentity: domain,
     tags: config.tags,
+  }, {
+    // Attached in the console; clearing it would make SES reject the update with an empty set id.
+    ignoreChanges: ["configurationSetName"],
   });
 
   const dkimRecords = identity.dkimSigningAttributes.apply((attributes) =>
