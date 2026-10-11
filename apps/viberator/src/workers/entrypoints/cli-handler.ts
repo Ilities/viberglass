@@ -11,6 +11,7 @@ import {
 } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
+import { loadCallbackToken } from "../infrastructure/callbackToken";
 
 /**
  * CLI-based ephemeral worker entry point
@@ -79,7 +80,7 @@ function parseArgs(args: string[]): CliArgs {
 
 function showHelp(): void {
   console.log(`
-Viberator Ephemeral Worker (Docker/ECS)
+Viberator Ephemeral Worker (Docker/ECS/Kubernetes)
 
 Usage:
   worker [options]
@@ -92,7 +93,7 @@ Options:
 
 Examples:
   # Direct JSON input
-  worker --job-data '{"jobId":"job-123","tenantId":"tenant-abc","workerType":"docker","repository":"https://github.com/user/repo","task":"Fix the bug","requiredCredentials":["GITHUB_TOKEN"],"instructionFiles":[],"clankerId":"clanker-1"}'
+  worker --job-data '{"jobId":"job-123","tenantId":"tenant-abc","workerType":"docker","repository":"https://github.com/user/repo","task":"Fix the bug","requiredCredentials":["VIBERGLASS_SCM_TOKEN"],"scm":{"credentialEnvVar":"VIBERGLASS_SCM_TOKEN","gitUsername":"x-access-token"},"instructionFiles":[],"clankerId":"clanker-1"}'
 
   # File input
   worker --job-file /tmp/job.json
@@ -106,11 +107,13 @@ Environment Variables:
   CONFIG_PATH               Path to configuration file
   PLATFORM_API_URL          Base URL for platform callbacks/bootstrap API
   CALLBACK_TOKEN            Callback token for bootstrap/result/progress auth
+  CALLBACK_TOKEN_FILE       Mounted callback token file for Kubernetes workers
   TENANT_ID                 Tenant identifier used for bootstrap auth header
 
 Docker Credential Flow:
-  Credentials are passed via environment variables at container start (docker run -e GITHUB_TOKEN=...).
+  Credentials are passed via environment variables at container start (docker run -e VIBERGLASS_SCM_TOKEN=...).
   The CredentialProvider checks process.env before SSM, so Docker workers receive credentials from the host.
+  Git uses the token named by scm.credentialEnvVar, with the username in scm.gitUsername.
 `);
 }
 
@@ -122,10 +125,10 @@ async function loadJobData(args: CliArgs): Promise<WorkerPayload> {
   }
 
   if (args["job-ref"]) {
-    const callbackToken = process.env.CALLBACK_TOKEN;
+    const callbackToken = loadCallbackToken();
     if (!callbackToken) {
       throw new Error(
-        "Missing CALLBACK_TOKEN environment variable for --job-ref bootstrap fetch.",
+        "Missing CALLBACK_TOKEN or CALLBACK_TOKEN_FILE for --job-ref bootstrap fetch.",
       );
     }
 
@@ -198,9 +201,9 @@ async function main() {
     if (!payload.task) {
       throw new Error("Missing required field: task");
     }
-    if (payload.workerType !== "docker" && payload.workerType !== "ecs") {
+    if (payload.workerType !== "docker" && payload.workerType !== "ecs" && payload.workerType !== "kubernetes") {
       throw new Error(
-        `Invalid workerType: ${payload.workerType}. Expected 'docker' or 'ecs' for CLI worker.`,
+        `Invalid workerType: ${payload.workerType}. Expected 'docker', 'ecs', or 'kubernetes' for CLI worker.`,
       );
     }
 

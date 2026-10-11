@@ -1,0 +1,115 @@
+# Viberglass on one host, from the published images.
+#
+#   cp .env.production.example .env      # then fill in the required values
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml --profile https up -d   # with Caddy and HTTPS
+#
+# Agents run as Docker containers on the same host, started by the backend
+# through the host's Docker socket. Data lives in the `postgres-data` volume
+# and under VIBERGLASS_DATA_DIR on the host. Setup: docs/guide/admin/install-docker.md
+
+name: viberglass
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: viberglass
+      POSTGRES_USER: viberglass
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U viberglass -d viberglass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    image: ${VIBERGLASS_REGISTRY:-ghcr.io/ilities}/viberglass-backend:${VIBERGLASS_VERSION:-latest}
+    # Starting agent containers needs the Docker socket, which only root can use
+    # in this image; access to the socket is root on the host either way.
+    user: root
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_ENABLED: "true"
+      RUN_MIGRATIONS_ON_STARTUP: "true"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: viberglass
+      DB_USER: viberglass
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_SSL: "false"
+      # Stored credentials can't be read without these; keep a copy somewhere safe.
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:?Set SECRETS_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
+      WEBHOOK_SECRET_ENCRYPTION_KEY: ${WEBHOOK_SECRET_ENCRYPTION_KEY:?Set WEBHOOK_SECRET_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
+      PLATFORM_FRONTEND_URL: ${VIBERGLASS_URL:?Set VIBERGLASS_URL in .env, e.g. https://viberglass.example.com}
+      PLATFORM_PUBLIC_API_URL: ${VIBERGLASS_URL}
+      ALLOWED_ORIGINS: ${VIBERGLASS_URL}
+      # Agent containers call the backend back through the host; see the backend's ports.
+      PLATFORM_API_URL: http://host.docker.internal:${VIBERGLASS_WORKER_API_PORT:-8888}
+      # The backend and the agent containers it starts see these folders at the same
+      # path, because the Docker daemon mounts them from the host.
+      TICKET_MEDIA_DISK_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/media
+      TICKET_MEDIA_CONTAINER_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/media
+      SESSION_STATE_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/session-state
+      CLANKER_INSTRUCTION_FILES_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/instructions
+      SKILL_FILES_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/skills
+      VIBERATOR_WORKER_REGISTRY: ${VIBERATOR_WORKER_REGISTRY-ghcr.io/ilities}
+      # Optional: email, Slack and traces. Empty means off.
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SMTP_URL: ${SMTP_URL:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      WORKER_OTEL_EXPORTER_OTLP_ENDPOINT: ${WORKER_OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      VIBERGLASS_DEPLOYMENT_ENV: production
+    ports:
+      # Only for agent containers' callbacks: bound to the Docker bridge, which they
+      # reach as host.docker.internal, so it isn't open on the host's public addresses.
+      - "${VIBERGLASS_WORKER_API_BIND:-172.17.0.1}:${VIBERGLASS_WORKER_API_PORT:-8888}:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}:${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: ${VIBERGLASS_REGISTRY:-ghcr.io/ilities}/viberglass-frontend:${VIBERGLASS_VERSION:-latest}
+    environment:
+      BACKEND_UPSTREAM: backend:3000
+    ports:
+      # Behind HTTPS only: sign-in cookies are secure. Put your own reverse proxy in
+      # front of this port, or start the `https` profile below.
+      - "${VIBERGLASS_HTTP_BIND:-127.0.0.1}:${VIBERGLASS_HTTP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # HTTPS with a Let's Encrypt certificate for VIBERGLASS_DOMAIN. Needs ports 80
+  # and 443 open, and the domain's DNS pointing at this host.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    command: caddy reverse-proxy --from ${VIBERGLASS_DOMAIN:-localhost} --to frontend:8080
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+    restart: unless-stopped

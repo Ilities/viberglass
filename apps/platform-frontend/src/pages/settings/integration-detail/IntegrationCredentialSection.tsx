@@ -20,11 +20,9 @@ import { toast } from 'sonner'
 
 interface IntegrationCredentialSectionProps {
   integrationId: string
-  integrationSystem: string
+  /** What Viberglass uses the token for. */
+  credentialUse: string
 }
-
-// Credential type is now automatically determined by the integration
-// For SCM integrations (GitHub, GitLab, Bitbucket), credentials are always tokens
 
 const LOCATION_OPTIONS: Array<{ value: SecretLocation; label: string; helper: string }> = [
   {
@@ -52,7 +50,7 @@ const LOCATION_BADGES: Record<SecretLocation, { label: string; color: string }> 
 
 type SecretSource = 'existing' | 'new'
 
-export function IntegrationCredentialSection({ integrationId, integrationSystem }: IntegrationCredentialSectionProps) {
+export function IntegrationCredentialSection({ integrationId, credentialUse }: IntegrationCredentialSectionProps) {
   const [credentials, setCredentials] = useState<IntegrationCredential[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -79,9 +77,6 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const [editIsDefault, setEditIsDefault] = useState(false)
   const [editSecretValue, setEditSecretValue] = useState('')
 
-  const isScmIntegration = useMemo(() => {
-    return ['github', 'gitlab', 'bitbucket'].includes(integrationSystem)
-  }, [integrationSystem])
 
   // Get secrets not already linked to this integration
   const availableSecrets = useMemo(() => {
@@ -291,17 +286,13 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     return secret?.name || 'Unknown'
   }
 
-  if (!isScmIntegration) {
-    return null
-  }
-
   return (
     <section className="app-frame rounded-lg p-6">
       <div className="flex items-center justify-between">
         <div>
-          <Subheading>Integration Credentials</Subheading>
+          <Subheading>Credentials</Subheading>
           <Text className="text-sm text-[var(--gray-9)]">
-            Manage credentials used by projects linked to this {integrationSystem} integration.
+            {credentialUse} The default credential is used unless a space picks another.
           </Text>
         </div>
         {!isCreating && (
@@ -323,7 +314,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
               </div>
               <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">No credentials configured</h3>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Add a credential to enable SCM authentication for linked spaces.
+                Add a token for this connection to use.
               </p>
               <Button color="brand" className="mt-4" onClick={handleStartCreate}>
                 Add Credential
@@ -370,7 +361,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                         <SwitchField>
                           <Label>Set as default credential</Label>
                           <Description>
-                            The default credential is automatically selected when configuring SCM for spaces.
+                            Spaces use the default credential unless they pick another.
                           </Description>
                           <Switch checked={editIsDefault} onChange={setEditIsDefault} />
                         </SwitchField>
@@ -378,7 +369,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                           <Button color="brand" onClick={() => handleUpdate(credential.id)} disabled={isSubmitting}>
                             {isSubmitting ? 'Saving...' : 'Save Changes'}
                           </Button>
-                          <Button plain onClick={handleCancelEdit} disabled={isSubmitting}>
+                          <Button outline onClick={handleCancelEdit} disabled={isSubmitting}>
                             Cancel
                           </Button>
                         </div>
@@ -581,7 +572,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                   <SwitchField>
                     <Label>Set as default credential</Label>
                     <Description>
-                      The default credential is automatically selected when configuring SCM for spaces.
+                      Spaces use the default credential unless they pick another.
                     </Description>
                     <Switch checked={newCredentialIsDefault} onChange={setNewCredentialIsDefault} />
                   </SwitchField>
@@ -594,7 +585,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                     >
                       {isSubmitting ? 'Creating...' : 'Create Credential'}
                     </Button>
-                    <Button plain onClick={handleCancelCreate} disabled={isSubmitting}>
+                    <Button outline onClick={handleCancelCreate} disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </div>

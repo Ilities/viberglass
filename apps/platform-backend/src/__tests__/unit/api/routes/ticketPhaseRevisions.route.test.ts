@@ -95,7 +95,7 @@ describe("ticket phase revision routes", () => {
         id: "revision-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
+        phase: "planning",
         content: "First draft",
         source: "manual",
         actor: "author@example.com",
@@ -103,7 +103,7 @@ describe("ticket phase revision routes", () => {
       },
     ]);
 
-    const handler = getRouteHandler("/:id/phases/:phase/revisions", "get");
+    const handler = getRouteHandler("/:id/plan/revisions", "get");
     if (typeof handler !== "function") {
       throw new Error("Route handler was not a function");
     }
@@ -111,7 +111,6 @@ describe("ticket phase revision routes", () => {
     const req = {
       params: {
         id: "11111111-1111-4111-8111-111111111111",
-        phase: "research",
       },
     };
     const res = {
@@ -123,7 +122,7 @@ describe("ticket phase revision routes", () => {
 
     expect(mockTicketPhaseDocumentRevisionService.listRevisions).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
-      "research",
+      "planning",
     );
     expect(res.json).toHaveBeenCalledWith({
       success: true,
@@ -132,7 +131,7 @@ describe("ticket phase revision routes", () => {
           id: "revision-1",
           documentId: "doc-1",
           ticketId: "ticket-1",
-          phase: "research",
+          phase: "planning",
           content: "First draft",
           source: "manual",
           actor: "author@example.com",
@@ -142,28 +141,4 @@ describe("ticket phase revision routes", () => {
     });
   });
 
-  it("rejects invalid workflow phases", async () => {
-    const handler = getRouteHandler("/:id/phases/:phase/revisions", "get");
-    if (typeof handler !== "function") {
-      throw new Error("Route handler was not a function");
-    }
-
-    const req = {
-      params: {
-        id: "11111111-1111-4111-8111-111111111111",
-        phase: "not-a-phase",
-      },
-    };
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-    };
-
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Invalid workflow phase",
-    });
-  });
 });

@@ -55,6 +55,8 @@ export interface ScmPayload {
   credentialSecretId?: string | null;
   /** The env var among the run's credentials that holds the repository token. */
   credentialEnvVar?: string | null;
+  /** The username git sends with the token, which depends on the code host. */
+  gitUsername?: string;
 }
 
 export interface TicketMediaPayload {
@@ -97,7 +99,6 @@ export interface BaseWorkerPayload {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
-    researchDocument?: string;
     planDocument?: string;
     /** The task's latest summary, for the agent to rewrite on a summarise turn. */
     summaryDocument?: string;
@@ -126,7 +127,7 @@ export interface BaseWorkerPayload {
   agentSessionId?: string;
   /** Platform turn UUID linking this job to an agent_turns row */
   agentTurnId?: string;
-  /** What the task turn was asked for (research, plan, code, reply, summarise) */
+  /** What the task turn was asked for (plan, code, reply, summarise) */
   turnAction?: TaskTurnAction;
   /** Whether the turn may change code. Absent on scheduled jobs. */
   allowCode?: boolean;
@@ -162,8 +163,8 @@ export interface BaseWorkerPayload {
 }
 
 /**
- * Instruction file reference for AWS workers (Lambda/ECS)
- * Files are usually fetched from S3 using platform credentials,
+ * Instruction file reference for hosted workers (Lambda/ECS/Kubernetes)
+ * Files are usually fetched from S3-compatible storage,
  * but can also be provided inline.
  */
 export interface S3InstructionFile {
@@ -206,6 +207,15 @@ export interface EcsPayload extends BaseWorkerPayload {
   deploymentConfig?: Record<string, unknown>;
 }
 
+export interface KubernetesPayload extends BaseWorkerPayload {
+  workerType: "kubernetes";
+  credentials: Record<string, string>;
+  optionalCredentials?: string[];
+  instructionFiles: S3InstructionFile[];
+  requiredCredentials: CredentialRequest[];
+  deploymentConfig?: Record<string, unknown>;
+}
+
 /**
  * Docker worker payload
  * Docker containers receive mount paths for instruction files
@@ -223,7 +233,7 @@ export interface DockerPayload extends BaseWorkerPayload {
  * Union type for all worker payloads
  * Use workerType field for type discrimination
  */
-export type WorkerPayload = LambdaPayload | EcsPayload | DockerPayload;
+export type WorkerPayload = LambdaPayload | EcsPayload | KubernetesPayload | DockerPayload;
 
 // ============================================================================
 // Legacy Job Types (retained for compatibility)
@@ -249,7 +259,6 @@ export interface CodingJobData {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
-    researchDocument?: string;
     planDocument?: string;
     /** The task's latest summary, for the agent to rewrite on a summarise turn. */
     summaryDocument?: string;

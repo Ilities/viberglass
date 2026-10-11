@@ -3,7 +3,7 @@ import { FirstRunScenario } from "../../playwright/firstRunScenario";
 import { SETUP_STUB, SetupStubServer } from "../../playwright/setupStubServer";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-test("a product leader sets up an empty workspace alone and gets a first research result", async ({ page }) => {
+test("a product leader sets up an empty workspace alone and gets a first plan", async ({ page }) => {
   test.setTimeout(240_000);
   const stub = new SetupStubServer();
   await stub.start();
@@ -36,7 +36,7 @@ test("a product leader sets up an empty workspace alone and gets a first researc
 
     // 2. Repository: the token is checked with GitHub.
     await expect(page.getByRole("heading", { name: "Point at your repository" })).toBeVisible();
-    await page.getByLabel("Repository").fill(SETUP_STUB.repository);
+    await page.getByRole("textbox", { name: "Repository" }).fill(SETUP_STUB.repository);
     await page.getByLabel("Access token").fill(SETUP_STUB.gitHubToken);
     await page.getByRole("button", { name: "Continue" }).click();
 
@@ -51,14 +51,14 @@ test("a product leader sets up an empty workspace alone and gets a first researc
     await page.getByRole("button", { name: "Start the task" }).click();
     await expect(page).toHaveURL(/\/tasks\/[A-Z][A-Z0-9]*-[0-9]+$/);
 
-    // The research runs on the fake agent against the fixture repository, and its document appears on the task.
-    const researchDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();
+    // The plan runs on the fake agent against the fixture repository, and its document appears on the task.
+    const planDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();
     await expect
       .poll(
         async () => {
           // Reload: the container start can abort a load (ERR_NETWORK_CHANGED). Then give the page time to fetch.
           await page.reload();
-          return researchDocument.waitFor({ timeout: 5_000 }).then(
+          return planDocument.waitFor({ timeout: 5_000 }).then(
             () => true,
             () => false,
           );
@@ -93,11 +93,11 @@ test("a new admin can explore the demo workspace first, then remove it and set u
     // The demo loads beside real data, with tasks at every stage.
     await page.getByRole("button", { name: "Explore a demo workspace" }).click();
     await expect(page).toHaveURL(/\/spaces\/demo-acme-storefront$/);
-    await expect(page.getByRole("status")).toContainText("a demo space with sample data");
+    await expect(page.getByRole("status").filter({ hasText: "sample data" })).toContainText("Its tasks don't run agents.");
     // The space is its tasks.
     await page.getByText("Fix rounding in cart totals").click();
     await expect(page.getByRole("heading", { name: "Model quota used up" })).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("a demo space with sample data");
+    await expect(page.getByRole("status").filter({ hasText: "sample data" })).toContainText("Its tasks don't run agents.");
 
     // Removing it leaves an empty workspace, so setup picks up again.
     await page.getByRole("button", { name: "Remove demo" }).click();

@@ -11,12 +11,13 @@ import type {
   TicketWorkflowPhase,
 } from "@viberglass/types";
 import { hashPassword } from "../../api/auth/utils";
-import type { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { DeploymentStrategyDAO } from "../../persistence/clanker/DeploymentStrategyDAO";
 import { DemoJobDAO, type FinishedDemoJob } from "../../persistence/demo/DemoJobDAO";
 import { DemoSeedRecordDAO, type DemoEntityType } from "../../persistence/demo/DemoSeedRecordDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
+import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentDAO } from "../../persistence/ticketing/TicketPhaseDocumentDAO";
 import { TicketPhaseRunDAO } from "../../persistence/ticketing/TicketPhaseRunDAO";
@@ -40,17 +41,15 @@ export interface DemoSeederDependencies {
   users: {
     createUser(input: { email: string; name: string; passwordHash: string; role?: UserRole }): Promise<PublicUser>;
   };
-  projects: { createProject(request: NewProject): Promise<ProjectConfig> };
+  projects: { createProject(request: NewProject): Promise<Project> };
   spaceMembers: Pick<SpaceMemberDAO, "upsert">;
   strategies: { getDeploymentStrategyByName(name: string): Promise<DeploymentStrategy | null> };
   clankers: {
     createClanker(request: CreateClankerRequest): Promise<Clanker>;
     updateStatus(id: string, status: Clanker["status"], message?: string | null): Promise<Clanker>;
   };
-  tickets: {
-    createTicket(request: CreateTicketRequest): Promise<Ticket>;
-    updatePullRequestUrl(id: string, url: string): Promise<void>;
-  };
+  tickets: { createTicket(request: CreateTicketRequest): Promise<Ticket> };
+  pullRequests: Pick<TaskPullRequestDAO, "record">;
   documents: {
     create(ticketId: string, phase: TicketWorkflowPhase): Promise<{ id: string }>;
     updateContent(id: string, content: string, storageUrl: string | null): Promise<void>;
@@ -68,6 +67,7 @@ const defaults = (): DemoSeederDependencies => ({
   strategies: new DeploymentStrategyDAO(),
   clankers: new ClankerDAO(),
   tickets: new TicketDAO(),
+  pullRequests: new TaskPullRequestDAO(),
   documents: new TicketPhaseDocumentDAO(),
   runs: new TicketPhaseRunDAO(),
   jobs: new DemoJobDAO(),
@@ -85,7 +85,7 @@ export class DemoWorkspaceSeeder {
     this.deps = { ...defaults(), ...deps };
   }
 
-  async seed(): Promise<ProjectConfig> {
+  async seed(): Promise<Project> {
     const members = await this.createMembers();
     const runner = await this.createRunner();
     const project = await this.deps.projects.createProject({
@@ -153,7 +153,7 @@ export class DemoWorkspaceSeeder {
       const created = await this.deps.documents.create(ticket.id, document.phase);
       await this.deps.documents.updateContent(created.id, document.content, null);
     }
-    if (task.pullRequestUrl) await this.deps.tickets.updatePullRequestUrl(ticket.id, task.pullRequestUrl);
+    if (task.pullRequestUrl) await this.deps.pullRequests.record(ticket.id, `viberglass/${ticket.key.toLowerCase()}`, task.pullRequestUrl);
     await this.deps.lifecycle.synchronize(ticket.id);
   }
 
@@ -180,7 +180,7 @@ export class DemoWorkspaceSeeder {
       finishedAt: new Date(Date.now() - run.hoursAgo * 3_600_000),
     });
     await this.deps.records.record("job", jobId);
-    // Phase runs track research and planning; an execution run is linked by the job's ticket alone.
+    // Phase runs track planning; an execution run is linked by the job's ticket alone.
     if (run.phase !== "execution") await this.deps.runs.createRun(ticketId, jobId, runnerId, run.phase);
   }
 }

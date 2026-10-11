@@ -1,24 +1,20 @@
 import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
 import { Breadcrumbs } from '@/components/breadcrumbs'
-import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { InfoItem } from '@/components/info-item'
 import { PageMeta } from '@/components/page-meta'
 import { Section } from '@/components/section'
-import { formatClankerStatus, formatDeploymentStrategy, getClankerBySlug } from '@/data'
+import { formatDeploymentStrategy, getClankerBySlug } from '@/data'
+import { useAuth } from '@/context/auth-context'
 import type { Secret } from '@/service/api/secret-api'
 import { getSecret } from '@/service/api/secret-api'
-import {
-  CalendarIcon,
-  ClockIcon,
-  CubeIcon,
-  ExternalLinkIcon,
-  Pencil1Icon,
-  StackIcon,
-} from '@radix-ui/react-icons'
-import { getAgentLabel, isObjectRecord, type Clanker } from '@viberglass/types'
+import { CalendarIcon, ClockIcon, StackIcon } from '@radix-ui/react-icons'
+import { getAgentLabel, isObjectRecord, type Clanker, type ModelEndpoint } from '@viberglass/types'
+import { listModelEndpoints } from '@/service/api/model-endpoint-api'
+import { TextLink } from '@/components/text'
 import { useCallback, useEffect, useState } from 'react'
+import { RunnerInstructionsAndTools } from './runner-instructions-and-tools'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
 import { ChatGptLoginCard } from './chatgpt-login-card'
@@ -37,35 +33,18 @@ function LastRun({ readiness }: { readiness: Clanker['readiness'] }) {
   )
 }
 
-function getStatusBadgeColor(status: Clanker['status']): 'green' | 'blue' | 'red' | 'zinc' {
-  switch (status) {
-    case 'active':
-      return 'green'
-    case 'deploying':
-      return 'blue'
-    case 'failed':
-      return 'red'
-    case 'inactive':
-    default:
-      return 'zinc'
-  }
-}
-
 function formatAgent(agent?: Clanker['agent'] | null): string {
   return getAgentLabel(agent)
 }
 
-function getStatusHint(status: Clanker['status']): string | null {
-  switch (status) {
-    case 'inactive':
-      return 'This agent has not been started yet. Click Start to provision it.'
-    case 'deploying':
-      return 'Provisioning is in progress. This may take a moment.'
-    case 'failed':
-      return 'Deployment failed. Start the agent again after updating its configuration.'
-    default:
-      return null
-  }
+/**
+ * The one line on what stops the agent. Compute progress and failures carry their own message;
+ * an admin, who has the Start button, isn't told that an admin can start it.
+ */
+function statusLine(clanker: Clanker, fallback: string | null, isAdmin: boolean): string | null {
+  if ((clanker.status === 'deploying' || clanker.status === 'failed') && clanker.statusMessage) return clanker.statusMessage
+  if (isAdmin && clanker.status === 'inactive' && clanker.readiness?.state === 'not_running') return null
+  return clanker.readiness?.problem ?? fallback
 }
 
 function formatConfigValue(value: unknown): string {
@@ -130,7 +109,9 @@ export function ClankerDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const [clanker, setClanker] = useState<Clanker | null>(null)
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [endpoints, setEndpoints] = useState<ModelEndpoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const isAdmin = useAuth().user?.role === 'admin'
 
   const loadData = useCallback(async () => {
     if (!slug) {
@@ -143,9 +124,12 @@ export function ClankerDetailPage() {
       if (!clankerData) return
 
       const loginSecretId = summarizeRunner(clankerData, []).loginSecretId
+      const endpointList = clankerData.modelEndpoint ? await listModelEndpoints().catch(() => []) : []
+      const endpointSecretId = endpointList.find((endpoint) => endpoint.id === clankerData.modelEndpoint?.endpointId)?.secretId
       const secretIds = [
         ...(clankerData.secretBindings || []).map((binding) => binding.secretId),
         ...(loginSecretId ? [loginSecretId] : []),
+        ...(endpointSecretId ? [endpointSecretId] : []),
       ]
       const secretResults = await Promise.all(
         secretIds.map(async (secretId) => {
@@ -160,6 +144,7 @@ export function ClankerDetailPage() {
 
       setClanker(clankerData)
       setSecrets(secretResults)
+      setEndpoints(endpointList)
     } finally {
       setIsLoading(false)
     }
@@ -190,7 +175,7 @@ export function ClankerDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[var(--gray-9)]">Loading agent runner details...</div>
+        <div className="text-[var(--gray-9)]">Loading agent...</div>
       </div>
     )
   }
@@ -198,14 +183,13 @@ export function ClankerDetailPage() {
   if (!clanker) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-red-600 dark:text-red-400">Agent runner not found</div>
+        <div className="text-red-600 dark:text-red-400">Agent not found</div>
       </div>
     )
   }
 
-  const statusInfo = formatClankerStatus(clanker.status)
-  const statusHint = getStatusHint(clanker.status)
-  const summary = summarizeRunner(clanker, secrets)
+  const summary = summarizeRunner(clanker, secrets, endpoints)
+  const status = statusLine(clanker, summary.problem, isAdmin)
   const deploymentConfig = isObjectRecord(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const v1Strategy = isObjectRecord(deploymentConfig?.strategy) ? deploymentConfig.strategy : null
   const strategyConfig = deploymentConfig?.version === 1 && v1Strategy ? v1Strategy : deploymentConfig
@@ -363,11 +347,11 @@ export function ClankerDetailPage() {
 
   return (
     <>
-      <PageMeta title={clanker ? `${clanker.name} | Agent runner` : 'Agent runner'} />
+      <PageMeta title={`${clanker.name} | Agent`} />
       <div className="flex h-full flex-col">
         <Breadcrumbs
           items={[
-            { label: 'Agent runners', href: '/settings/agents' },
+            { label: 'Agents', href: '/settings/agents' },
             { label: clanker.name },
           ]}
         />
@@ -388,18 +372,15 @@ export function ClankerDetailPage() {
                   <Badge color="blue">{formatDeploymentStrategy(clanker.deploymentStrategy)}</Badge>
                   <Badge color="violet">{formatAgent(clanker.agent)}</Badge>
                 </div>
-                <p className="mt-2 text-sm text-[var(--gray-9)]">{clanker.description || 'No description'}</p>
-                {clanker.statusMessage && <p className="mt-1 text-sm text-[var(--gray-9)]">{clanker.statusMessage}</p>}
+                {clanker.description && <p className="mt-2 text-sm text-[var(--gray-9)]">{clanker.description}</p>}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <ClankerActions clanker={clanker} onClankerUpdated={setClanker} />
-              <Button href={`/settings/agents/${clanker.slug}/edit`} outline>
-                <Pencil1Icon className="h-4 w-4" />
-                Edit
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <ClankerActions clanker={clanker} onClankerUpdated={setClanker} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -407,41 +388,23 @@ export function ClankerDetailPage() {
           <div className="grid h-full gap-6 lg:grid-cols-12">
             <div className="space-y-1 lg:col-span-4 xl:col-span-3">
               <div className="app-frame rounded-lg p-4">
-                <Section title="Agent runner information">
+                <Section title="Details">
                   <InfoItem
                     icon={<StackIcon className="h-4 w-4" />}
                     label="Slug"
-                    value={<span className="font-mono text-xs">{clanker.slug}</span>}
+                    value={<span className="font-mono text-xs break-all whitespace-normal">{clanker.slug}</span>}
                   />
                   <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<CubeIcon className="h-4 w-4" />}
-                    label="Compute"
-                    value={<Badge color={getStatusBadgeColor(clanker.status)}>{statusInfo.label}</Badge>}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<ExternalLinkIcon className="h-4 w-4" />}
-                    label="Deployment"
-                    value={formatDeploymentStrategy(clanker.deploymentStrategy)}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem icon={<CubeIcon className="h-4 w-4" />} label="Agent" value={formatAgent(clanker.agent)} />
-                </Section>
-              </div>
-
-              <div className="app-frame rounded-lg p-4">
-                <Section title="Timeline">
                   <InfoItem
                     icon={<CalendarIcon className="h-4 w-4" />}
                     label="Created"
-                    value={new Date(clanker.createdAt).toLocaleString()}
+                    value={<Timestamp date={clanker.createdAt} />}
                   />
                   <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<ClockIcon className="h-4 w-4" />}
                     label="Updated"
-                    value={new Date(clanker.updatedAt).toLocaleString()}
+                    value={<Timestamp date={clanker.updatedAt} />}
                   />
                 </Section>
               </div>
@@ -450,9 +413,9 @@ export function ClankerDetailPage() {
             <div className="space-y-6 lg:col-span-8 xl:col-span-9">
               <div className="app-frame rounded-lg p-6">
                 <Subheading className="mb-4">Setup</Subheading>
-                {(clanker.readiness?.problem ?? summary.problem) && (
+                {status && (
                   <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-                    {clanker.readiness?.problem ?? summary.problem}
+                    {status}
                   </div>
                 )}
                 <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
@@ -460,7 +423,12 @@ export function ClankerDetailPage() {
                   <dd className="text-sm text-[var(--gray-12)]">{formatAgent(clanker.agent)}</dd>
                   <dt className="text-sm text-[var(--gray-9)]">Provider</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
-                    {summary.usesChatGptLogin
+                    {summary.endpoint ? (
+                      <>
+                        <TextLink href="/settings/models">{summary.endpoint.name}</TextLink>
+                        <span className="ml-2 font-mono text-xs text-[var(--gray-9)]">{summary.endpoint.host}</span>
+                      </>
+                    ) : summary.usesChatGptLogin
                       ? 'OpenAI (ChatGPT login)'
                       : summary.customEndpoint
                         ? `${summary.providerLabel ?? 'Unknown'} key, sent to a custom endpoint`
@@ -485,10 +453,7 @@ export function ClankerDetailPage() {
                   )}
                   <dt className="text-sm text-[var(--gray-9)]">Model</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
-                    {summary.model ? `${summary.model} (as requested)` : "The agent's default"}
-                    <p className="text-xs text-[var(--gray-10)]">
-                      Each run records the model the agent reported in Run records; when it reports none, it shows as unknown.
-                    </p>
+                    {summary.model || "The agent's default"}
                   </dd>
                   <dt className="text-sm text-[var(--gray-9)]">Last run</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
@@ -499,7 +464,16 @@ export function ClankerDetailPage() {
                     {summary.usesChatGptLogin ? (
                       'ChatGPT login'
                     ) : clanker.modelEndpoint ? (
-                      'Configured by endpoint'
+                      summary.endpoint?.keyLabel ? (
+                        <>
+                          {summary.endpoint.keyLabel}{' '}
+                          <span className="text-xs text-[var(--gray-9)]">from {summary.endpoint.name}</span>
+                        </>
+                      ) : summary.endpoint ? (
+                        'None: the endpoint takes anonymous requests'
+                      ) : (
+                        "The endpoint's key"
+                      )
                     ) : summary.key ? (
                       <>
                         {summary.key.label} <span className="font-mono text-xs text-[var(--gray-9)]">as {summary.key.envVar}</span>
@@ -509,7 +483,6 @@ export function ClankerDetailPage() {
                     )}
                   </dd>
                 </dl>
-                {statusHint && <div className="mt-4 text-sm text-[var(--gray-9)]">{statusHint}</div>}
               </div>
 
               {summary.usesChatGptLogin && (
@@ -569,33 +542,7 @@ export function ClankerDetailPage() {
                 </details>
               )}
 
-              <div className="app-frame rounded-lg p-6">
-                <Subheading className="mb-4">Configuration Files</Subheading>
-                {clanker.configFiles.length > 0 ? (
-                  <div className="space-y-4">
-                    {clanker.configFiles.map((file) => (
-                      <div key={file.id}>
-                        <div className="mb-2 text-xs font-medium tracking-wider text-[var(--gray-9)] uppercase">
-                          {file.fileType}
-                        </div>
-                        <div className="rounded bg-[var(--gray-3)] p-4">
-                          <pre className="font-mono text-sm break-all whitespace-pre-wrap text-[var(--gray-11)]">
-                            {file.content}
-                          </pre>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-6 text-center">
-                    <p className="text-sm text-[var(--gray-9)]">No configuration files set up yet.</p>
-                    <Button href={`/settings/agents/${clanker.slug}/edit`} className="mt-4" outline>
-                      <Pencil1Icon className="h-4 w-4" />
-                      Add Configuration
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <RunnerInstructionsAndTools clanker={clanker} />
             </div>
           </div>
         </div>

@@ -1,8 +1,9 @@
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { QwenCodeConfig } from "./config";
+import { QWEN_PLACEHOLDER_KEY_ENV_VAR, writeQwenModelSettings } from "./qwenModelConfig";
 
 export class QwenCodeAgent extends BaseAgent<QwenCodeConfig> {
   constructor(config: QwenCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -14,14 +15,21 @@ export class QwenCodeAgent extends BaseAgent<QwenCodeConfig> {
   private readonly defaultModel = "qwen3-coder-plus";
 
   protected requiresApiKey(): boolean {
-    return true;
+    return !currentModelEndpoint();
   }
 
   public getAcpServerCommand(): string[] {
     return ["qwen", "--acp", "--yolo"];
   }
 
-  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(harnessConfigDir: string): NodeJS.ProcessEnv {
+    const modelEndpoint = currentModelEndpoint();
+    if (modelEndpoint) {
+      return {
+        QWEN_CODE_SYSTEM_SETTINGS_PATH: writeQwenModelSettings(modelEndpoint, path.join(harnessConfigDir, "qwen")),
+        [QWEN_PLACEHOLDER_KEY_ENV_VAR]: "unused",
+      };
+    }
     const endpoint = this.resolveCompatibleBaseUrl();
     return {
       DASHSCOPE_API_KEY: this.config.apiKey!,

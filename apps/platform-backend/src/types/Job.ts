@@ -36,6 +36,8 @@ export interface JobScmConfig {
   credentialSecretId?: string | null;
   /** The env var the worker finds the repository token in. */
   credentialEnvVar?: string | null;
+  /** The username git sends with the token, which depends on the code host. */
+  gitUsername?: string;
 }
 
 // Override configuration for per-ticket/enhance screen overrides
@@ -82,21 +84,13 @@ export interface TicketJobContext extends BaseJobContext {
   consoleErrors?: string[];
   affectedFiles?: string[];
   ticketMedia?: JobTicketMedia[];
-  researchDocument?: string;
   planDocument?: string;
   /** The task's latest summary, for a summarise turn to rewrite. */
   summaryDocument?: string;
 }
 
-export interface ResearchJobContext extends BaseJobContext {
-  ticketId: string;
-  researchDocument?: string;
-  planDocument?: string;
-}
-
 export interface PlanningJobContext extends BaseJobContext {
   ticketId: string;
-  researchDocument?: string;
   planDocument?: string;
 }
 
@@ -111,7 +105,6 @@ export type AgentLoginJobContext = BaseJobContext;
 
 export type JobContext =
   | { jobKind: "execution"; context: TicketJobContext }
-  | { jobKind: "research"; context: ResearchJobContext }
   | { jobKind: "planning"; context: PlanningJobContext }
   | { jobKind: "reply"; context: TicketJobContext }
   | { jobKind: "claw"; context: ClawJobContext }
@@ -143,11 +136,6 @@ export interface TicketJobData extends BaseJobData {
   context: TicketJobContext;
 }
 
-export interface ResearchJobData extends BaseJobData {
-  jobKind: "research";
-  context: ResearchJobContext;
-}
-
 export interface PlanningJobData extends BaseJobData {
   jobKind: "planning";
   context: PlanningJobContext;
@@ -171,7 +159,6 @@ export interface AgentLoginJobData extends BaseJobData {
 
 export type JobData =
   | TicketJobData
-  | ResearchJobData
   | PlanningJobData
   | ReplyJobData
   | ClawJobData

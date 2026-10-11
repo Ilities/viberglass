@@ -11,10 +11,12 @@
  *   helpers that deal with tar.gz creation/extraction only.
  */
 
+import { objectStorageBucket, objectStorageClientConfig } from "@viberglass/types";
 import * as fs from "fs";
 import * as path from "path";
 import { execFile } from "child_process";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { Logger } from "winston";
 import { agentRegistry } from "../../agents/registerPlugins";
 
@@ -161,16 +163,14 @@ async function uploadToS3(
   sessionId: string,
   logger: Logger,
 ): Promise<string | undefined> {
-  const bucketName = process.env.AWS_S3_BUCKET?.trim();
+  const bucketName = objectStorageBucket(process.env);
   if (!bucketName) {
-    logger.warn("AWS_S3_BUCKET not configured, skipping S3 upload");
+    logger.warn("S3_BUCKET / AWS_S3_BUCKET not configured, skipping S3 upload");
     return undefined;
   }
 
   try {
-    const s3Client = new S3Client({
-      region: process.env.AWS_REGION || "eu-west-1",
-    });
+    const s3Client = new S3Client(objectStorageClientConfig(process.env));
 
     const key = `conversation-state/${sessionId}/${Date.now()}.tar.gz`;
     await s3Client.send(
@@ -210,9 +210,7 @@ async function downloadFromS3(
     }
 
     const [, bucket, key] = match;
-    const s3Client = new S3Client({
-      region: process.env.AWS_REGION || "eu-west-1",
-    });
+    const s3Client = new S3Client(objectStorageClientConfig(process.env));
 
     const response = await s3Client.send(
       new GetObjectCommand({ Bucket: bucket, Key: key }),
@@ -294,14 +292,16 @@ export async function captureAndStore(
   sessionId: string,
   homeDir: string,
   logger: Logger,
+  storage?: WorkerObjectStorage,
 ): Promise<string | undefined> {
   const archiveBuffer = await captureConversationState(agentName, homeDir, logger);
   if (!archiveBuffer) {
     return undefined;
   }
+  if (storage) return storage.upload(archiveBuffer);
 
   // Prefer S3 when configured (production)
-  if (process.env.AWS_S3_BUCKET?.trim()) {
+  if (objectStorageBucket(process.env)) {
     const s3Url = await uploadToS3(archiveBuffer, sessionId, logger);
     if (s3Url) return s3Url;
     // Fall through to local if S3 upload fails
@@ -321,11 +321,13 @@ export async function retrieveAndRestore(
   url: string,
   homeDir: string,
   logger: Logger,
+  storage?: WorkerObjectStorage,
 ): Promise<void> {
   let archiveBuffer: Buffer | undefined;
+  if (storage && !url.startsWith("s3://")) throw new Error("Remote workers require durable object-storage session state");
 
   if (url.startsWith("s3://")) {
-    archiveBuffer = await downloadFromS3(url, logger);
+    archiveBuffer = storage ? await storage.download(url) : await downloadFromS3(url, logger);
   } else if (url.startsWith("file://")) {
     archiveBuffer = readFromLocalStorage(url, logger);
   } else {

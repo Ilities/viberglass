@@ -84,7 +84,8 @@ export async function deleteClanker(id: string): Promise<void> {
     method: 'DELETE',
   })
   if (!response.ok) {
-    throw new Error('Failed to delete agent runner')
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to delete agent runner')
   }
 }
 

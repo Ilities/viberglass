@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react'
 export function OwnerField({ defaultOwnerId }: { defaultOwnerId: string | null }) {
   const { user } = useAuth()
   const [people, setPeople] = useState<Person[]>([])
-  const [ownerId, setOwnerId] = useState(defaultOwnerId ?? user?.id ?? '')
 
   useEffect(() => {
     getPeopleDirectory()
@@ -16,17 +15,16 @@ export function OwnerField({ defaultOwnerId }: { defaultOwnerId: string | null }
       .catch(() => undefined)
   }, [])
 
-  useEffect(() => {
-    setOwnerId(defaultOwnerId ?? user?.id ?? '')
-  }, [defaultOwnerId, user?.id])
-
   if (people.length === 0) return null
+  const fallback = [defaultOwnerId, user?.id].find((id) => people.some((person) => person.id === id)) ?? ''
 
+  // Uncontrolled and mounted only with its options: a controlled value set before
+  // the options exist is replaced with the first option.
   return (
     <Field>
       <Label>Owner</Label>
       <Description>Who sees this through to done.</Description>
-      <Select name="ownerId" value={ownerId} onChange={setOwnerId}>
+      <Select key={fallback} name="ownerId" defaultValue={fallback}>
         {people.map((person) => (
           <option key={person.id} value={person.id}>
             {person.id === user?.id ? `${person.name} (you)` : person.name}

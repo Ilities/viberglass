@@ -1,17 +1,21 @@
 import { CancelRunButton } from '@/components/cancel-run-button'
+import { failureHeadline } from '@/components/failure-guidance'
 import { Link } from '@/components/link'
-import { Timestamp } from '@/components/timestamp'
 import { useAuth } from '@/context/auth-context'
 import { isRunner } from '@/lib/roles'
-import { cancelJob } from '@/service/api/job-api'
-import { toast } from 'sonner'
+import { cancelJob, type JobListItem } from '@/service/api/job-api'
+import { formatJobStatus } from '@/data'
+import { formatRunDuration } from '../jobs/run-facts'
+import { CheckCircledIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { ThreadItem } from './thread-item'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
 
 const ASKED_FOR: Record<TaskTurnAction, string> = {
-  research: 'the research',
   plan: 'the plan',
   code: 'the build',
   reply: 'a reply',
@@ -22,8 +26,8 @@ const ASKED_FOR: Record<TaskTurnAction, string> = {
 const PREVIEW_LINES = 4
 
 function sessionLine(resumed: boolean | null): string | null {
-  if (resumed === true) return 'continued its session'
-  if (resumed === false) return 'started a fresh session'
+  if (resumed === true) return 'resumed session'
+  if (resumed === false) return 'fresh session'
   return null
 }
 
@@ -40,20 +44,18 @@ function joinNames(names: string[]): string {
 }
 
 const KEPT: Record<TaskTurnProduct, string> = {
-  research: 'the research it had written',
   plan: 'the plan it had written',
   code: 'its code so far, as a work-in-progress commit',
   summary: 'its summary',
 }
 
 const WROTE: Record<TaskTurnProduct, string> = {
-  research: 'Wrote the research',
   plan: 'Wrote the plan',
   code: 'Pushed code to the pull request',
   summary: 'Wrote a summary',
 }
 
-/** What a finished turn produced, as one sentence: "Wrote the research and the plan." Null when it only replied. */
+/** What a finished turn produced, as one sentence: "Wrote the plan, pushed code to the pull request." Null when it only replied. */
 export function resultLine(produced: TaskTurnProduct[]): string | null {
   const shown = produced.filter((product) => product !== 'summary')
   if (shown.length === 0) return null
@@ -79,19 +81,45 @@ function CancelTurn({ jobId, startedAt }: { jobId: string; startedAt: string }) 
       setIsCancelling(false)
     }
   }
-  return <CancelRunButton label="Cancel run" startedAt={startedAt} isCancelling={isCancelling} onConfirm={() => void cancel()} />
+  return (
+    <CancelRunButton
+      label="Cancel run"
+      startedAt={startedAt}
+      isCancelling={isCancelling}
+      onConfirm={() => void cancel()}
+    />
+  )
+}
+
+interface AgentTurnEntryProps {
+  entry: AgentTurn
+  run?: JobListItem
+  summaryVersion?: number
+  /** Trying a failed turn again, shown with its failure. */
+  retry?: React.ReactNode
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: AgentTurn; project: string; summaryVersion?: number }) {
+export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnEntryProps) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
   const { user } = useAuth()
-  // A run's page is an engineers' view; guests and viewers see the turn in the thread only.
-  const runLink = entry.jobId && isRunner(user?.role) ? `/spaces/${project}/runs/${entry.jobId}` : null
+  const [searchParams] = useSearchParams()
+  // Guests and viewers see the turn in the thread, without its technical details.
+  const runParams = new URLSearchParams(searchParams)
+  if (entry.jobId) runParams.set('run', entry.jobId)
+  runParams.delete('runTab')
+  const reported = entry.status === 'failed' ? failureHeadline(run?.failure).reported : undefined
+  const runLink = entry.jobId && isRunner(user?.role) ? `?${runParams}` : null
   // The intent is shown on its own, so the reply starts after it.
-  const rest = outcome?.reply.trim().split('\n').slice(outcome.intent ? 1 : 0).join('\n').trim() ?? ''
+  const rest =
+    outcome?.reply
+      .trim()
+      .split('\n')
+      .slice(outcome.intent ? 1 : 0)
+      .join('\n')
+      .trim() ?? ''
   const restLines = rest.split('\n')
   // A turn that made an artifact is summed up by it; what it said stays a click away. A reply is the content itself.
   const result = entry.status === 'completed' && outcome ? resultLine(outcome.produced) : null
@@ -100,20 +128,24 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
   const session = outcome ? sessionLine(outcome.resumed) : null
   const context = contextLine(outcome?.contextUsage)
 
+  const facts = [session, context].filter((fact): fact is string => Boolean(fact))
+  const duration = run ? formatRunDuration(run.processedAt, run.finishedAt) : null
+
   return (
-    <li aria-label={`${entry.agent.name}'s turn`} className="space-y-1 border-l-2 border-[var(--accent-7)] pl-3">
-      <p className="text-xs text-[var(--gray-10)]">
-        <span className="font-medium text-[var(--gray-11)]">{entry.agent.name}</span> · asked for {ASKED_FOR[entry.action]} ·{' '}
-        <Timestamp date={entry.at} />
-        {session && ` · ${session}`}
-      </p>
+    <ThreadItem
+      who={entry.agent.name}
+      isAgent
+      at={entry.at}
+      note={`asked for ${ASKED_FOR[entry.action]}`}
+      label={`${entry.agent.name}'s turn`}
+    >
       {working && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-[var(--gray-11)]">
+          <p className="text-[var(--gray-11)]">
             Working on it…{' '}
             {runLink && (
               <Link href={runLink} className="underline">
-                Watch
+                Live log
               </Link>
             )}
           </p>
@@ -122,44 +154,71 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
         </div>
       )}
       {entry.status === 'failed' && (
-        <p className="text-sm text-red-700 dark:text-red-400">
-          This turn failed.{' '}
-          {runLink && (
-            <Link href={runLink} className="underline">
-              See what happened
-            </Link>
-          )}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-red-700 dark:text-red-400" title={run?.failure?.summary}>
+            {run?.failure?.title ?? 'This turn failed'}
+          </p>
+          {retry}
+          {reported && <p className="basis-full font-mono text-xs break-words text-[var(--gray-11)]">{reported}</p>}
+        </div>
       )}
       {entry.status === 'cancelled' && (
-        <p className="text-sm text-[var(--gray-11)]">
-          This turn was stopped.{outcome?.stoppedPartway && outcome.produced.length > 0 && ` It kept ${keptWork(outcome.produced)}.`}
+        <p className="text-[var(--gray-11)]">
+          This turn was stopped.
+          {outcome?.stoppedPartway && outcome.produced.length > 0 && ` It kept ${keptWork(outcome.produced)}.`}
         </p>
       )}
-      {outcome?.intent && !outcome.stoppedPartway && <p className="text-sm font-medium text-[var(--gray-12)]">{outcome.intent}</p>}
-      {result && <p className="text-sm text-[var(--gray-11)]">{result}</p>}
-      {shown && <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
+      {outcome?.intent && !outcome.stoppedPartway && <p className="text-[var(--gray-12)]">{outcome.intent}</p>}
+      {result && <p className="text-[var(--gray-11)]">{result}</p>}
+      {shown && <p className="whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
       {rest && restLines.length > previewLines && (
-        <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]"
+        >
           {expanded ? 'Show less' : result ? 'Show what it said' : 'Show the whole reply'}
         </button>
       )}
       {outcome?.mentioned && outcome.mentioned.length > 0 && (
         <p className="text-xs text-[var(--gray-10)]">
-          Asked <span className="font-medium text-[var(--gray-11)]">{joinNames(outcome.mentioned.map((person) => person.name))}</span> to
-          take a look
+          Asked{' '}
+          <span className="font-medium text-[var(--gray-11)]">
+            {joinNames(outcome.mentioned.map((person) => person.name))}
+          </span>{' '}
+          to take a look
         </p>
       )}
       {outcome?.produced.includes('summary') && (
-        <p className="text-xs text-[var(--gray-10)]">{summaryVersion ? `Wrote Summary v${summaryVersion}` : 'Wrote a summary'}</p>
-      )}
-      {outcome?.compacted && <p className="text-xs text-[var(--gray-10)]">Compacted its context with the summary</p>}
-      {context && <p className="text-xs text-[var(--gray-10)]">{context}</p>}
-      {outcome?.codeDiscarded && (
         <p className="text-xs text-[var(--gray-10)]">
-          It changed code, but nobody asked it to build this time, so the changes weren&apos;t kept. Ask it to build it to keep them.
+          {summaryVersion ? `Wrote Summary v${summaryVersion}` : 'Wrote a summary'}
         </p>
       )}
-    </li>
+      {outcome?.codeDiscarded && (
+        <p className="text-xs text-[var(--gray-10)]">
+          It changed code, but nobody asked it to build this time, so the changes weren&apos;t kept. Ask it to build it
+          to keep them.
+        </p>
+      )}
+      {runLink && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-xs">
+          {run && (
+            <span className="inline-flex items-center gap-1.5 text-[var(--gray-10)]">
+              {run.status === 'completed' && <CheckCircledIcon className="size-3.5 text-green-600" />}
+              {formatJobStatus(run.status).label}{duration && ` · ${duration}`}
+            </span>
+          )}
+          <Link href={runLink} className="inline-flex items-center gap-1.5 text-[var(--gray-11)] hover:text-[var(--accent-11)]">
+            Run details <ExternalLinkIcon className="size-3" />
+          </Link>
+        </div>
+      )}
+      {(facts.length > 0 || outcome?.compacted) && (
+        <p className="text-xs text-[var(--gray-10)]">
+          {facts.join(' · ')}
+          {outcome?.compacted && `${facts.length > 0 ? ' · ' : ''}Compacted its context with the summary.`}
+        </p>
+      )}
+    </ThreadItem>
   )
 }

@@ -126,6 +126,7 @@ export class TicketMediaExecutionService {
         accessUrl = await this.fileUploadService.generateSignedUrlFromStorageUrl(
           s3Url,
           3600,
+          "worker",
         );
       } catch (error) {
         logger.warn("Failed to generate signed URL for ticket media", {

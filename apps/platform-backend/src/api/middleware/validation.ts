@@ -1,4 +1,9 @@
 import { modelEndpointSchema } from "./modelEndpointSchema";
+import {
+  modelDeploymentModeSchema,
+  modelDeploymentSchema,
+  modelHostAccountSchema,
+} from "./modelHostingSchema";
 import Joi from "joi";
 import { Request, Response, NextFunction } from "express";
 import type { MulterError } from "multer";
@@ -25,7 +30,6 @@ import {
   setupRepositorySchema,
   setupSpaceSchema,
   setupAgentSchema,
-  integrationConfigSchema,
   registerSchema,
   createUserSchema,
   updateUserRoleSchema,
@@ -158,9 +162,6 @@ export const validateSetupRepository = createValidator(setupRepositorySchema, {
 });
 export const validateSetupSpace = createValidator(setupSpaceSchema, { name: "setupSpace" });
 export const validateSetupAgent = createValidator(setupAgentSchema, { name: "setupAgent" });
-export const validateIntegrationConfig = createValidator(
-  integrationConfigSchema,
-);
 export const validateRegister = createValidator(registerSchema);
 export const validateCreateUser = createValidator(createUserSchema);
 export const validateUpdateUserRole = createValidator(updateUserRoleSchema);
@@ -328,3 +329,6 @@ export const handleMulterError = (
 };
 
 export const validateModelEndpoint = createValidator(modelEndpointSchema);
+export const validateModelHostAccount = createValidator(modelHostAccountSchema);
+export const validateModelDeployment = createValidator(modelDeploymentSchema);
+export const validateModelDeploymentMode = createValidator(modelDeploymentModeSchema);

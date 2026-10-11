@@ -3,6 +3,8 @@ import * as fs from "fs";
 import { CodingJobData, JobResult, WorkerPayload } from "./types";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
+import { PresignedWorkerStorage } from "../infrastructure/PresignedWorkerStorage";
+import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { NO_SETTINGS, workerSettingsOf, type WorkerSettings } from "./workerSettings";
@@ -22,6 +24,7 @@ export class ViberatorWorker {
   private readonly workDir: string;
   private credentialProvider!: CredentialProvider;
   private configLoader!: ConfigLoader;
+  private objectStorage?: WorkerObjectStorage;
   private instructionFileManager!: InstructionFileManager;
   private environmentManager!: EnvironmentManager;
   private services!: WorkerServices;
@@ -57,8 +60,11 @@ export class ViberatorWorker {
     try {
       this.logger.info("Initializing Viberator Coding Worker...");
 
-      this.credentialProvider = new CredentialProvider(this.logger);
-      this.configLoader = new ConfigLoader(this.logger);
+      this.credentialProvider = new CredentialProvider(this.logger, payload?.workerType === "kubernetes"
+        ? { suppliedCredentials: payload.credentials ?? {}, ssmEnabled: false }
+        : undefined);
+      this.objectStorage = payload?.workerType === "kubernetes" ? new PresignedWorkerStorage(payload) : undefined;
+      this.configLoader = new ConfigLoader(this.logger, undefined, this.objectStorage);
       this.instructionFileManager = new InstructionFileManager(this.logger);
       this.environmentManager = new EnvironmentManager(this.logger);
 
@@ -115,10 +121,11 @@ export class ViberatorWorker {
     this.currentJobId = data.id;
     this.currentTenantId = data.tenantId;
 
-    // Resolve per-project SCM token from fetched credentials
+    // The space's token comes with the run's credentials; the payload says which, and the username its code host takes.
     const scmToken = data.scm?.credentialEnvVar
       ? this.fetchedCredentials?.[data.scm.credentialEnvVar]
       : undefined;
+    const gitAuth = scmToken && data.scm?.gitUsername ? { username: data.scm.gitUsername, token: scmToken } : undefined;
 
     try {
       const jobRunner =
@@ -160,11 +167,12 @@ export class ViberatorWorker {
             message,
             details,
           ),
-        scmToken,
+        gitAuth,
+        objectStorage: this.objectStorage,
         mcpServers: this.settings.mcpServers,
         skills: this.settings.skills,
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
-          cloneFreshRepository(this.services.gitService, repository, branch, workDir, scmToken),
+          cloneFreshRepository(this.services.gitService, repository, branch, workDir, gitAuth),
       });
     } finally {
       // Cleanup runs after sendResult has already been called inside jobRunner,

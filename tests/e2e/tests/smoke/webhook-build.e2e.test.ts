@@ -59,7 +59,7 @@ test("an issue a webhook builds on its own becomes a task whose build is a turn 
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 120_000 }).toBe("completed");
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${ticketId}`);
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await expect(thread.getByText("asked for the build")).toBeVisible();
   // Nobody asked, so nothing was posted in anyone's name.
   expect((await timeline(adminApi, ticketId)).filter((entry) => entry.kind === "message")).toEqual([]);

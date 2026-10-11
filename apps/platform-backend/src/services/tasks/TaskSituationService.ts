@@ -10,6 +10,8 @@ import {
 import { TaskTurnFactsDAO } from "../../persistence/agentSession/TaskTurnFactsDAO";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
+import { TaskPlanPartMarkDAO } from "../../persistence/ticketing/TaskPlanPartMarkDAO";
+import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TaskTakeoverDAO } from "../../persistence/ticketing/TaskTakeoverDAO";
 import { TaskThreadFactsDAO } from "../../persistence/ticketing/TaskThreadFactsDAO";
 import type { ThreadTaskRow } from "../../persistence/ticketing/TaskThreadListDAO";
@@ -41,10 +43,20 @@ interface Dependencies {
   mentions: Pick<TaskMentionDAO, "listOpen">;
   participants: Pick<TaskParticipantDAO, "listDrivers">;
   takeovers: Pick<TaskTakeoverDAO, "listFor">;
+  pullRequests: Pick<TaskPullRequestDAO, "lastMergedParts">;
+  marks: Pick<TaskPlanPartMarkDAO, "listFor">;
 }
 
 const MESSAGE_PREVIEW = 140;
-const ARTIFACT_OF_PHASE = { research: "research", planning: "plan", execution: "code" } as const;
+
+/** The part after `merged` that nobody marked done or skipped. */
+function nextUnmarked(merged: number | undefined, marked: Set<number> | undefined): number | null {
+  if (merged === undefined) return null;
+  let next = merged + 1;
+  while (marked?.has(next)) next++;
+  return next;
+}
+const ARTIFACT_OF_PHASE = { planning: "plan", execution: "code" } as const;
 const iso = (date: Date) => date.toISOString();
 const newest = (...dates: Array<Date | null | undefined>) =>
   dates.reduce<Date | null>((latest, date) => (date && (!latest || date > latest) ? date : latest), null);
@@ -69,13 +81,15 @@ export class TaskSituationService {
       mentions: new TaskMentionDAO(),
       participants: new TaskParticipantDAO(),
       takeovers: new TaskTakeoverDAO(),
+      pullRequests: new TaskPullRequestDAO(),
+      marks: new TaskPlanPartMarkDAO(),
       ...deps,
     };
   }
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers] = await Promise.all([
+    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked] = await Promise.all([
       this.deps.turns.running(ids),
       this.deps.turns.paused(ids),
       this.deps.turns.lastFinished(ids),
@@ -87,6 +101,8 @@ export class TaskSituationService {
       this.deps.participants.listDrivers(ids),
       this.deps.thread.mergedBy(ids),
       this.deps.takeovers.listFor(ids),
+      this.deps.pullRequests.lastMergedParts(ids),
+      this.deps.marks.listFor(ids),
     ]);
 
     return new Map(
@@ -120,6 +136,8 @@ export class TaskSituationService {
           openMentions: mentions.get(task.id) ?? [],
           lastMessageAt: lastMessageAt ? iso(lastMessageAt) : null,
           mergedBy: merges.get(task.id) ?? null,
+          partMerged: partsMerged.get(task.id) ?? null,
+          nextPart: nextUnmarked(partsMerged.get(task.id), marked.get(task.id)),
         };
 
         // The agent's latest turn reads as the last message when it came after what people wrote.

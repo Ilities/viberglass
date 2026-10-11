@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { Badge } from '@/components/badge'
+import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { useProject } from '@/context/project-context'
@@ -57,11 +59,7 @@ function TemplateCard({ entry, onSave, onReset }: TemplateCardProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{entry.label}</p>
-            {!entry.isDefault && (
-              <span className="shrink-0 rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                Custom
-              </span>
-            )}
+            <Badge color={entry.isDefault ? 'zinc' : 'blue'}>{entry.isDefault ? 'Workspace default' : 'Customised'}</Badge>
           </div>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{entry.description}</p>
         </div>
@@ -89,7 +87,7 @@ function TemplateCard({ entry, onSave, onReset }: TemplateCardProps) {
           {!entry.isDefault && (
             <details className="mt-3">
               <summary className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                View system default
+                View the workspace default
               </summary>
               <pre className="mt-1 overflow-x-auto rounded bg-zinc-50 p-2 font-mono text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                 {entry.systemDefault}
@@ -98,21 +96,13 @@ function TemplateCard({ entry, onSave, onReset }: TemplateCardProps) {
           )}
 
           <div className="mt-3 flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
+            <Button color="brand" size="small" onClick={() => void handleSave()} disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
             {!entry.isDefault && (
-              <button
-                onClick={handleReset}
-                disabled={resetting}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                {resetting ? 'Resetting…' : 'Reset to default'}
-              </button>
+              <Button outline size="small" onClick={() => void handleReset()} disabled={resetting}>
+                {resetting ? 'Resetting…' : 'Use the workspace default'}
+              </Button>
             )}
           </div>
         </div>
@@ -153,7 +143,7 @@ export function PromptTemplatesPage() {
       await deleteProjectPromptTemplate(project.id, type)
       const refreshed = await listProjectPromptTemplates(project.id)
       setEntries(refreshed)
-      toast.success('Template reset to system default')
+      toast.success('Back to the workspace default')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to reset template')
     }
@@ -173,14 +163,7 @@ export function PromptTemplatesPage() {
     <>
       <PageMeta title={projectSlug ? `${projectSlug} | Agent instructions` : 'Agent instructions'} />
 
-      <div className="flex items-end justify-between">
-        <div>
-          <Heading>Agent instructions</Heading>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            What the agent is told in this space for each kind of work. Leave unchanged to use the workspace&apos;s defaults.
-          </p>
-        </div>
-      </div>
+      <Heading>Agent instructions</Heading>
 
       {loadError && (
         <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">

@@ -5,20 +5,25 @@
 // Common types
 export * from './common'
 
+// What plugins say about themselves
+export * from './plugin'
+
 // Project types
 export * from './project'
 
 // Ticket types (internal tickets)
 export * from './ticket'
 
-// External PM ticket types (Jira, Linear, GitHub, etc.)
-export * from './externalTicket'
 
 // Integration types
 export * from './integration'
 
+// What inbound webhooks carry
+export * from './trackerInbound'
+
 // Clanker types
 export * from './clanker'
+export * from './agentCatalog'
 export * from './clankerConfig'
 export * from './runnerReadiness'
 export * from './job'
@@ -28,6 +33,7 @@ export * from './runRecord'
 
 // Asking for changes on a build
 export * from './buildRevision'
+export * from './pullRequest'
 
 // Claw types (scheduled task execution)
 export * from './claw'
@@ -88,9 +94,17 @@ export * from './taskTurn'
 // Where a comment sits in a document
 export * from './documentAnchor'
 
+// A plan's parts, each built as one pull request
+export * from './planParts'
+
 // The workspace audit log
 export * from './auditLog'
 export * from './taskSituation'
 export * from './home'
 
 export * from './modelEndpoints'
+
+// Open-weight models Viberglass deploys to a customer's cloud account
+export * from './modelDeployments'
+
+export * from './objectStorage'

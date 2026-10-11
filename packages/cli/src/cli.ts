@@ -32,6 +32,10 @@ async function checkout(task: string): Promise<void> {
 
 async function main(argv: string[]): Promise<number> {
   const [command, task] = argv
+  if (command === '--help' || command === '-h' || command === 'help') {
+    console.log(USAGE)
+    return 0
+  }
   if (command !== 'checkout' || !task) {
     console.error(USAGE)
     return 2

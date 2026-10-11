@@ -12,6 +12,13 @@ import * as http from "http";
 import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
+import { KubernetesJobReconciler } from "../workers/KubernetesJobReconciler";
+import { KubernetesPodInspector, createKubernetesPodClient } from "../workers/invokers/KubernetesPodInspector";
+import { WorkerDiagnosticDAO } from "../persistence/job/WorkerDiagnosticDAO";
+import { createKubernetesJobClient } from "../workers/invokers/kubernetesJobClient";
+import { findActiveKubernetesJobs } from "../services/job/JobSweeperQueries";
+import { JobService } from "../services/JobService";
+import { WorkerStopperChain } from "../workers/WorkerStopperChain";
 import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
 import { PeriodicSweeper } from "../workers/PeriodicSweeper";
 import { QuestionReminderService } from "../services/questions/QuestionReminderService";
@@ -19,20 +26,20 @@ import { CredentialExpiryWarner } from "../services/notifications/CredentialExpi
 import { registerActivityListener } from "../services/tasks/activityListeners";
 import { RunFailureHandler } from "../services/taskTurns/RunFailureHandler";
 import { PullRequestOutcomeDAO } from "../persistence/job/PullRequestOutcomeDAO";
-import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
-import { IntegrationCredentialDAO } from "../persistence/integrations/IntegrationCredentialDAO";
-import { SecretResolutionService } from "../services/SecretResolutionService";
-import { ProjectScmTokenResolver } from "../services/pull-request-outcomes/ProjectScmTokenResolver";
-import { GitHubPullRequestOutcomeSource } from "../services/pull-request-outcomes/GitHubPullRequestOutcomeSource";
-import { TaskMergeCompleter } from "../services/pull-request-outcomes/TaskMergeCompleter";
+import { createPullRequestOutcomeChecker } from "../services/pull-request-outcomes/createPullRequestOutcomeChecker";
 import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
 import bot from "../chat";
+import { chatAdapterNames } from "../chat/bot";
+import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 
 // Load environment variables
 dotenv.config();
+
+// Tasks linked to a tracker issue post their milestones back to it.
+registerActivityListener(new TaskIssueMirror());
 
 const shouldRunBackgroundSweepers =
   process.env.DISABLE_BACKGROUND_SWEEPERS !== "true";
@@ -64,23 +71,15 @@ const heartbeatSweeper = shouldRunBackgroundSweepers
     })
   : null;
 
+const kubernetesJobReconciler = shouldRunBackgroundSweepers && process.env.KUBERNETES_WORKER_NAMESPACE
+  ? new KubernetesJobReconciler(createKubernetesJobClient, findActiveKubernetesJobs, new JobService(), new WorkerStopperChain(),
+      new KubernetesPodInspector(createKubernetesPodClient), new WorkerDiagnosticDAO())
+  : null;
+
 const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
-  ? new PullRequestOutcomeSweeper(
-      new PullRequestOutcomeDAO(),
-      new ProjectScmTokenResolver(
-        new ProjectScmConfigDAO(),
-        new IntegrationCredentialDAO(),
-        new SecretResolutionService(),
-      ),
-      [new GitHubPullRequestOutcomeSource()],
-      {
-        sweepIntervalMs: parseInt(
-          process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "900000",
-          10,
-        ),
-      },
-      [new TaskMergeCompleter()],
-    )
+  ? new PullRequestOutcomeSweeper(new PullRequestOutcomeDAO(), createPullRequestOutcomeChecker(), {
+      sweepIntervalMs: parseInt(process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "900000", 10),
+    })
   : null;
 
 // A failed run ends its turn, and a setup failure pauses the task's agent until someone retries.
@@ -174,7 +173,6 @@ function onListening(): void {
         ? "✓"
         : "✗ (using defaults)",
     awsS3: process.env.AWS_ACCESS_KEY_ID ? "✓" : "✗ (not configured)",
-    githubToken: process.env.GITHUB_TOKEN ? "✓" : "✗ (not configured)",
   });
 
   logger.info("Server ready to receive bug reports");
@@ -184,6 +182,7 @@ function onListening(): void {
     logger.info("Starting pull request outcome sweeper for eval labels");
     orphanSweeper?.start();
     heartbeatSweeper?.start();
+    kubernetesJobReconciler?.start();
     pullRequestOutcomeSweeper?.start();
     for (const sweeper of periodicSweepers) sweeper.start();
   } else {
@@ -222,11 +221,11 @@ async function startServer(): Promise<void> {
     );
   }
 
-  // Kick off chat SDK initialization in the background so Slack webhooks
-  // don't time out waiting for PG state connect + Slack auth.test on the
-  // first request.  We don't await it — the server must start listening
-  // immediately.  If init fails it will be retried on the first webhook.
-  if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "not-configured") {
+  // Kick off chat SDK initialization in the background so chat webhooks
+  // don't time out waiting for PG state connect and the services' auth checks
+  // on the first request. We don't await it: the server must start listening
+  // immediately. If init fails it will be retried on the first webhook.
+  if (chatAdapterNames.length > 0) {
     bot.initialize().catch((error) => {
       logger.warn("Background chat bot initialization failed; will retry on first webhook", { error });
     });
@@ -251,6 +250,7 @@ async function startServer(): Promise<void> {
     logger.info(`${signal} received, shutting down gracefully`);
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
+    kubernetesJobReconciler?.stop();
     pullRequestOutcomeSweeper?.stop();
     for (const sweeper of periodicSweepers) sweeper.stop();
     await clawSchedulingEngine.stop();

@@ -11,9 +11,10 @@ function buildImageUrl(
   registry: string,
   prefix: string,
   repositoryName: string,
+  tag = "latest",
 ): string {
   const parts = [registry, prefix, repositoryName].filter(Boolean);
-  return `${parts.join("/")}:latest`;
+  return `${parts.join("/")}:${tag}`;
 }
 
 interface WorkerImageResolutionOptions {
@@ -58,7 +59,7 @@ export function getWorkerImageForClanker(
   }
 
   const imagePrefix = process.env.VIBERATOR_WORKER_IMAGE_PREFIX || "";
-  const registry = process.env.VIBERATOR_WORKER_REGISTRY || "";
+  const registry = process.env.VIBERATOR_WORKER_REGISTRY ?? (strategy === "ecs" ? "ghcr.io/ilities" : "");
   const imageVariant =
     strategy === "lambda"
       ? "lambda"
@@ -69,5 +70,6 @@ export function getWorkerImageForClanker(
     return undefined;
   }
 
-  return buildImageUrl(registry, imagePrefix, repositoryName);
+  return buildImageUrl(registry, imagePrefix, repositoryName,
+    strategy === "kubernetes" ? process.env.KUBERNETES_WORKER_IMAGE_TAG || "latest" : "latest");
 }

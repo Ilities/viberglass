@@ -1,4 +1,3 @@
-import type { TicketSystem } from '@viberglass/types'
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/integrations'
 import { ProjectDAO } from '../../../persistence/project/ProjectDAO'
 import { IntegrationRouteServiceError } from './errors'
@@ -62,8 +61,8 @@ export class ProjectIntegrationLinkService {
     integrationId: string
   ): Promise<void> {
     // Determine category from integration system
-    const plugin = integrationRegistry.get(system as TicketSystem)
-    if (!plugin) return
+    const plugin = integrationRegistry.get(system)
+    if (!plugin || plugin.category === 'chat') return
 
     const isScm = plugin.category === 'scm'
     
@@ -100,7 +99,7 @@ export class ProjectIntegrationLinkService {
     system: string
   ): Promise<void> {
     // Determine category from integration system
-    const plugin = integrationRegistry.get(system as TicketSystem)
+    const plugin = integrationRegistry.get(system)
     if (!plugin) return
 
     const isScm = plugin.category === 'scm'
@@ -133,8 +132,8 @@ export class ProjectIntegrationLinkService {
     }
 
     const plugin = integrationRegistry.get(integration.system)
-    if (!plugin || plugin.category === 'inbound') {
-      throw new IntegrationRouteServiceError(400, 'Inbound integrations cannot be primary')
+    if (!plugin || plugin.category === 'inbound' || plugin.category === 'chat') {
+      throw new IntegrationRouteServiceError(400, 'Only code hosts and issue trackers can be primary')
     }
 
     const links = await this.projectLinkDAO.getProjectIntegrations(projectId)

@@ -1,6 +1,6 @@
 import type { JobListItem } from '@/service/api/job-api'
 import type { AgentSession } from '@/service/api/session-api'
-import type { JobFailure, Ticket, TicketWorkflowPhase } from '@viberglass/types'
+import { isPartFinished, partRangeName, type JobFailure, type TaskPlanParts, type Ticket, type TicketWorkflowPhase } from '@viberglass/types'
 
 export type TaskStep = TicketWorkflowPhase
 
@@ -9,7 +9,7 @@ export type TaskNextMove =
   | { kind: 'start'; step: TaskStep }
   | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null }
   /** A written document, waiting on people to read it and say what's next. */
-  | { kind: 'ready'; step: 'research' | 'planning' }
+  | { kind: 'ready'; step: 'planning' }
   | { kind: 'failed'; step: TaskStep; runId: string; failure: JobFailure | null }
   | { kind: 'cancelled'; step: TaskStep; runId: string }
   | { kind: 'pull_request'; url: string }
@@ -24,16 +24,16 @@ export interface TaskNextMoveInput {
   ticket: Pick<Ticket, 'workflowPhase' | 'status' | 'pullRequestUrl'>
   /** The task's runs, newest first. */
   runs: Pick<JobListItem, 'jobId' | 'jobKind' | 'status' | 'failure'>[]
-  documents: Partial<Record<'research' | 'planning', StepDocument>>
+  plan: StepDocument
   /** The agent's session with a turn running, if any. */
   workingSession: Pick<AgentSession, 'id'> | undefined
 }
 
 const RUNNING = ['queued', 'active']
 
-const isTaskStep = (kind: string): kind is TaskStep => kind === 'research' || kind === 'planning' || kind === 'execution'
+const isTaskStep = (kind: string): kind is TaskStep => kind === 'planning' || kind === 'execution'
 
-export function decideTaskNextMove({ ticket, runs, documents, workingSession }: TaskNextMoveInput): TaskNextMove {
+export function decideTaskNextMove({ ticket, runs, plan, workingSession }: TaskNextMoveInput): TaskNextMove {
   if (ticket.status === 'resolved') return { kind: 'done' }
 
   const step = ticket.workflowPhase
@@ -53,27 +53,47 @@ export function decideTaskNextMove({ ticket, runs, documents, workingSession }: 
     return { kind: 'start', step }
   }
 
-  const document = documents[step]
-  const hasDocument = (document?.content.trim().length ?? 0) > 0
-  if (hasDocument) return { kind: 'ready', step }
+  if (plan.content.trim().length > 0) return { kind: 'ready', step }
   if (latest?.status === 'cancelled') return { kind: 'cancelled', step, runId: latest.jobId }
   return { kind: 'start', step }
 }
 
-export const TASK_STEPS: TaskStep[] = ['research', 'planning', 'execution']
-export const STEP_NAME: Record<TaskStep, string> = { research: 'Research', planning: 'Plan', execution: 'Code' }
+export const TASK_STEPS: TaskStep[] = ['planning', 'execution']
+export const STEP_NAME: Record<TaskStep, string> = { planning: 'Plan', execution: 'Code' }
 
 export type StepPosition = 'done' | 'current' | 'upcoming'
 
 /**
  * Where an artifact stands, in the words its tab shows under its name. Steps
- * are not a sequence: a task can go straight to code, so an earlier artifact
- * counts as written only when it exists.
+ * are not a sequence: a task can go straight to code, so a plan counts as
+ * written only when it exists.
  */
-export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNextMove, exists: boolean): { position: StepPosition; label: string } {
-  if (step === currentStep) return { position: move.kind === 'done' ? 'done' : 'current', label: CURRENT_LABEL[move.kind] }
-  if (exists) return { position: 'done', label: step === 'execution' ? 'Pull request open' : 'Written' }
+export function describeStep(
+  step: TaskStep,
+  currentStep: TaskStep,
+  move: TaskNextMove,
+  exists: boolean,
+  /** For a plan in parts, how far its code has got, in place of "Pull request open". */
+  codeProgress: string | null = null
+): { position: StepPosition; label: string } {
+  const progress = (label: string) => (step === 'execution' && codeProgress && label === 'Pull request open' ? codeProgress : label)
+  if (step === currentStep) return { position: move.kind === 'done' ? 'done' : 'current', label: progress(CURRENT_LABEL[move.kind]) }
+  if (exists) return { position: 'done', label: progress(step === 'execution' ? 'Pull request open' : 'Written') }
   return { position: 'upcoming', label: 'None yet' }
+}
+
+/**
+ * "PR open for part 2", "1 of 3 parts merged", "2 of 3 parts done": how far the
+ * code of a plan in parts has got, "done" once a part was marked done or
+ * skipped rather than merged; null for a plan in one part.
+ */
+export function codeProgress(state: TaskPlanParts | null): string | null {
+  if (!state || state.parts.length < 2) return null
+  if (state.open) return `PR open for ${partRangeName(state.open)}`
+  const finished = state.parts.filter((part) => isPartFinished(part.status))
+  if (finished.length === 0) return null
+  const merged = finished.every((part) => part.status === 'merged')
+  return `${finished.length} of ${state.parts.length} parts ${merged ? 'merged' : 'done'}`
 }
 
 const CURRENT_LABEL: Record<TaskNextMove['kind'], string> = {

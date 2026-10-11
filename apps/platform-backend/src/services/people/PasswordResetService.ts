@@ -5,19 +5,20 @@ import { PEOPLE_SERVICE_ERROR_CODE, PeopleServiceError } from "../errors/PeopleS
 
 const RESET_TTL_MS = 24 * 60 * 60 * 1000;
 
-const LINK_INVALID_MESSAGE = "This reset link has expired or was already used. Ask an admin for a new one.";
+const LINK_INVALID_MESSAGE = "This reset link has expired or was already used. Request a new one, or ask an admin.";
 
 type ResetLinkStore = Pick<PasswordResetLinkDAO, "create" | "findOpen" | "resetPassword">;
 type UserLookup = Pick<UserDAO, "findById">;
 
-/** Reset links an admin hands out, so a forgotten password needs no SMTP. */
+/** Reset links, handed out by an admin or emailed to the person who forgot their password. */
 export class PasswordResetService {
   constructor(
     private readonly links: ResetLinkStore = new PasswordResetLinkDAO(),
     private readonly users: UserLookup = new UserDAO(),
   ) {}
 
-  async createLink(userId: string, createdBy: string): Promise<string> {
+  /** `createdBy` is the admin who made the link, or null when the person asked for it themselves. */
+  async createLink(userId: string, createdBy: string | null): Promise<string> {
     const user = await this.users.findById(userId);
     if (!user) throw new PeopleServiceError(PEOPLE_SERVICE_ERROR_CODE.USER_NOT_FOUND, "That person no longer exists.");
     if (user.deactivatedAt) {

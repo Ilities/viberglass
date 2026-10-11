@@ -5,6 +5,7 @@ import { StackedLayout } from '@/components/stacked-layout'
 import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
 import { useNeedsYouCount } from '@/hooks/useNeedsYouCount'
+import { useApiRefresh } from '@/hooks/useApiRefresh'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { isRunner } from '@/lib/roles'
 import { useEffect, useState } from 'react'
@@ -21,6 +22,7 @@ export function ApplicationLayout() {
   const { project: currentSpace } = useParams<{ project: string }>()
   const { user, status, logout } = useAuth()
   const [spaces, setSpaces] = useState<Project[]>([])
+  const spacesRevision = useApiRefresh('/api/spaces', '/api/setup/space', '/api/setup/demo')
   const needsYou = useNeedsYouCount(status === 'authenticated' && user?.role !== 'viewer', pathname)
 
   useEffect(() => {
@@ -30,8 +32,18 @@ export function ApplicationLayout() {
   }, [navigate, status, pathname])
 
   useEffect(() => {
-    getProjects().then(setSpaces).catch(console.error)
-  }, [])
+    if (status !== 'authenticated') {
+      setSpaces([])
+      return
+    }
+    let cancelled = false
+    getProjects()
+      .then((projects) => !cancelled && setSpaces(projects))
+      .catch(console.error)
+    return () => {
+      cancelled = true
+    }
+  }, [status, user?.id, spacesRevision])
 
   if (status === 'loading') {
     return (

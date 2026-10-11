@@ -1,6 +1,6 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { Heading, Subheading } from '@/components/heading'
+import { Heading } from '@/components/heading'
 import { IntegrationConfigForm } from '@/components/integration-config-form'
 import { PageMeta } from '@/components/page-meta'
 import {
@@ -12,46 +12,32 @@ import {
 import { Text } from '@/components/text'
 import {
   createIntegration,
-  getAvailableIntegrationTypes,
+  getIntegrationManifests,
+  getConnectionIssueRules,
   getIntegration,
-  getSlackBotStatus,
+  getChatStatus,
   testIntegration,
   updateIntegration,
-  type AvailableIntegrationType,
+  type ConnectionSpaceRule,
 } from '@/service/api/integration-api'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type { Integration, TicketSystem } from '@viberglass/types'
-import { useEffect, useMemo, useState } from 'react'
+import type { Integration, IntegrationManifest } from '@viberglass/types'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { toast } from 'sonner'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
-import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
 import {
   IntegrationDetailErrorState,
   IntegrationDetailLoadingState,
   IntegrationDetailNotFoundState,
 } from './integration-detail/IntegrationDetailStates'
+import { ConnectionNameSection } from './integration-detail/ConnectionNameSection'
 import { CreateIntegrationPrompt } from './integration-detail/CreateIntegrationPrompt'
 import { RemoveIntegrationSection } from './integration-detail/RemoveIntegrationSection'
-import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
+import { TrackerWebhookSection } from './integration-detail/TrackerWebhookSection'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
-
-const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
-
-function normalizeGitHubRequiredLabels(rawLabels: string[]): string[] {
-  const labels: string[] = []
-  for (const rawLabel of rawLabels) {
-    const normalized = rawLabel.trim().toLowerCase()
-    if (!normalized || labels.includes(normalized)) {
-      continue
-    }
-    labels.push(normalized)
-  }
-  return labels
-}
 
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
@@ -60,7 +46,7 @@ export function IntegrationDetailPage() {
     integrationSystem?: string
   }>()
 
-  const [integrationType, setIntegrationType] = useState<AvailableIntegrationType | null>(null)
+  const [integrationType, setIntegrationType] = useState<IntegrationManifest | null>(null)
   const [existingIntegration, setExistingIntegration] = useState<Integration | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -68,22 +54,25 @@ export function IntegrationDetailPage() {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [projects, setProjects] = useState<Project[] | null>(null)
-  const [slackBotConfigured, setSlackBotConfigured] = useState<boolean | null>(null)
+  const [chatBotConfigured, setChatBotConfigured] = useState<boolean | null>(null)
+  const [spaceRules, setSpaceRules] = useState<ConnectionSpaceRule[]>([])
 
   const integrationEntityId = existingIntegration?.id
   const integrationSystem = integrationType?.id
   const isConfigured = Boolean(existingIntegration)
-  const isGithubIntegration = integrationSystem === 'github'
-  const isJiraIntegration = integrationSystem === 'jira'
-  const isShortcutIntegration = integrationSystem === 'shortcut'
-  const isCustomIntegration = integrationSystem === 'custom'
-  const isSlackIntegration = integrationSystem === 'slack'
+  // Registry lookup: the integration's own components.
+  const frontendPlugin = integrationSystem ? integrationFrontendRegistry.get(integrationSystem) : undefined
+  const AuthSection = frontendPlugin?.AuthSetupSection
+  const trackerWebhook = frontendPlugin?.trackerWebhook
+  // Stable, so the install section doesn't refetch the status on every render.
+  const getBotStatus = useCallback(
+    () => (integrationSystem ? getChatStatus(integrationSystem) : Promise.resolve({ configured: false })),
+    [integrationSystem]
+  )
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
   })
-
-  const capabilities = getIntegrationDetailCapabilities(integrationSystem)
 
   const initialValues = useMemo(
     () => (existingIntegration?.config as Record<string, string | number | boolean | string[]>) || {},
@@ -106,7 +95,7 @@ export function IntegrationDetailPage() {
       setLoadError(null)
 
       try {
-        const availableTypes = await getAvailableIntegrationTypes()
+        const availableTypes = await getIntegrationManifests()
         if (!isActive) {
           return
         }
@@ -114,7 +103,7 @@ export function IntegrationDetailPage() {
         const typeMap = new Map(availableTypes.map((type) => [type.id, type]))
 
         if (integrationSystemParam) {
-          const type = typeMap.get(integrationSystemParam as TicketSystem)
+          const type = typeMap.get(integrationSystemParam)
           setIntegrationType(type || null)
           setExistingIntegration(null)
           return
@@ -142,13 +131,8 @@ export function IntegrationDetailPage() {
         setIntegrationType(type)
         setExistingIntegration(fullIntegration)
 
-        // Load projects for integration-scoped project mapping controls.
-        if (
-          fullIntegration.system === 'custom' ||
-          fullIntegration.system === 'github' ||
-          fullIntegration.system === 'shortcut' ||
-          fullIntegration.system === 'jira'
-        ) {
+        // Spaces, for choosing which space a webhook's deliveries go to.
+        if (type.webhookProvider) {
           try {
             const loadedProjects = await getProjects()
             if (isActive) {
@@ -165,7 +149,7 @@ export function IntegrationDetailPage() {
           return
         }
 
-        setLoadError(error instanceof Error ? error.message : 'Failed to load integration')
+        setLoadError(error instanceof Error ? error.message : 'Failed to load the connection')
         setIntegrationType(null)
         setExistingIntegration(null)
       } finally {
@@ -182,14 +166,25 @@ export function IntegrationDetailPage() {
     }
   }, [integrationEntityIdParam, integrationSystemParam, navigate])
 
+  // A connection made by installing an app is connected when the app is installed.
   useEffect(() => {
-    if (!isSlackIntegration) {
+    if (!AuthSection) {
       return
     }
-    getSlackBotStatus()
-      .then(({ configured }) => setSlackBotConfigured(configured))
-      .catch(() => setSlackBotConfigured(false))
-  }, [isSlackIntegration])
+    getBotStatus()
+      .then(({ configured }) => setChatBotConfigured(configured))
+      .catch(() => setChatBotConfigured(false))
+  }, [AuthSection, getBotStatus])
+
+  useEffect(() => {
+    if (!integrationEntityId || !trackerWebhook) {
+      setSpaceRules([])
+      return
+    }
+    getConnectionIssueRules(integrationEntityId)
+      .then(setSpaceRules)
+      .catch(() => setSpaceRules([]))
+  }, [integrationEntityId, trackerWebhook])
 
   if (isPageLoading) {
     return <IntegrationDetailLoadingState />
@@ -206,8 +201,8 @@ export function IntegrationDetailPage() {
   const configStatus =
     integrationType.status === 'stub'
       ? 'stub'
-      : isSlackIntegration
-        ? slackBotConfigured
+      : AuthSection
+        ? chatBotConfigured
           ? 'configured'
           : 'not_configured'
         : isConfigured
@@ -217,168 +212,6 @@ export function IntegrationDetailPage() {
   const status = getIntegrationStatusConfig(configStatus)
   const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
-
-  // Registry lookup — provides integration-specific section components.
-  const frontendPlugin = integrationFrontendRegistry.get(integrationSystem!)
-  const AuthSection = frontendPlugin?.AuthSetupSection
-  const RegistryInboundSection = frontendPlugin?.InboundWebhookSection
-
-  // ---- Per-system inbound handlers -------------------------------------------
-
-  const buildGitHubInboundLabelMappings = () => {
-    if (!webhook.autoExecute) {
-      return {}
-    }
-
-    if (webhook.githubAutoExecuteMode === 'label_gated') {
-      const requiredLabels = normalizeGitHubRequiredLabels(webhook.githubRequiredLabels)
-      return {
-        github: {
-          autoExecuteMode: 'label_gated',
-          requiredLabels,
-        },
-      }
-    }
-
-    return {
-      github: {
-        autoExecuteMode: 'matching_events',
-      },
-    }
-  }
-
-  const validateGitHubRepositoryMapping = (): string | null => {
-    const repositoryMapping = webhook.selectedInboundProviderProjectId?.trim() || null
-    if (!repositoryMapping) {
-      toast.error('GitHub repository mapping is required')
-      return null
-    }
-
-    if (!GITHUB_REPOSITORY_PATTERN.test(repositoryMapping)) {
-      toast.error('GitHub repository mapping must use owner/repo format')
-      return null
-    }
-
-    return repositoryMapping
-  }
-
-  const handleGitHubCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-      buildGitHubInboundLabelMappings(),
-    )
-  }
-
-  const handleGitHubGenerateSecret = () => {
-    if (webhook.selectedInboundConfig) {
-      const repositoryMapping = validateGitHubRepositoryMapping()
-      if (!repositoryMapping) {
-        return
-      }
-
-      void webhook.handleGenerateSecret(
-        repositoryMapping,
-        webhook.selectedInboundProjectId,
-        buildGitHubInboundLabelMappings(),
-      )
-      return
-    }
-
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-      buildGitHubInboundLabelMappings(),
-    )
-  }
-
-  const handleGitHubSaveInboundWebhook = () => {
-    const repositoryMapping = validateGitHubRepositoryMapping()
-    if (!repositoryMapping) {
-      return
-    }
-
-    if (
-      webhook.githubAutoExecuteMode === 'label_gated' &&
-      normalizeGitHubRequiredLabels(webhook.githubRequiredLabels).length === 0
-    ) {
-      toast.error('Add at least one GitHub label for label-gated auto-execute')
-      return
-    }
-
-    void webhook.handleSaveInboundWebhook(
-      repositoryMapping,
-      webhook.selectedInboundProjectId,
-      buildGitHubInboundLabelMappings(),
-    )
-  }
-
-  const handleJiraCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraGenerateSecret = () => {
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutGenerateSecret = () => {
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  // Pick inbound callbacks based on integration system.
-  const onCreateInboundWebhook = isGithubIntegration
-    ? handleGitHubCreateInboundWebhook
-    : isJiraIntegration
-      ? handleJiraCreateInboundWebhook
-      : isShortcutIntegration
-        ? handleShortcutCreateInboundWebhook
-        : () => void webhook.handleCreateInboundWebhook()
-
-  const onGenerateInboundSecret = isGithubIntegration
-    ? handleGitHubGenerateSecret
-    : isJiraIntegration
-      ? handleJiraGenerateSecret
-      : isShortcutIntegration
-        ? handleShortcutGenerateSecret
-        : () => void webhook.handleGenerateSecret()
-
-  const onSaveInboundWebhook = isGithubIntegration
-    ? handleGitHubSaveInboundWebhook
-    : isJiraIntegration
-      ? handleJiraSaveInboundWebhook
-      : isShortcutIntegration
-        ? handleShortcutSaveInboundWebhook
-        : () => void webhook.handleSaveInboundWebhook()
 
   // ---- Form handlers ---------------------------------------------------------
 
@@ -396,7 +229,7 @@ export function IntegrationDetailPage() {
             config,
           })
         : await createIntegration({
-            name: `${integrationType.label} Integration`,
+            name: integrationType.label,
             system: integrationSystem,
             config,
           })
@@ -420,7 +253,7 @@ export function IntegrationDetailPage() {
       if (!existingIntegration) {
         setTestResult({
           success: false,
-          message: 'Save the integration first to test the connection',
+          message: 'Save the connection first to test it',
         })
         return
       }
@@ -448,7 +281,7 @@ export function IntegrationDetailPage() {
         <div className="flex items-center gap-4">
           <Button href="/settings/connections" plain>
             <ArrowLeftIcon className="h-4 w-4" />
-            Back to Connections
+            Back to connections
           </Button>
         </div>
 
@@ -472,12 +305,12 @@ export function IntegrationDetailPage() {
 
         <div className="app-frame rounded-lg p-8 text-center border-warning-200 dark:border-warning-900/50">
           <StatusIcon className="mx-auto h-12 w-12 text-warning-500" />
-          <h2 className="mt-4 text-lg font-semibold text-warning-900 dark:text-warning-400">Coming Soon</h2>
+          <h2 className="mt-4 text-lg font-semibold text-warning-900 dark:text-warning-400">Coming soon</h2>
           <p className="mt-2 text-[var(--gray-9)]">
-            The {integrationType.label} integration is currently under development. Check back soon!
+            The {integrationType.label} connection isn&apos;t available yet.
           </p>
           <Button href="/settings/connections" color="brand" className="mt-6">
-            Back to Connections
+            Back to connections
           </Button>
         </div>
       </div>
@@ -492,7 +325,7 @@ export function IntegrationDetailPage() {
       <div className="flex items-center gap-4">
         <Button href="/settings/connections" plain>
           <ArrowLeftIcon className="h-4 w-4" />
-          Back to Connections
+          Back to connections
         </Button>
       </div>
 
@@ -518,7 +351,7 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
-      {!existingIntegration && (isCustomIntegration || isShortcutIntegration || isJiraIntegration || isGithubIntegration) ? (
+      {!existingIntegration && !AuthSection ? (
         <CreateIntegrationPrompt
           label={integrationType.label}
           system={integrationType.id}
@@ -526,32 +359,30 @@ export function IntegrationDetailPage() {
         />
       ) : (
       <>
-      {/* Auth setup section (e.g. Slack install guide) */}
-      {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
+      {existingIntegration && (
+        <ConnectionNameSection integration={existingIntegration} onRenamed={setExistingIntegration} />
+      )}
 
-      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && !isGithubIntegration && !isSlackIntegration && (
-        <section className="app-frame rounded-lg p-6">
-          <Subheading>Configuration</Subheading>
-          <div className="mt-6">
-            <IntegrationConfigForm
-              integration={integrationType}
-              initialValues={initialValues}
-              onSubmit={handleSubmit}
-              onTest={handleTest}
-              onCancel={handleCancel}
-              isLoading={isSavingConfig}
-              isTesting={isTesting}
-              testResult={testResult}
-            />
-          </div>
-        </section>
+      {AuthSection && <AuthSection getBotStatus={getBotStatus} />}
+
+      {integrationType.configFields.length > 0 && (
+        <IntegrationConfigForm
+          integration={integrationType}
+          initialValues={initialValues}
+          onSubmit={handleSubmit}
+          onTest={handleTest}
+          onCancel={handleCancel}
+          isLoading={isSavingConfig}
+          isTesting={isTesting}
+          testResult={testResult}
+        />
       )}
 
       {/* Inbound webhook section */}
-      {(isConfigured || isCustomIntegration) && capabilities.supportsInboundWebhooks && (
-        isCustomIntegration ? (
+      {isConfigured && integrationType.webhookProvider && (
+        !trackerWebhook ? (
           <CustomInboundWebhookSection
-            autoExecute={webhook.autoExecute}
+            planNewIssues={webhook.planNewIssues}
             deliveries={webhook.deliveries}
             hasInboundChanges={webhook.hasInboundChanges}
             inboundActive={webhook.inboundActive}
@@ -564,89 +395,36 @@ export function IntegrationDetailPage() {
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             selectedProjectId={webhook.selectedInboundProjectId}
             showSecret={webhook.showSecret}
-            onAutoExecuteChange={webhook.setAutoExecute}
+            onPlanNewIssuesChange={webhook.setPlanNewIssues}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(undefined, projectId)}
+            onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(projectId)}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
             onGenerateSecret={() =>
-              webhook.handleGenerateSecret(undefined, webhook.selectedInboundProjectId)
+              webhook.handleGenerateSecret(webhook.selectedInboundProjectId)
             }
             onInboundActiveChange={webhook.setInboundActive}
             onProjectChange={webhook.setSelectedInboundProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={() => webhook.handleSaveInboundWebhook(undefined, webhook.selectedInboundProjectId)}
+            onSaveWebhook={() => webhook.handleSaveInboundWebhook(webhook.selectedInboundProjectId)}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
-          />
-        ) : RegistryInboundSection ? (
-          <RegistryInboundSection
-            autoExecute={webhook.autoExecute}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundEvents={webhook.inboundEvents}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
-            projects={projects}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            selectedInboundProjectId={webhook.selectedInboundProjectId}
-            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
-            showSecret={webhook.showSecret}
-            githubAutoExecuteMode={webhook.githubAutoExecuteMode}
-            githubRequiredLabels={webhook.githubRequiredLabels}
-            onAutoExecuteChange={webhook.setAutoExecute}
-            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={onCreateInboundWebhook}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={onGenerateInboundSecret}
-            onGitHubAutoExecuteModeChange={webhook.setGitHubAutoExecuteMode}
-            onGitHubRequiredLabelsChange={webhook.setGitHubRequiredLabels}
-            onInboundProjectChange={webhook.setSelectedInboundProjectId}
-            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={onSaveInboundWebhook}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleInboundEvent={webhook.handleToggleInboundEvent}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
         ) : (
-          <InboundWebhookSection
-            autoExecute={webhook.autoExecute}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
+          <TrackerWebhookSection
+            tracker={trackerWebhook}
+            webhook={webhook}
+            spaceRules={spaceRules}
             projects={projects}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
-            showSecret={webhook.showSecret}
-            onAutoExecuteChange={webhook.setAutoExecute}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={() => webhook.handleCreateInboundWebhook()}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={() => webhook.handleGenerateSecret()}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={() => webhook.handleSaveInboundWebhook()}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
         )
       )}
 
-      {isConfigured && existingIntegration && (isGithubIntegration || integrationSystem === 'gitlab' || integrationSystem === 'bitbucket') && (
+      {existingIntegration && integrationType.credentialUse && (
         <IntegrationCredentialSection
           integrationId={existingIntegration.id}
-          integrationSystem={integrationSystem}
+          credentialUse={integrationType.credentialUse}
         />
       )}
 

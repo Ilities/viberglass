@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
+import { AVAILABLE_AGENT_TYPES, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -103,7 +103,6 @@ export const updateTicketSchema = Joi.object({
   autoFixStatus: Joi.string()
     .valid("pending", "in_progress", "completed", "failed")
     .optional(),
-  pullRequestUrl: Joi.string().uri().optional(),
 });
 
 export const archiveTicketsSchema = Joi.object({
@@ -141,6 +140,7 @@ export const updateProjectSchema = Joi.object({
   primaryScmIntegrationId: Joi.string().uuid().allow(null).optional(),
   isPrivate: Joi.boolean().optional(),
   defaultOwnerId: Joi.string().uuid().allow(null).optional(),
+  defaultAgentId: Joi.string().uuid().allow(null).optional(),
   defaultReviewerIds: Joi.array().items(Joi.string().uuid()).max(20).optional(),
   questionReminderHours: Joi.number().integer().min(1).max(168).optional(),
 });
@@ -195,7 +195,7 @@ export const clankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid(...SUPPORTED_AGENT_TYPES)
+    .valid(...AVAILABLE_AGENT_TYPES)
     .allow(null)
     .optional(),
   secretBindings: secretBindingsSchema.optional(),
@@ -211,7 +211,7 @@ export const updateClankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid(...SUPPORTED_AGENT_TYPES)
+    .valid(...AVAILABLE_AGENT_TYPES)
     .allow(null)
     .optional(),
   secretBindings: secretBindingsSchema.optional(),
@@ -287,7 +287,6 @@ export const resultCallbackSchema = Joi.object({
   pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
   // The documents a task turn wrote: each becomes the document's next version.
   documents: Joi.object({
-    research: Joi.string().allow("").optional(),
     plan: Joi.string().allow("").optional(),
     summary: Joi.string().allow("").optional(),
   }).optional(),
@@ -390,11 +389,6 @@ export const updateSecretSchema = Joi.object({
   sourceEnvVar: Joi.string().pattern(ENV_VAR_NAME_PATTERN).max(255).allow(null).optional(),
   provider: secretProviderSchema.optional(),
   secretValue: Joi.string().allow("").optional(),
-});
-
-export const integrationConfigSchema = Joi.object({
-  authType: Joi.string().valid("api_key", "oauth", "basic", "token").required(),
-  values: Joi.object().required(),
 });
 
 const userRoleSchema = Joi.string().valid(...WORKSPACE_ROLES);

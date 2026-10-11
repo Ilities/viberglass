@@ -42,10 +42,10 @@ describe("GitService.checkoutRemoteBranch", () => {
     git(seed, "add", ".");
     git(seed, "commit", "-m", "base");
     git(seed, "push", "origin", "HEAD:main");
-    git(seed, "checkout", "-b", "viberator/task-1");
+    git(seed, "checkout", "-b", "viberglass/task-1");
     fs.writeFileSync(path.join(seed, "a.txt"), "first build\n");
     git(seed, "commit", "-am", "build run 1");
-    git(seed, "push", "origin", "viberator/task-1");
+    git(seed, "push", "origin", "viberglass/task-1");
   });
 
   afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -60,21 +60,21 @@ describe("GitService.checkoutRemoteBranch", () => {
   it("checks out the task branch an earlier build pushed", async () => {
     const repoDir = await cloneMain();
 
-    await expect(gitService.checkoutRemoteBranch(repoDir, "viberator/task-1")).resolves.toBe(true);
+    await expect(gitService.checkoutRemoteBranch(repoDir, "viberglass/task-1")).resolves.toBe(true);
 
-    expect(git(repoDir, "rev-parse", "--abbrev-ref", "HEAD")).toBe("viberator/task-1");
+    expect(git(repoDir, "rev-parse", "--abbrev-ref", "HEAD")).toBe("viberglass/task-1");
     expect(fs.readFileSync(path.join(repoDir, "a.txt"), "utf8")).toBe("first build\n");
   });
 
   it("lets the next build push its commit on top without a rejection", async () => {
     const repoDir = await cloneMain();
-    await gitService.checkoutRemoteBranch(repoDir, "viberator/task-1");
+    await gitService.checkoutRemoteBranch(repoDir, "viberglass/task-1");
     fs.writeFileSync(path.join(repoDir, "a.txt"), "second build\n");
     await gitService.commitChanges(repoDir, "build run 2");
 
-    await gitService.pushBranch(repoDir, "viberator/task-1");
+    await gitService.pushBranch(repoDir, "viberglass/task-1");
 
-    expect(git(remote, "log", "--format=%s", "viberator/task-1").split("\n")).toEqual([
+    expect(git(remote, "log", "--format=%s", "viberglass/task-1").split("\n")).toEqual([
       "fix: build run 2",
       "build run 1",
       "base",
@@ -84,16 +84,16 @@ describe("GitService.checkoutRemoteBranch", () => {
   it("leaves the base branch checked out when the task has no branch yet", async () => {
     const repoDir = await cloneMain();
 
-    await expect(gitService.checkoutRemoteBranch(repoDir, "viberator/task-2")).resolves.toBe(false);
+    await expect(gitService.checkoutRemoteBranch(repoDir, "viberglass/task-2")).resolves.toBe(false);
 
     expect(git(repoDir, "rev-parse", "--abbrev-ref", "HEAD")).toBe("main");
   });
 
   it("does not mistake a branch that merely ends with the same name", async () => {
     const seed = path.join(root, "seed");
-    git(seed, "push", "origin", "viberator/task-1:refs/heads/other/viberator/task-3");
+    git(seed, "push", "origin", "viberglass/task-1:refs/heads/other/viberglass/task-3");
     const repoDir = await cloneMain();
 
-    await expect(gitService.checkoutRemoteBranch(repoDir, "viberator/task-3")).resolves.toBe(false);
+    await expect(gitService.checkoutRemoteBranch(repoDir, "viberglass/task-3")).resolves.toBe(false);
   });
 });

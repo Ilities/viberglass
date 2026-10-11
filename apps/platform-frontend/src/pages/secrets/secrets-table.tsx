@@ -5,6 +5,7 @@ import { Timestamp } from '@/components/timestamp'
 import type { Secret, SecretLocation } from '@/service/api/secret-api'
 import { Pencil1Icon, TrashIcon } from '@radix-ui/react-icons'
 import { getModelProvider } from '@viberglass/types'
+import { describeSecretUsers, type SecretUsers } from './secretUsers'
 
 const badgeColors: Record<SecretLocation, 'green' | 'blue' | 'amber'> = {
   env: 'green',
@@ -18,36 +19,37 @@ const locationLabels: Record<SecretLocation, string> = {
   ssm: 'SSM',
 }
 
-function reference(secret: Secret): string {
-  if (secret.secretLocation === 'ssm') return secret.secretPath || '—'
-  if (secret.secretLocation === 'env') return secret.sourceEnvVar || '—'
-  return '—'
+function reference(secret: Secret): string | null {
+  if (secret.secretLocation === 'ssm') return secret.secretPath || null
+  if (secret.secretLocation === 'env') return secret.sourceEnvVar || null
+  return null
 }
 
 interface SecretsTableProps {
   secrets: Secret[]
-  /** Names of the runners that use each secret, by secret id. */
-  usedBy: Map<string, string[]>
+  usedBy: Map<string, SecretUsers>
+  /** Off when every secret is stored in the database, the default, so the column would say nothing. */
+  showStorage: boolean
   onEdit: (secret: Secret) => void
   onDelete: (secret: Secret) => void
 }
 
-export function SecretsTable({ secrets, usedBy, onEdit, onDelete }: SecretsTableProps) {
+export function SecretsTable({ secrets, usedBy, showStorage, onEdit, onDelete }: SecretsTableProps) {
   return (
     <Table>
       <TableHead>
         <TableRow>
           <TableHeader>Name</TableHeader>
           <TableHeader>Used by</TableHeader>
-          <TableHeader>Storage</TableHeader>
-          <TableHeader>Reference</TableHeader>
+          {showStorage && <TableHeader>Storage</TableHeader>}
           <TableHeader>Updated</TableHeader>
           <TableHeader />
         </TableRow>
       </TableHead>
       <TableBody>
         {secrets.map((secret) => {
-          const runners = usedBy.get(secret.id) ?? []
+          const users = describeSecretUsers(usedBy.get(secret.id))
+          const ref = reference(secret)
           return (
             <TableRow key={secret.id}>
               <TableCell className="font-medium text-zinc-950 dark:text-white">
@@ -58,27 +60,24 @@ export function SecretsTable({ secrets, usedBy, onEdit, onDelete }: SecretsTable
                   </div>
                 )}
               </TableCell>
-              <TableCell className="text-zinc-500 dark:text-zinc-400">
-                {runners.length > 0 ? runners.join(', ') : 'No runner'}
+              <TableCell className="whitespace-normal text-zinc-500 dark:text-zinc-400">
+                {users.length > 0 ? users.map((line) => <div key={line}>{line}</div>) : 'Not used'}
               </TableCell>
-              <TableCell>
-                <Badge color={badgeColors[secret.secretLocation]}>{locationLabels[secret.secretLocation]}</Badge>
-              </TableCell>
-              <TableCell className="text-zinc-500 dark:text-zinc-400">{reference(secret)}</TableCell>
+              {showStorage && (
+                <TableCell>
+                  <Badge color={badgeColors[secret.secretLocation]}>{locationLabels[secret.secretLocation]}</Badge>
+                  {ref && <div className="mt-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">{ref}</div>}
+                </TableCell>
+              )}
               <TableCell className="text-zinc-500 dark:text-zinc-400">
                 <Timestamp date={secret.updatedAt} />
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
-                  <Button
-                    plain
-                    onClick={() => onEdit(secret)}
-                    aria-label="Edit secret"
-                    className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  >
+                  <Button plain onClick={() => onEdit(secret)} aria-label={`Edit ${secret.name}`}>
                     <Pencil1Icon className="h-4 w-4" />
                   </Button>
-                  <Button surface color="red" onClick={() => onDelete(secret)} aria-label="Delete secret">
+                  <Button surface color="red" onClick={() => onDelete(secret)} aria-label={`Delete ${secret.name}`}>
                     <TrashIcon className="h-4 w-4" />
                   </Button>
                 </div>

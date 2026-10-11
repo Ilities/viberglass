@@ -1,6 +1,6 @@
 import { runnerModelEndpoints } from "../modelEndpoints";
 import { randomUUID } from "crypto";
-import { isObjectRecord, type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { isObjectRecord, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import logger from "../../config/logger";
 import type { AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
@@ -26,9 +26,11 @@ export interface DispatchTurnInput {
   turnId: string;
   action: TaskTurnAction;
   allowCode: boolean;
+  /** For a build: the parts it covers in a new pull request; null when it continues the open one. */
+  buildParts?: PartRange | null;
   prompts: TurnPrompts;
   ticket: Ticket;
-  documents: { research: string; plan: string };
+  documents: { plan: string };
   /** The latest summary of the conversation, written into the repository as SUMMARY.md. */
   summary: string;
   /** The last commit an agent pushed to the task's branch, so the worker can tell it what people pushed since. */
@@ -51,8 +53,6 @@ function resumeState(metadata: unknown): { acpSessionId: string | null; conversa
 function jobDataFor(action: TaskTurnAction, base: Omit<BaseJobData, "jobKind">, context: TicketJobContext): JobData {
   const kind = TURN_JOB_KIND[action];
   switch (kind) {
-    case "research":
-      return { ...base, jobKind: kind, context };
     case "planning":
       return { ...base, jobKind: kind, context };
     case "execution":
@@ -80,7 +80,7 @@ export class TaskTurnJobDispatcher {
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker"> = new CredentialRequirementsService(),
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
     private readonly media: Pick<TicketMediaExecutionService, "prepareForExecution"> = new TicketMediaExecutionService(),
-    private readonly branches: Pick<TaskBranchNamer, "nameFor"> = new TaskBranchNamer(),
+    private readonly branches: Pick<TaskBranchNamer, "nameFor" | "existing"> = new TaskBranchNamer(),
   ) {}
 
   /**
@@ -120,7 +120,6 @@ export class TaskTurnJobDispatcher {
         originalTicketId: ticket.externalTicketId || ticket.id,
         ticketTitle: ticket.title,
         ticketDescription: ticket.description,
-        researchDocument: input.documents.research || undefined,
         planDocument: input.documents.plan || undefined,
         summaryDocument: input.summary || undefined,
         instructionFiles: prepared.mergedInstructionFiles,
@@ -159,8 +158,11 @@ export class TaskTurnJobDispatcher {
       acpSessionId,
       conversationStateUrl,
       lastAgentCommit: input.lastAgentCommit,
-      // Named once for the task, so every turn and whoever takes over use the same branch.
-      taskBranch: await this.branches.nameFor(ticket.id, jobId),
+      // A build names its pull request's branch; other turns read the code on the latest one, if there's one.
+      taskBranch:
+        action === "code"
+          ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? null)
+          : ((await this.branches.existing(ticket.id)) ?? undefined),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };

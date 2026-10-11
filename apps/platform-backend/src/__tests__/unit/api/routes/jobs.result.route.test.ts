@@ -1,5 +1,6 @@
 const mockJobService = {
   getJobStatus: jest.fn(),
+  getBootstrapPayload: jest.fn(),
   updateJobStatus: jest.fn(),
   deleteJob: jest.fn(),
 };
@@ -12,7 +13,10 @@ const mockDocumentCheck = { missing: jest.fn() };
 
 const mockSecretService = {
   upsertWorkerAuthCache: jest.fn(),
+  resolveBindings: jest.fn(),
 };
+
+const mockCodexLogins = { saveLogin: jest.fn() };
 
 const mockAgentTurnDAO = {
   getByJobId: jest.fn(),
@@ -27,6 +31,7 @@ const mockAgentSessionDAO = {
 const mockAgentSessionEventDAO = {
   getMaxSequence: jest.fn(),
   create: jest.fn(),
+  listByJob: jest.fn(),
 };
 
 const mockAgentPendingRequestDAO = {};
@@ -34,6 +39,9 @@ const mockAgentPendingRequestDAO = {};
 const mockAgentSessionWorkerEventService = {
   batchIngest: jest.fn(),
 };
+
+const mockTouchHeartbeat = jest.fn();
+const mockRunRecordGet = jest.fn();
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: jest.fn(),
@@ -61,6 +69,17 @@ jest.mock("../../../../services/JobService", () => ({
 }));
 jest.mock("../../../../services/job/JobQueryService", () => ({
   JobQueryService: jest.fn(() => ({ getJobStatus: (...args: unknown[]) => mockJobService.getJobStatus(...args) })),
+}));
+
+jest.mock("../../../../services/job/JobBootstrapService", () => ({
+  JobBootstrapService: jest.fn(() => ({ getBootstrapPayload: (...args: unknown[]) => mockJobService.getBootstrapPayload(...args) })),
+}));
+jest.mock("../../../../services/SecretResolutionService", () => ({
+  SecretResolutionService: jest.fn(() => mockSecretService),
+}));
+
+jest.mock("../../../../services/codexLogin/CodexLoginService", () => ({
+  CodexLoginService: jest.fn(() => mockCodexLogins),
 }));
 
 jest.mock("../../../../services/SecretService", () => ({
@@ -103,6 +122,18 @@ jest.mock("../../../../services/agentSession/AgentSessionWorkerEventService", ()
   AgentSessionWorkerEventService: jest.fn(() => mockAgentSessionWorkerEventService),
 }));
 
+jest.mock("../../../../services/job/JobProgressService", () => ({
+  recordLog: jest.fn(),
+  recordLogBatch: jest.fn(),
+  recordProgress: jest.fn(),
+  touchHeartbeat: (...args: unknown[]) => mockTouchHeartbeat(...args),
+}));
+
+jest.mock("../../../../persistence/job/RunRecordDAO", () => ({ RunRecordDAO: jest.fn() }));
+jest.mock("../../../../services/runRecords/RunRecordService", () => ({
+  RunRecordService: jest.fn(() => ({ get: (...args: unknown[]) => mockRunRecordGet(...args) })),
+}));
+
 import jobsRouter from "../../../../api/routes/jobs";
 import {
   JobServiceError,
@@ -132,6 +163,7 @@ function getRouteHandler(path: string, method: string): unknown {
 describe("job result callbacks", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockJobService.getBootstrapPayload.mockResolvedValue(null);
     mockAgentTurnDAO.getByJobId.mockResolvedValue(null);
     mockAgentSessionDAO.listByLastJobId.mockResolvedValue([]);
     mockDocumentCheck.missing.mockResolvedValue(null);
@@ -148,6 +180,83 @@ describe("job result callbacks", () => {
   function response() {
     return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
   }
+
+  it("delivers only a Kubernetes run's credentials without persisting them", async () => {
+    const payload = { workerType: "kubernetes", requiredCredentials: [{ envVar: "AGENT_KEY" }] };
+    mockJobService.getBootstrapPayload.mockResolvedValue({ tenantId: "tenant-1", status: "active", payload });
+    mockSecretService.resolveBindings.mockResolvedValue({ AGENT_KEY: "private-value" });
+    const handler = getRouteHandler("/:jobId/bootstrap", "get");
+    if (typeof handler !== "function") throw new Error("Missing bootstrap handler");
+    const res = { ...response(), setHeader: jest.fn() };
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1" }, res);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: { ...payload, credentials: { AGENT_KEY: "private-value" } } });
+    expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store");
+    expect(payload).not.toHaveProperty("credentials");
+  });
+
+  it.each(["completed", "failed", "cancelled"])("refuses bootstrap credentials for a %s run", async (status) => {
+    mockJobService.getBootstrapPayload.mockResolvedValue({
+      tenantId: "tenant-1", status, payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "AGENT_KEY" }] },
+    });
+    const handler = getRouteHandler("/:jobId/bootstrap", "get");
+    if (typeof handler !== "function") throw new Error("Missing bootstrap handler");
+    const res = response();
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1" }, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockSecretService.resolveBindings).not.toHaveBeenCalled();
+  });
+
+  it("refuses bootstrap credentials when the tenant differs", async () => {
+    mockJobService.getBootstrapPayload.mockResolvedValue({
+      tenantId: "tenant-2", status: "active", payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "AGENT_KEY" }] },
+    });
+    const handler = getRouteHandler("/:jobId/bootstrap", "get");
+    if (typeof handler !== "function") throw new Error("Missing bootstrap handler");
+    const res = response();
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1" }, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockSecretService.resolveBindings).not.toHaveBeenCalled();
+  });
+
+  it("stores a Kubernetes Codex auth refresh in the encrypted database", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({ data: { tenantId: "tenant-1" } });
+    mockJobService.getBootstrapPayload.mockResolvedValue({
+      status: "active", payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "CODEX_AUTH" }] },
+    });
+    mockSecretService.upsertWorkerAuthCache.mockResolvedValue({ id: "secret-1", secretLocation: "database" });
+    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
+    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "CODEX_AUTH", authJson: "{}" } }, response());
+    expect(mockSecretService.upsertWorkerAuthCache).toHaveBeenCalledWith("CODEX_AUTH", "{}", "database");
+  });
+
+  it("updates the Kubernetes runner's stored Codex login", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({ clankerId: "runner-1", data: { tenantId: "tenant-1" } });
+    mockJobService.getBootstrapPayload.mockResolvedValue({ status: "active", payload: {
+      workerType: "kubernetes", requiredCredentials: [{ envVar: "CODEX_AUTH_JSON", exposeToAgent: false }],
+    } });
+    mockCodexLogins.saveLogin.mockResolvedValue({ id: "login-1", secretLocation: "database" });
+    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
+    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
+    const res = response();
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "CODEX_AUTH_JSON", authJson: "{}" } }, res);
+    expect(mockCodexLogins.saveLogin).toHaveBeenCalledWith("runner-1", "{}");
+    expect(mockSecretService.upsertWorkerAuthCache).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ success: true, secretId: "login-1", secretLocation: "database" });
+  });
+
+  it("refuses a Kubernetes auth refresh for an unlisted secret", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({ data: { tenantId: "tenant-1" } });
+    mockJobService.getBootstrapPayload.mockResolvedValue({
+      status: "active", payload: { workerType: "kubernetes", requiredCredentials: [] },
+    });
+    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
+    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
+    const res = response();
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "OTHER", authJson: "{}" } }, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockSecretService.upsertWorkerAuthCache).not.toHaveBeenCalled();
+  });
 
   beforeEach(() => {
     mockJobService.getJobStatus.mockResolvedValue({ status: "active", jobKind: "reply", ticketId: "ticket-1", data: { tenantId: "tenant-1" } });
@@ -206,21 +315,21 @@ describe("job result callbacks", () => {
   });
 
   it("fails a turn that came back without the document it was asked for", async () => {
-    const turn = { id: "turn-1", sessionId: "session-1", action: "research" };
+    const turn = { id: "turn-1", sessionId: "session-1", action: "plan" };
     const session = { id: "session-1", ticketId: "ticket-1" };
     mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
     mockAgentSessionDAO.getById.mockResolvedValue(session);
-    mockDocumentCheck.missing.mockResolvedValue("research");
+    mockDocumentCheck.missing.mockResolvedValue("plan");
     const res = response();
 
-    await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, documents: { plan: "# Plan" } }, tenantId: "tenant-1" }, res);
+    await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, documents: { summary: "# Notes" } }, tenantId: "tenant-1" }, res);
 
-    expect(mockDocumentCheck.missing).toHaveBeenCalledWith(turn, { plan: "# Plan" });
-    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "research", documents: { plan: "# Plan" } }));
+    expect(mockDocumentCheck.missing).toHaveBeenCalledWith(turn, { summary: "# Notes" });
+    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "plan", documents: { summary: "# Notes" } }));
     expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
       "job-1",
       "failed",
-      expect.objectContaining({ failureCode: "AGENT_NO_DOCUMENT", errorMessage: "The agent finished without writing the research." }),
+      expect.objectContaining({ failureCode: "AGENT_NO_DOCUMENT", errorMessage: "The agent finished without writing the plan." }),
     );
     expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "failed" });
     expect(mockAutoSummariser.afterTurn).not.toHaveBeenCalled();
@@ -300,5 +409,46 @@ describe("job result callbacks", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Codex auth cache exceeds SSM size limit (4100 bytes)",
     });
+  });
+
+  it("counts a batch of session events as a heartbeat, so a long agent turn is not given up", async () => {
+    const handler = getRouteHandler("/:jobId/session-events/batch", "post");
+    if (typeof handler !== "function") throw new Error("Missing session events handler");
+    const res = response();
+    const events = [{ eventType: "reasoning", payload: { text: "Reading the code" } }];
+
+    await handler({ params: { jobId: "job-1" }, body: { events } }, res);
+
+    expect(mockAgentSessionWorkerEventService.batchIngest).toHaveBeenCalledWith("job-1", events);
+    expect(mockTouchHeartbeat).toHaveBeenCalledWith("job-1", expect.any(Date));
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+  });
+
+  it("lists what the agent did in a run after the sequence the page already has", async () => {
+    const handler = getRouteHandler("/:jobId/events", "get");
+    if (typeof handler !== "function") throw new Error("Missing run events handler");
+    const events = [{ id: "e1", sequence: 4, eventType: "reasoning", payloadJson: { text: "Reading" } }];
+    mockAgentSessionEventDAO.listByJob.mockResolvedValue(events);
+    const res = response();
+
+    await handler({ params: { jobId: "job-1" }, query: { afterSequence: "3" } }, res);
+
+    expect(mockAgentSessionEventDAO.listByJob).toHaveBeenCalledWith("job-1", 3);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: events });
+  });
+
+  it("gives anyone who can see the run its record, and 404 for a run without one", async () => {
+    const handler = getRouteHandler("/:jobId/record", "get");
+    if (typeof handler !== "function") throw new Error("Missing run record handler");
+    mockRunRecordGet.mockResolvedValueOnce({ jobId: "job-1" }).mockResolvedValueOnce(null);
+
+    const found = response();
+    await handler({ params: { jobId: "job-1" } }, found);
+    expect(mockRunRecordGet).toHaveBeenCalledWith("job-1");
+    expect(found.json).toHaveBeenCalledWith({ jobId: "job-1" });
+
+    const missing = response();
+    await handler({ params: { jobId: "job-9" } }, missing);
+    expect(missing.status).toHaveBeenCalledWith(404);
   });
 });

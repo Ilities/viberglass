@@ -1,10 +1,9 @@
 import type { Router } from "express";
-import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from "@viberglass/types";
+import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import logger from "../../../config/logger";
 import type { TicketPhaseDocumentRevisionService } from "../../../services/TicketPhaseDocumentRevisionService";
 import type { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
 import type { TicketPlanningService } from "../../../services/TicketPlanningService";
-import type { TicketResearchService } from "../../../services/TicketResearchService";
 import type { TicketWorkflowService } from "../../../services/TicketWorkflowService";
 import { validateUuidParam } from "../../middleware/validation";
 
@@ -12,20 +11,7 @@ interface TicketWorkflowPhaseRouteDependencies {
   ticketWorkflowService: TicketWorkflowService;
   ticketPhaseDocumentService: TicketPhaseDocumentService;
   ticketPhaseDocumentRevisionService: TicketPhaseDocumentRevisionService;
-  ticketResearchService: TicketResearchService;
   ticketPlanningService: TicketPlanningService;
-}
-
-function parseWorkflowPhaseParam(rawPhase: string): TicketWorkflowPhase | null {
-  if (
-    rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH ||
-    rawPhase === TICKET_WORKFLOW_PHASE.PLANNING ||
-    rawPhase === TICKET_WORKFLOW_PHASE.EXECUTION
-  ) {
-    return rawPhase;
-  }
-
-  return null;
 }
 
 export function registerTicketWorkflowPhaseRoutes(
@@ -34,7 +20,6 @@ export function registerTicketWorkflowPhaseRoutes(
     ticketWorkflowService,
     ticketPhaseDocumentService,
     ticketPhaseDocumentRevisionService,
-    ticketResearchService,
     ticketPlanningService,
   }: TicketWorkflowPhaseRouteDependencies,
 ): void {
@@ -68,59 +53,14 @@ export function registerTicketWorkflowPhaseRoutes(
     }
   });
 
-  // GET /api/tasks/:id/phases/research - Get research phase document
+  // GET /api/tasks/:id/plan/revisions - The plan's versions
   router.get(
-    "/:id/phases/research",
+    "/:id/plan/revisions",
     validateUuidParam("id"),
     async (req, res) => {
-      try {
-        const phase = await ticketResearchService.getResearchPhase(
-          req.params.id,
-        );
-
-        res.json({
-          success: true,
-          data: phase,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        logger.error("Error fetching research document", {
-          ticketId: req.params.id,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to fetch research document",
-        });
-      }
-    },
-  );
-
-  // GET /api/tasks/:id/phases/:phase/revisions - Get revision history for a phase document
-  router.get(
-    "/:id/phases/:phase/revisions",
-    validateUuidParam("id"),
-    async (req, res) => {
-      const phase = parseWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Invalid workflow phase",
-        });
-      }
-
       try {
         const revisions =
-          await ticketPhaseDocumentRevisionService.listRevisions(
-            req.params.id,
-            phase,
-          );
+          await ticketPhaseDocumentRevisionService.listRevisions(req.params.id, TICKET_WORKFLOW_PHASE.PLANNING);
 
         return res.json({
           success: true,
@@ -135,68 +75,21 @@ export function registerTicketWorkflowPhaseRoutes(
           });
         }
 
-        logger.error("Error fetching phase document revisions", {
-          ticketId: req.params.id,
-          phase,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to fetch phase document revisions",
-        });
-      }
-    },
-  );
-
-  // PUT /api/tasks/:id/phases/research/document - Save research phase document
-  router.put(
-    "/:id/phases/research/document",
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const { content } = req.body;
-        if (typeof content !== "string") {
-          return res.status(400).json({
-            error: "Validation error",
-            message: "content must be a string",
-          });
-        }
-
-        const document = await ticketPhaseDocumentService.saveDocument(
-          req.params.id,
-          TICKET_WORKFLOW_PHASE.RESEARCH,
-          content,
-          { actor: req.authContext?.user.email },
-        );
-
-        res.json({
-          success: true,
-          data: document,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        logger.error("Error saving research document", {
+        logger.error("Error fetching plan revisions", {
           ticketId: req.params.id,
           error: message,
         });
         return res.status(500).json({
           error: "Internal server error",
-          message: "Failed to save research document",
+          message: "Failed to fetch plan revisions",
         });
       }
     },
   );
 
-  // GET /api/tasks/:id/phases/planning - Get planning phase document
+  // GET /api/tasks/:id/plan - The plan
   router.get(
-    "/:id/phases/planning",
+    "/:id/plan",
     validateUuidParam("id"),
     async (req, res) => {
       try {
@@ -229,9 +122,9 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // PUT /api/tasks/:id/phases/planning/document - Save planning phase document
+  // PUT /api/tasks/:id/plan/document - Save the plan
   router.put(
-    "/:id/phases/planning/document",
+    "/:id/plan/document",
     validateUuidParam("id"),
     async (req, res) => {
       try {

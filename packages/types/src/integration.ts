@@ -3,11 +3,12 @@
  */
 
 import type { TicketSystem } from './common'
+import type { PluginManifest } from './plugin'
 import type { AuthCredentialType } from './project'
 import type { SecretLocation } from './secret'
 
-// Integration category - SCM (source control), Ticketing (issue tracking), or Inbound (receives events)
-export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound'
+// Integration category - SCM (source control), Ticketing (issue tracking), Inbound (receives events) or Chat
+export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound' | 'chat'
 
 // Integration field types for dynamic forms
 export type IntegrationFieldType =
@@ -45,16 +46,23 @@ export interface IntegrationSupport {
 // Integration configuration status
 export type IntegrationConfigStatus = 'configured' | 'not_configured' | 'stub'
 
-// Integration metadata from plugin registry
-export interface IntegrationMetadata {
+/** What an integration package says about itself; its backend and frontend entries share it. */
+export interface IntegrationManifest extends PluginManifest {
   id: TicketSystem
-  label: string
+  /** The slot it fills for a space: one primary code host and one primary issue tracker. */
   category: IntegrationCategory
-  description: string
+  /** A stub is listed as coming soon and can't be connected. */
+  status: 'ready' | 'stub'
   authTypes: AuthCredentialType[]
+  /** Settings the connection screen edits; empty when the connection has none. */
   configFields: IntegrationFieldDefinition[]
   supports: IntegrationSupport
-  status: 'ready' | 'stub'
+  /** Set when the connection holds a token: what Viberglass uses it for, shown where the token is entered. */
+  credentialUse?: string
+  /** Set when the connection receives webhooks: the provider its deliveries are routed to. */
+  webhookProvider?: string
+  /** Events a new webhook subscribes to; all of them when unset. */
+  defaultInboundEvents?: string[]
 }
 
 // Top-level Integration entity (stored in integrations table)
@@ -77,11 +85,6 @@ export interface ProjectIntegrationLink {
   integrationId: string
   isPrimary: boolean
   createdAt: string
-}
-
-// Project integration link with category information
-export interface ProjectIntegrationLinkWithCategory extends ProjectIntegrationLink {
-  category: IntegrationCategory
 }
 
 // SCM credential stored per integration
@@ -128,24 +131,11 @@ export interface UpdateIntegrationCredentialRequest {
 }
 
 // Integration with configuration status for a specific project
-export interface IntegrationSummary extends IntegrationMetadata {
+export interface IntegrationSummary extends IntegrationManifest {
   configStatus: IntegrationConfigStatus
   configuredAt?: string
   lastTestedAt?: string
   errorMessage?: string
-}
-
-// Integration configuration values stored per project (legacy - will be removed)
-// Now replaced by the top-level Integration entity
-/** @deprecated Use Integration instead */
-export interface IntegrationConfig {
-  projectId: string
-  integrationId: TicketSystem
-  authType: AuthCredentialType
-  // Dynamic configuration values based on integration's configFields
-  values: Record<string, unknown>
-  createdAt: string
-  updatedAt: string
 }
 
 // Request to create a new integration
@@ -164,24 +154,6 @@ export interface UpdateIntegrationRequest {
   isActive?: boolean
 }
 
-// Request to link an integration to a project
-export interface LinkIntegrationToProjectRequest {
-  integrationId: string
-  isPrimary?: boolean
-}
-
-// Request to unlink an integration from a project
-export interface UnlinkIntegrationFromProjectRequest {
-  integrationId: string
-}
-
-// Request to configure an integration (legacy - use CreateIntegrationRequest or UpdateIntegrationRequest instead)
-/** @deprecated Use CreateIntegrationRequest or UpdateIntegrationRequest instead */
-export interface ConfigureIntegrationRequest {
-  authType: AuthCredentialType
-  values: Record<string, unknown>
-}
-
 // Response from testing an integration connection
 export interface TestIntegrationResponse {
   success: boolean
@@ -192,38 +164,4 @@ export interface TestIntegrationResponse {
     accessibleProjects?: string[]
     errorCode?: string
   }
-}
-
-// Integration icon mapping (for frontend use)
-export const INTEGRATION_ICONS: Record<TicketSystem, string> = {
-  jira: 'jira',
-  linear: 'linear',
-  github: 'github',
-  gitlab: 'gitlab',
-  bitbucket: 'bitbucket',
-  azure: 'azure',
-  asana: 'asana',
-  trello: 'trello',
-  monday: 'monday',
-  clickup: 'clickup',
-  shortcut: 'shortcut',
-  slack: 'slack',
-  custom: 'custom',
-}
-
-// Integration descriptions (for frontend use)
-export const INTEGRATION_DESCRIPTIONS: Record<TicketSystem, string> = {
-  jira: 'Create and sync issues with Atlassian Jira. Supports Jira Cloud and Server.',
-  linear: 'Streamlined issue tracking with Linear. Perfect for modern product teams.',
-  github: 'Native GitHub Issues integration with webhook support and PR linking.',
-  gitlab: 'GitLab Issues integration with CI/CD pipeline connectivity.',
-  bitbucket: 'Atlassian Bitbucket issue tracking for teams using Bitbucket Git.',
-  azure: 'Azure DevOps Boards integration for Microsoft-centric workflows.',
-  asana: 'Project management and issue tracking with Asana.',
-  trello: 'Kanban-style issue organization using Trello boards.',
-  monday: 'Work operating system for issue and project management.',
-  clickup: 'All-in-one productivity platform for issue tracking.',
-  shortcut: 'Project management for software teams (formerly Clubhouse).',
-  slack: 'Send notifications and create issues directly from Slack channels.',
-  custom: 'Receive tickets from any external system via a simple JSON webhook.',
 }

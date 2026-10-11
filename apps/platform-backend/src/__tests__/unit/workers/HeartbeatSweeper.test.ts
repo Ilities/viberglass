@@ -13,7 +13,6 @@
 import { HeartbeatSweeper } from '../../../workers/HeartbeatSweeper';
 import { JobService } from '../../../services/JobService';
 
-// Mock JobService
 jest.mock('../../../services/JobService');
 const mockQueries = { findStaleJobs: jest.fn() };
 jest.mock('../../../services/job/JobSweeperQueries', () => ({
@@ -24,15 +23,14 @@ describe('HeartbeatSweeper', () => {
   let sweeper: HeartbeatSweeper;
   let mockJobService: jest.Mocked<JobService>;
 
-  const workers = { stop: jest.fn().mockResolvedValue(undefined) };
+  const workers = { stop: jest.fn().mockResolvedValue(true) };
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
-    // Mock JobService
     mockJobService = {
-      updateJobStatus: jest.fn().mockResolvedValue(undefined),
+      updateJobStatus: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<JobService>;
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
     mockQueries.findStaleJobs.mockResolvedValue([]);
@@ -49,7 +47,6 @@ describe('HeartbeatSweeper', () => {
 
   describe('Stale Job Detection', () => {
     it('should find and mark stale jobs past heartbeat threshold', async () => {
-      // Create mock stale jobs
       const staleJobs = [
         { id: 'job-1', started_at: new Date(), last_heartbeat: new Date(Date.now() - 10 * 60_000) },
         { id: 'job-2', started_at: new Date(), last_heartbeat: new Date(Date.now() - 8 * 60_000) },
@@ -59,24 +56,26 @@ describe('HeartbeatSweeper', () => {
 
       const count = await sweeper.sweep();
 
-      // Verify cutoff time was calculated correctly (default 5 minutes grace period)
       expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
       const cutoffArg = mockQueries.findStaleJobs.mock.calls[0][0] as Date;
       const cutoffAge = Date.now() - cutoffArg.getTime();
       expect(cutoffAge).toBeGreaterThan(4 * 60_000); // ~5 minutes
       expect(cutoffAge).toBeLessThan(6 * 60_000);
 
-      // Verify each stale job was marked as failed
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
       expect(workers.stop).toHaveBeenCalledWith('job-1', 'no heartbeat');
       expect(workers.stop).toHaveBeenCalledWith('job-2', 'no heartbeat');
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-1', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
         failureCode: 'RUN_LOST',
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: expect.any(Date),
       });
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-2', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
         failureCode: 'RUN_LOST',
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: expect.any(Date),
       });
 
       expect(count).toBe(2);
@@ -104,7 +103,6 @@ describe('HeartbeatSweeper', () => {
 
       expect(capturedCutoff).toBeDefined();
       const age = now - capturedCutoff!.getTime();
-      // Should be approximately 5 minutes (300000ms)
       expect(age).toBeGreaterThanOrEqual(299000);
       expect(age).toBeLessThanOrEqual(301000);
     });
@@ -115,7 +113,6 @@ describe('HeartbeatSweeper', () => {
       const now = Date.now();
       let capturedCutoff: Date | undefined;
 
-      // Clear previous mocks and set fresh implementation
       mockQueries.findStaleJobs.mockReset();
       mockJobService.updateJobStatus.mockReset();
 
@@ -123,7 +120,7 @@ describe('HeartbeatSweeper', () => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
-      mockJobService.updateJobStatus.mockResolvedValue(undefined);
+      mockJobService.updateJobStatus.mockResolvedValue(true);
 
       const customSweeper = new HeartbeatSweeper({
         gracePeriodMs: 2 * 60_000, // 2 minutes
@@ -183,7 +180,6 @@ describe('HeartbeatSweeper', () => {
       sweeper.stop();
       expect(sweeper.isRunning()).toBe(false);
 
-      // Restart
       sweeper.start();
       expect(sweeper.isRunning()).toBe(true);
 
@@ -193,7 +189,6 @@ describe('HeartbeatSweeper', () => {
     it('should run initial sweep on start', async () => {
       sweeper.start();
 
-      // Wait for microtasks and advance timers slightly for the initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
@@ -203,18 +198,15 @@ describe('HeartbeatSweeper', () => {
     it('should stop periodic sweeps when stop() is called', async () => {
       sweeper.start();
 
-      // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
       expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
       mockQueries.findStaleJobs.mockClear();
 
-      // Stop the sweeper
       sweeper.stop();
       expect(sweeper.isRunning()).toBe(false);
 
-      // Advance past interval - no new sweep should occur
       await jest.advanceTimersByTimeAsync(60000);
 
       expect(mockQueries.findStaleJobs).not.toHaveBeenCalled();
@@ -229,18 +221,15 @@ describe('HeartbeatSweeper', () => {
 
       customSweeper.start();
 
-      // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
       expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
       mockQueries.findStaleJobs.mockClear();
 
-      // Advance 1 second - not yet time for next sweep
       await jest.advanceTimersByTimeAsync(1000);
       expect(mockQueries.findStaleJobs).not.toHaveBeenCalled();
 
-      // Advance another second - triggers next sweep
       await jest.advanceTimersByTimeAsync(1000);
       expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
@@ -250,14 +239,12 @@ describe('HeartbeatSweeper', () => {
     it('should run periodic sweeps at default 60 second interval', async () => {
       sweeper.start();
 
-      // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
       expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
       mockQueries.findStaleJobs.mockClear();
 
-      // Advance to next sweep (60 seconds)
       await jest.advanceTimersByTimeAsync(60000);
       expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
     });
@@ -267,7 +254,6 @@ describe('HeartbeatSweeper', () => {
     it('should handle findStaleJobs errors gracefully', async () => {
       mockQueries.findStaleJobs.mockReset().mockRejectedValue(new Error('Database error'));
 
-      // The sweep() method will reject on findStaleJobs error
       await expect(sweeper.sweep()).rejects.toThrow('Database error');
     });
 
@@ -280,16 +266,13 @@ describe('HeartbeatSweeper', () => {
 
       mockQueries.findStaleJobs.mockReset().mockResolvedValue(staleJobs);
 
-      // First updateJobStatus fails - sweep should stop there
       mockJobService.updateJobStatus
         .mockRejectedValueOnce(new Error('Update failed'))
-        .mockResolvedValue(undefined)
-        .mockResolvedValue(undefined);
+        .mockResolvedValue(true)
+        .mockResolvedValue(true);
 
-      // The sweep will fail due to the first updateJobStatus error
       await expect(sweeper.sweep()).rejects.toThrow('Update failed');
 
-      // Only the first updateJobStatus call was attempted
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(1);
     });
   });
@@ -324,7 +307,6 @@ describe('HeartbeatSweeper', () => {
     it('should run sweep immediately on start without waiting for interval', async () => {
       sweeper.start();
 
-      // The initial sweep runs immediately, before first interval tick
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
@@ -334,12 +316,7 @@ describe('HeartbeatSweeper', () => {
 
   describe('Race Condition Fix - Result Callback', () => {
     it('should not mark job as failed if result callback updates heartbeat', async () => {
-      // This test verifies the fix for the race condition where:
-      // 1. Job finishes work
-      // 2. Job sends result callback (which now updates last_heartbeat)
-      // 3. HeartbeatSweeper should NOT mark the job as failed
       
-      // Simulate a job that just received a result callback (fresh heartbeat)
       const jobsWithRecentHeartbeat = [
         { 
           id: 'job-just-finished', 
@@ -350,21 +327,16 @@ describe('HeartbeatSweeper', () => {
 
       mockQueries.findStaleJobs.mockResolvedValue(jobsWithRecentHeartbeat);
 
-      // The sweeper should NOT mark this job as failed
-      // because last_heartbeat is within grace period
       const count = await sweeper.sweep();
 
-      // The job should NOT be marked as failed because the result callback
-      // updated the heartbeat within the grace period
       expect(count).toBe(1); // Found 1 stale job (mock returns it)
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-just-finished', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
         failureCode: 'RUN_LOST',
+        expectedStatus: 'active',
+        expectedHeartbeatBefore: expect.any(Date),
       });
 
-      // In reality, with the fix, findStaleJobs should NOT return jobs where:
-      // - last_heartbeat is within grace period
-      // This test verifies the sweeper behavior when findStaleJobs returns jobs
     });
   });
 });

@@ -1,14 +1,19 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { E2E } from "../../playwright/e2eEnvironment";
-import { createTask, researchDocument, runStatus, startResearch } from "../../playwright/tasks";
+import { createTask, planDocument, runStatus, startPlan } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-/** Opens a run page, retrying loads aborted by a container start (ERR_NETWORK_CHANGED). */
-async function openRun(page: Page, projectSlug: string, jobId: string, heading: string) {
+/**
+ * Opens the task and returns the notice that explains its failed plan, retrying loads aborted
+ * by a container start (ERR_NETWORK_CHANGED).
+ */
+async function openFailure(page: Page, projectSlug: string, taskId: string, title: string) {
+  const notice = page.getByRole("region", { name: "Conversation" }).getByRole("region", { name: /^The plan failed/ });
   await expect(async () => {
-    await page.goto(`/spaces/${projectSlug}/runs/${jobId}`);
-    await expect(page.getByRole("heading", { name: heading })).toBeVisible({ timeout: 5_000 });
+    await page.goto(`/spaces/${projectSlug}/tasks/${taskId}`);
+    await expect(notice).toContainText(title, { timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
+  return notice;
 }
 
 /** The task's newest run. */
@@ -48,16 +53,16 @@ test("an agent failure invites a retry instead of a setup fix", async ({
   workspace,
 }) => {
   const task = await createTask(adminApi, workspace.projectId, "This will not work. [fake:fail]");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
-  await openRun(page, workspace.projectSlug, jobId, "Agent failed");
-  await expect(page.getByText("The agent stopped with an error before finishing.")).toBeVisible();
+  const notice = await openFailure(page, workspace.projectSlug, task.id, "Agent failed");
+  await expect(notice).toContainText("The agent stopped with an error before finishing.");
   // The task offers a retry, not a setup fix (the task page's readiness banner is separate).
-  await expect(page.getByRole("region", { name: "The research failed" }).getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
+  await expect(notice.getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
 
   // Trying again is offered in the task's thread: it asks the agent again, in a new run.
-  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Try again" }).click();
+  await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Try again" }).click();
   await expect.poll(() => latestRunId(adminApi, task.id)).not.toBe(jobId);
   const retryJobId = await latestRunId(adminApi, task.id);
   await expect.poll(() => runStatus(adminApi, retryJobId), { timeout: 90_000 }).toBe("failed");
@@ -66,23 +71,23 @@ test("an agent failure invites a retry instead of a setup fix", async ({
   await page.goto(`/spaces/${workspace.projectSlug}/runs`);
   await expect(page.getByRole("row", { name: /Agent failed/ }).first()).toBeVisible();
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  await expect(page.getByRole("tab", { name: /^Research/ })).toContainText("Failed");
+  await expect(page.getByRole("tab", { name: /^Plan/ })).toContainText("Failed");
 });
 
-test("an agent asked for the research that writes none has answered instead, which isn't a failure", async ({
+test("an agent asked for the plan that writes none has failed, and can be asked again", async ({
   adminApi,
   adminPage: page,
   workspace,
 }) => {
   const task = await createTask(adminApi, workspace.projectId, "Forget the notes. [fake:no-document]");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
-  await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
+  await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
-  await expect(thread.getByRole("listitem", { name: "Fake Agent's turn" })).toContainText("Answering");
-  await expect(thread.getByText("Research v1")).toHaveCount(0);
-  await expect(thread.getByRole("button", { name: "Write the research" })).toBeVisible();
+  const thread = page.getByRole("region", { name: "Conversation" });
+  await expect(thread.getByRole("region", { name: "The plan failed" })).toContainText("No document written");
+  await expect(thread.getByText("Plan v1")).toHaveCount(0);
+  await expect(thread.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
 test("a setup failure sends admins to the fix and tells members an admin is needed", async ({
@@ -93,18 +98,18 @@ test("a setup failure sends admins to the fix and tells members an admin is need
 }) => {
   const space = await createSpaceWithMissingRepository(adminApi);
   const task = await createTask(adminApi, space.projectId, "Explain the code.");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
-  await openRun(adminPage, space.projectSlug, jobId, "Repository not reachable");
-  await expect(adminPage.getByRole("link", { name: "Fix repository settings" })).toHaveAttribute(
+  const adminNotice = await openFailure(adminPage, space.projectSlug, task.id, "Repository not reachable");
+  await expect(adminNotice.getByRole("link", { name: "Fix repository settings" })).toHaveAttribute(
     "href",
-    `/spaces/${space.projectSlug}/settings`,
+    `/spaces/${space.projectSlug}/settings/repository`,
   );
 
-  await openRun(memberPage, space.projectSlug, jobId, "Repository not reachable");
-  await expect(memberPage.getByText(/A workspace admin needs to fix this/)).toBeVisible();
-  await expect(memberPage.getByRole("link", { name: "Fix repository settings" })).toHaveCount(0);
+  const memberNotice = await openFailure(memberPage, space.projectSlug, task.id, "Repository not reachable");
+  await expect(memberNotice).toContainText("A workspace admin needs to fix");
+  await expect(memberNotice.getByRole("link", { name: "Fix repository settings" })).toHaveCount(0);
 });
 
 test("a setup failure pauses the agent, and once an admin fixes it, retrying the paused runs finishes the work", async ({
@@ -115,14 +120,14 @@ test("a setup failure pauses the agent, and once an admin fixes it, retrying the
   test.setTimeout(180_000);
   const space = await createSpaceWithMissingRepository(adminApi);
   const task = await createTask(adminApi, space.projectId, "Explain the code.");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
   await page.goto(`/spaces/${space.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   const paused = thread.getByRole("region", { name: "Paused until the setup is fixed" });
   await expect(paused).toBeVisible({ timeout: 15_000 });
-  await expect(thread.getByRole("region", { name: "The research failed" })).toContainText("Repository not reachable");
+  await expect(thread.getByRole("region", { name: "The plan failed" })).toContainText("Repository not reachable");
 
   // The admin points the space at the right repository, then tries every paused run again.
   const integrations = await (await adminApi.get("/api/integrations")).json();
@@ -133,7 +138,7 @@ test("a setup failure pauses the agent, and once an admin fixes it, retrying the
   expect(fixed.ok()).toBe(true);
   await paused.getByRole("button", { name: "Retry all paused runs" }).click();
 
-  await expect(thread.getByText("Research v1")).toBeVisible({ timeout: 120_000 });
-  expect(await researchDocument(adminApi, task.id)).toContain("# Fake Research");
+  await expect(thread.getByText("Plan v1")).toBeVisible({ timeout: 120_000 });
+  expect(await planDocument(adminApi, task.id)).toContain("# Fake Plan");
   await expect(paused).toHaveCount(0);
 });

@@ -19,16 +19,16 @@ export const ALL_PROMPT_TYPES: PromptType[] = [
 
 const PROMPT_TYPE_META: Record<PromptType, { label: string; description: string }> = {
   task_turn: {
-    label: "Task Turn",
-    description: "What each agent turn on a task is told: what's new in the thread, and what was asked for",
+    label: "Every turn",
+    description: "What's new in the thread, and what was asked for",
   },
   task_turn_cold_start: {
-    label: "Task Turn (first turn)",
-    description: "Put before a turn when the agent starts without its earlier session: the task, its documents and the thread so far",
+    label: "First turn",
+    description: "Added when the agent starts without its earlier session: the task, its documents and the thread so far",
   },
   claw_scheduled_task: {
-    label: "Claw Scheduled Task",
-    description: "Prompt for scheduled claw task execution",
+    label: "Scheduled task",
+    description: "What the agent is told when a schedule runs a task template",
   },
 };
 

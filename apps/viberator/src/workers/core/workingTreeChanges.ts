@@ -9,7 +9,7 @@ export async function listCodeChanges(repoDir: string): Promise<string[]> {
   return status.files.map((file) => file.path).filter((filePath) => !VIBERGLASS_FILES.has(filePath));
 }
 
-/** Puts the research and plan files back as the repository has them, so they are never committed. */
+/** Puts the plan and summary files back as the repository has them, so they are never committed. */
 export async function restoreArtifactFiles(repoDir: string): Promise<void> {
   const git = simpleGit({ baseDir: repoDir });
   for (const file of Object.values(ARTIFACT_FILES)) {

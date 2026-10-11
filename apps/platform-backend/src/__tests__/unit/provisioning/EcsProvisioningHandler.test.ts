@@ -11,6 +11,8 @@ describe("EcsProvisioningHandler", () => {
     delete process.env.VIBERATOR_ECS_TASK_ROLE_ARN;
     delete process.env.VIBERATOR_ECS_CONTAINER_IMAGE;
     delete process.env.VIBERATOR_ECS_CLUSTER_ARN;
+    delete process.env.VIBERATOR_WORKER_REGISTRY;
+    delete process.env.VIBERATOR_WORKER_IMAGE_PREFIX;
   });
 
   afterAll(() => {
@@ -131,6 +133,20 @@ describe("EcsProvisioningHandler", () => {
     expect(result.status).toBe("active");
     expect(result.statusMessage).toContain("ECS task definition ready");
     expect(result.deploymentConfig).toBeTruthy();
+  });
+
+  it("registers the public Pi worker image when no image is configured", async () => {
+    const { client, registerTaskDefinition } = buildEcsClient();
+    const clanker = buildClanker("ecs", {
+      version: 1,
+      strategy: { type: "ecs", executionRoleArn: "arn:exec", taskRoleArn: "arn:task", clusterArn: "arn:cluster" },
+      agent: { type: "pi" },
+    });
+    clanker.agent = "pi";
+    await new EcsProvisioningHandler(client).provision(clanker);
+    expect(registerTaskDefinition).toHaveBeenCalledWith(expect.objectContaining({
+      containerDefinitions: [expect.objectContaining({ image: "ghcr.io/ilities/viberator-worker-pi:latest" })],
+    }));
   });
 
   it("returns inactive when task definition is missing", async () => {

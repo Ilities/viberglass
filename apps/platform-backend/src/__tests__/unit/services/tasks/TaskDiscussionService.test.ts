@@ -32,6 +32,25 @@ describe("TaskDiscussionService", () => {
     });
   });
 
+  it("keeps the tracker a message was written in, for someone with an account", async () => {
+    const { messages, activity, service } = setup();
+
+    await service.create("task-1", "user-1", "North", { source: "github" });
+
+    expect(messages.create).toHaveBeenCalledWith({
+      ticketId: "task-1",
+      authorId: "user-1",
+      body: "North",
+      mentionedUserIds: [],
+      external: { source: "github", authorName: null },
+    });
+    expect(activity.record).toHaveBeenCalledWith("task-1", { type: "human", userId: "user-1" }, "message_posted", {
+      messageId: "message-1",
+      mentioned: [],
+      source: "github",
+    });
+  });
+
   it("refuses a mention of someone who can't see the task, before saving anything", async () => {
     const { messages, service } = setup();
 
@@ -45,5 +64,22 @@ describe("TaskDiscussionService", () => {
     const { service } = setup();
 
     await expect(service.post("task-1", "user-1", "   ")).rejects.toMatchObject({ code: "MESSAGE_INVALID" });
+  });
+
+  it("posts a tracker comment as the matching person, or under the tracker's name for someone without an account", async () => {
+    const { messages, activity, service } = setup();
+
+    await service.createFromTracker("task-1", { userId: "user-1", name: "Maria", source: "jira" }, " Looks good ");
+    await service.createFromTracker("task-1", { userId: null, name: "Pat", source: "jira" }, "Ship it");
+
+    expect(messages.create).toHaveBeenNthCalledWith(1, {
+      ticketId: "task-1",
+      authorId: "user-1",
+      body: "Looks good",
+      mentionedUserIds: [],
+      external: { source: "jira", authorName: null },
+    });
+    expect(messages.create).toHaveBeenNthCalledWith(2, expect.objectContaining({ authorId: null, external: { source: "jira", authorName: "Pat" } }));
+    expect(activity.record).toHaveBeenLastCalledWith("task-1", { type: "system" }, "message_posted", { messageId: "message-1", mentioned: [], source: "jira" });
   });
 });

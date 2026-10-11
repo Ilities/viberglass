@@ -37,7 +37,7 @@ describe("IntegrationManagementService.deleteIntegration", () => {
     await expect(new IntegrationManagementService().deleteIntegration("int-1")).rejects.toMatchObject({
       statusCode: 409,
       message:
-        "This integration is used by UX Walkthrough, Live Verification Project. Remove it from those projects first.",
+        "This connection is used by UX Walkthrough, Live Verification Project. Remove it from those spaces first.",
     });
     expect(mockCredentialDAO.deleteAllForIntegration).not.toHaveBeenCalled();
     expect(mockIntegrationDAO.deleteIntegration).not.toHaveBeenCalled();

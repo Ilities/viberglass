@@ -1,8 +1,18 @@
 import { SettingsNav } from '@/components/settings-nav'
 import { useProject } from '@/context/project-context'
+import {
+  CodeIcon,
+  DownloadIcon,
+  GearIcon,
+  InfoCircledIcon,
+  Link2Icon,
+  MixerHorizontalIcon,
+  PersonIcon,
+  ReaderIcon,
+} from '@radix-ui/react-icons'
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
 
-const MAINTAINERS_ONLY = ['connections', 'prompt-templates']
+const MAINTAINERS_ONLY = ['repository', 'issues', 'task-defaults', 'connections', 'prompt-templates']
 
 /** A space's settings. Everyone may read what the space is and who's in it; only its maintainers see the rest. */
 export function SettingsLayout() {
@@ -16,12 +26,19 @@ export function SettingsLayout() {
   if (!canMaintain && MAINTAINERS_ONLY.some((tab) => pathname.startsWith(`${base}/${tab}`))) return <Navigate to={`${base}/general`} replace />
 
   const items = [
-    { name: canMaintain ? 'Space' : 'About', href: `${base}/general` },
-    { name: 'Members', href: `${base}/members` },
+    { name: canMaintain ? 'General' : 'About', href: `${base}/general`, icon: canMaintain ? <GearIcon /> : <InfoCircledIcon /> },
     ...(canMaintain
       ? [
-          { name: 'Connections', href: `${base}/connections` },
-          { name: 'Agent instructions', href: `${base}/prompt-templates` },
+          { name: 'Repository', href: `${base}/repository`, icon: <CodeIcon /> },
+          { name: 'Incoming issues', href: `${base}/issues`, icon: <DownloadIcon /> },
+          { name: 'Task defaults', href: `${base}/task-defaults`, icon: <MixerHorizontalIcon /> },
+        ]
+      : []),
+    { name: 'Members', href: `${base}/members`, icon: <PersonIcon /> },
+    ...(canMaintain
+      ? [
+          { name: 'Connections', href: `${base}/connections`, icon: <Link2Icon /> },
+          { name: 'Agent instructions', href: `${base}/prompt-templates`, icon: <ReaderIcon /> },
         ]
       : []),
   ].map((item) => ({ ...item, current: pathname === item.href }))

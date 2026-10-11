@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { Timestamp } from '@/components/timestamp'
 import { usePersonName } from '@/hooks/usePeople'
 import type { PhaseDocumentCommentResponse } from '@/service/api/ticket-api'
 import { readableQuote } from './readable-quote'
@@ -33,7 +34,7 @@ export function CommentEntry({ comment, isSaving, showQuote = false, onToggleSta
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gray-9)]">
         <span>
-          {personName(comment.actor) || 'Unknown reviewer'} · {new Date(comment.createdAt).toLocaleString()}
+          {personName(comment.actor) || 'Unknown reviewer'} · <Timestamp date={comment.createdAt} />
           {comment.outdated && <span className="ml-2 rounded bg-[var(--gray-4)] px-1.5 py-0.5 text-[var(--gray-11)]">Outdated: the text changed</span>}
         </span>
         <span className="flex items-center gap-2">

@@ -1,18 +1,15 @@
 import type { IntegrationPlugin } from '@viberglass/integration-core'
-import { JiraIntegration } from './JiraIntegration'
+import { manifest } from '../manifest'
+import { checkJiraConnection } from './checkJiraConnection'
+import { JiraCommenter } from './JiraCommenter'
+import { JiraWebhookReceiver } from './JiraWebhookReceiver'
 import type { JiraConfig } from './types'
 
 const jiraPlugin: IntegrationPlugin<JiraConfig> = {
-  id: 'jira',
-  label: 'Jira',
-  category: 'ticketing',
-  authTypes: ['token', 'basic'],
-  configFields: [],
-  supports: { issues: true, webhooks: true },
-  createIntegration: (config) => new JiraIntegration(config),
-  status: 'stub',
-  webhookProvider: 'jira',
-  defaultInboundEvents: ['issue_created', 'issue_updated', 'comment_created'],
+  ...manifest,
+  checkConnection: checkJiraConnection,
+  createCommenter: (config) => new JiraCommenter(config),
+  webhook: new JiraWebhookReceiver(),
 }
 
 export default jiraPlugin

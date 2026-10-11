@@ -67,20 +67,15 @@ function turnPrompt(parts: { task?: string; thread?: string; whatToDo: string })
     parts.task ? `<task>\n<description>${parts.task}</description>\n</task>` : "",
     parts.thread ? `<thread>\n${parts.thread}\n</thread>` : "",
     `<what-to-do>\n${parts.whatToDo}\n</what-to-do>`,
-    "How to work:\n- The research and the plan live in RESEARCH.md and PLAN.md.",
+    "How to work:\n- The plan and the summary live in PLAN.md and SUMMARY.md.",
   ].join("\n\n");
 }
 
 describe("planFakeTurn", () => {
-  it("writes RESEARCH.md for research prompts", () => {
-    expect(planFakeTurn("Write your output to RESEARCH.md").documentFile).toBe(
-      "RESEARCH.md",
+  it("writes PLAN.md for plan prompts", () => {
+    expect(planFakeTurn("Write your output to PLAN.md").documentFile).toBe(
+      "PLAN.md",
     );
-  });
-
-  it("prefers PLAN.md when a planning prompt embeds research", () => {
-    const prompt = "Write PLAN.md.\n<approved-research>RESEARCH.md</approved-research>";
-    expect(planFakeTurn(prompt).documentFile).toBe("PLAN.md");
   });
 
   it("writes SUMMARY.md when a turn asks for the summary", () => {
@@ -89,24 +84,24 @@ describe("planFakeTurn", () => {
 
   it("reads sleep, no-document, code and fail directives", () => {
     const plan = planFakeTurn(
-      "RESEARCH.md [fake:sleep=30] [fake:no-document] [fake:code] [fake:fail]",
+      "PLAN.md [fake:sleep=30] [fake:no-document] [fake:code] [fake:fail]",
     );
     expect(plan).toEqual({ documentFile: undefined, code: true, sleepSeconds: 30, sleepAfterSeconds: 0, fail: true, usageTokens: null, ask: null });
   });
 
   it("in a task turn, writes the document the turn was asked for, not the ones its rules mention", () => {
     expect(planFakeTurn(turnPrompt({ whatToDo: "Write the plan: write PLAN.md" })).documentFile).toBe("PLAN.md");
-    expect(planFakeTurn(turnPrompt({ whatToDo: "Revise the research in RESEARCH.md" })).documentFile).toBe("RESEARCH.md");
+    expect(planFakeTurn(turnPrompt({ whatToDo: "Summarise the conversation so far in SUMMARY.md" })).documentFile).toBe("SUMMARY.md");
     expect(planFakeTurn(turnPrompt({ whatToDo: "Answer what was asked above." })).documentFile).toBeUndefined();
   });
 
   it("when asked to answer, writes what people asked for in the thread", () => {
-    const prompt = turnPrompt({ thread: "<message>Now write it up in RESEARCH.md.</message>", whatToDo: "Answer what was asked above." });
-    expect(planFakeTurn(prompt).documentFile).toBe("RESEARCH.md");
+    const prompt = turnPrompt({ thread: "<message>Now write it up in PLAN.md.</message>", whatToDo: "Answer what was asked above." });
+    expect(planFakeTurn(prompt).documentFile).toBe("PLAN.md");
   });
 
   it("takes directives only from people's words, not from documents quoted back to it", () => {
-    const quoted = `<current-research>${renderFakeDocument("RESEARCH.md", "[fake:fail] [fake:sleep=9]", 1)}</current-research>`;
+    const quoted = `<current-plan>${renderFakeDocument("PLAN.md", "[fake:fail] [fake:sleep=9]", 1)}</current-plan>`;
     const prompt = `${quoted}\n\n${turnPrompt({ task: "Fix it [fake:code]", thread: "<message>Build it</message>", whatToDo: "Build it" })}`;
 
     expect(planFakeTurn(prompt)).toEqual({ documentFile: undefined, code: true, sleepSeconds: 0, sleepAfterSeconds: 0, fail: false, usageTokens: null, ask: null });
@@ -127,13 +122,13 @@ describe("FakeTurnRunner", () => {
   it("sleeps, then writes a document that echoes the prompt", async () => {
     const io = recordingIo();
     const message = await new FakeTurnRunner(io).run(
-      "RESEARCH.md please [fake:sleep=2] PM NOTE",
+      "PLAN.md please [fake:sleep=2] PM NOTE",
       "/repo",
     );
 
     expect(io.sleeps).toEqual([2000]);
-    expect(io.files.get(path.join("/repo", "RESEARCH.md"))).toContain("PM NOTE");
-    expect(message).toBe("Writing the research: fake agent, turn 1.\n\nFake agent wrote RESEARCH.md.");
+    expect(io.files.get(path.join("/repo", "PLAN.md"))).toContain("PM NOTE");
+    expect(message).toBe("Writing the plan: fake agent, turn 1.\n\nFake agent wrote PLAN.md.");
   });
 
   it("writes the document before waiting, when told to wait after", async () => {
@@ -149,7 +144,7 @@ describe("FakeTurnRunner", () => {
         order.push(`sleep ${ms}`);
       },
     });
-    await runner.run("RESEARCH.md [fake:sleep-after=5]", "/repo");
+    await runner.run("PLAN.md [fake:sleep-after=5]", "/repo");
     expect(order).toEqual(["write", "sleep 5000"]);
   });
 
@@ -177,7 +172,7 @@ describe("FakeTurnRunner", () => {
   it("fails on request without writing anything", async () => {
     const io = recordingIo();
     await expect(
-      new FakeTurnRunner(io).run("RESEARCH.md [fake:fail]", "/repo"),
+      new FakeTurnRunner(io).run("PLAN.md [fake:fail]", "/repo"),
     ).rejects.toThrow("Fake agent failed on request");
     expect(io.files.size).toBe(0);
   });
@@ -242,13 +237,13 @@ describe("FakeAcpServer", () => {
     const first = startServer();
     await first.request(1, "session/new", { cwd: "/work/repo" });
     const sessionId = sessionIdOf(first.sent[0]);
-    await first.request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write RESEARCH.md" }] });
+    await first.request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write PLAN.md" }] });
 
     const later = startServer(first.stateDir);
     await later.request(1, "session/load", { sessionId, cwd: "/work/repo" });
-    await later.request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write RESEARCH.md" }] });
+    await later.request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write PLAN.md" }] });
     expect(later.sent[0]).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
-    expect(later.io.files.get(path.join("/work/repo", "RESEARCH.md"))).toContain("This is turn 2 of its session");
+    expect(later.io.files.get(path.join("/work/repo", "PLAN.md"))).toContain("This is turn 2 of its session");
 
     const elsewhere = startServer();
     await elsewhere.request(1, "session/load", { sessionId, cwd: "/work/repo" });
@@ -318,11 +313,11 @@ describe("FakeAgent", () => {
       runTests: false,
       maxExecutionTime: 60,
     };
-    const result = await agent.execute("Write RESEARCH.md", context);
+    const result = await agent.execute("Write PLAN.md", context);
 
     expect(result.success).toBe(true);
-    expect(fs.readFileSync(path.join(repoDir, "RESEARCH.md"), "utf-8")).toContain(
-      "Write RESEARCH.md",
+    expect(fs.readFileSync(path.join(repoDir, "PLAN.md"), "utf-8")).toContain(
+      "Write PLAN.md",
     );
     fs.rmSync(workDir, { recursive: true, force: true });
   });

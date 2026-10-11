@@ -12,7 +12,6 @@ import type {
   TicketStats,
   TicketWorkflowPhase,
   UpdateTicketRequest,
-  WebhookStatus,
 } from '@viberglass/types'
 
 export interface TicketListResponse {
@@ -187,6 +186,21 @@ export async function createTicket(
   return data.data
 }
 
+/** Copies a task into another space: a new task with the same title and description, each thread naming the other. */
+export async function copyTask(id: string, spaceId: string): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spaceId }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to copy the task')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
+  return data.data
+}
+
 export async function updateTicket(id: string, updates: UpdateTicketRequest): Promise<Ticket> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}`, {
     method: 'PUT',
@@ -285,7 +299,6 @@ export interface PhaseDocumentCommentResponse {
   id: string
   documentId: string
   ticketId: string
-  phase: 'research' | 'planning'
   /** Where the comment is in the document now, else the line it was placed on. */
   lineNumber: number
   quote: TextQuote | null
@@ -302,55 +315,9 @@ export interface PhaseDocumentCommentResponse {
   updatedAt: string
 }
 
-export interface ResearchRunResponse {
-  id: string
-  jobId: string
-  status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
-  clankerId: string
-  clankerName: string | null
-  clankerSlug: string | null
-  createdAt: string
-  startedAt: string | null
-  finishedAt: string | null
-}
-
-export interface ResearchPhaseResponse {
-  document: PhaseDocumentResponse
-  latestRun: ResearchRunResponse | null
-}
-
-export async function getResearchDocument(ticketId: string): Promise<ResearchPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research`)
-  if (!response.ok) {
-    if (response.status === 404) throw new Error('Task not found')
-    throw new Error('Failed to fetch research document')
-  }
-  const data: ApiResponse<ResearchPhaseResponse> = await response.json()
-  return data.data
-}
-
-export async function saveResearchDocument(
-  ticketId: string,
-  content: string,
-): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/document`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to save research document')
-  }
-  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
-  return data.data
-}
-
-export async function getPhaseDocumentRevisions(
-  ticketId: string,
-  phase: TicketWorkflowPhase,
-): Promise<PhaseDocumentRevisionResponse[]> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/revisions`)
+/** The plan's versions. */
+export async function getPlanRevisions(ticketId: string): Promise<PhaseDocumentRevisionResponse[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/plan/revisions`)
   if (!response.ok) {
     if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch document revisions')
@@ -359,11 +326,8 @@ export async function getPhaseDocumentRevisions(
   return data.data
 }
 
-export async function getPhaseDocumentComments(
-  ticketId: string,
-  phase: 'research' | 'planning',
-): Promise<PhaseDocumentCommentResponse[]> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`)
+export async function getPlanComments(ticketId: string): Promise<PhaseDocumentCommentResponse[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/plan/comments`)
   if (!response.ok) {
     if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch document comments')
@@ -372,12 +336,11 @@ export async function getPhaseDocumentComments(
   return data.data
 }
 
-export async function createPhaseDocumentComment(
+export async function createPlanComment(
   ticketId: string,
-  phase: 'research' | 'planning',
   payload: { quote: TextQuote; content: string },
 ): Promise<PhaseDocumentCommentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/plan/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -390,13 +353,12 @@ export async function createPhaseDocumentComment(
   return data.data
 }
 
-export async function updatePhaseDocumentComment(
+export async function updatePlanComment(
   ticketId: string,
-  phase: 'research' | 'planning',
   commentId: string,
   payload: { content?: string; status?: PhaseDocumentCommentStatus },
 ): Promise<PhaseDocumentCommentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments/${commentId}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/plan/comments/${commentId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -409,28 +371,18 @@ export async function updatePhaseDocumentComment(
   return data.data
 }
 
-export async function getPlanningDocument(ticketId: string): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning`)
-  if (!response.ok) {
-    if (response.status === 404) throw new Error('Task not found')
-    throw new Error('Failed to fetch planning document')
-  }
-  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
-  return data.data
-}
-
-export async function savePlanningDocument(
+export async function savePlan(
   ticketId: string,
   content: string,
 ): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/document`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/plan/document`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to save planning document')
+    throw new Error(error.error || error.message || 'Failed to save the plan')
   }
   const data: ApiResponse<PhaseDocumentResponse> = await response.json()
   return data.data
@@ -453,11 +405,11 @@ export interface PlanningPhaseResponse {
   latestRun: PlanningRunResponse | null
 }
 
-export async function getPlanningPhase(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning`)
+export async function getPlan(ticketId: string): Promise<PlanningPhaseResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/plan`)
   if (!response.ok) {
     if (response.status === 404) throw new Error('Task not found')
-    throw new Error('Failed to fetch planning phase')
+    throw new Error('Failed to fetch the plan')
   }
   const data: ApiResponse<PlanningPhaseResponse> = await response.json()
   return data.data
@@ -474,16 +426,6 @@ export async function setTicketStatus(id: string, status: TicketLifecycleStatus)
     throw new Error(error.error || error.message || 'Failed to set task status')
   }
   const data: ApiResponse<Ticket> = await response.json()
-  return data.data
-}
-
-// Webhook Status API
-export async function getWebhookStatus(): Promise<WebhookStatus> {
-  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch webhook status')
-  }
-  const data: ApiResponse<WebhookStatus> = await response.json()
   return data.data
 }
 

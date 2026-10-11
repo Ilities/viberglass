@@ -15,9 +15,11 @@ import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import { CodingJobData, JobOverrides, ProjectConfigPayload } from "./types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
+import type { GitAuth } from "../../services/gitAuth";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
+import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { mergeWorkerSettings } from "../runtime/workerSettings";
 import { failingWith } from "./JobFailureError";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
@@ -26,6 +28,7 @@ import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
 import { jobWorkspaceDir } from "./taskWorkspace";
 
 export interface JobRunnerParams {
+  objectStorage?: WorkerObjectStorage;
   data: CodingJobData;
   repositoryRoot: string;
   logger: Logger;
@@ -61,8 +64,8 @@ export interface JobRunnerParams {
   lastAgentCommit?: string;
   /** The task's branch as the platform named it, once for the task. */
   taskBranch?: string;
-  /** Per-project SCM token resolved from fetchedCredentials */
-  scmToken?: string;
+  /** What git authenticates to the repository with: the space's token, and the username its code host takes. */
+  gitAuth?: GitAuth;
   /** The runner's workspace MCP servers; task turns offer them to the agent. */
   mcpServers: WorkerMcpServer[];
   /** The runner's workspace skills, installed before the agent starts. */

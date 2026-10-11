@@ -14,7 +14,6 @@ RUN npm install -g @qwen-code/qwen-code@latest
 RUN which qwen || echo "Warning: qwen not found in PATH"
 
 ENV AGENT_TYPE=qwen-cli
-ENV QWEN_CONFIG_DIR=/tmp/qwen-config
 
 LABEL agent.type="qwen-cli" \
       agent.supported-modes="cli" \

@@ -1,12 +1,18 @@
 # Pulumi Preview Workflow
-# Runs Pulumi preview on infrastructure changes and posts results as PR comment
+# Previews each infrastructure stack against dev on pull requests and posts the
+# result as a PR comment. State is in the S3 backend (infra/README.md).
 
 name: Pulumi Preview
 
 on:
   pull_request:
     paths:
-      - 'infrastructure/**'
+      - 'infra/base/**'
+      - 'infra/platform/**'
+      - 'infra/workers/*.ts'
+      - 'infra/workers/package.json'
+      - 'infra/workers/Pulumi*.yaml'
+      - '.github/workflows/pulumi-preview.yml'
     branches:
       - main
 
@@ -19,11 +25,21 @@ concurrency:
   group: pulumi-preview-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL || 's3://viberglass-pulumi-state' }}
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
 jobs:
   preview:
-    name: Pulumi Preview (dev stack)
+    name: Pulumi Preview (${{ matrix.stack }}, dev)
+    # Pull requests from forks get no AWS role or secrets.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [base, workers, platform]
 
     steps:
       - name: Checkout repository
@@ -39,21 +55,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          cache: npm
 
       - name: Install Pulumi CLI
         uses: pulumi/setup-pulumi@v3
 
-      - name: Install infrastructure dependencies
-        working-directory: infrastructure
-        run: npm ci
+      # The platform stack's config holds account-specific values and isn't committed.
+      - name: Write platform stack config
+        if: matrix.stack == 'platform'
+        env:
+          STACK_CONFIG: ${{ secrets.PULUMI_PLATFORM_CONFIG_DEV }}
+        run: |
+          if [ -z "$STACK_CONFIG" ]; then
+            echo "::error::Set the PULUMI_PLATFORM_CONFIG_DEV secret to the contents of infra/platform/Pulumi.dev.yaml"
+            exit 1
+          fi
+          printf '%s\n' "$STACK_CONFIG" > infra/platform/Pulumi.dev.yaml
+
+      - name: Install stack dependencies
+        working-directory: infra/${{ matrix.stack }}
+        run: npm install --no-audit --no-fund
 
       - name: Run Pulumi preview
         uses: pulumi/actions@v6
         with:
           command: preview
           stack-name: dev
-          work-dir: infrastructure
+          work-dir: infra/${{ matrix.stack }}
+          cloud-url: ${{ env.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

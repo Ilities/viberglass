@@ -3,19 +3,20 @@ import type { IntegrationCardData } from '@/components/integration-card'
 import { IntegrationGrid } from '@/components/integration-grid'
 import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
-import { getIntegrationSettingsListItems, getSlackBotStatus } from '@/service/api/integration-api'
+import { getChatStatus, getIntegrationSettingsListItems } from '@/service/api/integration-api'
 import { useEffect, useState } from 'react'
 
 export function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationCardData[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [slackBotConfigured, setSlackBotConfigured] = useState(false)
+  const [chatConfigured, setChatConfigured] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     async function loadData() {
       try {
         const data = await getIntegrationSettingsListItems()
+        void loadChatStatuses(data.filter((integration) => integration.category === 'chat').map((integration) => integration.system))
         setIntegrations(
           data.map((integration) => ({
             id: integration.id,
@@ -30,17 +31,21 @@ export function IntegrationsPage() {
           }))
         )
       } catch (error) {
-        setLoadError(error instanceof Error ? error.message : 'Failed to load integrations')
+        setLoadError(error instanceof Error ? error.message : 'Failed to load connections')
       }
       setIsLoading(false)
     }
+    async function loadChatStatuses(systems: string[]) {
+      const statuses = await Promise.all(
+        systems.map((system) =>
+          getChatStatus(system)
+            .then(({ configured }): [string, boolean] => [system, configured])
+            .catch((): [string, boolean] => [system, false])
+        )
+      )
+      setChatConfigured(Object.fromEntries(statuses))
+    }
     loadData()
-  }, [])
-
-  useEffect(() => {
-    getSlackBotStatus()
-      .then(({ configured }) => setSlackBotConfigured(configured))
-      .catch(() => setSlackBotConfigured(false))
   }, [])
 
   if (isLoading) {
@@ -51,12 +56,11 @@ export function IntegrationsPage() {
     )
   }
 
-  // Slack counts as in use once its bot is set up, even without a listed instance.
+  // A chat integration counts as in use once its bot is set up, even without a listed instance.
   const inUse = (integration: IntegrationCardData) =>
-    integration.configStatus === 'configured' || (integration.system === 'slack' && slackBotConfigured)
+    integration.configStatus === 'configured' || chatConfigured[integration.system] === true
   const connected = integrations.filter(inUse)
   const available = integrations.filter((integration) => !inUse(integration) && integration.configStatus === 'not_configured')
-  const later = integrations.filter((integration) => !inUse(integration) && integration.configStatus === 'stub')
 
   return (
     <>
@@ -66,8 +70,7 @@ export function IntegrationsPage() {
         <div>
           <Heading>Connections</Heading>
           <Text className="mt-2 text-[var(--gray-9)]">
-            The workspace&apos;s connections to code hosts, issue trackers and chat. Each space picks which of them it uses in its
-            own settings.
+            Code hosts, issue trackers and chat the workspace is connected to. Each space picks the ones it uses.
           </Text>
         </div>
 
@@ -83,7 +86,7 @@ export function IntegrationsPage() {
             {connected.length === 0 ? (
               <Text>Nothing is connected yet. Connect a code host so agents can work on a repository.</Text>
             ) : (
-              <IntegrationGrid integrations={connected} configured={{ slack: slackBotConfigured }} />
+              <IntegrationGrid integrations={connected} configured={chatConfigured} />
             )}
           </div>
         </section>
@@ -92,19 +95,11 @@ export function IntegrationsPage() {
           <section>
             <Subheading>Available</Subheading>
             <div className="mt-4">
-              <IntegrationGrid integrations={available} configured={{ slack: slackBotConfigured }} />
+              <IntegrationGrid integrations={available} configured={chatConfigured} />
             </div>
           </section>
         )}
 
-        {later.length > 0 && (
-          <details>
-            <summary className="cursor-pointer text-sm text-[var(--gray-10)]">Not available yet ({later.length})</summary>
-            <div className="mt-4">
-              <IntegrationGrid integrations={later} />
-            </div>
-          </details>
-        )}
       </div>
     </>
   )

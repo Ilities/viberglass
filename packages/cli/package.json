@@ -1,13 +1,32 @@
 {
-  "name": "@viberglass/cli",
+  "name": "viberglass",
   "version": "1.0.0",
   "description": "The viberglass command: take over a task's work on your machine",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/Ilities/viberglass#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ilities/viberglass.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "viberglass",
+    "cli",
+    "git"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "viberglass": "./dist/cli.js"
   },
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup",
     "test": "jest",

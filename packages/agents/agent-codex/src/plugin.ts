@@ -1,4 +1,6 @@
+import { ModelEndpointConfigEnvironment, NoopAgentAuthLifecycle } from "@viberglass/agent-core";
 import type { AgentPlugin, AgentAuthLifecycle, IAgentGitService } from "@viberglass/agent-core";
+import { isObjectRecord } from "@viberglass/types";
 import type { CodexConfig } from "./config";
 import { CodexAgent } from "./CodexAgent";
 import { CodexAuthManager } from "./CodexAuthManager";
@@ -7,9 +9,17 @@ import { CodexAgentAuthLifecycle } from "./CodexAgentAuthLifecycle";
 import { resolveCodexAuthSettings } from "./codexAuthSettings";
 import { Logger } from "winston";
 
+function usesModelEndpoint(clankerConfig: Record<string, unknown> | undefined): boolean {
+  const config = isObjectRecord(clankerConfig?.deploymentConfig) ? clankerConfig.deploymentConfig : clankerConfig;
+  return config?.resolvedModelEndpoint !== undefined;
+}
+
 const codexPlugin: AgentPlugin<CodexConfig> = {
   id: "codex",
-  displayName: "OpenAI Codex",
+  label: "OpenAI Codex",
+  description: "Reasoning-focused coding agent with API key and device auth support.",
+  logo: "logo.ico",
+  telemetryProvider: "openai",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new CodexAgent(config, logger, gitService);
@@ -45,9 +55,17 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
   },
 
   stateDirs: [".codex"],
-  stateExcludes: [".codex/auth.json"],
+  // A run on a model endpoint writes config.toml; the next run must not inherit it.
+  stateExcludes: [".codex/auth.json", ".codex/config.toml"],
+
+  customEndpoints: {
+    apiFormats: ["openai-responses"],
+    environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
+  },
 
   authLifecycle(ctx): AgentAuthLifecycle {
+    // A model endpoint brings its own key; there's no OpenAI account to sign in to.
+    if (usesModelEndpoint(ctx.clankerConfig)) return new NoopAgentAuthLifecycle();
     const codexAuthSettings = resolveCodexAuthSettings(ctx.clankerConfig);
     process.env.CODEX_AUTH_MODE = codexAuthSettings.mode;
     process.env.CODEX_AUTH_SECRET_NAME = codexAuthSettings.secretName;

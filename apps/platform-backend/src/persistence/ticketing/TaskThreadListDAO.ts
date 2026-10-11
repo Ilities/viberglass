@@ -1,6 +1,7 @@
 import { sql } from "kysely";
 import { isTaskParticipantRole, type TaskParticipantRole, type TicketLifecycleStatus } from "@viberglass/types";
 import db from "../config/database";
+import { latestPullRequestUrl } from "./latestPullRequestUrl";
 
 /** A task with what its situation and a list row need. */
 export interface ThreadTaskRow {
@@ -24,17 +25,18 @@ const tasksInSpaces = (projectIds: string[] | null) => {
   return query;
 };
 
-const TASK_COLUMNS = [
+const GROUPED_COLUMNS = [
   "t.id",
   "t.task_key",
   "t.title",
   "t.ticket_status",
-  "t.pull_request_url",
   "t.created_at",
   "t.updated_at",
   "p.slug",
   "p.name",
 ] as const;
+
+const TASK_COLUMNS = [...GROUPED_COLUMNS, latestPullRequestUrl("t").as("pull_request_url")] as const;
 
 function toRow(row: {
   id: string;
@@ -69,7 +71,7 @@ export class TaskThreadListDAO {
       .innerJoin("task_participants as tp", "tp.ticket_id", "t.id")
       .select([...TASK_COLUMNS, sql<string[]>`array_agg(tp.role)`.as("roles")])
       .where("tp.user_id", "=", userId)
-      .groupBy([...TASK_COLUMNS])
+      .groupBy([...GROUPED_COLUMNS])
       .orderBy("t.updated_at", "desc")
       .limit(limit)
       .execute();

@@ -68,7 +68,7 @@ export class TurnCallbackClient {
   async sendPartialResult(
     jobId: string,
     tenantId: string,
-    partial: { documents: Partial<Record<"research" | "plan" | "summary", string>>; commitHash?: string; branch?: string },
+    partial: { documents: Partial<Record<"plan" | "summary", string>>; commitHash?: string; branch?: string },
   ): Promise<void> {
     // No retries: the worker is being stopped and has seconds left.
     await postForJson(`${this.target.apiUrl}/api/jobs/${jobId}/partial-result`, tenantId, partial, 5000, this.target.callbackToken);

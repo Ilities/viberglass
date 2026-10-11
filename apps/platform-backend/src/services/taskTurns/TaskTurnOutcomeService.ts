@@ -9,18 +9,19 @@ import { PHASE_DOCUMENT_REVISION_SOURCE } from "../../persistence/ticketing/Tick
 import { AGENT_SESSION_EVENT_TYPE } from "../../types/agentSession";
 import type { AgentSessionWorkerEventService } from "../agentSession/AgentSessionWorkerEventService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import { documentsAskedFor } from "./documentsAskedFor";
 
 /** What the worker reports a turn produced. */
 export interface TurnResult {
   success: boolean;
-  documents?: { research?: string; plan?: string; summary?: string };
+  documents?: { plan?: string; summary?: string };
   codeDiscarded?: boolean;
   resumed?: boolean;
   commitHash?: string;
   contextUsage?: { used: number; size: number | null };
   compacted?: boolean;
   /** The document the turn was asked for and didn't write; it keeps what it did write, but ends as failed. */
-  missing?: "research" | "plan";
+  missing?: "plan";
 }
 
 /** What a recorded turn means for the run's Activity: the step it produced, and whom it mentioned. */
@@ -33,7 +34,6 @@ const INTENT_LIMIT = 200;
 
 /** The artifacts that are a step of the task; a summary is about the conversation, so it mentions nobody. */
 const PRODUCT_STEP: Partial<Record<TaskTurnProduct, TicketWorkflowPhase>> = {
-  research: TICKET_WORKFLOW_PHASE.RESEARCH,
   plan: TICKET_WORKFLOW_PHASE.PLANNING,
   code: TICKET_WORKFLOW_PHASE.EXECUTION,
 };
@@ -55,7 +55,7 @@ export function intentOf(reply: string): string | null {
 
 interface Dependencies {
   turns: Pick<AgentTurnDAO, "update">;
-  events: Pick<AgentSessionEventDAO, "listAssistantTextByTurn">;
+  events: Pick<AgentSessionEventDAO, "listAssistantMessagesByTurn">;
   documents: Pick<TicketPhaseDocumentService, "saveDocument">;
   workerEvents: Pick<AgentSessionWorkerEventService, "batchIngest">;
   participants: Pick<TaskParticipantDAO, "list">;
@@ -92,13 +92,12 @@ export class TaskTurnOutcomeService {
   ): Promise<RecordedTurn | null> {
     const produced: TaskTurnProduct[] = [];
     if (result.success) {
-      const { research, plan } = result.documents ?? {};
-      if (research?.trim()) {
-        await this.saveVersion(session.ticketId, TICKET_WORKFLOW_PHASE.RESEARCH, research, turn.id);
-        produced.push("research");
-      }
+      const plan = documentsAskedFor(turn.action).includes("plan") ? result.documents?.plan : undefined;
       if (plan?.trim()) {
-        await this.saveVersion(session.ticketId, TICKET_WORKFLOW_PHASE.PLANNING, plan, turn.id);
+        await this.deps.documents.saveDocument(session.ticketId, TICKET_WORKFLOW_PHASE.PLANNING, plan, {
+          source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT,
+          agentTurnId: turn.id,
+        });
         produced.push("plan");
       }
       if (result.commitHash) produced.push("code");
@@ -111,7 +110,10 @@ export class TaskTurnOutcomeService {
     }
     const steps = produced.flatMap((product) => PRODUCT_STEP[product] ?? []);
 
-    const reply = (await this.deps.events.listAssistantTextByTurn(turn.id)).join("").trim();
+    const reply = (await this.deps.events.listAssistantMessagesByTurn(turn.id))
+      .map((message) => message.trim())
+      .filter(Boolean)
+      .join("\n\n");
     const mentioned = steps.length > 0 ? await this.reviewersOf(session.ticketId) : [];
     const outcome: TaskTurnOutcome = {
       intent: intentOf(reply),
@@ -143,13 +145,6 @@ export class TaskTurnOutcomeService {
     return artifactReviewers(participants).flatMap((id) => {
       const person = participants.find((p) => p.userId === id);
       return person ? [{ id, name: person.name }] : [];
-    });
-  }
-
-  private async saveVersion(ticketId: string, phase: "research" | "planning", content: string, turnId: string): Promise<void> {
-    await this.deps.documents.saveDocument(ticketId, phase, content, {
-      source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT,
-      agentTurnId: turnId,
     });
   }
 }

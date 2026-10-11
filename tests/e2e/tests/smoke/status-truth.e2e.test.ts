@@ -1,16 +1,16 @@
-import { createTask, runStatus, startResearch, taskStatus } from "../../playwright/tasks";
+import { createTask, runStatus, startPlan, taskStatus } from "../../playwright/tasks";
 import { isWorkerContainerRunning } from "../../playwright/workerContainers";
 import { expect, test } from "../../playwright/smokeFixtures";
 import type { Page } from "@playwright/test";
 
 /** Opens the task page, retrying loads aborted by a container start (ERR_NETWORK_CHANGED). */
 async function openTask(page: Page, projectSlug: string, taskId: string) {
-  const researchHeader = page.getByRole("tab", { name: /^Research/ });
+  const planHeader = page.getByRole("tab", { name: /^Plan/ });
   await expect(async () => {
     await page.goto(`/spaces/${projectSlug}/tasks/${taskId}`);
-    await expect(researchHeader).toBeVisible({ timeout: 5_000 });
+    await expect(planHeader).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
-  return researchHeader;
+  return planHeader;
 }
 
 test("status says an agent is working only while one runs, then asks for review", async ({
@@ -20,22 +20,22 @@ test("status says an agent is working only while one runs, then asks for review"
 }) => {
   const task = await createTask(adminApi, workspace.projectId, "Look around first. [fake:sleep=15]");
 
-  const researchHeader = await openTask(page, workspace.projectSlug, task.id);
-  await expect(researchHeader).toContainText("Not started");
+  const planHeader = await openTask(page, workspace.projectSlug, task.id);
+  await expect(planHeader).toContainText("Not started");
   expect(await taskStatus(adminApi, task.id)).toBe("open");
 
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   expect(await taskStatus(adminApi, task.id)).toBe("in_progress");
   await expect.poll(() => isWorkerContainerRunning(jobId), { timeout: 30_000 }).toBe(true);
   await openTask(page, workspace.projectSlug, task.id);
-  await expect(researchHeader).toContainText("Agent working");
+  await expect(planHeader).toContainText("Agent working");
   await expect(page.getByText("Agent working").first()).toBeVisible();
 
   // Without a reload, both the phase and the task show that a human is needed.
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
-  await expect(researchHeader).toContainText("Ready", { timeout: 15_000 });
+  await expect(planHeader).toContainText("Ready", { timeout: 15_000 });
   await expect.poll(() => taskStatus(adminApi, task.id)).toBe("in_review");
-  await expect(page.getByLabel("Situation")).toContainText("Your move · Research v1 ready · E2E Admin");
+  await expect(page.getByLabel("Situation")).toContainText("Your move · Plan v1 ready · E2E Admin");
 });
 
 test("a failed run shows as failed, and the task is no longer in progress", async ({
@@ -44,11 +44,11 @@ test("a failed run shows as failed, and the task is no longer in progress", asyn
   workspace,
 }) => {
   const task = await createTask(adminApi, workspace.projectId, "This will not work. [fake:fail]");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
-  const researchHeader = await openTask(page, workspace.projectSlug, task.id);
-  await expect(researchHeader).toContainText("Failed");
+  const planHeader = await openTask(page, workspace.projectSlug, task.id);
+  await expect(planHeader).toContainText("Failed");
   await expect(page.getByRole("heading", { name: "Agent failed" })).toBeVisible();
   expect(await taskStatus(adminApi, task.id)).toBe("open");
 });

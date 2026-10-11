@@ -46,7 +46,7 @@ const summaryTurn: TaskTimelineEntry = {
 }
 
 const summary = (version: number, at: string, content: string): TaskTimelineEntry => ({ kind: 'summary', id: `sum-${version}`, at, version, content })
-const message = (id: string, at: string): TaskTimelineEntry => ({ kind: 'message', id, at, author: { id: 'u', name: 'Maria' }, body: 'Hi', channel: 'thread', sessionId: null })
+const message = (id: string, at: string): TaskTimelineEntry => ({ kind: 'message', id, at, author: { id: 'u', name: 'Maria' }, externalAuthor: null, body: 'Hi', channel: 'thread', sessionId: null })
 
 function renderThread(entries: TaskTimelineEntry[], runnable = [{ id: CLAUDE, name: 'Claude' }, { id: CODEX, name: 'Codex' }]) {
   mockTimeline.mockResolvedValue(entries)
@@ -56,15 +56,14 @@ function renderThread(entries: TaskTimelineEntry[], runnable = [{ id: CLAUDE, na
       <MemoryRouter>
         <TaskThread
           taskId="t-1"
-          project="web"
           refreshKey="1"
           onOpenArtifact={jest.fn()}
           agents={[]}
           suggestionInput={{
             ticket: { status: 'open' },
-            documents: { research: { content: '# R' }, planning: { content: '# P' } },
+            plan: { content: '# P' },
             capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
-            newComments: { research: 0, planning: 0 },
+            newComments: 0,
             agentWorking: false,
           }}
           canPost

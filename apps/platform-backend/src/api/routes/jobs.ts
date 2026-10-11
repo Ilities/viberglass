@@ -18,9 +18,16 @@ import { isDomainError } from "../../services/errors/DomainError";
 import { registerCodexAuthCacheRoute } from "./jobs/codexAuthCacheRoute";
 import { registerJobResultRoute } from "./jobs/jobResultRoute";
 import { registerJobWorkerCallbackRoutes } from "./jobs/workerCallbackRoutes";
+import { registerWorkerStorageRoute } from "./jobs/workerStorageRoute";
+import { WorkerStorageService, signWorkerStorageUrl } from "../../services/job/WorkerStorageService";
+import { JobBootstrapService } from "../../services/job/JobBootstrapService";
 import { registerQuestionCallbackRoute } from "./jobs/questionCallbackRoute";
 import { registerPartialResultRoute } from "./jobs/partialResultRoute";
+import { registerPullRequestRoute } from "./jobs/pullRequestRoute";
 import { registerSkillCallbackRoute } from "./jobs/skillCallbackRoute";
+import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { RunRecordDAO } from "../../persistence/job/RunRecordDAO";
+import { RunRecordService } from "../../services/runRecords/RunRecordService";
 
 const router = Router();
 // Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
@@ -29,6 +36,8 @@ router.param("jobId", jobParamGuard(spaceAccess));
 const jobService = new JobService();
 const jobQueries = new JobQueryService();
 const jobCancellationService = new JobCancellationService();
+const sessionEvents = new AgentSessionEventDAO();
+const runRecords = new RunRecordService(new RunRecordDAO());
 
 router.post("/", requireRunnerRole, async (req: Request, res: Response) => {
   try {
@@ -94,6 +103,36 @@ router.get("/:jobId", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({
       error: error instanceof Error ? error.message : "Internal server error",
     });
+  }
+});
+
+// What the agent thought, said and ran in the run; a run that's still going is followed with `afterSequence`.
+router.get("/:jobId/events", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const afterSequence = Number(req.query.afterSequence ?? 0);
+    const events = await sessionEvents.listByJob(req.params.jobId, Number.isFinite(afterSequence) ? afterSequence : 0);
+    res.json({ success: true, data: events });
+  } catch (error) {
+    logger.error("Failed to list run events", {
+      error: error instanceof Error ? error.message : String(error),
+      jobId: req.params.jobId,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// The run's record: model, tokens, cost, outcome. Anyone who can see the run can see what it used.
+router.get("/:jobId/record", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const record = await runRecords.get(req.params.jobId);
+    if (!record) return res.status(404).json({ error: "No record for this run" });
+    return res.json(record);
+  } catch (error) {
+    logger.error("Failed to get run record", {
+      error: error instanceof Error ? error.message : String(error),
+      jobId: req.params.jobId,
+    });
+    return res.status(500).json({ error: "Failed to get run record" });
   }
 });
 
@@ -186,11 +225,14 @@ router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-registerJobWorkerCallbackRoutes(router);
+const workerStorage = new WorkerStorageService(new JobBootstrapService(), signWorkerStorageUrl);
+registerJobWorkerCallbackRoutes(router, workerStorage);
+registerWorkerStorageRoute(router, workerStorage);
 registerJobResultRoute(router);
 registerCodexAuthCacheRoute(router);
 registerQuestionCallbackRoute(router);
 registerPartialResultRoute(router);
+registerPullRequestRoute(router);
 registerSkillCallbackRoute(router);
 
 

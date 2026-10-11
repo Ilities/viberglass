@@ -1,10 +1,14 @@
+import { ModelEndpointConfigEnvironment } from "@viberglass/agent-core";
 import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import type { ClaudeCodeConfig } from "./config";
 import { ClaudeCodeAgent } from "./ClaudeCodeAgent";
 
 const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
   id: "claude-code",
-  displayName: "Claude Code",
+  label: "Claude Code",
+  description: "General-purpose coding agent with strong code editing reliability.",
+  logo: "logo.ico",
+  telemetryProvider: "anthropic",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new ClaudeCodeAgent(config, logger, gitService);
@@ -32,6 +36,11 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
     },
     maxTokens: 4000,
     temperature: 0.1,
+  },
+
+  customEndpoints: {
+    apiFormats: ["anthropic-messages"],
+    environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
   },
 
   envAliases: {

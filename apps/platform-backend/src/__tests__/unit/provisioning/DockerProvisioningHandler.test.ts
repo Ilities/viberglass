@@ -103,7 +103,7 @@ describe("DockerProvisioningHandler", () => {
     expect(progress).toHaveBeenCalled();
   });
 
-  it("returns inactive when docker image is not configured", async () => {
+  it("returns inactive until a runner that builds its image is started", async () => {
     const { client } = buildDockerClient();
     const handler = new DockerProvisioningHandler(client, {
       repoRoot: "/tmp",
@@ -113,8 +113,22 @@ describe("DockerProvisioningHandler", () => {
 
     expect(result).toEqual({
       status: "inactive",
-      statusMessage: "Docker image not configured",
+      statusMessage: "Start the runner to build its image",
     });
+  });
+
+  it("checks the agent's published image when a pre-built runner names none", async () => {
+    const { client, inspectImage } = buildDockerClient();
+    const handler = new DockerProvisioningHandler(client, {
+      repoRoot: "/tmp",
+    });
+
+    const result = await handler.checkAvailability(
+      buildClanker("docker", { version: 1, strategy: { type: "docker", provisioningMode: "prebuilt" }, agent: { type: "claude-code" } }),
+    );
+
+    expect(inspectImage).toHaveBeenCalledWith(expect.stringContaining("viberator-worker"));
+    expect(result.status).toBe("active");
   });
 
   it("returns inactive when image is missing", async () => {

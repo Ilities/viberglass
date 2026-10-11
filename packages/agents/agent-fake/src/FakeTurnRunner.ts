@@ -19,7 +19,7 @@ const nodeIo: FakeTurnIo = {
 /** The file `[fake:code]` changes. */
 export const FAKE_CHANGE_FILE = "fake-change.txt";
 
-const DOCUMENT_NAME: Record<FakeDocumentFile, string> = { "RESEARCH.md": "research", "PLAN.md": "plan", "SUMMARY.md": "summary" };
+const DOCUMENT_NAME: Record<FakeDocumentFile, string> = { "PLAN.md": "plan", "SUMMARY.md": "summary" };
 
 /**
  * Runs one fake agent turn in a repository: optionally waits, then writes the

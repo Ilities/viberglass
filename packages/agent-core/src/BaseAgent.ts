@@ -31,7 +31,7 @@ import {
   GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT,
   hashPrompt,
   markSpanFailed,
-  providerNameForAgent,
+  GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
   recordSpanError,
   SpanKind,
   withSpan,
@@ -45,6 +45,7 @@ import { NoopAgentGitService } from "./git/NoopAgentGitService";
 import type { BaseAgentConfig, ExecutionContext, ExecutionResult, AgentCLIResult } from "./types";
 import type { AgentUsageReport } from "./usage";
 import type { AcpMcpServer } from "./acp/types";
+import type { AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
 
 export type { AgentCLIResult };
 
@@ -58,6 +59,16 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     this.config = config;
     this.logger = logger;
     this.gitService = gitService ?? new NoopAgentGitService();
+  }
+
+  /** How to ask the harness for its session's totals, for one that sends no usage over ACP. Most send it, so none by default. */
+  getAcpUsageProbe(): AcpUsageProbe | undefined {
+    return undefined;
+  }
+
+  /** The model the agent was configured to run, for a record when the harness doesn't name the one it used. */
+  configuredModel(): string | undefined {
+    return typeof this.config.model === "string" && this.config.model ? this.config.model : undefined;
   }
 
   /**
@@ -83,7 +94,7 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
         attributes: definedAttributes({
           [ATTR_GEN_AI_OPERATION_NAME]: GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT,
           [ATTR_GEN_AI_AGENT_NAME]: this.config.name,
-          [ATTR_GEN_AI_PROVIDER_NAME]: providerNameForAgent(this.config.name),
+          [ATTR_GEN_AI_PROVIDER_NAME]: context.telemetryProvider ?? GEN_AI_PROVIDER_NAME_VALUE_UNKNOWN,
           // The configured model is a request-time intent; the CLI may
           // override it, which is why the response model is recorded too.
           [ATTR_GEN_AI_REQUEST_MODEL]:

@@ -1,14 +1,14 @@
 import { getClankersList, getTicketDetails } from '@/data'
+import { getTaskPlanParts } from '@/service/api/build-api'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
 import {
-  getPhaseDocumentComments,
-  getPlanningPhase,
-  getResearchDocument,
+  getPlanComments,
+  getPlan,
   getTaskByKey,
   type PhaseDocumentResponse,
 } from '@/service/api/ticket-api'
-import { isTaskKey, type Clanker, type TaskCapabilities, type Ticket } from '@viberglass/types'
+import { isTaskKey, type Clanker, type TaskCapabilities, type TaskPlanParts, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { countNewComments } from './task-suggestions'
 
@@ -17,12 +17,14 @@ export interface TaskPageData {
   clankers: Clanker[]
   /** Newest first. */
   runs: JobListItem[]
-  documents: { research: PhaseDocumentResponse; planning: PhaseDocumentResponse }
-  /** Open comments on each document made since its latest version. */
-  newComments: { research: number; planning: number }
+  plan: PhaseDocumentResponse
+  /** Open comments on the plan made since its latest version. */
+  newComments: number
   sessions: AgentSession[]
   /** What the person may ask the agent for; null if it couldn't be loaded, so nothing is offered. */
   capabilities: TaskCapabilities | null
+  /** The plan part by part, from the task's pull requests; null if it couldn't be loaded. */
+  planParts: TaskPlanParts | null
 }
 
 const POLL_MS = 5000
@@ -30,26 +32,23 @@ const POLL_MS = 5000
 const WORKING_SESSION = ['active']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {
-  const [ticket, runs, research, planning, researchComments, planComments, sessions] = await Promise.all([
+  const [ticket, runs, plan, planComments, sessions, planParts] = await Promise.all([
     getTicketDetails(id),
     getJobs({ ticketId: id, limit: 50 }),
-    getResearchDocument(id),
-    getPlanningPhase(id),
-    getPhaseDocumentComments(id, 'research').catch(() => []),
-    getPhaseDocumentComments(id, 'planning').catch(() => []),
+    getPlan(id),
+    getPlanComments(id).catch(() => []),
     listSessionsForTicket(id),
+    getTaskPlanParts(id).catch(() => null),
   ])
   if (!ticket) return null
   return {
     ticket,
     runs: runs.jobs,
-    documents: { research: research.document, planning: planning.document },
-    newComments: {
-      research: countNewComments(researchComments, research.document.updatedAt),
-      planning: countNewComments(planComments, planning.document.updatedAt),
-    },
+    plan: plan.document,
+    newComments: countNewComments(planComments, plan.document.updatedAt),
     sessions,
     capabilities: ticket.capabilities ?? null,
+    planParts,
   }
 }
 
@@ -116,8 +115,7 @@ export function useTaskPage(routeId: string | undefined) {
     []
   )
   const setDocument = useCallback(
-    (step: 'research' | 'planning', document: PhaseDocumentResponse) =>
-      setData((previous) => (previous ? { ...previous, documents: { ...previous.documents, [step]: document } } : null)),
+    (document: PhaseDocumentResponse) => setData((previous) => (previous ? { ...previous, plan: document } : null)),
     []
   )
 

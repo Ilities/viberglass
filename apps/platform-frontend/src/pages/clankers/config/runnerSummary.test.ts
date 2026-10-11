@@ -23,7 +23,33 @@ describe('summarizeRunner', () => {
       [],
     )
 
-    expect(summary).toMatchObject({ providerLabel: 'Custom endpoint', model: 'qwen-test', key: null, problem: null })
+    expect(summary).toMatchObject({ providerLabel: 'Workspace model', model: 'qwen-test', key: null, problem: null })
+  })
+
+  it('names the endpoint the runner uses, where it is and which key it sends', () => {
+    const summary = summarizeRunner(
+      {
+        agent: 'pi',
+        deploymentConfig: { version: 1, strategy: { type: 'docker' }, agent: { type: 'pi' } },
+        modelEndpoint: { endpointId: 'endpoint', model: 'qwen3.8-flash' },
+        secretBindings: [],
+      },
+      [{ ...key, id: 'endpoint-key', name: 'OpenCode Go key' }],
+      [
+        {
+          id: 'endpoint',
+          name: 'OpenCode Go · Anthropic',
+          baseUrl: 'https://opencode.ai/zen/go',
+          auth: { scheme: 'header', header: 'x-api-key' },
+          secretId: 'endpoint-key',
+        },
+      ],
+    )
+
+    expect(summary).toMatchObject({
+      providerLabel: 'OpenCode Go · Anthropic',
+      endpoint: { name: 'OpenCode Go · Anthropic', host: 'opencode.ai', keyLabel: 'OpenCode Go key' },
+    })
   })
 
   it('reports the provider, model and key the runner uses', () => {

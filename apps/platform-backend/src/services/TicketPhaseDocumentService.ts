@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import type { TicketWorkflowPhase } from "@viberglass/types";
+import { objectStorageBucket, objectStorageClientConfig, type TicketWorkflowPhase } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { type PhaseDocument, TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
@@ -39,10 +39,8 @@ export class TicketPhaseDocumentService {
   private readonly bucketName: string;
 
   constructor() {
-    this.bucketName = process.env.AWS_S3_BUCKET?.trim() || "";
-    this.s3Client = new S3Client({
-      region: process.env.AWS_REGION || "eu-west-1",
-    });
+    this.bucketName = objectStorageBucket(process.env);
+    this.s3Client = new S3Client(objectStorageClientConfig(process.env));
   }
 
   async getOrCreateDocument(

@@ -5,7 +5,11 @@ import { MCP_HEADER_ENV_VAR_PREFIX } from './mcpServer'
 export type SecretLocation = 'env' | 'database' | 'ssm'
 
 /** What the platform keeps a secret for, when it manages the secret itself. */
-export type SecretPurpose = 'codex_login'
+export type SecretPurpose = 'codex_login' | 'model_host'
+
+export function isSecretPurpose(value: unknown): value is SecretPurpose {
+  return value === 'codex_login' || value === 'model_host'
+}
 
 export interface Secret {
   id: string
@@ -39,6 +43,13 @@ export function isWorkerOnlyEnvVar(envVar: string): boolean {
 
 /** Env var names: what agent CLIs and the worker read credentials from. */
 export const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/
+
+/** Something other than an agent that reads a secret: a space's repository access, a connection, or a model endpoint. */
+export interface SecretUse {
+  secretId: string
+  kind: 'space' | 'connection' | 'model_endpoint'
+  name: string
+}
 
 /** Where new secrets go by default on this instance. */
 export interface SecretStorageDefaults {

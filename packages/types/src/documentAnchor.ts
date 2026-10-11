@@ -1,5 +1,5 @@
 /**
- * Where a comment sits in a research or plan document: the text it's on plus a
+ * Where a comment sits in a plan document: the text it's on plus a
  * little context either side (the W3C "text quote selector"). A quote survives
  * edits that line numbers don't, and is found again in each new version of the
  * document; a comment whose text is gone is outdated, not lost.

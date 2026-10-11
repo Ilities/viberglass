@@ -1,18 +1,14 @@
 import { resolveRunTab } from './run-tab'
 
 describe('resolveRunTab', () => {
-  it('opens the view a link asks for', () => {
-    expect(resolveRunTab('prompt', false)).toBe('prompt')
-    expect(resolveRunTab('log', false)).toBe('log')
-    expect(resolveRunTab('record', true)).toBe('record')
+  it('opens the view a link asks for, the record included, for anyone', () => {
+    expect(resolveRunTab('prompt')).toBe('prompt')
+    expect(resolveRunTab('activity')).toBe('activity')
+    expect(resolveRunTab('record')).toBe('record')
   })
 
-  it('keeps the record from anyone but admins', () => {
-    expect(resolveRunTab('record', false)).toBe('activity')
-  })
-
-  it('falls back to activity', () => {
-    expect(resolveRunTab(null, true)).toBe('activity')
-    expect(resolveRunTab('nonsense', true)).toBe('activity')
+  it('opens on the log, where the agent\'s steps are', () => {
+    expect(resolveRunTab(null)).toBe('log')
+    expect(resolveRunTab('nonsense')).toBe('log')
   })
 })

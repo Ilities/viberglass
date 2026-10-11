@@ -168,13 +168,6 @@ export class AgentOrchestrator {
             })
             .join("\n")}\n`
         : "";
-    const researchSection =
-      context.researchDocument?.trim() &&
-      !context.bugDescription.includes(context.researchDocument.trim()) &&
-      (!context.promptOverride ||
-        !context.promptOverride.includes(context.researchDocument.trim()))
-        ? `\nRESEARCH DOCUMENT:\n${context.researchDocument}\n`
-        : "";
     const planningSection =
       context.planDocument?.trim() &&
       !context.bugDescription.includes(context.planDocument.trim()) &&
@@ -190,7 +183,6 @@ You are an expert software engineer. Complete the task described below.
 TASK:
 ${context.bugDescription}
 ${ticketMediaSection}
-${researchSection}
 ${planningSection}
 
 REPOSITORY: ${context.repoUrl}
@@ -248,7 +240,6 @@ ${context.actualBehavior}
 
 ${context.stackTrace ? `STACK TRACE:\n${context.stackTrace}` : ""}
 ${ticketMediaSection}
-${researchSection}
 ${planningSection}
 
 REPOSITORY: ${context.repoUrl}

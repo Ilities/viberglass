@@ -188,28 +188,29 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Journey | Spec |
 |---|---|
 | Sign in as the seeded admin | `sign-in.e2e.test.ts` |
-| Asking the agent for the research (a suggested action) writes a document that's ready with nothing to approve; asking for the plan moves the task on | `research-then-plan.e2e.test.ts` |
-| @agent writes research v1; a comment; "Revise the research with 1 comment" gives v2 from the resumed session with only what's new; "Write the plan" gives plan v1 | `task-conversation.e2e.test.ts` |
+| Creating a task through the form lands on it in the plan step, with *Write the plan* offered | `create-task.e2e.test.ts` |
+| Asking the agent for the plan (a suggested action) writes a document that's ready with nothing to approve | `write-the-plan.e2e.test.ts` |
+| @agent writes plan v1; a comment; "Revise the plan with 1 comment" gives v2 from the resumed session with only what's new | `task-conversation.e2e.test.ts` |
 | A message queued during a live turn reaches the agent in its next turn, then the session waits on people | `live-session-message.e2e.test.ts` |
 | A session is titled with its task and opens with what the person wrote (which reaches the agent); the full prompt is behind "View full prompt" | `session-opening.e2e.test.ts` |
 | A live turn that writes no document leaves the session waiting on the person; their reply starts the next turn | `session-waits-on-person.e2e.test.ts` |
-| A task says whose move it is at the top: the agent working (cancel), research ready, *Write the plan* in the thread, plan ready, then *Build it* offered with no Approve anywhere | `task-next-moves.e2e.test.ts` |
+| A task says whose move it is at the top: the agent working (cancel), plan ready, then *Build it* offered with no Approve anywhere | `task-next-moves.e2e.test.ts` |
 | Only people on the task (and maintainers and admins) are offered *Build it*, and the API refuses anyone else; a guest off the task can't ask at all, and once on it their build runs as theirs; a space's default reviewers join each new task and the agent mentions them when the plan is ready | `ask-policy.e2e.test.ts` |
 | A reviewer comments on text in the rendered plan; the comment follows its text through an edit, reaches the agent with its quote, and is outdated once the text is gone | `rendered-document-comments.e2e.test.ts` |
 | The audit log records secrets and role changes (never a secret's value), is admin-only, and filters by area | `audit-log.e2e.test.ts` |
 | Phase 2's exit, as a conversation: three people invited by link; the PM asks, the designer is @mentioned and replies, the agent mentions the reviewer when the plan is ready, the reviewer comments on the rendered plan, has it revised with the comment and asks for the build; Home's Needs you and the thread name each person | `phase-2-exit.e2e.test.ts` |
 | A turn whose context is past the threshold is followed by Summary v1, unasked and compacted, pinned in the thread; a second agent brought in starts cold from the summary | `summary-and-second-agent.e2e.test.ts` |
-| Home per role: a mentioned member sees it under Needs you with an unread count, and replying clears it; a new task is its owner's move, and the agent's research mentions the owner; a guest on a task is mentioned and replies; a viewer lands on Overview | `home.e2e.test.ts` |
-| Cancel stops the worker container; the run stays cancelled and writes nothing. A run stopped after writing its research keeps it as a version, and says who stopped it | `cancel-run.e2e.test.ts` |
-| The agent asks the requester a question with `ask_human`; it's in the thread and their move on Home; answering with an option resumes the research, which has the answer | `agent-question.e2e.test.ts` |
+| Home per role: a mentioned member sees it under Needs you with an unread count, and replying clears it; a new task is its owner's move, and the agent's plan mentions the owner; a guest on a task is mentioned and replies; a viewer lands on Overview | `home.e2e.test.ts` |
+| Cancel stops the worker container; the run stays cancelled and writes nothing. A run stopped after writing its plan keeps it as a version, and says who stopped it | `cancel-run.e2e.test.ts` |
+| The agent asks the requester a question with `ask_human`; it's in the thread and their move on Home; answering with an option resumes the plan, which has the answer | `agent-question.e2e.test.ts` |
 | The owner interrupts a slow turn with an instruction, and the next turn has it; pausing stops the run and holds an ask, and letting it carry on finishes the plan with that ask | `steer-the-agent.e2e.test.ts` |
 | The owner takes the work over, a commit is pushed to the task's branch, and after handing back the agent's next turn is told about the commit | `take-over-and-hand-back.e2e.test.ts` |
 | Asking again while the agent works joins its turn instead of starting another run; the next turn answers both asks | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |
-| Failures read by cause: agent failures offer *Try again* in the thread (a new run), research that writes no document is an answer rather than a failure, a setup failure sends admins to the fix and tells members an admin is needed, and pauses the agent until an admin fixes it and retries every paused run | `failure-copy.e2e.test.ts` |
+| Failures read by cause: agent failures offer *Try again* in the thread (a new run), a plan turn that writes no document is an answer rather than a failure, a setup failure sends admins to the fix and tells members an admin is needed, and pauses the agent until an admin fixes it and retries every paused run | `failure-copy.e2e.test.ts` |
 | Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
 | A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
-| On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's research document appears | `first-run-setup.e2e.test.ts` |
+| On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's plan appears | `first-run-setup.e2e.test.ts` |
 | A new admin explores the demo workspace (sample tasks, a readable failure), removes it, and lands back in setup | `first-run-setup.e2e.test.ts` |
 | Workspace plumbing sits under Settings → Advanced, for admins only | `member-permissions.e2e.test.ts` |
 
@@ -248,7 +249,7 @@ against a database that isn't empty; use `npm run test:e2e`, which resets it.
   through real configuration: `GITHUB_API_URL` for the GitHub API, and
   `VIBERGLASS_FAKE_PROVIDER_URL` for the test-only "Fake provider (tests)",
   which runs on the fake agent and is offered only when that variable is set.
-  The stub's repository points at the git fixture, so research really runs.
+  The stub's repository points at the git fixture, so the plan really runs.
   That backend's output goes to `test-results/first-run-backend.log`.
 - **Stack.** `docker-compose.e2e.yaml` runs Postgres on a tmpfs, so each run
   starts empty. Playwright starts the backend (`tsx`) and frontend (Vite) on the
@@ -270,12 +271,12 @@ against a database that isn't empty; use `npm run test:e2e`, which resets it.
 ### Writing a journey
 
 ```typescript
-import { createTask, startResearch } from "../../playwright/tasks";
+import { createTask, startPlan } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
 test("...", async ({ adminApi, adminPage: page, workspace }) => {
   const task = await createTask(adminApi, workspace.projectId, "Do X. [fake:sleep=5]");
-  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await page.goto(`/spaces/${workspace.projectSlug}/runs/${jobId}`);
   // ...
 });
@@ -283,7 +284,7 @@ test("...", async ({ adminApi, adminPage: page, workspace }) => {
 
 - Set up through the API, then drive the step under test in the UI.
 - Assert outcomes through the API where the UI is ambiguous (`runStatus`,
-  `researchDocument`, `sessionStatus`, `taskPhase`).
+  `planDocument`, `sessionStatus`, `taskPhase`).
 - Starting a worker container changes the host's network interfaces, and
   Chromium aborts loads that are in flight with `ERR_NETWORK_CHANGED`. Navigate
   after the container is up, and retry the navigation with `expect(...).toPass()`.

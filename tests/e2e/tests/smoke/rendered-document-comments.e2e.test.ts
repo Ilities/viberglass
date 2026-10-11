@@ -6,11 +6,11 @@ import { askAgent, createTask, runStatus } from "../../playwright/tasks";
 const PLAN = "# Plan\n\n1. Shorten the **button label** on mobile.\n2. Keep the copy friendly.\n";
 
 async function planComments(api: APIRequestContext, taskId: string) {
-  return (await (await api.get(`/api/tasks/${taskId}/phases/planning/comments`)).json()).data;
+  return (await (await api.get(`/api/tasks/${taskId}/plan/comments`)).json()).data;
 }
 
 async function savePlan(api: APIRequestContext, taskId: string, content: string) {
-  expect((await api.put(`/api/tasks/${taskId}/phases/planning/document`, { data: { content } })).status()).toBe(200);
+  expect((await api.put(`/api/tasks/${taskId}/plan/document`, { data: { content } })).status()).toBe(200);
 }
 
 test("a reviewer comments on the rendered plan; the comment follows its text, and the agent gets it", async ({
@@ -29,7 +29,7 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
 
   // Select across the bold text, then comment on it.
   await selectText(page, "button", "mobile");
-  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.getByRole("button", { name: "Comment or suggest" }).click();
   const composer = page.getByRole("dialog", { name: "New comment" });
   await composer.getByRole("textbox", { name: "Comment" }).fill("Which button? Checkout or cart?");
   await composer.getByRole("button", { name: "Add comment" }).click();
@@ -47,7 +47,7 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
   // Asking for a revision sends the open comment, with the text it's on, to the agent (the fake agent echoes its prompt).
   const { jobId } = await askAgent(adminApi, task.id, { action: "plan", body: "Address the comment.", agentId: workspace.clankerId });
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
-  const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document.content;
+  const plan = (await (await adminApi.get(`/api/tasks/${task.id}/plan`)).json()).data.document.content;
   expect(plan).toContain("On “button label** on mobile”");
   expect(plan).toContain("Which button? Checkout or cart?");
 
@@ -56,7 +56,7 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
   expect((await planComments(adminApi, task.id))[0].outdated).toBe(true);
   await expect(async () => {
     await page.reload();
-    await page.getByRole("button", { name: /^Comments/ }).click();
+    await page.locator("summary", { hasText: /^Comments/ }).click();
     await expect(page.getByText("Outdated: the text changed")).toBeVisible();
   }).toPass();
 });

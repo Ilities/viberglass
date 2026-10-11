@@ -1,7 +1,6 @@
 import express, { type Request, type Response } from "express";
 import type {
   CreateIntegrationCredentialRequest,
-  TicketSystem,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
 import logger from "../../config/logger";
@@ -13,10 +12,12 @@ import {
   isIntegrationRouteServiceError,
   type LinkProjectIntegrationInput,
   ProjectIntegrationLinkService,
+  TrackerIssueRuleService,
   type UpdateIntegrationInput,
   type UpsertInboundWebhookConfigInput,
 } from "../services/integrations";
 import { IntegrationCredentialDAO } from "../../persistence/integrations";
+import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import { SecretService } from "../../services/SecretService";
 import { spaceParamGuard } from "../middleware/spaceAccessGuards";
 
@@ -24,6 +25,7 @@ const router = express.Router();
 const integrationManagementService = new IntegrationManagementService();
 const projectIntegrationLinkService = new ProjectIntegrationLinkService();
 const integrationWebhookService = new IntegrationWebhookService();
+const trackerIssueRuleService = new TrackerIssueRuleService();
 const integrationCredentialDAO = new IntegrationCredentialDAO();
 const secretService = new SecretService();
 
@@ -65,7 +67,7 @@ function withRouteErrorHandling(
 router.get(
   "/",
   withRouteErrorHandling("Error fetching integrations", async (req, res) => {
-    const system = req.query.system as TicketSystem | undefined;
+    const system = typeof req.query.system === "string" ? req.query.system : undefined;
     const integrations =
       await integrationManagementService.listIntegrations(system);
 
@@ -90,15 +92,10 @@ router.post(
   }),
 );
 
-router.get("/slack/status", (_req, res) => {
-  const token = process.env.SLACK_BOT_TOKEN;
-  const secret = process.env.SLACK_SIGNING_SECRET;
-  const configured =
-    Boolean(token) &&
-    token !== "not-configured" &&
-    Boolean(secret) &&
-    secret !== "not-configured";
-  res.json({ configured });
+// Whether a chat integration's service is set up on this installation; it's set up outside its connection.
+router.get("/:system/chat-status", (req, res) => {
+  const provider = integrationRegistry.get(req.params.system)?.chat;
+  res.json({ configured: provider?.isConfigured() ?? false });
 });
 
 router.get(
@@ -221,6 +218,29 @@ router.put(
       });
     },
   ),
+);
+
+// Which tracker issues a space takes: visible to read, maintainer to change.
+router.get(
+  "/space/:projectId/issue-rules",
+  withRouteErrorHandling("Error fetching a space's tracker issue rules", async (req, res) => {
+    res.json({ success: true, data: await trackerIssueRuleService.listForSpace(req.params.projectId) });
+  }),
+);
+
+router.put(
+  "/space/:projectId/issue-rules/:integrationId",
+  withRouteErrorHandling("Error saving a space's tracker issue rules", async (req, res) => {
+    const rules = await trackerIssueRuleService.replaceForSpace(req.params.projectId, req.params.integrationId, req.body?.rules);
+    res.json({ success: true, data: rules });
+  }),
+);
+
+router.get(
+  "/:id/issue-rules",
+  withRouteErrorHandling("Error fetching a connection's tracker issue rules", async (req, res) => {
+    res.json({ success: true, data: await trackerIssueRuleService.listForConnection(req.params.id) });
+  }),
 );
 
 // ============================================================================

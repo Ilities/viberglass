@@ -7,6 +7,7 @@ import type {
   PaginatedResponse,
   Secret,
   SecretStorageDefaults,
+  SecretUse,
   UpdateSecretRequest,
 } from '@viberglass/types'
 
@@ -104,8 +105,19 @@ export type {
   Secret,
   SecretLocation,
   SecretStorageDefaults,
+  SecretUse,
   UpdateSecretRequest,
 } from '@viberglass/types'
+
+/** The spaces, connections and model endpoints that read each secret; agents' use comes with the agents. */
+export async function listSecretUses(): Promise<SecretUse[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/secrets/usage`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch where secrets are used')
+  }
+  const data: ApiResponse<SecretUse[]> = await response.json()
+  return data.data
+}
 
 export async function getSecretStorageDefaults(): Promise<SecretStorageDefaults> {
   const response = await apiFetch(`${API_BASE_URL}/api/secrets/storage-defaults`)

@@ -21,6 +21,16 @@ export {
   parseOpenCodeSessionExport,
 } from "./usage";
 
+// Runner model endpoints
+export {
+  MODEL_ENDPOINT_CONFIG_ENV_VAR,
+  ModelEndpointConfigEnvironment,
+  currentModelEndpoint,
+  modelEndpointKey,
+  modelEndpointRequestHeaders,
+} from "./modelEndpointConfig";
+export { tomlInlineTable, tomlString } from "./toml";
+
 // Agent environment boundary
 export {
   sanitizeAgentEnvironment,
@@ -41,6 +51,7 @@ export {
 // ACP layer
 export type { AcpHttpMcpServer, AcpMcpServer, AcpStdioMcpServer, PlatformSessionEvent } from "./acp/types";
 export type { AcpEventMapper } from "./acp/acpEventMapperTypes";
+export type { AcpSessionTotals, AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
 export {
   defaultAcpEventMapper,
 } from "./acp/acpEventMapper";

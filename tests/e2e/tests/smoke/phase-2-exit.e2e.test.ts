@@ -3,7 +3,7 @@ import { selectText } from "../../playwright/documentSelection";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { signIn } from "../../playwright/seedWorkspace";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
-import { askAgent, createTask, needsYou, runStatus, startResearch, timeline } from "../../playwright/tasks";
+import { askAgent, createTask, needsYou, runStatus, startPlan, timeline } from "../../playwright/tasks";
 
 /** Invites someone by link, has them accept it, and signs them in. */
 async function invitePerson(adminApi: APIRequestContext, browser: Browser, name: string) {
@@ -39,9 +39,9 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   const designer = await invitePerson(adminApi, browser, "Dana Designer");
   const reviewer = await invitePerson(adminApi, browser, "Tomi Reviewer");
 
-  // 1. The PM (the workspace admin) asks for something, and the agent researches it.
+  // 1. The PM (the workspace admin) asks for something, and the agent plans it.
   const task = await createTask(adminApi, workspace.projectId, "Make the checkout copy friendlier on mobile.");
-  await runFinishes(adminApi, await startResearch(adminApi, task.id, workspace.clankerId));
+  await runFinishes(adminApi, await startPlan(adminApi, task.id, workspace.clankerId));
 
   // 3. The PM brings the designer in with an @mention; the designer answers in the thread.
   const posted = await adminApi.post(`/api/tasks/${task.id}/messages`, {
@@ -50,16 +50,16 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   expect(posted.status()).toBe(201);
   await expect.poll(() => needsYou(designer.api)).toContain(`${task.title}: Discussing`);
   await designer.page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  await designer.page.getByRole("textbox", { name: "Write a message" }).fill("Warm and short. No exclamation marks.");
+  await designer.page.getByRole("combobox", { name: "Write a message" }).fill("Warm and short. No exclamation marks.");
   await designer.page.getByRole("button", { name: "Post" }).click();
   await expect(designer.page.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   // Replying answers the mention, so it's no longer the designer's move.
   await expect.poll(() => needsYou(designer.api)).not.toContain(`${task.title}: Discussing`);
 
-  // The PM adds the reviewer and asks for the plan; the agent mentions the reviewer when it's written.
+  // The PM adds the reviewer and asks for the plan with the designer's point; the agent mentions the reviewer when it's revised.
   expect((await adminApi.post(`/api/tasks/${task.id}/participants`, { data: { userId: reviewer.id, role: "reviewer" } })).status()).toBe(201);
-  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan" })).jobId);
-  await expect.poll(() => needsYou(reviewer.api)).toContain(`${task.title}: Plan v1 ready`);
+  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Revise the plan with Dana's tone" })).jobId);
+  await expect.poll(() => needsYou(reviewer.api)).toContain(`${task.title}: Plan v2 ready`);
 
   // 4. The reviewer comments on the rendered plan and asks the agent to revise it with the comment.
   const page = reviewer.page;
@@ -68,21 +68,21 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
     await expect(page.getByRole("heading", { name: "Fake Plan" })).toBeVisible();
   }).toPass();
   await selectText(page, "Written by", "tests.");
-  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.getByRole("button", { name: "Comment or suggest" }).click();
   await page.getByRole("dialog", { name: "New comment" }).getByRole("textbox", { name: "Comment" }).fill("Say who writes the copy.");
   await page.getByRole("dialog", { name: "New comment" }).getByRole("button", { name: "Add comment" }).click();
   await expect(page.locator("mark").first()).toBeVisible();
 
-  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Revise the plan with 1 comment" }).click();
+  await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Revise the plan with 1 comment" }).click();
   await expect.poll(async () => {
-    const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document.content;
+    const plan = (await (await adminApi.get(`/api/tasks/${task.id}/plan`)).json()).data.document.content;
     return plan.includes("Say who writes the copy.");
   }, { timeout: 90_000 }).toBe(true);
 
   // 7. The reviewer is happy with it and asks the agent to build it: that ask is the agreement, under their name.
   await expect(async () => {
     await page.reload();
-    await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Build it" }).click({ timeout: 5_000 });
+    await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Build it" }).click({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   let buildJobId = "";
   await expect.poll(async () => {
@@ -93,16 +93,18 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   await runFinishes(adminApi, buildJobId);
 
   // Every step is attributed in the task's thread.
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await expect(thread.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   for (const sentence of [
     "E2E Admin created the task",
     `E2E Admin asked ${reviewer.name} to review`,
     `Asked ${reviewer.name} to take a look`,
-    `${reviewer.name} commented on the plan: “Written by the fake agent used in end-to-end tests.”`,
     "Revise the plan with 1 comment",
     "Build it",
   ]) {
     await expect(thread.getByText(sentence, { exact: true }).first()).toBeVisible();
   }
+  const reviewerComment = thread.getByRole("listitem", { name: `${reviewer.name}'s comment` });
+  await expect(reviewerComment).toContainText("commented on the plan");
+  await expect(reviewerComment.locator("blockquote")).toContainText("Written by the fake agent used in end-to-end tests.");
 });

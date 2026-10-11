@@ -171,7 +171,7 @@ export class IntegrationDAO {
     return {
       id: String(row.id),
       name: String(row.name),
-      system: row.system as TicketSystem,
+      system: String(row.system),
       config: parsedConfig,
       isActive: Boolean(row.is_active),
       createdAt: (row.created_at as Date).toISOString(),

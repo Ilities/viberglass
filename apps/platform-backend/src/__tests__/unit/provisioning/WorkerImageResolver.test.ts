@@ -15,6 +15,27 @@ describe("getWorkerImageForClanker", () => {
     process.env = originalEnv;
   });
 
+  it("defaults ECS Pi workers to the public agent image", () => {
+    const clanker = buildClanker("ecs", {
+      version: 1,
+      strategy: { type: "ecs" },
+      agent: { type: "pi" },
+    });
+    clanker.agent = "pi";
+    expect(getWorkerImageForClanker(clanker, "ecs")).toBe(
+      "ghcr.io/ilities/viberator-worker-pi:latest",
+    );
+  });
+
+  it("preserves an explicitly configured ECS image", () => {
+    const clanker = buildClanker("ecs", {
+      version: 1,
+      strategy: { type: "ecs", containerImage: "custom.example/worker:1" },
+      agent: { type: "claude-code" },
+    });
+    expect(getWorkerImageForClanker(clanker, "ecs")).toBe("custom.example/worker:1");
+  });
+
   it("uses explicit lambda imageUri when provided", () => {
     const clanker = buildClanker("lambda", {
       version: 1,

@@ -3,11 +3,11 @@ import { deriveKeyPrefix } from "@viberglass/types";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
-import { ProjectConfig } from "../../models/PMIntegration";
+import type { Project } from "@viberglass/types";
 
 /** A new space; private defaults to open, and it starts with no default reviewers. */
 export type NewProject = Omit<
-  ProjectConfig,
+  Project,
   "id" | "createdAt" | "updatedAt" | "slug" | "isPrivate" | "keyPrefix" | "defaultReviewerIds" | "questionReminderHours"
 > & {
   isPrivate?: boolean;
@@ -36,7 +36,7 @@ export class ProjectDAO {
   async createProject(
     request: NewProject,
     maintainerId?: string,
-  ): Promise<ProjectConfig> {
+  ): Promise<Project> {
     const projectId = randomUUID();
     const timestamp = new Date();
     const slug = slugify(request.name);
@@ -88,7 +88,18 @@ export class ProjectDAO {
     return this.mapRowToProject(result);
   }
 
-  async getProject(id: string): Promise<ProjectConfig | null> {
+  /** The agent a task's space sends asks to when nobody names one; null when the space hasn't picked one. */
+  async getDefaultAgentIdForTicket(ticketId: string): Promise<string | null> {
+    const row = await db
+      .selectFrom("tickets")
+      .innerJoin("projects", "projects.id", "tickets.project_id")
+      .select("projects.default_clanker_id")
+      .where("tickets.id", "=", ticketId)
+      .executeTakeFirst();
+    return row?.default_clanker_id ?? null;
+  }
+
+  async getProject(id: string): Promise<Project | null> {
     const row = await db
       .selectFrom("projects")
       .selectAll()
@@ -102,8 +113,8 @@ export class ProjectDAO {
 
   async updateProject(
     id: string,
-    updates: Partial<ProjectConfig>,
-  ): Promise<ProjectConfig> {
+    updates: Partial<Project>,
+  ): Promise<Project> {
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
     };
@@ -143,6 +154,9 @@ export class ProjectDAO {
     if (updates.defaultOwnerId !== undefined) {
       updateData.default_owner_id = updates.defaultOwnerId;
     }
+    if (updates.defaultAgentId !== undefined) {
+      updateData.default_clanker_id = updates.defaultAgentId;
+    }
     if (updates.defaultReviewerIds !== undefined) {
       updateData.default_reviewer_ids = [...new Set(updates.defaultReviewerIds)];
     }
@@ -162,7 +176,7 @@ export class ProjectDAO {
 
   /** Active projects only; archived projects stay reachable by id. */
   /** `projectIds` limits the list to spaces the caller may see; null or omitted means all. */
-  async listProjects(limit = 50, offset = 0, projectIds: string[] | null = null): Promise<ProjectConfig[]> {
+  async listProjects(limit = 50, offset = 0, projectIds: string[] | null = null): Promise<Project[]> {
     if (projectIds && projectIds.length === 0) return [];
     let query = db
       .selectFrom("projects")
@@ -182,7 +196,7 @@ export class ProjectDAO {
     await db.deleteFrom("projects").where("id", "=", id).execute();
   }
 
-  private mapRowToProject(row: ProjectsRow): ProjectConfig {
+  private mapRowToProject(row: ProjectsRow): Project {
     return {
       id: row.id,
       name: row.name,
@@ -206,6 +220,7 @@ export class ProjectDAO {
       isPrivate: row.is_private,
       keyPrefix: row.key_prefix,
       defaultOwnerId: row.default_owner_id,
+      defaultAgentId: row.default_clanker_id,
       defaultReviewerIds: row.default_reviewer_ids,
       questionReminderHours: row.question_reminder_hours,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
@@ -225,7 +240,7 @@ export class ProjectDAO {
     return this.mapRowToProject(row);
   }
 
-  async archiveProject(id: string): Promise<ProjectConfig> {
+  async archiveProject(id: string): Promise<Project> {
     const result = await db
       .updateTable("projects")
       .set({ archived_at: new Date(), updated_at: new Date() })

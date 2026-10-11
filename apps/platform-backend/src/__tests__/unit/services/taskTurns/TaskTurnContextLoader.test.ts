@@ -1,6 +1,17 @@
+import type { TaskPlanParts } from "@viberglass/types";
 import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { TaskTurnContextLoader } from "../../../../services/taskTurns/TaskTurnContextLoader";
+
+const PARTS: TaskPlanParts = {
+  parts: [
+    { number: 1, title: "Store it", status: "merged", pullRequestUrl: "https://github.com/a/b/pull/1" },
+    { number: 2, title: "Show it", status: "not_built", pullRequestUrl: null },
+  ],
+  open: null,
+  addable: null,
+  next: 2,
+};
 
 const TICKET = {
   id: "t",
@@ -23,8 +34,9 @@ function turn(overrides: Partial<AgentTurn>): AgentTurn {
     jobId: null,
     userId: null,
     consumedByTurnId: null,
-    action: "research",
+    action: "plan",
     taskMessageId: null,
+    buildParts: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date("2026-10-01T10:00:00Z"),
@@ -38,7 +50,7 @@ function comment(id: string, createdAt: string, status: "open" | "resolved" = "o
     id,
     documentId: "d",
     ticketId: "t",
-    phase: "research",
+    phase: "planning",
     lineNumber: 1,
     quote: null,
     content: id,
@@ -65,11 +77,11 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
     },
     turns: { listBySession: jest.fn().mockResolvedValue(sources.turns ?? []) },
     comments: {
-      listByTicketAndPhase: jest.fn(async (_ticketId: string, phase: string) => (phase === "research" ? sources.comments ?? [] : [])),
+      listByTicketAndPhase: jest.fn(async (_ticketId: string, phase: string) => (phase === "planning" ? sources.comments ?? [] : [])),
     },
     revisions,
     summaries: { latest: jest.fn().mockResolvedValue(summary) },
-    documents: { getOrCreateDocument: jest.fn(async (_id: string, phase: string) => ({ content: phase === "research" ? " # R \n" : "" })) },
+    documents: { getOrCreateDocument: jest.fn(async (_id: string, phase: string) => ({ content: phase === "planning" ? " # P \n" : "" })) },
     pullRequest,
     participants: {
       list: jest.fn().mockResolvedValue([
@@ -86,12 +98,13 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
         { id: "c", outcome: null },
       ]),
     },
+    parts: { state: jest.fn().mockResolvedValue(PARTS) },
   });
   return { instance, revisions, pullRequest };
 }
 
 describe("TaskTurnContextLoader", () => {
-  const input = { ticket: TICKET, sessionId: "s", turnId: "current", action: "research" as const, sessionMessages: [] };
+  const input = { ticket: TICKET, sessionId: "s", turnId: "current", action: "plan" as const, sessionMessages: [] };
 
   it("on the agent's first turn, everything is new", async () => {
     const { instance, revisions } = loader({ comments: [comment("c-1", "2026-10-01T09:00:00Z")] });
@@ -103,7 +116,7 @@ describe("TaskTurnContextLoader", () => {
     expect(context.fresh.comments.map((c) => c.comment.id)).toEqual(["c-1"]);
     expect(context.earlier).toEqual({ messages: [], openComments: [] });
     expect(revisions.listHandEditsSince).not.toHaveBeenCalled();
-    expect(context.documents).toEqual({ research: "# R", plan: "" });
+    expect(context.documents).toEqual({ plan: "# P" });
   });
 
   it("names the people on the task with their roles, and marks the answers to the agent's questions", async () => {
@@ -170,11 +183,12 @@ describe("TaskTurnContextLoader", () => {
     ]);
   });
 
-  it("keeps the latest hand edit of each document", async () => {
+  it("keeps the latest hand edit of the plan", async () => {
     const { instance, revisions } = loader({ turns: [turn({ id: "answered" })] });
     revisions.listHandEditsSince.mockResolvedValue([
       { phase: "planning", content: "first", authorName: "Maria", actor: "m@example.com" },
       { phase: "planning", content: "second", authorName: null, actor: "t@example.com" },
+      { phase: "execution", content: "not a plan", authorName: "Maria", actor: "m@example.com" },
     ]);
 
     const context = await instance.load(input);
@@ -192,5 +206,16 @@ describe("TaskTurnContextLoader", () => {
 
     const context = await instance.load({ ...input, action: "code", ticket: { ...TICKET, pullRequestUrl: "https://github.com/a/b/pull/1" } });
     expect(context.fresh.pullRequestComments).toEqual([review]);
+  });
+
+  it("gives a build of new parts no pull request to continue, and names the parts", async () => {
+    const { instance, pullRequest } = loader();
+    const ticket = { ...TICKET, pullRequestUrl: "https://github.com/a/b/pull/1" };
+
+    const context = await instance.load({ ...input, action: "code", ticket, buildParts: { first: 2, last: 2 } });
+
+    expect(pullRequest.forTask).not.toHaveBeenCalled();
+    expect(context.ticket.pullRequestUrl).toBeNull();
+    expect(context.parts).toEqual({ building: "part 2, “Show it”", adding: null, addedTo: null, built: "Part 1" });
   });
 });

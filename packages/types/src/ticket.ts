@@ -17,7 +17,6 @@ export const TICKET_STATUS = {
 export type TicketLifecycleStatus = (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS]
 
 export const TICKET_WORKFLOW_PHASE = {
-  RESEARCH: 'research',
   PLANNING: 'planning',
   EXECUTION: 'execution',
 } as const
@@ -144,6 +143,7 @@ export interface Ticket {
   ticketSystem: TicketOrigin
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
+  /** The task's latest pull request. */
   pullRequestUrl?: string
   /** An open live session on the task. Set by task lists only. */
   liveSessionId?: string
@@ -191,7 +191,6 @@ export interface UpdateTicketRequest {
   externalTicketId?: string
   externalTicketUrl?: string
   autoFixStatus?: AutoFixStatus
-  pullRequestUrl?: string
 }
 
 // Ticket list item (lighter version for lists)
@@ -233,7 +232,6 @@ export interface TicketStats {
   inProgress: number
   inReview: number
   byPhase: {
-    research: number
     planning: number
     execution: number
   }

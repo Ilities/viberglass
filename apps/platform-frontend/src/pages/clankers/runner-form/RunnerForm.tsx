@@ -1,6 +1,6 @@
 import { useModelEndpoints } from './useModelEndpoints'
 import { Button } from '@/components/button'
-import { FieldGroup, Field, Fieldset, Label } from '@/components/fieldset'
+import { FieldGroup, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Textarea } from '@/components/textarea'
 import { getDeploymentStrategies } from '@/service/api/clanker-api'
@@ -8,16 +8,15 @@ import { listAllSecrets, type Secret } from '@/service/api/secret-api'
 import {
   DEFAULT_AGENT_TYPE,
   type AgentType,
-  type Clanker,
-  type CreateClankerRequest,
   type DeploymentStrategy,
   type ModelProviderId,
   type SecretBinding,
 } from '@viberglass/types'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import type { AgentSettings } from '../config/agents'
 import { describeBindingsProblem } from '../config/agentSecrets'
 import { buildClankerDeploymentConfig } from '../config/buildConfig'
+import { defaultProvisioningMode } from '../config/normalizers'
 import { keysForProvider, providerOptionsForAgent, settingsForProvider, splitRunnerBindings } from '../config/modelKey'
 import { readClankerDeploymentConfig } from '../config/readConfig'
 import { SecretBindingsField } from '../config/secret-bindings-field'
@@ -31,15 +30,8 @@ import { buildConfigFiles } from './configFiles'
 import { HarnessConfigEditor } from './HarnessConfigEditor'
 import { ModelSection } from './ModelSection'
 import { ToolsSection } from './ToolsSection'
-
-interface RunnerFormProps {
-  /** The runner being edited; absent when creating one. */
-  initial?: Clanker
-  submitLabel: string
-  submittingLabel: string
-  onSubmit: (request: CreateClankerRequest) => Promise<void>
-  onCancel: () => void
-}
+import { RunnerFormSection as Section } from './RunnerFormSection'
+import type { RunnerFormProps } from './runnerFormTypes'
 
 function settingsOf(form: AgentSettings): AgentSettings {
   const { codexAuthMode, codexLoginSecretId, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel } =
@@ -47,21 +39,7 @@ function settingsOf(form: AgentSettings): AgentSettings {
   return { codexAuthMode, codexLoginSecretId, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel }
 }
 
-function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return (
-    <Fieldset className="mt-10 first:mt-0">
-      <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">{title}</legend>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
-      <div className="mt-6">{children}</div>
-    </Fieldset>
-  )
-}
-
-/**
- * Creates or edits a runner: name, agent, then model and key up front; compute
- * (Docker by default), instructions, tools and extra variables fold under Advanced.
- */
-export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel }: RunnerFormProps) {
+export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel, openAdvanced = false }: RunnerFormProps) {
   const initialForm = initial
     ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig, agent: initial.agent }).form
     : DEFAULT_CLANKER_CONFIG_FORM_STATE
@@ -92,9 +70,11 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         setDeploymentStrategies(strategies)
         setSecrets(allSecrets)
         if (!initial) {
-          // Docker on this host suits most runners; other compute stays under Advanced.
-          const docker = strategies.find((strategy) => strategy.name === 'docker') ?? strategies[0]
-          if (docker) setSelectedStrategyId((current) => current || docker.id)
+          const defaultStrategy = strategies[0]
+          if (defaultStrategy) {
+            setSelectedStrategyId((current) => current || defaultStrategy.id)
+            setProvisioningMode(defaultProvisioningMode(defaultStrategy.name))
+          }
           // A new runner on an agent with one provider starts with that provider's newest key.
           const options = providerOptionsForAgent(DEFAULT_AGENT_TYPE)
           if (options.length === 1) {
@@ -174,6 +154,11 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
     event.preventDefault()
     setError(null)
 
+    if (!selectedStrategy) {
+      setError('Choose an available hosting option under Advanced before saving this runner.')
+      return
+    }
+
     const formData = new FormData(event.currentTarget)
     const field = (name: string) => String(formData.get(name) ?? '').trim()
     const harnessConfig = getHarnessConfigFile(agent)
@@ -198,6 +183,10 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
             ...settings,
             provisioningMode,
             containerImage: field('containerImage'),
+            kubernetesCpu: field('kubernetesCpu'),
+            kubernetesMemory: field('kubernetesMemory'),
+            kubernetesStorage: field('kubernetesStorage'),
+            kubernetesDeadline: field('kubernetesDeadline'),
             clusterArn: field('clusterArn'),
             taskDefinitionArn: field('taskDefinitionArn'),
             functionArn: field('functionArn'),
@@ -214,7 +203,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         modelEndpoint: endpointState.selection,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save agent runner')
+      setError(err instanceof Error ? err.message : 'Failed to save the agent')
       setIsSubmitting(false)
     }
   }
@@ -269,7 +258,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         />
       </Section>
 
-      <details className="mt-10 rounded-lg border border-zinc-950/10 px-5 py-4 dark:border-white/10">
+      <details open={openAdvanced} className="mt-10 rounded-lg border border-zinc-950/10 px-5 py-4 dark:border-white/10">
         <summary className="cursor-pointer text-base/6 font-semibold text-zinc-950 dark:text-white">
           Advanced: compute, instructions, tools and extra variables
           <span className="mt-1 block text-sm font-normal text-zinc-500 dark:text-zinc-400">{advancedSummary}</span>
@@ -282,7 +271,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
                 value={selectedStrategyId}
                 onChange={(strategyId) => {
                   setSelectedStrategyId(strategyId)
-                  setProvisioningMode('managed')
+                  setProvisioningMode(defaultProvisioningMode(deploymentStrategies.find((strategy) => strategy.id === strategyId)?.name))
                 }}
               />
               <StrategySpecificFields
@@ -345,10 +334,10 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
       </details>
 
       <div className="mt-10 flex gap-4">
-        <Button type="submit" color="brand" disabled={isSubmitting}>
+        <Button type="submit" color="brand" disabled={isSubmitting || deploymentStrategies.length === 0}>
           {isSubmitting ? submittingLabel : submitLabel}
         </Button>
-        <Button type="button" plain onClick={onCancel}>
+        <Button type="button" outline onClick={onCancel}>
           Cancel
         </Button>
       </div>

@@ -49,7 +49,7 @@ describe("TicketPhaseDocumentCommentService", () => {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
+        phase: "planning",
         lineNumber: 3,
         quote: { exact: "assume X", prefix: "We ", suffix: "." },
         content: "Please verify this assumption.",
@@ -63,14 +63,13 @@ describe("TicketPhaseDocumentCommentService", () => {
     ]);
 
     const service = new TicketPhaseDocumentCommentService();
-    const comments = await service.listComments("ticket-1", "research");
+    const comments = await service.listComments("ticket-1");
 
     expect(comments).toEqual([
       {
         id: "comment-1",
         documentId: "doc-1",
         ticketId: "ticket-1",
-        phase: "research",
         lineNumber: 4,
         quote: { exact: "assume X", prefix: "We ", suffix: "." },
         location: { start: 19, end: 27, line: 4 },
@@ -101,7 +100,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       },
     ]);
 
-    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1", "research");
+    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1");
 
     expect(comment).toMatchObject({ outdated: true, location: null, lineNumber: 3 });
   });
@@ -112,7 +111,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     mockCommentDAO.create.mockImplementation(async (input) => ({ ...input, id: "c-1", createdAt: new Date(), updatedAt: new Date(), resolvedAt: null }));
     const quote = { exact: "Second **line**", prefix: "First line\n", suffix: "" };
 
-    const comment = await new TicketPhaseDocumentCommentService().createComment("ticket-1", "planning", { quote, content: "Why bold?" });
+    const comment = await new TicketPhaseDocumentCommentService().createComment("ticket-1", { quote, content: "Why bold?" });
 
     expect(mockCommentDAO.create).toHaveBeenCalledWith(expect.objectContaining({ lineNumber: 2, quote, content: "Why bold?" }));
     expect(comment.location).toEqual({ start: 11, end: 26, line: 2 });
@@ -130,7 +129,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "First line" });
 
     await expect(
-      new TicketPhaseDocumentCommentService().createComment("ticket-1", "planning", {
+      new TicketPhaseDocumentCommentService().createComment("ticket-1", {
         quote: { exact: "Missing", prefix: "", suffix: "" },
         content: "Hm",
       }),
@@ -159,7 +158,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.createComment("ticket-1", "planning", {
+    await service.createComment("ticket-1", {
       lineNumber: 2,
       content: "  Needs more detail  ",
       actor: "reviewer@example.com",
@@ -186,7 +185,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     const service = new TicketPhaseDocumentCommentService();
 
     await expect(
-      service.createComment("ticket-1", "research", {
+      service.createComment("ticket-1", {
         lineNumber: 1,
         content: "Question",
       }),
@@ -203,7 +202,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     const service = new TicketPhaseDocumentCommentService();
 
     await expect(
-      service.createComment("ticket-1", "research", {
+      service.createComment("ticket-1", {
         lineNumber: 2,
         content: "Question",
       }),
@@ -215,7 +214,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "research",
+      phase: "planning",
       lineNumber: 1,
       content: "Open comment",
       status: "open",
@@ -229,7 +228,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       id: "comment-1",
       documentId: "doc-1",
       ticketId: "ticket-1",
-      phase: "research",
+      phase: "planning",
       lineNumber: 1,
       content: "Open comment",
       status: "resolved",
@@ -241,7 +240,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.updateComment("ticket-1", "research", "comment-1", {
+    await service.updateComment("ticket-1", "comment-1", {
       status: "resolved",
       actor: "reviewer@example.com",
     });
@@ -256,9 +255,64 @@ describe("TicketPhaseDocumentCommentService", () => {
       }),
     );
     expect(mockRecordActivity).toHaveBeenCalledWith("ticket-1", "comment_status_changed", {
-      step: "research",
+      step: "planning",
       commentId: "comment-1",
       status: "resolved",
+    });
+  });
+
+  describe("rewording a comment", () => {
+    const comment = {
+      id: "comment-1",
+      documentId: "doc-1",
+      ticketId: "ticket-1",
+      phase: "planning",
+      lineNumber: 1,
+      content: "Original wording",
+      status: "open",
+      actor: "author@example.com",
+      resolvedAt: null,
+      resolvedBy: null,
+      createdAt: new Date("2026-03-01T09:00:00.000Z"),
+      updatedAt: new Date("2026-03-01T09:00:00.000Z"),
+    };
+
+    beforeEach(() => {
+      mockCommentDAO.getById.mockResolvedValue(comment);
+      mockCommentDAO.update.mockImplementation(async (_id, update) => ({ ...comment, ...update }));
+      mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "Original wording" });
+    });
+
+    it("lets the author change the text", async () => {
+      await new TicketPhaseDocumentCommentService().updateComment("ticket-1", "comment-1", {
+        content: "Better wording",
+        actor: "author@example.com",
+      });
+
+      expect(mockCommentDAO.update).toHaveBeenCalledWith("comment-1", expect.objectContaining({ content: "Better wording" }));
+    });
+
+    it("refuses to let someone else change the text", async () => {
+      await expect(
+        new TicketPhaseDocumentCommentService().updateComment("ticket-1", "comment-1", {
+          content: "Words put in their mouth",
+          actor: "someone-else@example.com",
+        }),
+      ).rejects.toThrow("Only the comment's author can edit it");
+      expect(mockCommentDAO.update).not.toHaveBeenCalled();
+    });
+
+    it("lets someone else resolve it, sending the text unchanged", async () => {
+      await new TicketPhaseDocumentCommentService().updateComment("ticket-1", "comment-1", {
+        content: "Original wording",
+        status: "resolved",
+        actor: "someone-else@example.com",
+      });
+
+      expect(mockCommentDAO.update).toHaveBeenCalledWith(
+        "comment-1",
+        expect.objectContaining({ content: "Original wording", status: "resolved", resolvedBy: "someone-else@example.com" }),
+      );
     });
   });
 
@@ -293,7 +347,7 @@ describe("TicketPhaseDocumentCommentService", () => {
     });
 
     const service = new TicketPhaseDocumentCommentService();
-    await service.updateComment("ticket-1", "planning", "comment-1", {
+    await service.updateComment("ticket-1", "comment-1", {
       status: "open",
     });
 

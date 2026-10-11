@@ -25,7 +25,7 @@ export class IntegrationRegistry {
   }
 
   getWebhookProvider(system: string): string | null {
-    const plugin = this.plugins.get(system as TicketSystem)
+    const plugin = this.plugins.get(system)
     return plugin?.webhookProvider ?? null
   }
 
@@ -36,14 +36,5 @@ export class IntegrationRegistry {
       }
     }
     return ['*']
-  }
-
-  getProviderProjectId(provider: string, config: Record<string, unknown>): string | null {
-    for (const plugin of this.plugins.values()) {
-      if (plugin.webhookProvider === provider && plugin.getProviderProjectId) {
-        return plugin.getProviderProjectId(config)
-      }
-    }
-    return null
   }
 }

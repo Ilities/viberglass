@@ -1,4 +1,5 @@
-import { DEFAULT_AGENT_TYPE, SUPPORTED_AGENT_TYPES, type AgentType } from './clanker'
+import { SUPPORTED_AGENT_TYPES, type AgentType } from './clanker'
+import { DEFAULT_AGENT_TYPE } from './agentCatalog'
 import workerImageCatalogData from './workerImageCatalog.json'
 
 export interface WorkerImageCatalogEntry {

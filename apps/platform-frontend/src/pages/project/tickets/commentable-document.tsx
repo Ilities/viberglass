@@ -1,3 +1,4 @@
+import { ChatBubbleIcon } from '@radix-ui/react-icons'
 import { quoteAt, type TextQuote } from '@viberglass/types'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { CommentComposer, type ApplySuggestion, type DocumentComments } from './document-comments'
@@ -46,6 +47,8 @@ interface CommentableDocumentProps {
   /** Viewers read comments but can't add them. */
   canComment: boolean
   onApplySuggestion: ApplySuggestion
+  /** Larger type, for reading it full screen. */
+  reading?: boolean
 }
 
 /**
@@ -53,7 +56,7 @@ interface CommentableDocumentProps {
  * text offers to comment on it or suggest new wording; clicking a highlight
  * opens what was said about it.
  */
-export function CommentableDocument({ source, comments, canComment, onApplySuggestion }: CommentableDocumentProps) {
+export function CommentableDocument({ source, comments, canComment, onApplySuggestion, reading = false }: CommentableDocumentProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const documentRef = useRef<HTMLDivElement>(null)
   const [selection, setSelection] = useState<{ quote: TextQuote; placement: Placement; composing: boolean } | null>(null)
@@ -88,6 +91,7 @@ export function CommentableDocument({ source, comments, canComment, onApplySugge
       <div ref={documentRef} onMouseUp={captureSelection} onKeyUp={captureSelection}>
         <MarkdownDocument
           source={source}
+          reading={reading}
           highlights={highlights}
           activeHighlightId={thread?.ids[0] ?? null}
           onHighlightClick={(_id, element) => {
@@ -104,9 +108,10 @@ export function CommentableDocument({ source, comments, canComment, onApplySugge
           style={{ top: selection.placement.top, left: selection.placement.left }}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setSelection({ ...selection, composing: true })}
-          className="absolute z-10 rounded-md bg-[var(--accent-9)] px-2.5 py-1 text-xs font-medium text-white shadow"
+          className="absolute z-10 inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-9)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] shadow-md hover:bg-[var(--accent-10)]"
         >
-          Comment
+          <ChatBubbleIcon className="size-3.5" />
+          Comment or suggest
         </button>
       )}
 

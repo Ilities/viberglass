@@ -1,6 +1,6 @@
 import { Select as RadixSelect } from '@radix-ui/themes'
 import { EndpointModelField } from './EndpointModelField'
-import { ModelEndpointDialog } from './ModelEndpointDialog'
+import { ModelEndpointDialog } from '@/pages/models/ModelEndpointDialog'
 import { getAgentModelApiFormats, type ModelEndpoint, type ModelEndpointSelection } from '@viberglass/types'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
@@ -85,15 +85,15 @@ export function ModelSection({
                   {option.label}
                 </RadixSelect.Item>
               ))}</RadixSelect.Group>
-              {usableEndpoints.length > 0 && <RadixSelect.Group><RadixSelect.Label>Custom endpoints</RadixSelect.Label>
+              {usableEndpoints.length > 0 && <RadixSelect.Group><RadixSelect.Label>Workspace models</RadixSelect.Label>
                 {usableEndpoints.map((item) => <RadixSelect.Item key={item.id} value={`endpoint:${item.id}`}>{item.name}</RadixSelect.Item>)}
               </RadixSelect.Group>}
             </Select>
             {formats.length > 0 ? (
-              <Button type="button" plain onClick={() => setAddingEndpoint(true)}>Add endpoint</Button>
+              <Button type="button" plain onClick={() => setAddingEndpoint(true)}>Connect a model</Button>
             ) : (
               <Description>
-                {AGENT_LABELS[agent]} uses only its own providers here; it can&apos;t run on a custom endpoint yet. OpenCode and Pi can.
+                {AGENT_LABELS[agent]} runs only on its own providers; it can&apos;t use workspace models yet.
               </Description>
             )}
             {addingEndpoint && <ModelEndpointDialog open onClose={() => setAddingEndpoint(false)} onSaved={(value) => { onEndpointSaved(value); setAddingEndpoint(false) }} secrets={secrets} formats={formats} />}

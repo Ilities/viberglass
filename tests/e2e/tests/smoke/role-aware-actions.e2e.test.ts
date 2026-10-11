@@ -24,7 +24,7 @@ async function expectNoRunnerActions(page: Page, slug: string) {
   // Space settings read as a summary, with no plumbing.
   await page.goto(`/spaces/${slug}/settings`);
   await expect(page.getByRole("heading", { name: "About this space" })).toBeVisible();
-  for (const label of ["Connections", "Agent instructions"]) {
+  for (const label of ["Repository", "Task defaults", "Connections", "Agent instructions"]) {
     await expect(page.getByRole("link", { name: label, exact: true })).toHaveCount(0);
   }
 
@@ -45,9 +45,9 @@ test("a viewer sees no action they can't take: no composer, no task changes, not
   await expectNoRunnerActions(page, workspace.projectSlug);
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
+  const thread = page.getByRole("region", { name: "Conversation" });
   await expect(thread.getByText(/created the task/)).toBeVisible();
-  await expect(thread.getByRole("textbox", { name: "Write a message" })).toHaveCount(0);
+  await expect(thread.getByRole("combobox", { name: "Write a message" })).toHaveCount(0);
   await expect(thread.getByRole("group", { name: "Suggested actions" })).toHaveCount(0);
   expect(await taskActions(page)).toEqual(["Copy link"]);
 
@@ -69,8 +69,8 @@ test("a guest on a task can talk in it, but sees no task changes and nothing to 
   await expectNoRunnerActions(page, workspace.projectSlug);
 
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Thread" });
-  await expect(thread.getByRole("textbox", { name: "Write a message" })).toBeVisible();
+  const thread = page.getByRole("region", { name: "Conversation" });
+  await expect(thread.getByRole("combobox", { name: "Write a message" })).toBeVisible();
   expect(await taskActions(page)).toEqual(["Copy link"]);
 
   await context.close();

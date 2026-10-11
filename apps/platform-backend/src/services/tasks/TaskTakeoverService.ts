@@ -42,7 +42,7 @@ export class TaskTakeoverService {
     await this.deps.steering.pause(taskId, actorId);
     await this.deps.takeovers.set(taskId, actorId);
     await this.deps.activity.record(taskId, { type: "human", userId: actorId }, "taken_over", { userId: actorId });
-    return this.deps.branches.describe(taskId);
+    return this.deps.branches.describe(taskId, { claim: true });
   }
 
   async handBack(taskId: string, actorId: string, note: string): Promise<void> {

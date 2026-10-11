@@ -1,7 +1,10 @@
 import type { IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
+import { MondayIcon } from './MondayIcon'
+import { manifest } from '../manifest'
 
 const mondayFrontendPlugin: IntegrationFrontendPlugin = {
-  id: 'monday',
+  ...manifest,
+  Icon: MondayIcon,
 }
 
 export default mondayFrontendPlugin

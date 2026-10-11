@@ -1,4 +1,5 @@
 import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
+import type { JobStatus } from "../../types/Job";
 import { isObjectRecord } from "@viberglass/types";
 import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import { createChildLogger } from "../../config/logger";
@@ -114,11 +115,12 @@ export class JobBootstrapService {
    */
   async getBootstrapPayload(jobId: string): Promise<{
     tenantId: string;
+    status: JobStatus;
     payload: Record<string, unknown> | null;
   } | null> {
     const job = await db
       .selectFrom("jobs")
-      .select(["tenant_id", "bootstrap_payload"])
+      .select(["tenant_id", "bootstrap_payload", "status"])
       .where("id", "=", jobId)
       .executeTakeFirst();
 
@@ -133,6 +135,7 @@ export class JobBootstrapService {
 
     return {
       tenantId: job.tenant_id,
+      status: job.status,
       payload: parsedPayload,
     };
   }

@@ -6,7 +6,7 @@ import { UserDAO } from "../../persistence/user/UserDAO";
 import { EmailChannel } from "./EmailChannel";
 import type { NotificationChannel } from "./NotificationChannel";
 import { resolveNotifications } from "./resolveNotifications";
-import { SlackDmChannel } from "./SlackDmChannel";
+import { ChatDmChannel } from "./ChatDmChannel";
 
 const logger = createChildLogger({ service: "NotificationService" });
 
@@ -37,7 +37,7 @@ export class NotificationService {
       participants: new TaskParticipantDAO(),
       users: new UserDAO(),
       tasks: new TicketDAO(),
-      channels: [new SlackDmChannel(), new EmailChannel()],
+      channels: [new ChatDmChannel(), new EmailChannel()],
       frontendUrl: process.env.PLATFORM_FRONTEND_URL,
       ...deps,
     };

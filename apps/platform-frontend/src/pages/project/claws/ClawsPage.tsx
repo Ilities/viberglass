@@ -13,6 +13,7 @@ export function ClawsPage() {
   const { project: projectSlug } = useParams<{ project: string }>()
   const { project, isLoading } = useProject()
   const [activeTab, setActiveTab] = useState<Tab>('schedules')
+  const [creatingTemplate, setCreatingTemplate] = useState(false)
 
   if (isLoading) {
     return (
@@ -38,14 +39,24 @@ export function ClawsPage() {
             Schedules
           </TabButton>
           <TabButton active={activeTab === 'templates'} onClick={() => setActiveTab('templates')}>
-            Task Templates
+            Task templates
           </TabButton>
         </div>
       </div>
 
       <div className="mt-6">
-        {activeTab === 'schedules' && <SchedulesTab projectId={project.id} />}
-        {activeTab === 'templates' && <TemplatesTab projectId={project.id} />}
+        {activeTab === 'schedules' && (
+          <SchedulesTab
+            projectId={project.id}
+            onCreateTemplate={() => {
+              setCreatingTemplate(true)
+              setActiveTab('templates')
+            }}
+          />
+        )}
+        {activeTab === 'templates' && (
+          <TemplatesTab projectId={project.id} startCreating={creatingTemplate} onStartedCreating={() => setCreatingTemplate(false)} />
+        )}
       </div>
     </>
   )

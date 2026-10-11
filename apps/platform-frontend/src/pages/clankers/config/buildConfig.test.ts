@@ -1,7 +1,19 @@
 import { buildClankerDeploymentConfig } from './buildConfig'
+import { defaultProvisioningMode } from './normalizers'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './types'
 
 describe('buildClankerDeploymentConfig', () => {
+  test('a Docker runner uses the published image unless it names one', () => {
+    expect(defaultProvisioningMode('docker')).toBe('prebuilt')
+    expect(defaultProvisioningMode('ecs')).toBe('managed')
+    const result = buildClankerDeploymentConfig({
+      strategyName: 'docker',
+      selectedAgent: 'claude-code',
+      form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, provisioningMode: 'prebuilt', containerImage: '  ' },
+    })
+    expect(result.strategy).toEqual({ type: 'docker', provisioningMode: 'prebuilt', containerImage: undefined })
+  })
+
   test('includes opencode endpoint and model when provided', () => {
     const result = buildClankerDeploymentConfig({
       strategyName: 'docker',
@@ -193,4 +205,8 @@ describe('buildClankerDeploymentConfig', () => {
       expect(result.agent).toEqual({ type: 'claude-code' })
     })
   })
+})
+
+test('builds a prebuilt Kubernetes worker with resource bounds', () => {
+  expect(buildClankerDeploymentConfig({ strategyName: 'kubernetes', selectedAgent: 'opencode', form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, containerImage: 'worker:1', kubernetesCpu: '250m', kubernetesMemory: '512Mi', kubernetesStorage: '2Gi', kubernetesDeadline: '120' } }).strategy).toEqual({ type: 'kubernetes', provisioningMode: 'prebuilt', containerImage: 'worker:1', cpu: '250m', memory: '512Mi', ephemeralStorage: '2Gi', activeDeadlineSeconds: 120 })
 })

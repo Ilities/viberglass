@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ApplicationLayout } from './ApplicationLayout'
@@ -8,6 +8,7 @@ import { useTheme } from '@/context/theme-context'
 import { getProjects } from '@/service/api/project-api'
 import { getNeedsYouCount } from '@/service/api/home-api'
 import type { AuthUser } from '@/service/api/auth-api'
+import { apiFetch } from '@/service/api/client'
 
 jest.mock('@/context/auth-context', () => ({
   useAuth: jest.fn(),
@@ -128,17 +129,40 @@ function linkNames(drawer: HTMLElement): string[] {
 }
 
 describe('ApplicationLayout navigation', () => {
-  it('shows Home, Overview, the spaces and Workspace settings, with no plumbing', async () => {
+  it.each(['/api/spaces', '/api/setup/space', '/api/setup/demo'])('updates the mounted sidebar after a space is created through %s', async (path) => {
+    renderLayout('/')
+    const drawer = await openDrawer()
+    const originalFetch = global.fetch
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    mockedGetProjects.mockResolvedValue([
+      {
+        id: 'new-space', name: 'New API space', slug: 'new-api-space', createdAt: '', updatedAt: '',
+        ticketSystem: 'custom', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {},
+        isPrivate: false, keyPrefix: 'NEW', defaultReviewerIds: [], questionReminderHours: 4,
+      },
+    ])
+    try {
+      await act(async () => {
+        await apiFetch(path, { method: 'POST' })
+      })
+      expect(await within(drawer).findByRole('link', { name: /New API space/i })).toHaveAttribute('href', '/spaces/new-api-space')
+      expect(within(drawer).queryByRole('link', { name: /Catalyst/i })).not.toBeInTheDocument()
+    } finally {
+      global.fetch = originalFetch
+    }
+  })
+
+  it('shows Home, Overview, the spaces and, for admins, one Settings entry', async () => {
     renderLayout('/')
     const drawer = await openDrawer()
 
-    for (const label of ['Home', 'Overview', 'Workspace settings']) {
+    for (const label of ['Home', 'Overview']) {
       expect(within(drawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
-    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
+    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings')
+    for (const label of ['Workspace settings', 'Your settings', 'Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
       expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    expect(within(drawer).getByRole('link', { name: /^Workspace settings$/i })).toHaveAttribute('href', '/settings/members')
     const viberglassLinks = within(drawer).getAllByRole('link', { name: /Viberglass/i })
     expect(viberglassLinks.some((link) => link.getAttribute('href') === '/spaces/viberglass')).toBe(true)
     expect(within(drawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
@@ -161,14 +185,6 @@ describe('ApplicationLayout navigation', () => {
     expect(outside.filter((name) => !inside.includes(name))).toEqual([])
   })
 
-  it('names settings by scope: a member has only their own, opening on Notifications', async () => {
-    asRole('member')
-    renderLayout('/')
-    const drawer = await openDrawer()
-
-    expect(within(drawer).getByRole('link', { name: /^Your settings$/i })).toHaveAttribute('href', '/settings/notifications')
-  })
-
   it('gives viewers Overview and no Home, since they have no threads of their own', async () => {
     asRole('viewer')
     renderLayout('/')
@@ -178,13 +194,13 @@ describe('ApplicationLayout navigation', () => {
     expect(within(drawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
   })
 
-  it("shows guests and viewers no Runs, Schedules or New space, which they can't use", async () => {
+  it("shows guests and viewers no Runs, Schedules, New space or Settings, which they can't use", async () => {
     for (const role of ['guest', 'viewer'] as const) {
       asRole(role)
       renderLayout('/spaces/viberglass')
       const drawer = await openDrawer()
 
-      for (const label of ['Runs', 'Schedules', 'New space']) {
+      for (const label of ['Runs', 'Schedules', 'New space', 'Settings']) {
         expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
       }
       // The space's settings stay: everyone may read how a space works.

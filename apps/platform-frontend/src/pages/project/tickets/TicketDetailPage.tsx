@@ -1,89 +1,84 @@
 import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
-import { Breadcrumbs } from '@/components/breadcrumbs'
-import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { useProject } from '@/context/project-context'
+import { useAuth } from '@/context/auth-context'
+import { isRunner } from '@/lib/roles'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { archiveTickets, deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import { TICKET_STATUS } from '@viberglass/types'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { CopyTaskDialog } from './copy-task-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
-import { SituationLine } from './situation-line'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
-import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
 import { TaskActionsMenu } from './task-actions-menu'
-import { TaskFacts } from './task-facts'
+import { runnableAgents, taskAgents } from './task-agents'
+import { runName } from './step-runs'
+import { TaskContextLine } from './task-context-line'
+import { TaskDescription } from './task-description'
+import { TaskRunHistory } from './task-run-history'
+import { TaskRunInspector } from './task-run-inspector'
 import { TaskFailureNotice } from './task-failure-notice'
+import { TaskHeader } from './task-header'
+import { codeProgress, decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
+import { WatchButton } from './task-people'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
-import { workingSession, useTaskPage } from './use-task-page'
 import { TaskThread } from './task-thread'
-import { runnableAgents, taskAgents } from './task-agents'
-
-const LONG_DESCRIPTION = 280
+import { TaskViewSwitch } from './task-view-switch'
+import { useTaskPage, workingSession } from './use-task-page'
+import { useTaskParticipants } from './use-task-participants'
 
 function isTaskStep(value: string | null | undefined): value is TaskStep {
   return TASK_STEPS.some((step) => step === value)
 }
 
-const STEP_VIEWS: StepView[] = ['document', 'runs', 'comments']
+const STEP_VIEWS: StepView[] = ['document', 'comments']
 function isStepView(value: string | null): value is StepView {
   return STEP_VIEWS.some((view) => view === value)
-}
-
-function Description({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false)
-  const body = text.replace(/\\n/g, '\n')
-  const isLong = body.length > LONG_DESCRIPTION
-  return (
-    <div className="max-w-3xl text-[15px] leading-7 text-[var(--gray-11)]">
-      <p className={isLong && !expanded ? 'line-clamp-3 whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{body}</p>
-      {isLong && (
-        <button type="button" onClick={() => setExpanded(!expanded)} className="mt-1 text-sm text-[var(--gray-10)] hover:text-[var(--gray-12)]">
-          {expanded ? 'Show less' : 'Show more'}
-        </button>
-      )}
-    </div>
-  )
 }
 
 /** A task: its thread, with the artifact being made beside it on wide screens. */
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const { project: space } = useProject()
+  const { user } = useAuth()
+  const canInspectRuns = isRunner(user?.role)
   const navigate = useNavigate()
   const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
+  // The page's address may name the task by its key; people are looked up by its id.
+  const people = useTaskParticipants(data?.ticket.id)
   const [searchParams, setSearchParams] = useSearchParams()
-  const [openRunId, setOpenRunId] = useState<string | null>(searchParams.get('run'))
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  // Below the two-column width, one of conversation or artifact shows at a time; a link to a run or document opens the artifact.
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
+  // Hidden panels stay mounted so switching preserves a draft and its scroll position.
   const wide = useMediaQuery('(min-width: 1280px)')
   const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
-    ['run', 'step', 'view', 'version'].some((key) => searchParams.has(key)) ? 'artifact' : 'conversation'
+    ['step', 'version'].some((key) => searchParams.has(key)) || searchParams.get('view') === 'comments' ? 'artifact' : 'conversation'
   )
 
   const linkedRunId = searchParams.get('run')
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
   // The step view counts new comments as people add and resolve them; the page's counts are from its last load.
-  const [liveNewComments, setLiveNewComments] = useState<Partial<Record<'research' | 'planning', number>>>({})
-  const countNewComments = useCallback(
-    (step: 'research' | 'planning', count: number) => setLiveNewComments((current) => (current[step] === count ? current : { ...current, [step]: count })),
-    []
-  )
+  const [liveNewComments, setLiveNewComments] = useState<number | null>(null)
+  const countNewComments = useCallback((count: number) => setLiveNewComments(count), [])
 
   // A link to a run opens it; if it's new, load it.
   const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
   useEffect(() => {
-    if (linkedRunId) setOpenRunId(linkedRunId)
-  }, [linkedRunId])
-  useEffect(() => {
     if (linkedRunMissing) changed()
   }, [linkedRunMissing, changed])
+
+  const closeRun = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('run')
+    next.delete('runTab')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const setDone = useCallback(
     async (done: boolean) => {
@@ -124,37 +119,44 @@ export function TicketDetailPage() {
   const move = decideTaskNextMove({
     ticket,
     runs: data.runs,
-    documents: data.documents,
+    plan: data.plan,
     workingSession: workingSession(data.sessions),
   })
 
   const failedRunnerId = move.kind === 'failed' ? data.runs.find((run) => run.jobId === move.runId)?.clankerId : null
   const failedRunner = data.clankers.find((clanker) => clanker.id === failedRunnerId)
 
-  // A linked run shows its step; otherwise the step picked, or the current one.
   const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
   const requestedStep = searchParams.get('step')
-  const shownStep: TaskStep = isTaskStep(linkedRun?.jobKind) ? linkedRun.jobKind : isTaskStep(requestedStep) ? requestedStep : currentStep
-
-  // A linked run opens on the Runs view; otherwise the view picked, or the document.
+  const shownStep: TaskStep = isTaskStep(requestedStep) ? requestedStep : currentStep
   const requestedView = searchParams.get('view')
-  const shownView: StepView = isStepView(requestedView) ? requestedView : linkedRun ? 'runs' : 'document'
+  const shownView: StepView = isStepView(requestedView) ? requestedView : 'document'
 
   // An earlier version of the shown document, opened from the thread.
   const requestedVersion = Number(searchParams.get('version'))
-  const shownVersion = shownStep !== 'execution' && Number.isInteger(requestedVersion) && requestedVersion > 0 ? requestedVersion : null
+  const shownVersion =
+    shownStep !== 'execution' && Number.isInteger(requestedVersion) && requestedVersion > 0 ? requestedVersion : null
 
-  const showStep = (step: TaskStep, version: number | null = null) =>
-    setSearchParams({ ...(step === currentStep ? {} : { step }), ...(version ? { version: String(version) } : {}) })
+  const showStep = (step: TaskStep, version: number | null = null, compare = false) =>
+    setSearchParams({
+      ...(linkedRunId ? { run: linkedRunId } : {}),
+      ...(searchParams.get('runTab') ? { runTab: searchParams.get('runTab') ?? '' } : {}),
+      ...(step === currentStep ? {} : { step }),
+      ...(version ? { version: String(version) } : {}),
+      ...(compare ? { compare: '1' } : {}),
+    })
   const showView = (view: StepView) =>
-    setSearchParams({ ...(shownStep === currentStep ? {} : { step: shownStep }), ...(view === 'document' ? {} : { view }) })
-  const toggleRun = (runId: string) => setOpenRunId((open) => (open === runId ? null : runId))
+    setSearchParams({
+      ...(linkedRunId ? { run: linkedRunId } : {}),
+      ...(searchParams.get('runTab') ? { runTab: searchParams.get('runTab') ?? '' } : {}),
+      ...(shownStep === currentStep ? {} : { step: shownStep }),
+      ...(view === 'document' ? {} : { view }),
+    })
   // The thread reloads when anything it shows may have changed.
   const threadRefreshKey = [
     ...data.runs.map((run) => `${run.jobId}:${run.status}`),
     ...data.sessions.map((session) => `${session.id}:${session.status}`),
-    data.documents.research.updatedAt,
-    data.documents.planning.updatedAt,
+    data.plan.updatedAt,
     ticket.updatedAt,
   ].join('|')
 
@@ -172,114 +174,85 @@ export function TicketDetailPage() {
     <>
       <PageMeta title={`${ticket.title} | Task`} />
       <div className="flex h-full flex-col gap-6">
-        <Breadcrumbs items={[{ label: space?.name ?? project, href: `/spaces/${project}` }, { label: ticket.key }]} />
-        {space?.viewerAccess?.canMaintain && <ProjectReadinessBanner projectId={ticket.projectId} showDemoNotice={false} />}
-
-        <header className="space-y-3">
-          <div className="flex items-start justify-between gap-6">
-            <div className="min-w-0 space-y-1">
-              <Heading className="text-2xl leading-tight">{ticket.title}</Heading>
-              {ticket.situation && <SituationLine situation={ticket.situation} />}
-            </div>
-            <TaskActionsMenu
-              ticket={ticket}
-              space={project}
-              capabilities={capabilities}
-              onEdit={() => setIsEditDialogOpen(true)}
-              onSetDone={(done) => void setDone(done)}
-              onArchive={() => void archive()}
-              onDelete={() => setIsDeleteDialogOpen(true)}
-            />
-          </div>
-          {ticket.description && <Description text={ticket.description} />}
-        </header>
-
-        {!wide && (
-          <div role="group" aria-label="Show" className="flex gap-2">
-            <Button
-              {...(narrowView === 'conversation' ? { color: 'zinc' as const } : { outline: true as const })}
-              aria-pressed={narrowView === 'conversation'}
-              onClick={() => setNarrowView('conversation')}
-            >
-              Conversation
-            </Button>
-            <Button
-              {...(narrowView === 'artifact' ? { color: 'zinc' as const } : { outline: true as const })}
-              aria-pressed={narrowView === 'artifact'}
-              onClick={() => setNarrowView('artifact')}
-            >
-              Artifacts
-            </Button>
-            {capabilities?.canPost && (
-              <Button
-                plain
-                className="ml-auto"
-                onClick={() => {
-                  setNarrowView('conversation')
-                  // After the conversation is shown again, so the composer can take focus.
-                  requestAnimationFrame(() => {
-                    const composer = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Write a message"]')
-                    composer?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-                    composer?.focus({ preventScroll: true })
-                  })
-                }}
-              >
-                Write a reply
-              </Button>
-            )}
-          </div>
+        {space?.viewerAccess?.canMaintain && (
+          <ProjectReadinessBanner projectId={ticket.projectId} showDemoNotice={false} />
         )}
+        <TaskHeader
+          ticket={ticket}
+          spaceName={space?.name ?? project}
+          project={project}
+          actions={
+            <>
+              <WatchButton taskId={ticket.id} people={people} />
+              <TaskActionsMenu
+                ticket={ticket}
+                space={project}
+                capabilities={capabilities}
+                onEdit={() => setIsEditDialogOpen(true)}
+                onSetDone={(done) => void setDone(done)}
+                onArchive={() => void archive()}
+                onDelete={() => setIsDeleteDialogOpen(true)}
+                onCopy={canInspectRuns ? () => setIsCopyDialogOpen(true) : undefined}
+              />
+            </>
+          }
+        />
+        <TaskContextLine ticket={ticket} people={people} />
+        <TaskDescription key={ticket.id} description={ticket.description} />
+
+        {!wide && <TaskViewSwitch view={narrowView} onView={setNarrowView} canPost={Boolean(capabilities?.canPost)} />}
 
         {/* Hidden rather than unmounted, so a draft and the scroll position survive switching. */}
-        <div className="grid min-h-0 flex-1 gap-10 xl:grid-cols-2">
+        <div className="grid min-h-0 flex-1 items-start gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
           <section
             aria-label="Artifact"
             hidden={!wide && narrowView !== 'artifact'}
-            className="min-w-0 space-y-6 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto">
-            <TaskStepper
-              currentStep={currentStep}
-              move={move}
-              shownStep={shownStep}
-              exists={{
-                research: data.documents.research.content.trim().length > 0,
-                planning: data.documents.planning.content.trim().length > 0,
-                execution: Boolean(ticket.pullRequestUrl),
-              }}
-              canAsk={Boolean(capabilities?.canAsk)}
-              onShowStep={showStep}
-            />
-            <TaskStepView
-              step={shownStep}
-              view={shownView}
-              version={shownVersion}
-              onView={showView}
-              data={data}
-              project={project}
-              move={move}
-              openRunId={openRunId}
-              focusedRunId={linkedRunId}
-              focusedRunTab={searchParams.get('runTab')}
-              onToggleRun={toggleRun}
-              onDocumentSaved={setDocument}
-              onNewComments={countNewComments}
-            />
+            className="min-w-0 overflow-hidden rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
+          >
+            <div className="border-b border-[var(--gray-5)] bg-[var(--gray-2)] px-5 pt-4 pb-3">
+              <TaskStepper
+                currentStep={currentStep}
+                move={move}
+                shownStep={shownStep}
+                exists={{
+                  planning: data.plan.content.trim().length > 0,
+                  execution: Boolean(ticket.pullRequestUrl),
+                }}
+                codeProgress={codeProgress(data.planParts)}
+                onShowStep={showStep}
+              />
+            </div>
+            <div className="px-6 py-5 max-sm:px-4">
+              <TaskStepView
+                step={shownStep}
+                view={shownView}
+                version={shownVersion}
+                comparing={searchParams.get('compare') === '1'}
+                onCompare={(version) => showStep(shownStep, version, true)}
+                onView={showView}
+                data={data}
+                move={move}
+                onDocumentSaved={setDocument}
+                onNewComments={countNewComments}
+                onAsked={changed}
+              />
+            </div>
           </section>
 
-          <div hidden={!wide && narrowView !== 'conversation'} className="min-w-0 space-y-8 xl:order-first">
-            <TaskFacts ticket={ticket} collapsed={!wide} />
+          <div hidden={!wide && narrowView !== 'conversation'} className="min-w-0 space-y-4 xl:order-first">
+            {canInspectRuns && <TaskRunHistory key={ticket.id} runs={data.runs} open={requestedView === 'runs'} />}
             <TaskThread
               taskId={ticket.id}
-              taskKey={ticket.key}
-              project={project}
               refreshKey={threadRefreshKey}
-              onOpenComments={(step) => {
+              runs={data.runs}
+              onOpenComments={() => {
                 setNarrowView('artifact')
-                setSearchParams({ ...(step === currentStep ? {} : { step }), view: 'comments' })
+                setSearchParams({ ...(currentStep === 'planning' ? {} : { step: 'planning' }), view: 'comments' })
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              onOpenArtifact={(step, version) => {
+              onOpenArtifact={(version) => {
                 setNarrowView('artifact')
-                showStep(step, version)
+                showStep('planning', version)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               agents={taskAgents(data.clankers, data.sessions)}
@@ -295,14 +268,23 @@ export function TicketDetailPage() {
               onAsked={changed}
               suggestionInput={{
                 ticket,
-                documents: data.documents,
+                plan: data.plan,
                 capabilities,
-                newComments: { ...data.newComments, ...liveNewComments },
+                newComments: liveNewComments ?? data.newComments,
                 agentWorking: move.kind === 'working',
                 lastFailure: move.kind === 'failed' ? move.failure : null,
+                planParts: data.planParts,
               }}
             />
           </div>
+          {canInspectRuns && (
+            <TaskRunInspector
+              jobId={linkedRunId}
+              title={linkedRun ? `${runName(linkedRun.jobKind)} #${data.runs.length - data.runs.indexOf(linkedRun)}` : 'Run details'}
+              linkedTab={searchParams.get('runTab')}
+              onClose={closeRun}
+            />
+          )}
         </div>
       </div>
 
@@ -320,6 +302,7 @@ export function TicketDetailPage() {
           }
         }}
       />
+      <CopyTaskDialog ticket={ticket} open={isCopyDialogOpen} onClose={() => setIsCopyDialogOpen(false)} onCopied={changed} />
       <DeleteTicketDialog
         ticket={ticket}
         open={isDeleteDialogOpen}

@@ -25,7 +25,7 @@ export interface SavedModelKey {
 }
 
 export interface RepositoryAccess {
-  /** GitHub's canonical owner/name. */
+  /** The code host's canonical name for the repository, such as owner/name. */
   fullName: string
   url: string
   defaultBranch: string
@@ -50,7 +50,7 @@ export interface DefaultAgent {
   slug: string
   agent: AgentType | null | undefined
   agentName: string
-  compute: 'ecs' | 'docker'
+  compute: 'ecs' | 'docker' | 'kubernetes'
   status: ClankerStatus
   statusMessage: string | null
 }
@@ -80,7 +80,10 @@ export interface SetupStatus {
 export interface SetupNextSteps {
   /** Someone besides the first admin has an account or an open invite. */
   teamInvited: boolean
-  slackConnected: boolean
+  /** A chat service is set up, so tasks can be started and followed there. */
+  chatConnected: boolean
+  /** The chat integration to set up, when the build includes one. */
+  chatSystem: string | null
   /** A ticketing connection (Jira, Linear, GitHub Issues…) exists. */
   trackerConnected: boolean
 }

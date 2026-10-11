@@ -1,4 +1,5 @@
 import { getTickets, type TicketListParams } from '@/service/api/ticket-api'
+import { useApiRefresh } from '@/hooks/useApiRefresh'
 import type { Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -22,6 +23,7 @@ export function usePagedTasks(query: TicketListParams, pageSize: number, enabled
   const [isLoading, setIsLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
   const [reloads, setReloads] = useState(0)
+  const revision = useApiRefresh('/api/tasks')
   // Which load is current, so a slow earlier one can't overwrite a newer one.
   const latest = useRef(0)
 
@@ -46,7 +48,10 @@ export function usePagedTasks(query: TicketListParams, pageSize: number, enabled
 
   useEffect(() => {
     if (enabled) void load(0)
-  }, [enabled, load, reloads])
+    return () => {
+      latest.current += 1
+    }
+  }, [enabled, load, reloads, revision])
 
   return {
     tasks,

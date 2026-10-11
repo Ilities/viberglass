@@ -10,7 +10,6 @@ import { TaskTakeoverCard } from './task-takeover'
 
 interface AgentSteeringProps {
   taskId: string
-  taskKey: string
   /** Changes whenever the task's runs or sessions do, so who has the work stays current. */
   refreshKey: string
   agentWorking: boolean
@@ -31,7 +30,6 @@ interface AgentSteeringProps {
  */
 export function AgentSteering({
   taskId,
-  taskKey,
   refreshKey,
   agentWorking,
   paused,
@@ -75,7 +73,6 @@ export function AgentSteering({
     return (
       <TaskTakeoverCard
         taskId={taskId}
-        taskKey={taskKey}
         branch={branch}
         canSteer={canSteer}
         onHandedBack={onChanged}
@@ -132,12 +129,12 @@ export function AgentSteering({
   return (
     <div className="flex justify-end gap-2">
       {agentWorking && (
-        <Button plain disabled={busy} onClick={() => void act(() => pauseAgent(taskId), 'Paused the agent')}>
+        <Button outline disabled={busy} onClick={() => void act(() => pauseAgent(taskId), 'Paused the agent')}>
           Pause the agent
         </Button>
       )}
       {branch && (
-        <Button plain disabled={busy} onClick={() => void takeOver()}>
+        <Button outline disabled={busy} onClick={() => void takeOver()}>
           Take over
         </Button>
       )}

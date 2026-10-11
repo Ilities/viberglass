@@ -1,7 +1,5 @@
-import crypto from 'crypto';
 import type { Response } from 'express';
 import {
-  createSha256SignatureValidator,
   getRequestRawBody,
   respondWithWebhookResult,
 } from '../../../../../api/routes/webhooks/routeHelpers';
@@ -34,6 +32,17 @@ describe('routeHelpers', () => {
         ticketId: 'ticket-1',
         jobId: 'job-1',
       });
+    });
+
+    it('answers 400 to a payload the sender has to fix and 404 to an unknown address', () => {
+      const invalid = createMockResponse();
+      respondWithWebhookResult(invalid, { status: 'invalid', reason: 'Missing required field: title' });
+      expect(invalid.status).toHaveBeenCalledWith(400);
+      expect(invalid.json).toHaveBeenCalledWith({ error: 'Invalid webhook payload', reason: 'Missing required field: title' });
+
+      const notFound = createMockResponse();
+      respondWithWebhookResult(notFound, { status: 'not_found', reason: 'No webhook with this address' });
+      expect(notFound.status).toHaveBeenCalledWith(404);
     });
 
     it('supports custom duplicate/failed response options', () => {
@@ -93,23 +102,6 @@ describe('routeHelpers', () => {
         error: 'Retry failed',
         reason: 'test failure',
       });
-    });
-  });
-
-  describe('createSha256SignatureValidator', () => {
-    it('builds a validator that accepts valid SHA-256 signatures', () => {
-      const validator = createSha256SignatureValidator('x-test-signature');
-      const payload = Buffer.from('payload');
-      const secret = 'super-secret';
-      const digest = crypto
-        .createHmac('sha256', secret)
-        .update(payload)
-        .digest('hex');
-      const signature = `sha256=${digest}`;
-
-      expect(validator.getHeaderName()).toBe('x-test-signature');
-      expect(validator.verify(payload, signature, secret)).toBe(true);
-      expect(validator.verify(payload, signature, 'wrong-secret')).toBe(false);
     });
   });
 

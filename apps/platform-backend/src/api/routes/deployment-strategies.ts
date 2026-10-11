@@ -7,6 +7,7 @@ import {
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
 import logger from "../../config/logger";
+import { availableDeploymentStrategies } from "../../provisioning/shared/deploymentStrategies";
 
 const router = express.Router();
 const deploymentStrategyService = new DeploymentStrategyDAO();
@@ -20,7 +21,7 @@ router.get("/", async (req, res) => {
 
     res.json({
       success: true,
-      data: strategies,
+      data: availableDeploymentStrategies(strategies),
     });
   } catch (error) {
     logger.error('Error fetching deployment strategies', { error: error instanceof Error ? error.message : error });

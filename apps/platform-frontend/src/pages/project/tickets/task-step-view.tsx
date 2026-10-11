@@ -1,173 +1,53 @@
-import { Button } from '@/components/button'
-import { onTabListKeyDown, TabButton } from '@/components/tab-button'
-import { useAuth } from '@/context/auth-context'
-import {
-  savePlanningDocument,
-  saveResearchDocument,
-  type PhaseDocumentCommentResponse,
-  type PhaseDocumentResponse,
-} from '@/service/api/ticket-api'
-import { useEffect, useState } from 'react'
+import { savePlan, type PhaseDocumentCommentResponse, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
-import { BuildPullRequestPanel } from './build-pull-request-panel'
-import { CommentableDocument } from './commentable-document'
+import { BuildPullRequests } from './build-pull-requests'
 import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
+import { DocumentStep } from './document-step'
 import { DocumentVersion } from './document-version'
-import { STEP_NAME, type TaskNextMove, type TaskStep } from './task-next-move'
-import { TaskRunLine } from './task-run-line'
+import { type TaskNextMove, type TaskStep } from './task-next-move'
 import { countNewComments } from './task-suggestions'
 import type { TaskPageData } from './use-task-page'
 
-/** What a step shows: its document (or the build's pull request), its runs, or every comment on its document. */
-export type StepView = 'document' | 'runs' | 'comments'
+/** Comments expand below the artifact; runs belong to the conversation. */
+export type StepView = 'document' | 'comments'
 
 interface TaskStepViewProps {
   step: TaskStep
   view: StepView
   /** An earlier version of the document to show read-only, instead of the current one. */
   version?: number | null
+  /** Whether that version opens compared with the current one. */
+  comparing?: boolean
+  /** Opens an earlier version of the document, compared with the current one. */
+  onCompare: (version: number) => void
   onView: (view: StepView) => void
   data: TaskPageData
-  project: string
   move: TaskNextMove
-  openRunId: string | null
-  /** The run opened by link or from the banner, scrolled to once. */
-  focusedRunId: string | null
-  /** The view the linked run opens on (`?runTab=`). */
-  focusedRunTab: string | null
-  onToggleRun: (runId: string) => void
-  onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
-  /** The shown document's open comments made since its latest version, as they change here. */
-  onNewComments: (step: 'research' | 'planning', count: number) => void
+  onDocumentSaved: (document: PhaseDocumentResponse) => void
+  /** The plan's open comments made since its latest version, as they change here. */
+  onNewComments: (count: number) => void
+  /** Someone asked the agent from the artifact, such as for a part's build. */
+  onAsked: () => void
 }
 
-const DOCUMENT_NOUN = { research: 'research', planning: 'plan' } as const
-
-const VIEW_PANEL_ID = 'task-step-view-panel'
-const viewTabId = (view: StepView) => `task-step-view-tab-${view}`
-/** The artifact tabs (Research, Plan, Code) and the panel they show. */
+/** The artifact tabs (Plan, Code) and the panel they show. */
 export const stepTabId = (step: TaskStep) => `task-artifact-tab-${step}`
 export const stepPanelId = (step: TaskStep) => `task-artifact-panel-${step}`
 
-function DocumentStep({
-  step,
-  data,
-  move,
-  comments,
-  onApplySuggestion,
-  onDocumentSaved,
-}: Pick<TaskStepViewProps, 'data' | 'move' | 'onDocumentSaved'> & {
-  step: 'research' | 'planning'
-  comments: DocumentComments
-  onApplySuggestion: ApplySuggestion
-}) {
-  const document = data.documents[step]
-  const [draft, setDraft] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const noun = DOCUMENT_NOUN[step]
-  const hasContent = document.content.trim().length > 0
-  const { user } = useAuth()
-  // Nothing is approved, so any document can be edited; an edit is its next version.
-  const canEdit = Boolean(user && user.role !== 'viewer')
-
-  const save = async (content: string) => {
-    setIsSaving(true)
-    try {
-      const saved = step === 'research' ? await saveResearchDocument(data.ticket.id, content) : await savePlanningDocument(data.ticket.id, content)
-      onDocumentSaved(step, saved)
-      setDraft(null)
-      toast.success(`The ${noun} is saved`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save')
-      throw error
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  if (draft !== null) {
-    return (
-      <div className="space-y-3">
-        <textarea
-          autoFocus
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          className="min-h-[320px] w-full resize-y rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-4 font-mono text-sm text-[var(--gray-12)] focus:border-[var(--accent-8)] focus:ring-1 focus:ring-[var(--accent-8)] focus:outline-none"
-          placeholder={`Write the ${noun} in markdown…`}
-        />
-        <div className="flex justify-end gap-2">
-          <Button plain onClick={() => setDraft(null)} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button color="brand" onClick={() => void save(draft).catch(() => undefined)} disabled={isSaving || draft === document.content}>
-            {isSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  if (!hasContent) {
-    // Read-only people are told who can make it and where to follow it, never to do what they can't.
-    const canAsk = Boolean(data.capabilities?.canAsk)
-    const empty =
-      move.kind === 'working'
-        ? `The agent is writing the ${noun}. It appears here when it's done.`
-        : move.kind === 'failed'
-          ? `No ${noun} yet: the last run failed before writing it.`
-          : canAsk
-            ? `No ${noun} yet. Ask the agent for it in the thread, or write it yourself.`
-            : canEdit
-              ? `No ${noun} yet. You can write it yourself; people on the task can ask the agent for it.`
-              : `No ${noun} yet. People on this task can ask the agent for it; it appears here, and in the thread, when it's written.`
-    return (
-      <div className="py-6 text-sm text-[var(--gray-10)]">
-        <p>{empty}</p>
-        {canEdit && move.kind !== 'working' && (
-          <button type="button" onClick={() => setDraft('')} className="mt-2 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
-            Write it yourself
-          </button>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gray-10)]">
-        <span>Last changed {new Date(document.updatedAt).toLocaleString()}</span>
-        <span className="flex items-center gap-3">
-          {canEdit && (
-            <button type="button" onClick={() => setDraft(document.content)} className="hover:text-[var(--gray-12)]">
-              Edit
-            </button>
-          )}
-        </span>
-      </div>
-      <CommentableDocument
-        source={document.content}
-        comments={comments}
-        canComment={Boolean(user && user.role !== 'viewer')}
-        onApplySuggestion={onApplySuggestion}
-      />
-    </div>
-  )
-}
-
 /** Puts a suggestion's wording in place of the text it was on, and resolves it. */
 function useApplySuggestion(
-  step: 'research' | 'planning',
   data: TaskPageData,
   comments: DocumentComments,
   onDocumentSaved: TaskStepViewProps['onDocumentSaved']
 ): ApplySuggestion {
   return async (comment: PhaseDocumentCommentResponse, suggestedText: string) => {
     if (!comment.location) return
-    const source = data.documents[step].content
+    const source = data.plan.content
     const content = source.slice(0, comment.location.start) + suggestedText + source.slice(comment.location.end)
     try {
-      const saved = step === 'research' ? await saveResearchDocument(data.ticket.id, content) : await savePlanningDocument(data.ticket.id, content)
-      onDocumentSaved(step, saved)
+      const saved = await savePlan(data.ticket.id, content)
+      onDocumentSaved(saved)
       await comments.toggleStatus(comment)
       toast.success('Suggestion applied')
     } catch (error) {
@@ -180,7 +60,7 @@ function useApplySuggestion(
 function BuildStep({ data }: { data: TaskPageData }) {
   const isUpcoming = data.ticket.workflowPhase !== 'execution'
   if (data.ticket.pullRequestUrl) {
-    return <BuildPullRequestPanel ticketId={data.ticket.id} pullRequestUrl={data.ticket.pullRequestUrl} runs={data.runs} />
+    return <BuildPullRequests ticketId={data.ticket.id} latestUrl={data.ticket.pullRequestUrl} runs={data.runs} />
   }
   return (
     <p className="py-6 text-sm text-[var(--gray-10)]">
@@ -193,103 +73,73 @@ function BuildStep({ data }: { data: TaskPageData }) {
   )
 }
 
-/** One step's work, one view at a time: its document, its runs, or comments on the document. */
+/** The artifact, with its comments available below it. */
 export function TaskStepView({
   step,
   view,
   version = null,
+  comparing = false,
+  onCompare,
   onView,
   data,
-  project,
   move,
-  openRunId,
-  focusedRunId,
-  focusedRunTab,
-  onToggleRun,
   onDocumentSaved,
   onNewComments,
+  onAsked,
 }: TaskStepViewProps) {
-  const stepRuns = data.runs.filter((run) => run.jobKind === step)
-  const agentNames = new Map(data.clankers.map((clanker) => [clanker.id, clanker.name]))
-  const isDocumentStep = step !== 'execution'
-  const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0
-  const documentStep = step === 'execution' ? null : step
-  const comments = useDocumentComments(data.ticket.id, hasDocument ? documentStep : null)
-  const applySuggestion = useApplySuggestion(documentStep ?? 'research', data, comments, onDocumentSaved)
-  const documentContent = documentStep ? data.documents[documentStep].content : ''
+  const isPlan = step === 'planning'
+  const hasPlan = isPlan && data.plan.content.trim().length > 0
+  const comments = useDocumentComments(data.ticket.id, hasPlan)
+  const applySuggestion = useApplySuggestion(data, comments, onDocumentSaved)
+  const planContent = isPlan ? data.plan.content : ''
   const reloadComments = comments.reload
-  const newCount = documentStep ? countNewComments(comments.comments, data.documents[documentStep].updatedAt) : 0
+  const newCount = isPlan ? countNewComments(comments.comments, data.plan.updatedAt) : 0
 
   // A revision or an edit moves text around: find each comment's text again.
   useEffect(() => {
     void reloadComments()
-  }, [documentContent, reloadComments])
+  }, [planContent, reloadComments])
 
   useEffect(() => {
-    if (documentStep && hasDocument) onNewComments(documentStep, newCount)
-  }, [documentStep, hasDocument, newCount, onNewComments])
-
-  const shown: StepView = view === 'comments' && !hasDocument ? 'document' : view
+    if (hasPlan) onNewComments(newCount)
+  }, [hasPlan, newCount, onNewComments])
 
   return (
     <div role="tabpanel" id={stepPanelId(step)} aria-labelledby={stepTabId(step)}>
-      <div role="tablist" aria-label={`${STEP_NAME[step]} views`} className="mb-6 flex gap-1 border-b border-[var(--gray-5)]" onKeyDown={onTabListKeyDown}>
-        <TabButton role="tab" id={viewTabId('document')} aria-controls={VIEW_PANEL_ID} active={shown === 'document'} onClick={() => onView('document')}>
-          {isDocumentStep ? 'Document' : 'Pull request'}
-        </TabButton>
-        <TabButton role="tab" id={viewTabId('runs')} aria-controls={VIEW_PANEL_ID} active={shown === 'runs'} onClick={() => onView('runs')}>
-          Runs{stepRuns.length > 0 ? ` · ${stepRuns.length}` : ''}
-        </TabButton>
-        {hasDocument && (
-          <TabButton role="tab" id={viewTabId('comments')} aria-controls={VIEW_PANEL_ID} active={shown === 'comments'} onClick={() => onView('comments')}>
-            Comments{comments.openCount > 0 ? ` · ${comments.openCount}` : ''}
-          </TabButton>
-        )}
-      </div>
-
-      <div role="tabpanel" id={VIEW_PANEL_ID} aria-labelledby={viewTabId(shown)}>
-      {shown === 'document' && (
-        <div className="space-y-8">
-          {documentStep && version ? (
-            <DocumentVersion ticketId={data.ticket.id} step={documentStep} version={version} onShowCurrent={() => onView('document')} />
-          ) : documentStep ? (
-            <DocumentStep
-              step={documentStep}
-              data={data}
-              move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
-              comments={comments}
-              onApplySuggestion={applySuggestion}
-              onDocumentSaved={onDocumentSaved}
-            />
-          ) : (
-            <BuildStep data={data} />
-          )}
-        </div>
+      {isPlan && version ? (
+        <DocumentVersion
+          ticketId={data.ticket.id}
+          version={version}
+          comparing={comparing}
+          onShowCurrent={() => onView('document')}
+        />
+      ) : isPlan ? (
+        <DocumentStep
+          data={data}
+          move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
+          comments={comments}
+          onApplySuggestion={applySuggestion}
+          onDocumentSaved={onDocumentSaved}
+          onCompare={onCompare}
+          onAsked={onAsked}
+        />
+      ) : (
+        <BuildStep data={data} />
       )}
-
-      {shown === 'runs' &&
-        (stepRuns.length === 0 ? (
-          <p className="py-6 text-sm text-[var(--gray-10)]">No {STEP_NAME[step].toLowerCase()} runs yet.</p>
-        ) : (
-          <div className="divide-y divide-[var(--gray-4)]">
-            {stepRuns.map((run, index) => (
-              <TaskRunLine
-                key={run.jobId}
-                run={run}
-                number={stepRuns.length - index}
-                agentName={run.clankerId ? (agentNames.get(run.clankerId) ?? null) : null}
-                project={project}
-                isOpen={openRunId === run.jobId}
-                onToggle={() => onToggleRun(run.jobId)}
-                scrollIntoView={focusedRunId === run.jobId}
-                linkedTab={focusedRunId === run.jobId ? focusedRunTab : null}
-              />
-            ))}
-          </div>
-        ))}
-
-      {shown === 'comments' && documentStep && <CommentList comments={comments} onApplySuggestion={applySuggestion} />}
-      </div>
+      {hasPlan && !version && (
+        <details
+          open={view === 'comments'}
+          onToggle={(event) => {
+            if (event.currentTarget.open !== (view === 'comments')) onView(event.currentTarget.open ? 'comments' : 'document')
+          }}
+          className="mt-6 border-t border-[var(--gray-5)] pt-4"
+        >
+          <summary className="cursor-pointer text-sm text-[var(--gray-11)]">
+            Comments{comments.openCount > 0 && ` · ${comments.openCount} open`}
+          </summary>
+          {view === 'comments' && <div className="mt-4"><CommentList comments={comments} onApplySuggestion={applySuggestion} /></div>}
+        </details>
+      )}
     </div>
   )
 }

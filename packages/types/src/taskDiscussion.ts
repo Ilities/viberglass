@@ -60,10 +60,20 @@ export function withPlainMentions(body: string): string {
   return body.replace(MENTION, (_match, name: string) => `@${name}`)
 }
 
+/** Someone without a Viberglass account who wrote in a linked tracker issue: "Pat" on Jira. */
+export interface ExternalMessageAuthor {
+  name: string
+  source: string
+}
+
 export interface TaskMessage {
   id: string
   ticketId: string
   author: { id: string; name: string } | null
+  /** Set when the writer has no Viberglass account; `author` is null then. */
+  externalAuthor: ExternalMessageAuthor | null
+  /** The tracker it was written in ("jira", "shortcut", "github"), or null when written in Viberglass or Slack. */
+  source: string | null
   body: string
   createdAt: string
   editedAt: string | null
@@ -88,6 +98,13 @@ export const TASK_ACTIVITY_KINDS = [
   'comment_status_changed',
   'task_done',
   'pull_request_merged',
+  /** A pull request for some of the plan's parts merged, with more parts to build. */
+  'part_merged',
+  /** Someone marked a part done or skipped, or took the mark back. */
+  'part_marked',
+  'part_unmarked',
+  /** Someone discarded a build of some parts that never opened its pull request. */
+  'build_discarded',
   'question_asked',
   'question_answered',
   'question_reminded',

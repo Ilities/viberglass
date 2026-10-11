@@ -131,21 +131,6 @@ describe("GET /api/run-manifests", () => {
     await request(app).get("/api/run-manifests?cursor=zzz").expect(400);
   });
 
-  it("returns one run's record", async () => {
-    mockGet.mockResolvedValue({ jobId: "job-1" });
-
-    const response = await request(app).get("/api/run-manifests/job-1").expect(200);
-
-    expect(mockGet).toHaveBeenCalledWith("job-1");
-    expect(response.body).toEqual({ jobId: "job-1" });
-  });
-
-  it("returns 404 for a run without a record", async () => {
-    mockGet.mockResolvedValue(null);
-
-    await request(app).get("/api/run-manifests/job-9").expect(404);
-  });
-
   it("still routes /export to the export", async () => {
     mockRecords.mockReturnValue(yieldAll([]));
 

@@ -2,7 +2,9 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig([
   {
-    entry: { 'backend/index': 'src/backend/index.ts' },
+    // Each build cleans only its own folder; a shared dist/ lets one build delete the other's types.
+    entry: { index: 'src/backend/index.ts' },
+    outDir: 'dist/backend',
     format: ['cjs', 'esm'],
     dts: { compilerOptions: { skipLibCheck: true } },
     clean: true,
@@ -10,7 +12,9 @@ export default defineConfig([
     external: ['@viberglass/types'],
   },
   {
-    entry: { 'frontend/index': 'src/frontend/index.ts' },
+    entry: { index: 'src/frontend/index.ts' },
+    outDir: 'dist/frontend',
+    clean: true,
     format: ['esm'],
     dts: { compilerOptions: { skipLibCheck: true } },
     splitting: false,

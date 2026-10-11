@@ -41,6 +41,7 @@ function setup() {
       getClankerBySlug: jest.fn().mockResolvedValue(null),
       listClankers: jest.fn().mockResolvedValue([]),
     },
+    spaces: { getDefaultAgentIdForTicket: jest.fn().mockResolvedValue(null) },
   };
   return { deps, resolver: new TaskTurnAgentResolver(deps) };
 }
@@ -80,6 +81,35 @@ describe("TaskTurnAgentResolver", () => {
 
     deps.clankers.listClankers.mockResolvedValue([]);
     await expect(resolver.resolve("t", { message: "" })).rejects.toMatchObject({ code: "NO_AGENT", statusCode: 409 });
+  });
+
+  it("on a new task, prefers the space's default agent to the workspace's", async () => {
+    const { deps, resolver } = setup();
+    deps.clankers.getClankerBySlug.mockResolvedValue(clanker(CLAUDE));
+    deps.spaces.getDefaultAgentIdForTicket.mockResolvedValue(CODEX);
+
+    await expect(resolver.preview("t")).resolves.toMatchObject({ clanker: { id: CODEX }, via: "space_default" });
+    expect(deps.spaces.getDefaultAgentIdForTicket).toHaveBeenCalledWith("t");
+
+    // The agent already on the task still comes first.
+    deps.sessions.getLatestClankerIdByTicket.mockResolvedValue(CLAUDE);
+    await expect(resolver.preview("t")).resolves.toMatchObject({ clanker: { id: CLAUDE }, via: "on_task" });
+  });
+
+  it("falls back to the workspace's default while the space's default can't run, and says why if nothing can", async () => {
+    const { deps, resolver } = setup();
+    const keyless = clanker(CODEX, { name: "Codex", readiness: { state: "needs_key", problem: "No model key.", lastRun: null } });
+    deps.spaces.getDefaultAgentIdForTicket.mockResolvedValue(CODEX);
+    deps.clankers.getClanker.mockResolvedValue(keyless);
+    deps.clankers.getClankerBySlug.mockResolvedValue(clanker(CLAUDE));
+    await expect(resolver.preview("t")).resolves.toMatchObject({ clanker: { id: CLAUDE }, via: "default" });
+
+    deps.clankers.getClankerBySlug.mockResolvedValue(null);
+    deps.clankers.listClankers.mockResolvedValue([keyless]);
+    await expect(resolver.resolve("t", { message: "" })).rejects.toMatchObject({
+      code: "NO_AGENT",
+      message: expect.stringContaining("Codex: No model key."),
+    });
   });
 
   it("never picks an agent that isn't ready on its own", async () => {

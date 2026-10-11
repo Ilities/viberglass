@@ -1,4 +1,4 @@
-/** What people are told by Slack and email. In the app, Home's Needs you and unread counts are the notifications. */
+/** What people are told by chat and email. In the app, Home's Needs you and unread counts are the notifications. */
 export const NOTIFICATION_KINDS = [
   'review_requested',
   'mentioned',
@@ -7,6 +7,8 @@ export const NOTIFICATION_KINDS = [
   'run_failed_setup',
   'run_failed_agent',
   'task_done',
+  /** A pull request for some of the plan's parts merged, and the next part can be built. */
+  'part_merged',
   'question_asked',
   'question_reminder',
   'credential_expiring',
@@ -14,7 +16,7 @@ export const NOTIFICATION_KINDS = [
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
 
-const STEP_NOUN: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build' }
+const STEP_NOUN: Record<string, string> = { planning: 'plan', execution: 'build' }
 
 /** The sentence for a notification. `payload.step` names the step where it matters. */
 export function notificationText(kind: NotificationKind, actorName: string | null, taskTitle: string, payload: Record<string, unknown>): string {
@@ -50,5 +52,27 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
           : `“${taskTitle}” is done: its pull request was merged`
       }
       return `${who} marked “${taskTitle}” as done`
+    case 'part_merged': {
+      const merged = Array.isArray(payload.parts) && payload.parts.length > 0 ? `Part ${payload.parts.join(', ')}` : 'A part'
+      const next = typeof payload.next === 'number' ? `; part ${payload.next} can be built now` : ''
+      return `${merged} of “${taskTitle}” is merged${next}`
+    }
   }
+}
+
+/** A chat service a person can be told things on, by direct message. */
+export interface ChatNotificationChannel {
+  /** The chat integration's id. */
+  system: string
+  label: string
+  /** The service is set up on this installation. */
+  available: boolean
+  /** The person linked their account on it. */
+  linked: boolean
+}
+
+/** Where the signed-in person can be told things. */
+export interface NotificationChannels {
+  chat: ChatNotificationChannel[]
+  emailAvailable: boolean
 }

@@ -1,3 +1,6 @@
+import { SecretResolutionService } from "../../../services/SecretResolutionService";
+import { WorkerBootstrapCredentials } from "../../../services/job/WorkerBootstrapCredentials";
+import { WorkerStorageDenied, type WorkerStorageService } from "../../../services/job/WorkerStorageService";
 import { Request, Response, Router } from "express";
 import logger from "../../../config/logger";
 import { AgentPendingRequestDAO } from "../../../persistence/agentSession/AgentPendingRequestDAO";
@@ -9,7 +12,7 @@ import { SessionTurnContinuationService } from "../../../services/agentSession/S
 import { isAgentSessionServiceError } from "../../../services/errors/AgentSessionServiceError";
 import { JobBootstrapService } from "../../../services/job/JobBootstrapService";
 import { JobQueryService } from "../../../services/job/JobQueryService";
-import { recordLog, recordLogBatch, recordProgress } from "../../../services/job/JobProgressService";
+import { recordLog, recordLogBatch, recordProgress, touchHeartbeat } from "../../../services/job/JobProgressService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 import {
@@ -20,6 +23,7 @@ import {
 
 const jobQueries = new JobQueryService();
 const bootstraps = new JobBootstrapService();
+const bootstrapCredentials = new WorkerBootstrapCredentials(new SecretResolutionService());
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionDAO = new AgentSessionDAO();
 const turnContinuationService = new SessionTurnContinuationService(
@@ -40,7 +44,19 @@ const workerEventService = new AgentSessionWorkerEventService(
  * bootstrap payload, progress, logs and its session's events. Authenticated
  * by the run's callback token, not a person.
  */
-export function registerJobWorkerCallbackRoutes(router: Router): void {
+export function registerJobWorkerCallbackRoutes(router: Router, storage: WorkerStorageService): void {
+  router.post("/:jobId/heartbeat", tenantMiddleware, validateCallbackToken, async (req, res) => {
+    try {
+      const bootstrap = await bootstraps.getBootstrapPayload(req.params.jobId);
+      if (!bootstrap || bootstrap.tenantId !== req.tenantId || bootstrap.status !== "active") {
+        return res.status(403).json({ error: "Heartbeat requires this active run" });
+      }
+      await touchHeartbeat(req.params.jobId, new Date());
+      return res.json({ success: true });
+    } catch {
+      return res.status(500).json({ error: "Could not record worker heartbeat" });
+    }
+  });
   router.get(
     "/:jobId/bootstrap",
     tenantMiddleware,
@@ -66,9 +82,17 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
           });
         }
 
+        let payload = bootstrap.payload;
+        if (payload.workerType === "kubernetes") {
+          if (bootstrap.status !== "active") {
+            return res.status(403).json({ error: "Worker credentials are only available for an active run" });
+          }
+          payload = { ...payload, credentials: await bootstrapCredentials.resolve(payload) };
+        }
+        res.setHeader("Cache-Control", "no-store");
         return res.json({
           success: true,
-          data: bootstrap.payload,
+          data: payload,
         });
       } catch (error) {
         logger.error("Failed to fetch job bootstrap payload", {
@@ -220,6 +244,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         }
 
         await workerEventService.batchIngest(jobId, events);
+        await touchHeartbeat(jobId, new Date());
         return res.json({ success: true });
       } catch (err) {
         logger.error("Failed to ingest session events", {
@@ -281,9 +306,11 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
             .json({ error: "conversationStateUrl must be a non-empty string" });
         }
 
+        await storage.validateArchive(jobId, req.tenantId!, conversationStateUrl);
         await workerEventService.storeConversationStateUrl(jobId, conversationStateUrl);
         return res.json({ success: true });
       } catch (err) {
+        if (err instanceof WorkerStorageDenied) return res.status(403).json({ error: err.message });
         logger.error("Failed to store conversation state URL", {
           jobId: req.params.jobId,
           error: err instanceof Error ? err.message : String(err),

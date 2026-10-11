@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import { sql } from "kysely";
 import db from "../config/database";
-import type { JsonObject } from "../types/database";
 
 /**
  * Webhook configuration data access object
@@ -11,7 +10,8 @@ import type { JsonObject } from "../types/database";
  */
 
 export type SecretLocation = "database" | "ssm" | "env";
-export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
+/** The webhook provider an integration's manifest names. */
+export type WebhookProvider = string;
 
 /**
  * Webhook configuration as stored in database
@@ -20,15 +20,13 @@ export interface WebhookConfig {
   id: string;
   projectId: string | null;
   provider: WebhookProvider;
-  providerProjectId: string | null;
   integrationId: string | null;
   secretLocation: SecretLocation;
   secretPath: string | null;
   webhookSecretEncrypted: string | null;
   allowedEvents: string[];
-  autoExecute: boolean;
+  planNewIssues: boolean;
   botUsername: string | null;
-  labelMappings: JsonObject;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -40,15 +38,13 @@ export interface WebhookConfig {
 export interface CreateWebhookConfigDTO {
   projectId: string | null;
   provider: WebhookProvider;
-  providerProjectId?: string | null;
   integrationId?: string | null;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
   allowedEvents?: string[];
-  autoExecute?: boolean;
+  planNewIssues?: boolean;
   botUsername?: string | null;
-  labelMappings?: JsonObject;
   active?: boolean;
 }
 
@@ -58,15 +54,13 @@ export interface CreateWebhookConfigDTO {
 export interface UpdateWebhookConfigDTO {
   projectId?: string | null;
   provider?: WebhookProvider;
-  providerProjectId?: string | null;
   integrationId?: string | null;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
   allowedEvents?: string[];
-  autoExecute?: boolean;
+  planNewIssues?: boolean;
   botUsername?: string | null;
-  labelMappings?: JsonObject;
   active?: boolean;
 }
 
@@ -84,15 +78,13 @@ export class WebhookConfigDAO {
         id,
         project_id: dto.projectId,
         provider: dto.provider,
-        provider_project_id: dto.providerProjectId ?? null,
         integration_id: dto.integrationId ?? null,
         secret_location: dto.secretLocation ?? "database",
         secret_path: dto.secretPath ?? null,
         webhook_secret_encrypted: dto.webhookSecretEncrypted ?? null,
         allowed_events: sql<string[]>`${JSON.stringify(dto.allowedEvents ?? [])}::jsonb`,
-        auto_execute: dto.autoExecute ?? false,
+        plan_new_issues: dto.planNewIssues ?? false,
         bot_username: dto.botUsername ?? null,
-        label_mappings: sql<JsonObject>`${JSON.stringify(dto.labelMappings ?? {})}::jsonb`,
         active: dto.active ?? true,
         created_at: timestamp,
         updated_at: timestamp,
@@ -128,7 +120,6 @@ export class WebhookConfigDAO {
 
     if (updates.projectId !== undefined) updateData.project_id = updates.projectId;
     if (updates.provider !== undefined) updateData.provider = updates.provider;
-    if (updates.providerProjectId !== undefined) updateData.provider_project_id = updates.providerProjectId;
     if (updates.integrationId !== undefined) updateData.integration_id = updates.integrationId;
     if (updates.secretLocation !== undefined) updateData.secret_location = updates.secretLocation;
     if (updates.secretPath !== undefined) updateData.secret_path = updates.secretPath;
@@ -136,11 +127,8 @@ export class WebhookConfigDAO {
     if (updates.allowedEvents !== undefined) {
       updateData.allowed_events = sql<string[]>`${JSON.stringify(updates.allowedEvents)}::jsonb`;
     }
-    if (updates.autoExecute !== undefined) updateData.auto_execute = updates.autoExecute;
+    if (updates.planNewIssues !== undefined) updateData.plan_new_issues = updates.planNewIssues;
     if (updates.botUsername !== undefined) updateData.bot_username = updates.botUsername;
-    if (updates.labelMappings !== undefined) {
-      updateData.label_mappings = sql<JsonObject>`${JSON.stringify(updates.labelMappings)}::jsonb`;
-    }
     if (updates.active !== undefined) updateData.active = updates.active;
 
     await db
@@ -223,29 +211,6 @@ export class WebhookConfigDAO {
   }
 
   /**
-   * Get active configuration by provider and provider project ID
-   * Used for webhook routing when project_id is not known initially
-   */
-  async getActiveConfigByProviderProject(
-    provider: WebhookProvider,
-    providerProjectId: string,
-  ): Promise<WebhookConfig | null> {
-    const row = await db
-      .selectFrom("webhook_provider_configs")
-      .selectAll()
-      .where("provider", "=", provider)
-      .where("provider_project_id", "=", providerProjectId)
-      .where("active", "=", true)
-      .orderBy("created_at", "desc")
-      .orderBy("id", "desc")
-      .executeTakeFirst();
-
-    if (!row) return null;
-
-    return this.mapRowToConfig(row);
-  }
-
-  /**
    * List all configurations for a provider
    */
   async listConfigsByProvider(
@@ -311,10 +276,7 @@ export class WebhookConfigDAO {
     return {
       id: String(row.id),
       projectId: row.project_id ? String(row.project_id) : null,
-      provider: row.provider as WebhookProvider,
-      providerProjectId: row.provider_project_id
-        ? String(row.provider_project_id)
-        : null,
+      provider: String(row.provider),
       integrationId: row.integration_id ? String(row.integration_id) : null,
       secretLocation: row.secret_location as SecretLocation,
       secretPath: row.secret_path ? String(row.secret_path) : null,
@@ -322,12 +284,8 @@ export class WebhookConfigDAO {
         ? String(row.webhook_secret_encrypted)
         : null,
       allowedEvents: row.allowed_events as string[],
-      autoExecute: Boolean(row.auto_execute),
+      planNewIssues: Boolean(row.plan_new_issues),
       botUsername: row.bot_username ? String(row.bot_username) : null,
-      labelMappings:
-        typeof row.label_mappings === "string"
-          ? JSON.parse(row.label_mappings)
-          : row.label_mappings,
       active: Boolean(row.active),
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,

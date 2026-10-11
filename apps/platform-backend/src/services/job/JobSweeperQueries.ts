@@ -1,4 +1,5 @@
 import db from "../../persistence/config/database";
+import { sql } from "kysely";
 
 /**
  * Database queries for job sweepers.
@@ -6,7 +7,7 @@ import db from "../../persistence/config/database";
  */
 
 /**
- * Find jobs that have been active for longer than the cutoff time.
+ * Find active jobs that have reported nothing since the cutoff time.
  * Used by OrphanSweeper to detect stuck jobs.
  */
 export async function findOrphanedJobs(
@@ -16,7 +17,7 @@ export async function findOrphanedJobs(
     .selectFrom("jobs")
     .select(["id", "started_at"])
     .where("status", "=", "active")
-    .where("started_at", "<", cutoffTime)
+    .where(sql<Date>`coalesce(last_heartbeat, started_at)`, "<", cutoffTime)
     .execute();
 
   return jobs.map((job) => ({
@@ -57,4 +58,13 @@ export async function findStaleJobs(
     started_at: job.started_at,
     last_heartbeat: job.last_heartbeat,
   }));
+}
+
+export async function findActiveKubernetesJobs(): Promise<Array<{ id: string; started_at: Date | null }>> {
+  return db
+    .selectFrom("jobs")
+    .select(["id", "started_at"])
+    .where("status", "=", "active")
+    .where(sql<string>`bootstrap_payload ->> 'workerType'`, "=", "kubernetes")
+    .execute();
 }

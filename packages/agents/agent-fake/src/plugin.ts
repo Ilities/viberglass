@@ -4,7 +4,8 @@ import { FakeAgent } from "./FakeAgent";
 
 const fakePlugin: AgentPlugin<FakeConfig> = {
   id: "fake",
-  displayName: "Fake (end-to-end tests)",
+  label: "Fake (end-to-end tests)",
+  description: "Deterministic agent for end-to-end tests. Needs no model key.",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new FakeAgent(config, logger, gitService);

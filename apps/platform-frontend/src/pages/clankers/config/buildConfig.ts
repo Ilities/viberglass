@@ -11,6 +11,17 @@ function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
   const strategyName = normalizeStrategyName(input.strategyName)
   const form = input.form
 
+  if (strategyName === 'kubernetes') {
+    return {
+      type: 'kubernetes', provisioningMode: 'prebuilt',
+      containerImage: form.containerImage.trim() || undefined,
+      cpu: form.kubernetesCpu.trim() || undefined,
+      memory: form.kubernetesMemory.trim() || undefined,
+      ephemeralStorage: form.kubernetesStorage.trim() || undefined,
+      activeDeadlineSeconds: form.kubernetesDeadline.trim() ? Number(form.kubernetesDeadline) : undefined,
+    }
+  }
+
   if (strategyName === 'ecs') {
     return {
       type: 'ecs',
@@ -37,7 +48,7 @@ function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
   return {
     type: 'docker',
     provisioningMode: form.provisioningMode,
-    containerImage: form.provisioningMode === 'prebuilt' ? form.containerImage : undefined,
+    containerImage: form.provisioningMode === 'prebuilt' ? form.containerImage.trim() || undefined : undefined,
   }
 }
 

@@ -4,13 +4,14 @@ import type { TurnCallbackClient } from "../infrastructure/TurnCallbackClient";
 import type { TaskBranch } from "./taskBranch";
 import { collectArtifacts, type ArtifactSnapshot } from "./turnArtifacts";
 import { listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
+import type { GitAuth } from "../../services/gitAuth";
 
 export interface PartialWorkRun {
   jobId: string;
   tenantId: string;
   /** Only a build's code is kept; other turns' code changes would have been thrown away anyway. */
   allowCode: boolean;
-  scmToken?: string;
+  gitAuth?: GitAuth;
   git: Pick<GitService, "createBranch" | "commitChanges" | "pushBranch">;
   callbacks: Pick<TurnCallbackClient, "sendPartialResult">;
   logger: Pick<Logger, "info">;
@@ -37,7 +38,7 @@ export async function keepPartialWork(run: PartialWorkRun, input: PartialWorkInp
     if ((await listCodeChanges(input.repoDir)).length > 0) {
       if (!input.taskBranch.continued) await run.git.createBranch(input.repoDir, input.taskBranch.name);
       commitHash = await run.git.commitChanges(input.repoDir, "Work in progress: the run was stopped partway");
-      await run.git.pushBranch(input.repoDir, input.taskBranch.name, run.scmToken);
+      await run.git.pushBranch(input.repoDir, input.taskBranch.name, run.gitAuth);
       branch = input.taskBranch.name;
     }
   }

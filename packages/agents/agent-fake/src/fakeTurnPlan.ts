@@ -19,7 +19,7 @@
  * people asked for in the thread, if any.
  */
 
-export type FakeDocumentFile = "RESEARCH.md" | "PLAN.md" | "SUMMARY.md";
+export type FakeDocumentFile = "PLAN.md" | "SUMMARY.md";
 
 export interface FakeQuestion {
   question: string;
@@ -66,10 +66,9 @@ function lastSection(prompt: string, tag: string): string | undefined {
 }
 
 function documentNamedIn(text: string): FakeDocumentFile | undefined {
-  // A summary covers everything, and a plan can mention the research it builds on.
+  // A summary covers everything, the plan included.
   if (text.includes("SUMMARY.md")) return "SUMMARY.md";
   if (text.includes("PLAN.md")) return "PLAN.md";
-  if (text.includes("RESEARCH.md")) return "RESEARCH.md";
   return undefined;
 }
 
@@ -106,7 +105,7 @@ export function planFakeTurn(prompt: string): FakeTurnPlan {
  * prompt that quotes this document must not read as directives or sections.
  */
 export function renderFakeDocument(documentFile: FakeDocumentFile, prompt: string, turn: number): string {
-  const title = documentFile === "PLAN.md" ? "Plan" : documentFile === "SUMMARY.md" ? "Summary" : "Research";
+  const title = documentFile === "PLAN.md" ? "Plan" : "Summary";
   const echo = prompt.replace(/\[fake:/g, "[fake-echo:").replace(/</g, "&lt;");
   return [
     `# Fake ${title}`,

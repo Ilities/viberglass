@@ -14,7 +14,7 @@ const ROWS: Array<{ what: string; can: Record<WorkspaceRole, string> }> = [
     can: { admin: 'Every space', member: 'Open spaces, and private ones they belong to', guest: 'Only spaces they are invited to', viewer: 'Open spaces, and private ones they belong to' },
   },
   { what: 'Comment and post', can: { admin: 'Yes', member: 'Yes', guest: 'Yes', viewer: 'No' } },
-  { what: 'Ask the agent for research or a plan', can: { admin: 'Yes', member: 'Yes', guest: 'On tasks they are on', viewer: 'No' } },
+  { what: 'Ask the agent for a plan', can: { admin: 'Yes', member: 'Yes', guest: 'On tasks they are on', viewer: 'No' } },
   { what: 'Ask the agent for code', can: { admin: 'Yes', member: 'On tasks they are on, or as a space maintainer', guest: 'On tasks they are on', viewer: 'No' } },
   { what: 'Pause, take over and hand back', can: { admin: 'Yes', member: 'As the task owner or a space maintainer', guest: 'As the task owner', viewer: 'No' } },
   { what: 'Agents, connections, secrets and members', can: { admin: 'Yes', member: 'No', guest: 'No', viewer: 'No' } },
@@ -59,21 +59,6 @@ export function RoleCapabilityTable() {
           is what lets a member or guest ask for code there.
         </p>
       </div>
-    </details>
-  )
-}
-
-/** How task participation works, for the People panel on a task. */
-export function TaskParticipationHelp() {
-  return (
-    <details className="text-xs text-[var(--gray-10)]">
-      <summary className="cursor-pointer">What owner, reviewer and watcher mean</summary>
-      <ul className="mt-2 list-disc space-y-1 pl-4">
-        <li>The owner drives the task: it&apos;s their move when nobody else is asked, and they can pause the agent or take its work over.</li>
-        <li>Reviewers are asked to look when the agent writes something.</li>
-        <li>Watchers follow the task on Home without being asked to do anything.</li>
-        <li>Anyone on the task, guests included, can comment and ask the agent, including for code. Viewers only read.</li>
-      </ul>
     </details>
   )
 }

@@ -2,15 +2,19 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig([
   {
-    entry: { 'backend/index': 'src/backend/index.ts' },
+    // Each build cleans only its own folder; a shared dist/ lets one build delete the other's types.
+    entry: { index: 'src/backend/index.ts' },
+    outDir: 'dist/backend',
     format: ['cjs', 'esm'],
     dts: { compilerOptions: { skipLibCheck: true } },
     clean: true,
     splitting: false,
-    external: ['@viberglass/types', '@viberglass/integration-core'],
+    external: ['@viberglass/types', '@viberglass/integration-core', 'chat', '@chat-adapter/slack'],
   },
   {
-    entry: { 'frontend/index': 'src/frontend/index.ts' },
+    entry: { index: 'src/frontend/index.ts' },
+    outDir: 'dist/frontend',
+    clean: true,
     format: ['esm'],
     dts: { compilerOptions: { skipLibCheck: true } },
     splitting: false,

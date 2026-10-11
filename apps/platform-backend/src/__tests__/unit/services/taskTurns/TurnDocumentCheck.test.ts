@@ -6,20 +6,20 @@ function check(openQuestion = false) {
 }
 
 describe("TurnDocumentCheck", () => {
-  it("names the document a research or plan turn came back without", async () => {
-    const { check: research } = check();
-    await expect(research.missing({ id: "turn-1", action: "research" }, {})).resolves.toBe("research");
-    await expect(research.missing({ id: "turn-1", action: "plan" }, { plan: "  \n" })).resolves.toBe("plan");
+  it("names the plan a plan turn came back without", async () => {
+    const { check: plan } = check();
+    await expect(plan.missing({ id: "turn-1", action: "plan" }, {})).resolves.toBe("plan");
+    await expect(plan.missing({ id: "turn-1", action: "plan" }, { plan: "  \n" })).resolves.toBe("plan");
   });
 
-  it("counts a turn that wrote another document but not the one asked for as missing it", async () => {
-    const { check: research } = check();
-    await expect(research.missing({ id: "turn-1", action: "research" }, { plan: "# Plan" })).resolves.toBe("research");
+  it("counts a plan turn that wrote only a summary as missing the plan", async () => {
+    const { check: plan } = check();
+    await expect(plan.missing({ id: "turn-1", action: "plan" }, { summary: "# Summary" })).resolves.toBe("plan");
   });
 
   it("accepts a turn that wrote what it was asked for", async () => {
-    const { questions, check: research } = check();
-    await expect(research.missing({ id: "turn-1", action: "research" }, { research: "# Findings" })).resolves.toBeNull();
+    const { questions, check: plan } = check();
+    await expect(plan.missing({ id: "turn-1", action: "plan" }, { plan: "# Plan" })).resolves.toBeNull();
     expect(questions.hasOpenForTurn).not.toHaveBeenCalled();
   });
 

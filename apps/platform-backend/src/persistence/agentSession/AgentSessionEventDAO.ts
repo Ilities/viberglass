@@ -105,19 +105,27 @@ export class AgentSessionEventDAO {
     return rows.map((row) => this.mapRow(row));
   }
 
-  /** What the agent said in a turn, in the order it streamed. */
-  async listAssistantTextByTurn(turnId: string): Promise<string[]> {
+  /** What the agent did in a run, after `afterSequence`, in the order it streamed. */
+  async listByJob(jobId: string, afterSequence = 0): Promise<AgentSessionEvent[]> {
     const rows = await db
       .selectFrom("agent_session_events")
-      .select("payload_json")
-      .where("turn_id", "=", turnId)
-      .where("event_type", "=", "assistant_message")
+      .selectAll()
+      .where("job_id", "=", jobId)
+      .where("sequence", ">", afterSequence)
       .orderBy("sequence", "asc")
       .execute();
-    return rows.flatMap((row) => {
-      const payload = row.payload_json;
-      return isObjectRecord(payload) && typeof payload.text === "string" ? [payload.text] : [];
-    });
+    return rows.map((row) => this.mapRow(row));
+  }
+
+  /** What the agent said in a turn, one entry per message. */
+  async listAssistantMessagesByTurn(turnId: string): Promise<string[]> {
+    const rows = await db
+      .selectFrom("agent_session_events")
+      .select(["event_type", "payload_json"])
+      .where("turn_id", "=", turnId)
+      .orderBy("sequence", "asc")
+      .execute();
+    return assistantMessages(rows);
   }
 
   async getMaxSequence(sessionId: string): Promise<number> {
@@ -142,4 +150,25 @@ export class AgentSessionEventDAO {
       createdAt: row.created_at,
     };
   }
+}
+
+/** Chunks streamed back to back make one message; anything else in between, such as a tool call, ends it. */
+export function assistantMessages(rows: Array<{ event_type: string; payload_json: unknown }>): string[] {
+  const messages: string[] = [];
+  let inMessage = false;
+  for (const row of rows) {
+    if (row.event_type !== "assistant_message") {
+      inMessage = false;
+      continue;
+    }
+    const payload = row.payload_json;
+    const text = isObjectRecord(payload) && typeof payload.text === "string" ? payload.text : "";
+    if (inMessage) {
+      messages[messages.length - 1] += text;
+    } else {
+      messages.push(text);
+      inMessage = true;
+    }
+  }
+  return messages;
 }

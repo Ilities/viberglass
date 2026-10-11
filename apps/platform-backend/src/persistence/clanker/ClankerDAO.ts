@@ -1,3 +1,4 @@
+import { deleteClanker } from "./deleteClanker";
 import { randomUUID } from "crypto";
 import type { Selectable } from "kysely";
 import db from "../config/database";
@@ -36,7 +37,7 @@ function isValidAgentType(value: unknown): value is AgentType {
 }
 
 // Joined query result type with aliased columns from deployment_strategies
-type ClankerWithStrategyRow = ClankersRow & {
+type ClankerWithStrategyRow = Omit<ClankersRow, "deleted_at"> & {
   strategy_id: string | null;
   strategy_name: string | null;
   strategy_description: string | null;
@@ -55,6 +56,7 @@ const slugify = (text: string) =>
 
 function normalizeStrategyName(name: string | null | undefined): InstructionStrategyType {
   const normalized = (name || "").toLowerCase();
+  if (normalized === "kubernetes") return "kubernetes";
   if (normalized === "ecs") {
     return "ecs";
   }
@@ -88,6 +90,7 @@ function readStrategyTypeFromConfig(config: unknown): InstructionStrategyType | 
     return null;
   }
 
+  if (strategy.type === "kubernetes") return "kubernetes";
   if (strategy.type === "ecs") {
     return "ecs";
   }
@@ -165,6 +168,7 @@ export class ClankerDAO {
         "deployment_strategies.created_at as strategy_created_at",
       ])
       .where("clankers.id", "=", id)
+      .where("clankers.deleted_at", "is", null)
       .executeTakeFirst();
 
     if (!row) return null;
@@ -202,6 +206,7 @@ export class ClankerDAO {
         "deployment_strategies.created_at as strategy_created_at",
       ])
       .where("clankers.slug", "=", slug)
+      .where("clankers.deleted_at", "is", null)
       .executeTakeFirst();
 
     if (!row) return null;
@@ -280,6 +285,7 @@ export class ClankerDAO {
         "deployment_strategies.config_schema as strategy_config_schema",
         "deployment_strategies.created_at as strategy_created_at",
       ])
+      .where("clankers.deleted_at", "is", null)
       .orderBy("clankers.name", "asc")
       .limit(limit)
       .offset(offset)
@@ -296,19 +302,7 @@ export class ClankerDAO {
   }
 
   async deleteClanker(id: string): Promise<void> {
-    const existing = await db
-      .selectFrom("clanker_config_files")
-      .selectAll()
-      .where("clanker_id", "=", id)
-      .execute();
-
-    for (const file of existing) {
-      if (file.storage_url) {
-        await this.instructionStorage.deleteInstruction(file.storage_url);
-      }
-    }
-
-    await db.deleteFrom("clankers").where("id", "=", id).execute();
+    await deleteClanker(db, id);
   }
 
   async updateStatus(

@@ -3,7 +3,7 @@ import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDA
 import { TASK_ASK_POLICY_ERROR_CODE, TaskAskPolicyError } from "../../../../services/errors/TaskAskPolicyError";
 import { TaskTurnService } from "../../../../services/taskTurns/TaskTurnService";
 
-const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "research" as const };
+const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "planning" as const };
 
 function session(overrides: Partial<AgentSession> = {}): AgentSession {
   return {
@@ -14,7 +14,7 @@ function session(overrides: Partial<AgentSession> = {}): AgentSession {
     ticketId: "t-1",
     ticketTitle: null,
     clankerId: "claude",
-    mode: "research",
+    mode: "planning",
     status: "waiting_on_user",
     title: "Dark mode",
     repository: null,
@@ -48,6 +48,7 @@ function turn(overrides: Partial<AgentTurn> = {}): AgentTurn {
     consumedByTurnId: null,
     action: null,
     taskMessageId: null,
+    buildParts: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
@@ -76,6 +77,7 @@ function setup() {
     continuation: {
       launchForPendingMessages: jest.fn().mockResolvedValue({ currentTurn: turn({ id: "a-1", role: "assistant" }), job: { id: "job-1", status: "pending" } }),
     },
+    parts: { resolveBuild: jest.fn().mockResolvedValue({ first: 1, last: null }), extendOpen: jest.fn().mockResolvedValue(undefined) },
   };
   return { deps, service: new TaskTurnService(deps) };
 }
@@ -84,7 +86,7 @@ describe("TaskTurnService", () => {
   it("posts the person's words in the thread and makes them the session's next turn", async () => {
     const { deps, service } = setup();
 
-    const result = await service.ask("t-1", "maria", { message: "  @agent cover Safari  ", action: "research" });
+    const result = await service.ask("t-1", "maria", { message: "  @agent cover Safari  ", action: "plan" });
 
     expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "@agent cover Safari");
     expect(deps.turns.create).toHaveBeenCalledWith(
@@ -94,7 +96,7 @@ describe("TaskTurnService", () => {
         sequence: 4,
         contentMarkdown: "@agent cover Safari",
         userId: "maria",
-        action: "research",
+        action: "plan",
         taskMessageId: "message-1",
       }),
     );
@@ -106,7 +108,7 @@ describe("TaskTurnService", () => {
 
   it("asks with a message already in the thread, such as an answer, without posting it again", async () => {
     const { deps, service } = setup();
-    const result = await service.ask("t-1", "maria", { message: "North", action: "research", postedMessageId: "answer-1" });
+    const result = await service.ask("t-1", "maria", { message: "North", action: "plan", postedMessageId: "answer-1" });
     expect(deps.discussion.create).not.toHaveBeenCalled();
     expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ taskMessageId: "answer-1" }));
     expect(result.messageId).toBe("answer-1");
@@ -157,6 +159,67 @@ describe("TaskTurnService", () => {
     expect(deps.continuation.launchForPendingMessages).toHaveBeenCalled();
   });
 
+  it("builds the parts asked for, stored on the ask, and says which in the thread", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockResolvedValue({ first: 2, last: 2 });
+
+    await service.ask("t-1", "maria", { message: "", action: "code", parts: { first: 2, last: 2 } });
+
+    expect(deps.parts.resolveBuild).toHaveBeenCalledWith(expect.objectContaining({ id: "t-1" }), { first: 2, last: 2 }, { add: false });
+    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Build part 2");
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ action: "code", buildParts: { first: 2, last: 2 } }));
+  });
+
+  it("says a build without parts builds the rest, and one continuing the open pull request builds it", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockResolvedValueOnce({ first: 2, last: null }).mockResolvedValueOnce(null);
+
+    await service.ask("t-1", "maria", { message: "", action: "code" });
+    await service.ask("t-1", "maria", { message: "", action: "code" });
+
+    expect(deps.discussion.create).toHaveBeenNthCalledWith(1, "t-1", "maria", "Build the rest");
+    expect(deps.discussion.create).toHaveBeenNthCalledWith(2, "t-1", "maria", "Build it");
+    expect(deps.turns.create).toHaveBeenLastCalledWith(expect.objectContaining({ buildParts: null }));
+  });
+
+  it("adds a part to the open pull request once the build can be asked for, and says so in the thread", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockResolvedValue({ first: 2, last: 2 });
+
+    await service.ask("t-1", "maria", { message: "", action: "code", parts: { first: 2, last: 2 }, add: true });
+
+    expect(deps.parts.resolveBuild).toHaveBeenCalledWith(expect.objectContaining({ id: "t-1" }), { first: 2, last: 2 }, { add: true });
+    expect(deps.parts.extendOpen).toHaveBeenCalledWith(expect.objectContaining({ id: "t-1" }), { first: 2, last: 2 });
+    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Add part 2 to the open pull request");
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ buildParts: { first: 2, last: 2 } }));
+  });
+
+  it("leaves the open pull request as it was when the ask is refused", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockResolvedValue({ first: 2, last: 2 });
+    deps.agents.resolve.mockRejectedValue(new Error("No agent"));
+
+    await expect(service.ask("t-1", "maria", { message: "", action: "code", add: true })).rejects.toThrow("No agent");
+    expect(deps.parts.extendOpen).not.toHaveBeenCalled();
+  });
+
+  it("refuses a part out of order before posting anything", async () => {
+    const { deps, service } = setup();
+    deps.parts.resolveBuild.mockRejectedValue(new Error("Part 1 is next: parts are built in order."));
+
+    await expect(service.ask("t-1", "maria", { message: "", action: "code", parts: { first: 2, last: 2 } })).rejects.toThrow("Part 1 is next");
+    expect(deps.discussion.create).not.toHaveBeenCalled();
+  });
+
+  it("asks nothing of the plan's parts for an ask that isn't a build", async () => {
+    const { deps, service } = setup();
+
+    await service.ask("t-1", "maria", { message: "", action: "plan" });
+
+    expect(deps.parts.resolveBuild).not.toHaveBeenCalled();
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ buildParts: null }));
+  });
+
   it("builds for a webhook with nobody asking, posting nothing in the thread", async () => {
     const { deps, service } = setup();
 
@@ -187,11 +250,11 @@ describe("TaskTurnService", () => {
   it("starts a turn nobody asked for in the thread, from Slack without a linked account", async () => {
     const { deps, service } = setup();
 
-    const result = await service.ask("t-1", null, { message: "", action: "research", agentId: "codex" });
+    const result = await service.ask("t-1", null, { message: "", action: "plan", agentId: "codex" });
 
-    expect(deps.agents.resolve).toHaveBeenCalledWith("t-1", { agentId: "codex", message: "Write the research" });
+    expect(deps.agents.resolve).toHaveBeenCalledWith("t-1", { agentId: "codex", message: "Write the plan" });
     expect(deps.discussion.create).not.toHaveBeenCalled();
-    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ userId: null, taskMessageId: null, action: "research" }));
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ userId: null, taskMessageId: null, action: "plan" }));
     expect(result.messageId).toBeNull();
   });
 

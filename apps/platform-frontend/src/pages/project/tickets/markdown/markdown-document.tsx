@@ -3,11 +3,12 @@ import type { RootContent } from 'mdast'
 import { useMemo, type ReactNode } from 'react'
 import { parseMarkdown, textOffset } from './parseMarkdown'
 
-/** A comment's stretch of the source, shown highlighted. */
+/** A comment's stretch of the source, shown highlighted; or, comparing versions, a stretch added or removed. */
 export interface DocumentHighlight {
   id: string
   start: number
   end: number
+  tone?: 'added' | 'removed'
 }
 
 interface RenderContext {
@@ -15,7 +16,14 @@ interface RenderContext {
   highlights: DocumentHighlight[]
   activeId: string | null
   onHighlightClick?: (id: string, element: HTMLElement) => void
+  reading: boolean
 }
+
+/** Heading sizes by depth; reading full screen they grow with the body text. */
+const HEADING_SIZE = {
+  normal: ['text-xl', 'text-lg', 'text-base'],
+  reading: ['text-[30px] leading-tight tracking-[-0.02em]', 'text-[23px] leading-snug', 'text-[19px]'],
+} as const
 
 const SAFE_HREF = /^(https?:|mailto:|\/|#)/i
 
@@ -44,9 +52,13 @@ function TextRun({ value, node, context }: { value: string; node: RootContent; c
       {sorted.slice(0, -1).map((from, index) => {
         const to = sorted[index + 1]
         const text = exactStart === null ? value : value.slice(from - start, to - start)
-        const ids = context.highlights.filter((highlight) => highlight.start < to && highlight.end > from).map((highlight) => highlight.id)
+        const covering = context.highlights.filter((highlight) => highlight.start < to && highlight.end > from)
+        const ids = covering.map((highlight) => highlight.id)
         const position = { 'data-src-start': from, 'data-src-end': to, 'data-src-approx': exactStart === null ? '' : undefined }
         if (ids.length === 0) return <span key={from} {...position}>{text}</span>
+        const tone = covering[0].tone
+        if (tone === 'added') return <ins key={from} {...position} className="rounded-[2px] bg-[var(--green-a4)] text-[var(--green-12)] no-underline">{text}</ins>
+        if (tone === 'removed') return <del key={from} {...position} className="rounded-[2px] bg-[var(--red-a3)] text-[var(--red-11)]">{text}</del>
         const active = context.activeId !== null && ids.includes(context.activeId)
         return (
           <mark
@@ -54,7 +66,11 @@ function TextRun({ value, node, context }: { value: string; node: RootContent; c
             {...position}
             data-comment-ids={ids.join(' ')}
             onClick={(event) => context.onHighlightClick?.(ids[0], event.currentTarget)}
-            className={clsx('cursor-pointer rounded-sm text-inherit', active ? 'bg-amber-300/70 dark:bg-amber-500/50' : 'bg-amber-200/60 dark:bg-amber-500/25')}
+            className={clsx(
+              // Radix's alpha amber reads on light and dark alike; the underline marks it even where the tint is faint.
+              'cursor-pointer rounded-[2px] text-inherit underline decoration-[var(--amber-9)] decoration-2 underline-offset-[5px] transition-colors',
+              active ? 'bg-[var(--amber-a6)]' : 'bg-[var(--amber-a3)] hover:bg-[var(--amber-a5)]'
+            )}
           >
             {text}
           </mark>
@@ -98,10 +114,10 @@ function renderNode(node: RootContent, key: number, context: RenderContext): Rea
     case 'image':
       return <span key={key} className="text-[var(--gray-10)]">[{node.alt || 'image'}]</span>
     case 'heading': {
-      const size = node.depth === 1 ? 'text-xl' : node.depth === 2 ? 'text-lg' : 'text-base'
+      const size = HEADING_SIZE[context.reading ? 'reading' : 'normal'][Math.min(node.depth, 3) - 1]
       const Tag = node.depth === 1 ? 'h3' : node.depth === 2 ? 'h4' : 'h5'
       return (
-        <Tag key={key} className={`${size} mt-6 font-semibold text-[var(--gray-12)] first:mt-0`}>
+        <Tag key={key} className={`${size} ${context.reading ? 'mt-10' : 'mt-6'} font-semibold text-[var(--gray-12)] first:mt-0`}>
           {renderChildren(node.children, context)}
         </Tag>
       )
@@ -179,11 +195,17 @@ interface MarkdownDocumentProps {
   highlights?: DocumentHighlight[]
   activeHighlightId?: string | null
   onHighlightClick?: (id: string, element: HTMLElement) => void
+  /** Larger type and line height, for reading it full screen. */
+  reading?: boolean
 }
 
-/** A research or plan document, rendered from its markdown, with comments' text highlighted. */
-export function MarkdownDocument({ source, highlights = [], activeHighlightId = null, onHighlightClick }: MarkdownDocumentProps) {
+/** A plan document, rendered from its markdown, with comments' text highlighted. */
+export function MarkdownDocument({ source, highlights = [], activeHighlightId = null, onHighlightClick, reading = false }: MarkdownDocumentProps) {
   const tree = useMemo(() => parseMarkdown(source), [source])
-  const context: RenderContext = { source, highlights, activeId: activeHighlightId, onHighlightClick }
-  return <div className="space-y-3 text-[15px] leading-7 text-[var(--gray-12)]">{renderChildren(tree.children, context)}</div>
+  const context: RenderContext = { source, highlights, activeId: activeHighlightId, onHighlightClick, reading }
+  return (
+    <div className={reading ? 'space-y-4 text-[18px] leading-8 text-[var(--gray-12)]' : 'space-y-3 text-[15px] leading-7 text-[var(--gray-12)]'}>
+      {renderChildren(tree.children, context)}
+    </div>
+  )
 }

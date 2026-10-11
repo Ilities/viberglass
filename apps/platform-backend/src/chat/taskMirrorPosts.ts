@@ -1,21 +1,14 @@
 import { Actions, Button, Card, CardText } from "chat";
-import { MAX_OPTION_BUTTONS, SLACK_ACTION, answerValue, askValue } from "@viberglass/chat-slack";
-import { withPlainMentions, type AgentQuestion, type TaskTurnAction, type TaskTurnProduct } from "@viberglass/types";
+import { CHAT_ACTION, MAX_OPTION_BUTTONS, answerValue, askValue } from "@viberglass/integration-core";
+import { withPlainMentions, type AgentQuestion, type PartRange } from "@viberglass/types";
 
-/** Slack takes about 4,000 characters a message; long replies end with a link to the rest. */
+/** Under the shortest message limit of the chat services posted to (Slack takes about 4,000 characters); long replies end with a link to the rest. */
 const REPLY_LIMIT = 3_000;
 
 const DOING: Record<string, string> = {
-  research: "writing the research",
   planning: "writing the plan",
   execution: "building",
   reply: "replying",
-};
-
-/** What a finished artifact suggests asking for next. */
-const NEXT_ASK: Partial<Record<TaskTurnProduct, { action: TaskTurnAction; label: string }>> = {
-  research: { action: "plan", label: "Write the plan" },
-  plan: { action: "code", label: "Build it" },
 };
 
 export function messagePost(author: string, body: string): { markdown: string } {
@@ -38,24 +31,27 @@ export function replyPost(agent: string, reply: string, taskLink: string | null)
   return { markdown: `**${agent}:** ${cut}` };
 }
 
-export function documentPost(kind: "research" | "plan", content: string, version: number | null): { markdown: string; files: Array<{ data: Buffer; filename: string; mimeType: string }> } {
-  const title = kind === "research" ? "Research" : "Plan";
+export function documentPost(content: string, version: number | null): { markdown: string; files: Array<{ data: Buffer; filename: string; mimeType: string }> } {
   return {
-    markdown: `_${title}${version ? ` v${version}` : ""}:_`,
-    files: [{ data: Buffer.from(content), filename: `${kind}.md`, mimeType: "text/markdown" }],
+    markdown: `_Plan${version ? ` v${version}` : ""}:_`,
+    files: [{ data: Buffer.from(content), filename: "plan.md", mimeType: "text/markdown" }],
   };
 }
 
-/** The next step a finished turn suggests, as a button that asks the agent for it. */
-export function nextStepCard(ticketId: string, produced: TaskTurnProduct[]) {
-  const next = [...produced].reverse().map((product) => NEXT_ASK[product]).find((ask) => ask !== undefined);
-  if (!next) return null;
+/** The build to ask for next, as a button: after a plan, or once a part's pull request is merged. */
+export function nextBuildCard(ticketId: string, build: { label: string; parts?: PartRange }, intro = "Reply here to discuss it, mention me to ask for changes, or:") {
   return Card({
     children: [
-      CardText("Reply here to discuss it, mention me to ask for changes, or:"),
-      Actions([Button({ id: SLACK_ACTION.ask, label: next.label, style: "primary", value: askValue(ticketId, next.action) })]),
+      CardText(intro),
+      Actions([Button({ id: CHAT_ACTION.ask, label: build.label, style: "primary", value: askValue(ticketId, "code", build.parts) })]),
     ],
   });
+}
+
+/** "Part 1 is merged.": a merged pull request that built some of the plan, with more to build. */
+export function partMergedPost(parts: number[], mergedBy: string | null): { markdown: string } {
+  const merged = parts.length > 0 ? `Part ${parts.join(", ")}` : "A part of the plan";
+  return { markdown: `**${merged} is merged**${mergedBy ? ` by ${mergedBy}` : ""}.` };
 }
 
 /** The agent's question, with its options as buttons; a reply in the thread from the person asked answers it too. */
@@ -68,7 +64,7 @@ export function questionCard(question: AgentQuestion) {
           Actions(
             question.options
               .slice(0, MAX_OPTION_BUTTONS)
-              .map((option, index) => Button({ id: SLACK_ACTION.answers[index], label: option, value: answerValue(question.id, index) })),
+              .map((option, index) => Button({ id: CHAT_ACTION.answers[index], label: option, value: answerValue(question.id, index) })),
           ),
         ]
       : []),

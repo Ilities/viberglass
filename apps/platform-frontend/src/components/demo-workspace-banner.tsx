@@ -29,9 +29,11 @@ export function DemoWorkspaceBanner() {
   const [isRemoving, setIsRemoving] = useState(false)
   const [dismissed, setDismissed] = useState(wasDismissed)
 
-  // Once per mount: the app layout stays mounted across pages, and the demo is loaded from setup, outside it.
+  // The app layout stays mounted across pages, and setup (inside it) is where the demo is loaded,
+  // so check again whenever someone leaves setup rather than on every page.
+  const onSetup = pathname === '/setup' || pathname.startsWith('/setup/')
   useEffect(() => {
-    if (status !== 'authenticated' || user?.role !== 'admin') return
+    if (status !== 'authenticated' || user?.role !== 'admin' || onSetup) return
     let cancelled = false
     getSetupStatus()
       .then((setup) => {
@@ -41,7 +43,7 @@ export function DemoWorkspaceBanner() {
     return () => {
       cancelled = true
     }
-  }, [status, user])
+  }, [status, user, onSetup])
 
   if (!demo) return null
   const inDemo = pathname === `/spaces/${demo.slug}` || pathname.startsWith(`/spaces/${demo.slug}/`)

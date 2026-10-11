@@ -1,6 +1,6 @@
 # Model hosting: custom endpoints, Bedrock, and deployed open-weight models
 
-Status: implementation started, 2026-10-04 · Owner of decisions: Jussi
+Status: phases 1, 3 and 4 implemented for Verda, 2026-10-06; live GPU trial pending · Owner of decisions: Jussi
 
 ## Goal
 
@@ -19,8 +19,9 @@ Let a workspace run its agents on models it controls. The reasons, in priority o
 | Product shape | A model deployment is a **workspace resource**. Runners pick it the same way they pick a shared key, so one GPU serves many runners. |
 | Lifecycle | **The provider scales to zero**, plus manual **Keep warm** and **Stop** overrides. Viberglass has no scheduler of its own. |
 | Model choice | Models come from **vLLM Recipes**, an open-source catalog. A generic form takes any Hugging Face model. |
+| Clouds | Verda first. OVH AI Deploy waits until someone needs it (2026-10-06). |
 | Cold start | A job waits for the deployment to wake and shows its progress. The harness never sees the cold start. |
-| Bedrock auth | Each runner uses either a Bedrock API key or the ECS/Lambda task role. |
+| Bedrock auth | A Bedrock API key on a generic endpoint. The task role is not passed to agents (2026-10-06, see phase 2). |
 | Harnesses | OpenCode and Pi come first. The rest follow as their plugins learn custom endpoints. Most harnesses already speak an OpenAI- or Anthropic-compatible API. |
 
 ## Why this lifecycle
@@ -46,6 +47,55 @@ Runner ──picks──▶ Model endpoint ◀──owns── Model deployment 
 3. **Model deployment.** A GPU deployment that Viberglass creates in the customer's cloud account. It owns exactly one model endpoint.
 
 ---
+
+## Implementation progress (2026-10-07)
+
+- Every harness except Antigravity runs on custom endpoints. Each plugin's `customEndpoints.environment` passes the endpoint to the agent as `MODEL_ENDPOINT_CONFIG`, and the agent writes its harness's own config when it starts, because the key only reaches the environment after the endpoint is resolved:
+  - Claude Code (Anthropic Messages): `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_CUSTOM_HEADERS`, and the model for every role, background and subagent calls included.
+  - Codex (OpenAI Responses only; it dropped Chat Completions): a `config.toml` provider with `env_key` or `env_http_headers`, and no OpenAI sign-in.
+  - Qwen Code: system settings in the run's config directory, which can reference the key as `$MODEL_ENDPOINT_API_KEY`.
+  - Kimi Code: `~/.kimi-code/config.toml`. Mistral Vibe: `VIBE_*` variables.
+  - A harness reads the key from the environment where its own auth matches the endpoint's; otherwise the key goes into a private config file or variable. Config files that hold endpoint settings are left out of saved state.
+- Anthropic-format base URLs leave out `/v1`, as `ANTHROPIC_BASE_URL` does; the model check and wake requests ask `{base}/v1/models` for them.
+- Settings → Models lists connected models (manual endpoints) above deployed models; the runner form lists both under Workspace models.
+- Harness versions stay unpinned except OpenCode and Pi. The ACP adapters bring their own CLI builds (claude-agent-acp pins the Claude Agent SDK; codex-acp nests `@openai/codex`), so those are what actually run.
+
+## Implementation progress (2026-10-06)
+
+Phases 3 and 4 are built for Verda; phase 2 is replaced by the Bedrock API key path; OVH is not started.
+
+- **Cloud accounts** (`model_host_accounts`): a Verda account holds the client ID, and the client secret, inference API key and optional Hugging Face token as platform-managed secrets (`purpose = model_host`) that pickers and the secret lists leave out. They are managed in a Cloud accounts section on the Secrets page, or inline when deploying.
+- **Adapter**: `packages/model-hosting-verda` implements `ModelHost` (`listFlavours`, `create`, `getStatus`, `setMode`, `delete`) against the Verda API. It is registered in `ModelHostRegistry` in the backend composition root. A deployment runs `vllm/vllm-openai:v0.31.0` on port 8000 with `/health` as its healthcheck, `HF_HOME` on the deployment's scratch disk, shared memory sized to the GPU count, and scaling of 0–1 replicas with a 5-minute idle window. Keep warm sets the minimum to 1; Stop pauses the deployment.
+- **Deployments** (`model_deployments`): creating one creates its endpoint (`source = deployment`, bearer auth with the account's inference key, `may_cold_start`) in the same transaction. If saving fails, the cloud deployment is deleted again. Deleting a deployment is refused while runners use it. The cloud's errors reach the admin as HTTP 502 with Verda's message.
+- **Catalog**: `/models.json`, `/{model}.json` and `/{model}/hw/{hw}.json` from recipes.vllm.ai, cached for an hour. The serving arguments are the recipe's `argv` after `vllm serve <model>`, with the recipe's tool-calling flags added if the command lacks them. Recipes only list "verified" hardware (h100, h200, b200…), so Verda's L40S and RTX PRO 6000 are reachable only through the generic form.
+- **Wake and stop**: when a run is dispatched against a deployment endpoint, a stopped deployment fails it at once ("<name> is stopped. Start it or pick another endpoint."). Otherwise, an endpoint that may cold-start gets one `GET /models` so it boots while the worker starts. The worker's existing readiness wait then shows "Waking … ".
+- **UI**: Settings → Models lists connected models (manual endpoints, with the runners using them, edit and remove) above deployed models. Deployed models shows each deployment's state, price and runners, with mode changes and Delete. The deploy dialog picks an account, a recipe model or any Hugging Face id, a GPU (filtered to recipe hardware and VRAM, with prices), the serving arguments (one per line) and a name.
+
+Facts settled with the live Verda API (no GPU spend):
+
+- Compute names match `container-types` `model` (`H100`, `L40S`, `RTX PRO 6000`). `CPU Node` resources use `size` for vCPUs and are left out.
+- Prices are public in EUR (`/container-types?currency=eur`): L40S €1.52/h, RTX PRO 6000 €2.03/h, H100 €3.68/h.
+- Verda puts its own auth in front of every container: requests need the account's *inference API key*, which the API can't create. vLLM's `--api-key` is therefore not used.
+- Creating a deployment needs a positive account balance ("You must add balance to run deployments").
+
+Facts from the first live deployment (Qwen3-Coder-30B-A3B FP8 on one RTX PRO 6000, 2026-10-06):
+
+- `min_replica_count: 0` is accepted. An idle deployment reports `healthy` with no replicas.
+- One `GET /v1/models` wakes it. Verda holds the request while the replica starts, and a client that gives up after 10 s still leaves the scale-up in progress.
+- While a replica boots, the deployment reports `unhealthy` and the replica goes `unavailable` → `imagepulling` → `unavailable`. Replica states therefore decide "waking" before the deployment status can mean "failed".
+- The first cold start took 577 s: about 40 s waiting for a free GPU, 3 min pulling the vLLM image, and the rest downloading the 31 GB of weights and loading them. That is inside the worker's 15-minute wait, but not by much. Warm, a tool call returned in 0.4 s with `--tool-call-parser qwen3_coder`.
+
+Facts from the second live deployment (Qwen3.8-27B on one L40S, 2026-10-07):
+
+- Verda may report `SchedulingFailed` ("no nodes available for the selected instance type") a few times before a replica gets a GPU. That is waiting, not failure.
+- The full-precision 27B model (about 54 GB of weights) ran out of memory on the 48 GB L40S while loading its layers, and Verda restarted the replica four times in seven minutes. A crashing replica cycles through the same states as a booting one, so a deployment waking for more than 20 minutes is now shown as failed, and the deploy dialog refuses a GPU smaller than the model's weight files.
+- The official `Qwen/Qwen3.8-27B-FP8` build is 31 GB. The vLLM recipe for Qwen3.8 uses `--tool-call-parser qwen3_xml --reasoning-parser qwen3`, not `hermes`.
+- A run waiting for a cold start was given up after five minutes by the platform's heartbeat check, because the worker waited silently. It now reports progress every minute while it waits.
+- `Qwen/Qwen3.8-27B-FP8` loaded its weights (28.9 GiB) on the L40S, then failed with `max_num_seqs (256) exceeds available Mamba cache blocks (241)`: Qwen3.8 is a hybrid model, and vLLM's default of 256 sequences doesn't fit beside it. Deployments now pass `--max-num-seqs 16`, matching the 16 requests Verda sends one replica, unless the serving arguments set it.
+- Every restart spent about three minutes in torch.compile and CUDA graph capture, because vLLM's compile cache lived outside the scratch disk. `VLLM_CACHE_ROOT` now points at `/data/vllm-cache`.
+- Verda ignores `DELETE …?timeout=0` and answers 408 after 60 s, but finishes deleting anyway. A 408 on delete now counts as deleted.
+
+**Live exit still open:** an OpenCode task on a deployment, a second (cached) wake time, and scale-down, Keep warm, Stop and Delete against the live deployment.
 
 ## Implementation progress (2026-10-04)
 
@@ -95,6 +145,8 @@ This phase alone makes the following usable without any per-cloud code: OVH AI E
 **Exit:** an OpenCode runner and a Pi runner each complete a task against OVH AI Endpoints (Qwen3-Coder or gpt-oss), configured entirely through the generic form.
 
 ## Phase 2: Bedrock with the runner's AWS role
+
+**Replaced (2026-10-06).** The worker's task role can read every secret under the SSM prefix and the uploads bucket, and agents run unsupervised on prompts built from ticket text. That is why the worker strips all `AWS_*` variables from agents. Handing them the task role would undo that. Bedrock is used through phase 1 instead: an endpoint with base URL `https://bedrock-runtime.<region>.amazonaws.com/openai/v1`, Chat Completions, bearer auth with a Bedrock API key, and model IDs such as `openai.gpt-oss-120b`. Bedrock also serves `GET /models` there. If role-based access is wanted later, the safe shape is a separate Bedrock-only role, assumed by the worker and served to the agent as short-lived credentials from a local credential endpoint. The original design follows for reference.
 
 A Bedrock API key needs nothing new: it is phase 1 with a bearer token. The task role is different because there is no secret to inject.
 
@@ -150,7 +202,7 @@ Implementations: `VerdaContainersHost` and `OvhAiDeployHost`. They are wired in 
 
 **UX.**
 
-- The Model deployments page is admin-only, matching the other workspace plumbing.
+- The Models page is admin-only, matching the other workspace plumbing.
 - Each row shows: the model, the cloud, the flavour, the state ("Idle · scaled to zero", "Running", "Kept warm · €2.80/h", "Stopped"), and the runners that use it.
 - Actions: Keep warm, Scale to zero, Stop, Delete. Keep warm shows the hourly price when the cloud exposes it.
 
@@ -181,17 +233,17 @@ These are the facts the design depends on that the research didn't settle:
 
 | Question | Affects | How to check |
 |---|---|---|
-| Does any request, including `GET /v1/models`, wake a Verda container scaled to zero? | Phase 4 | Free-tier or small-flavour trial |
+| Does any request, including `GET /v1/models`, wake a Verda container scaled to zero? | Phase 4 | Small-flavour trial (pending a funded account) |
 | Does OVH AI Deploy autoscaling scale **from** zero on incoming requests? The docs describe CPU, RAM or custom-metric triggers. | Phase 3, 4 | OVH docs and a trial app. If it can't, Keep warm/Stop becomes the only OVH mode. |
 | Can AI Deploy apps be created through the OVH API, not only the CLI? Which credential does that need? | Phase 3 | OVH API console |
-| Does Verda authenticate requests to the container itself? If it does, our `--api-key` is redundant. | Phase 3 | Verda docs |
+| Does Verda authenticate requests to the container itself? If it does, our `--api-key` is redundant. | Phase 3 | **Yes**, with the account's inference API key; `--api-key` is not used. |
 | Is the vLLM Recipes JSON schema stable, and does every recipe include its tool-call parser? | Phase 3 | Read the repo's schema and recent changes |
 | Which Bedrock open-weight models are served in EU regions? Does the OpenAI-compatible Bedrock endpoint accept both a Bedrock API key and SigV4? | Phase 1, 2 | AWS docs and an account check |
 | Do OpenCode's `openai-compatible` provider and Pi's `models.json` both pass custom headers? | Phase 1 | Check the pinned harness versions, not the local images |
 
 ## Still open
 
-- **Spend for testing.** GPU trials cost money. A small capped budget on one Verda and one OVH account covers phases 3 and 4.
+- **Spend for testing.** Verda only, capped at €20 (2026-10-06). The account needs a positive balance before any deployment can be created.
 - **Should Keep warm expire?** "Keep warm until 18:00" is convenient, but it is a timer, and timers are what this design avoids. Proposal: no expiry at first, and show the hourly price prominently.
 - **Presets for the generic form.** A few prefill buttons (OVH AI Endpoints, Bedrock eu-central-1) would be data only. They are optional, but they partly reintroduce per-cloud entries.
 

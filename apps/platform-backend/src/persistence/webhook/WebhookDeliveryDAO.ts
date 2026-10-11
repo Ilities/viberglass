@@ -9,8 +9,9 @@ import db from "../config/database";
  * for failed deliveries.
  */
 
-export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
-export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed";
+/** The webhook provider an integration's manifest names. */
+export type WebhookProvider = string;
+export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed" | "ignored";
 
 /**
  * Webhook delivery attempt as stored in database
@@ -258,7 +259,7 @@ export class WebhookDeliveryDAO {
    */
   async updateDeliveryStatus(
     id: string,
-    status: "succeeded" | "failed",
+    status: "succeeded" | "failed" | "ignored",
     errorMessage?: string
   ): Promise<void> {
     await db
@@ -370,6 +371,7 @@ export class WebhookDeliveryDAO {
     processing: number;
     succeeded: number;
     failed: number;
+    ignored: number;
   }> {
     const results = await db
       .selectFrom("webhook_delivery_attempts")
@@ -385,6 +387,7 @@ export class WebhookDeliveryDAO {
       processing: 0,
       succeeded: 0,
       failed: 0,
+      ignored: 0,
     };
 
     for (const row of results) {
@@ -400,7 +403,7 @@ export class WebhookDeliveryDAO {
   private mapRowToDeliveryAttempt(row: Record<string, unknown>): WebhookDeliveryAttempt {
     return {
       id: String(row.id),
-      provider: row.provider as WebhookProvider,
+      provider: String(row.provider),
       webhookConfigId: row.webhook_config_id
         ? String(row.webhook_config_id)
         : null,

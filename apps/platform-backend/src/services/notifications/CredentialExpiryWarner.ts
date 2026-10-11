@@ -5,7 +5,7 @@ import { UserDAO } from "../../persistence/user/UserDAO";
 import { EXPIRY_WARNING_MS } from "../ProjectReadinessService";
 import { EmailChannel } from "./EmailChannel";
 import type { NotificationChannel } from "./NotificationChannel";
-import { SlackDmChannel } from "./SlackDmChannel";
+import { ChatDmChannel } from "./ChatDmChannel";
 
 const logger = createChildLogger({ service: "CredentialExpiryWarner" });
 
@@ -18,7 +18,7 @@ interface Dependencies {
 
 /**
  * Tells workspace admins, once, that a connection's credential expires within
- * the week, by Slack and email, with a link to replace it. A run that needs
+ * the week, by chat and email, with a link to replace it. A run that needs
  * it would otherwise stop the day it expires.
  */
 export class CredentialExpiryWarner {
@@ -28,7 +28,7 @@ export class CredentialExpiryWarner {
     this.deps = {
       credentials: new CredentialExpiryDAO(),
       users: new UserDAO(),
-      channels: [new SlackDmChannel(), new EmailChannel()],
+      channels: [new ChatDmChannel(), new EmailChannel()],
       frontendUrl: process.env.PLATFORM_FRONTEND_URL,
       ...deps,
     };

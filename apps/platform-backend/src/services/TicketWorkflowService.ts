@@ -32,7 +32,6 @@ export class TicketWorkflowService {
     currentPhase: TicketWorkflowPhase,
   ): TicketWorkflowPhaseState[] {
     const orderedPhases: TicketWorkflowPhase[] = [
-      TICKET_WORKFLOW_PHASE.RESEARCH,
       TICKET_WORKFLOW_PHASE.PLANNING,
       TICKET_WORKFLOW_PHASE.EXECUTION,
     ];

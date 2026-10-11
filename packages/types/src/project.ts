@@ -105,6 +105,8 @@ export interface Project {
   keyPrefix: string
   /** Owner of new tasks unless someone else is picked; falls back to whoever creates the task. */
   defaultOwnerId?: string | null
+  /** The agent the space's tasks go to when nobody names one; null uses the workspace's default agent. */
+  defaultAgentId?: string | null
   /** Added as reviewers to every new task; the plan waits on them. */
   defaultReviewerIds: string[]
   /** Hours an agent's question waits before its addressee is reminded, and as long again before the task's owner hears. */
@@ -192,6 +194,7 @@ export interface UpdateProjectRequest {
   primaryScmIntegrationId?: string | null
   isPrivate?: boolean
   defaultOwnerId?: string | null
+  defaultAgentId?: string | null
   defaultReviewerIds?: string[]
   questionReminderHours?: number
 }

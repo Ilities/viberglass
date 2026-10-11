@@ -2,6 +2,7 @@ import type {
   ProjectScmConfig,
   UpsertProjectScmConfigRequest,
 } from "@viberglass/types";
+import { sql } from "kysely";
 import db from "../config/database";
 
 type ProjectScmConfigRow = {
@@ -105,6 +106,19 @@ export class ProjectScmConfigDAO {
       .executeTakeFirst();
 
     return Number(result.numDeletedRows ?? 0) > 0;
+  }
+
+  /** The repositories of spaces that aren't archived and whose address contains `fragment`, ignoring case. */
+  async listRepositoriesLike(fragment: string): Promise<Array<{ projectId: string; sourceRepository: string }>> {
+    const pattern = `%${fragment.toLowerCase().replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+    const rows = await db
+      .selectFrom("project_scm_configs")
+      .innerJoin("projects", "projects.id", "project_scm_configs.project_id")
+      .select(["project_scm_configs.project_id", "project_scm_configs.source_repository"])
+      .where("projects.archived_at", "is", null)
+      .where(sql<string>`lower(project_scm_configs.source_repository)`, "like", pattern)
+      .execute();
+    return rows.map((row) => ({ projectId: row.project_id, sourceRepository: row.source_repository }));
   }
 
   private mapRow(row: ProjectScmConfigRow): ProjectScmConfig {

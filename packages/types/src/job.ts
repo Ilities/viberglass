@@ -1,5 +1,4 @@
 export const JOB_KIND = {
-  RESEARCH: 'research',
   PLANNING: 'planning',
   EXECUTION: 'execution',
   /** A task turn that answers in the thread, or rewrites a document the agent chose. */
@@ -33,9 +32,11 @@ export const JOB_FAILURE_CODE = {
   AGENT_CREDENTIAL_INVALID: 'AGENT_CREDENTIAL_INVALID',
   /** The model provider refused for quota, credit or rate limits. */
   AGENT_QUOTA_EXHAUSTED: 'AGENT_QUOTA_EXHAUSTED',
+  /** The model refused a request that didn't fit its context window. */
+  AGENT_CONTEXT_EXCEEDED: 'AGENT_CONTEXT_EXCEEDED',
   /** The agent itself failed or gave up. */
   AGENT_FAILED: 'AGENT_FAILED',
-  /** The agent finished without writing the research or plan document. */
+  /** The agent finished without writing the plan. */
   AGENT_NO_DOCUMENT: 'AGENT_NO_DOCUMENT',
   /** The agent finished execution without changing any code. */
   AGENT_NO_CHANGES: 'AGENT_NO_CHANGES',

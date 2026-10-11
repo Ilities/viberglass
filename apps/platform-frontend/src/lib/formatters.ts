@@ -1,23 +1,5 @@
 import type { ClankerStatus, DeploymentStrategy } from '@viberglass/types'
 
-// Ticket formatting utilities
-
-export function formatTicketSystem(system: string): string {
-  const systems: Record<string, string> = {
-    github: 'GitHub',
-    gitlab: 'GitLab',
-    bitbucket: 'Bitbucket',
-    jira: 'Jira',
-    linear: 'Linear',
-    monday: 'Monday',
-    shortcut: 'Shortcut',
-    slack: 'Slack',
-    custom: 'Custom Webhook',
-    native: 'Viberglass',
-  }
-  return systems[system] || system
-}
-
 export function formatTimestamp(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   const now = new Date()
@@ -76,8 +58,6 @@ export function formatDeploymentStrategy(strategy: DeploymentStrategy | null | u
 
 export function formatJobKind(kind: string): string {
   switch (kind) {
-    case 'research':
-      return 'Research'
     case 'execution':
       return 'Code'
     case 'planning':
@@ -108,8 +88,7 @@ export function formatJobStatus(status: string): { label: string; color: 'green'
   }
 }
 
-export function jobKindBadgeColor(kind: string): 'blue' | 'teal' | 'amber' | 'violet' {
-  if (kind === 'research') return 'blue'
+export function jobKindBadgeColor(kind: string): 'teal' | 'amber' | 'violet' {
   if (kind === 'planning') return 'teal'
   if (kind === 'claw') return 'amber'
   return 'violet'

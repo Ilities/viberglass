@@ -48,8 +48,12 @@ import { PromptTemplatesPage } from '@/pages/settings/PromptTemplatesPage'
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
 import { SpaceGeneralSettings } from '@/pages/project/settings/AboutSpacePage'
 import { SpaceMembersPage } from '@/pages/project/settings/SpaceMembersPage'
+import { SpaceRepositoryPage } from '@/pages/project/settings/SpaceRepositoryPage'
+import { SpaceIssuesPage } from '@/pages/project/settings/SpaceIssuesPage'
+import { SpaceTaskDefaultsPage } from '@/pages/project/settings/SpaceTaskDefaultsPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
 import { McpServersPage } from '@/pages/mcp-servers/McpServersPage'
+import { ModelsPage } from '@/pages/models/ModelsPage'
 import { SkillsPage } from '@/pages/skills/SkillsPage'
 import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
@@ -69,8 +73,6 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/invite/:token" element={<AcceptInvitePage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-        {/* First-run setup: same focused frame as sign-in, but signed in (admins only) */}
-        <Route path="/setup" element={<SetupPage />} />
       </Route>
 
       {/* App routes (authenticated) */}
@@ -78,6 +80,8 @@ export function AppRoutes() {
         {/* Main routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/overview" element={<OverviewPage />} />
+        {/* First-run setup (admins only), in the app so the workspace it makes is right there */}
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/spaces/new" element={<NewProjectPage />} />
 
         {/* Workspace settings: General, and the plumbing under Advanced. */}
@@ -87,6 +91,7 @@ export function AppRoutes() {
           <Route path="/settings/agents/new" element={<NewClankerPage />} />
           <Route path="/settings/agents/:slug" element={<ClankerDetailPage />} />
           <Route path="/settings/agents/:slug/edit" element={<EditClankerPage />} />
+          <Route path="/settings/models" element={<ModelsPage />} />
           <Route path="/settings/mcp-servers" element={<McpServersPage />} />
           <Route path="/settings/skills" element={<SkillsPage />} />
           <Route path="/settings/secrets" element={<SecretsPage />} />
@@ -118,6 +123,9 @@ export function AppRoutes() {
         <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="general" replace />} />
           <Route path="general" element={<SpaceGeneralSettings />} />
+          <Route path="repository" element={<SpaceRepositoryPage />} />
+          <Route path="issues" element={<SpaceIssuesPage />} />
+          <Route path="task-defaults" element={<SpaceTaskDefaultsPage />} />
           <Route path="members" element={<SpaceMembersPage />} />
           <Route path="connections" element={<ProjectIntegrationsPage />} />
           <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />

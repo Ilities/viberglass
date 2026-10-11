@@ -14,10 +14,10 @@ interface Dependencies {
   revisions: Pick<TicketPhaseDocumentRevisionDAO, "listByTicketWithAuthors">;
   activity: Pick<TaskActivityDAO, "list">;
   summaries: Pick<TaskSummaryDAO, "listForTask">;
-  questions: Pick<AgentQuestionDAO, "listForTask">;
+  questions: Pick<AgentQuestionDAO, "listForTask" | "questionsAnsweredBy">;
 }
 
-const ARTIFACT_OF_PHASE: Record<string, TaskArtifactKind | undefined> = { research: "research", planning: "plan" };
+const ARTIFACT_OF_PHASE: Record<string, TaskArtifactKind | undefined> = { planning: "plan" };
 
 /** When two entries share a moment, a message reads before what it caused. */
 const ORDER_AT_SAME_TIME: Record<TaskTimelineEntry["kind"], number> = {
@@ -50,7 +50,7 @@ export class TaskTimelineService {
   }
 
   async list(ticketId: string): Promise<TaskTimelineEntry[]> {
-    const [messages, sessionMessages, agentTurns, revisions, activity, summaries, questions] = await Promise.all([
+    const [messages, sessionMessages, agentTurns, revisions, activity, summaries, questions, answers] = await Promise.all([
       this.deps.messages.list(ticketId),
       this.deps.sessionMessages.listForTask(ticketId),
       this.deps.agentTurns.listForTask(ticketId),
@@ -58,6 +58,7 @@ export class TaskTimelineService {
       this.deps.activity.list(ticketId),
       this.deps.summaries.listForTask(ticketId),
       this.deps.questions.listForTask(ticketId),
+      this.deps.questions.questionsAnsweredBy(ticketId),
     ]);
 
     const turnJobs = new Set(agentTurns.flatMap((turn) => (turn.jobId ? [turn.jobId] : [])));
@@ -65,11 +66,14 @@ export class TaskTimelineService {
       RUN_EVENTS_SHOWN_BY_TURN.has(entry.kind) && typeof entry.payload.jobId === "string" && turnJobs.has(entry.payload.jobId);
 
     const entries: TaskTimelineEntry[] = [
-      ...messages.map((message): TaskTimelineEntry => ({
+      // An answer shows under its question, so its message isn't repeated.
+      ...messages.filter((message) => !answers.has(message.id)).map((message): TaskTimelineEntry => ({
         kind: "message",
         id: message.id,
         at: message.createdAt,
         author: message.author,
+        externalAuthor: message.externalAuthor,
+        source: message.source,
         body: message.body,
         channel: "thread",
         sessionId: null,
@@ -79,6 +83,7 @@ export class TaskTimelineService {
         id: message.id,
         at: message.createdAt.toISOString(),
         author: message.author,
+        externalAuthor: null,
         body: message.body,
         channel: "session",
         sessionId: message.sessionId,

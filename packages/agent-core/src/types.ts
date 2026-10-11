@@ -53,7 +53,6 @@ export interface ExecutionContext {
   consoleErrors?: string[];
   affectedFiles?: string[];
   ticketMedia?: TicketMediaContext[];
-  researchDocument?: string;
   planDocument?: string;
 
   // Constraints
@@ -72,6 +71,8 @@ export interface ExecutionContext {
   jobKind?: string;
 
   agent?: string;
+  /** The agent's `gen_ai.provider.name`, which its plugin declares. */
+  telemetryProvider?: string;
   promptOverride?: string;
 
   // ACP interactive session fields

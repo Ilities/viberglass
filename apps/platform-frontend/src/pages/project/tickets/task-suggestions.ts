@@ -1,4 +1,4 @@
-import type { JobFailure, TaskCapabilities, TaskTurnAction, Ticket } from '@viberglass/types'
+import { buildPartsMessage, nextBuild, type JobFailure, type PartRange, type TaskCapabilities, type TaskPlanParts, type TaskTurnAction, type Ticket } from '@viberglass/types'
 
 /** A common next move, offered above the composer; pressing it posts the label and asks the agent. */
 export interface TaskSuggestion {
@@ -6,15 +6,17 @@ export interface TaskSuggestion {
   label: string
   /** The agent to ask; none means whichever the task's next ask goes to. */
   agentId?: string
+  /** For a build: the plan's parts it builds, in a pull request of its own. */
+  parts?: PartRange
 }
 
 export interface TaskSuggestionInput {
   ticket: Pick<Ticket, 'status'>
-  documents: Record<'research' | 'planning', { content: string }>
+  plan: { content: string }
   /** What the person may ask for; null when it couldn't be loaded, so nothing is offered. */
   capabilities: TaskCapabilities | null
-  /** Open comments on each document made since its latest version, which the agent hasn't revised it with. */
-  newComments: Record<'research' | 'planning', number>
+  /** Open comments on the plan made since its latest version, which the agent hasn't revised it with. */
+  newComments: number
   /** The agent's latest turn on the task, if any. */
   latestTurn: { action: TaskTurnAction; status: string; agent?: { id: string; name: string } } | null
   agentWorking: boolean
@@ -22,6 +24,8 @@ export interface TaskSuggestionInput {
   lastFailure?: Pick<JobFailure, 'category' | 'retryable'> | null
   /** How much the thread has grown since its latest summary, or since it began. */
   sinceSummary?: { finishedTurns: number; messages: number }
+  /** The plan part by part; without it, a build is offered for the whole plan. */
+  planParts?: TaskPlanParts | null
 }
 
 /** When the thread has grown enough that a summary helps people and the next agent. */
@@ -35,45 +39,69 @@ export function countNewComments(comments: Array<{ status: string; createdAt: st
 }
 
 /**
- * What to offer next: try a failed turn again, revise with open comments, write
- * what's missing, summarise a thread that has grown, and build, for whoever may
- * ask for code. Nothing has to be approved first: a task can go straight to code.
+ * Trying a failed turn again, with the same agent, offered beside the turn.
+ * None while the agent works, when the setup has to be fixed first, or to
+ * someone who may not ask for what failed.
  */
-export function suggestTaskActions({
+export function retrySuggestion({
   ticket,
-  documents,
   capabilities,
-  newComments,
   latestTurn,
   agentWorking,
   lastFailure,
+}: Pick<TaskSuggestionInput, 'ticket' | 'capabilities' | 'latestTurn' | 'agentWorking' | 'lastFailure'>): TaskSuggestion | null {
+  if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk || latestTurn?.status !== 'failed') return null
+  if (lastFailure?.category === 'setup' && !lastFailure.retryable) return null
+  if (latestTurn.action === 'code' && !capabilities.canAskForCode) return null
+  // The same agent again: another one may be next on the task, and that isn't what "again" means.
+  return latestTurn.agent
+    ? { action: latestTurn.action, label: `Try again with ${latestTurn.agent.name}`, agentId: latestTurn.agent.id }
+    : { action: latestTurn.action, label: 'Try again' }
+}
+
+/**
+ * What to offer next: revise with open comments, write what's missing,
+ * summarise a thread that has grown, and build, for whoever may ask for code.
+ * Nothing has to be approved first: a task can go straight to code.
+ */
+export function suggestTaskActions({
+  ticket,
+  plan,
+  capabilities,
+  newComments,
+  agentWorking,
   sinceSummary,
+  planParts,
 }: TaskSuggestionInput): TaskSuggestion[] {
   if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
   const suggestions: TaskSuggestion[] = []
-  const needsSetupFix = lastFailure?.category === 'setup' && !lastFailure.retryable
-  if (latestTurn?.status === 'failed' && !needsSetupFix && (latestTurn.action !== 'code' || capabilities.canAskForCode)) {
-    // The same agent again: another one may be next on the task, and that isn't what "again" means.
-    suggestions.push(
-      latestTurn.agent
-        ? { action: latestTurn.action, label: `Try again with ${latestTurn.agent.name}`, agentId: latestTurn.agent.id }
-        : { action: latestTurn.action, label: 'Try again' }
-    )
-  }
 
-  const hasResearch = documents.research.content.trim().length > 0
-  const hasPlan = documents.planning.content.trim().length > 0
-  if (!hasResearch && !hasPlan) suggestions.push({ action: 'research', label: 'Write the research' })
-  if (hasResearch && newComments.research > 0) {
-    suggestions.push({ action: 'research', label: `Revise the research with ${plural(newComments.research, 'comment')}` })
-  }
+  const hasPlan = plan.content.trim().length > 0
   if (!hasPlan) suggestions.push({ action: 'plan', label: 'Write the plan' })
-  if (hasPlan && newComments.planning > 0) {
-    suggestions.push({ action: 'plan', label: `Revise the plan with ${plural(newComments.planning, 'comment')}` })
+  if (hasPlan && newComments > 0) {
+    suggestions.push({ action: 'plan', label: `Revise the plan with ${plural(newComments, 'comment')}` })
   }
   if (sinceSummary && (sinceSummary.finishedTurns >= SUMMARY_AFTER.finishedTurns || sinceSummary.messages >= SUMMARY_AFTER.messages)) {
     suggestions.push({ action: 'summarise', label: 'Summarise so far' })
   }
-  if (capabilities.canAskForCode) suggestions.push({ action: 'code', label: 'Build it' })
+  if (capabilities.canAskForCode) suggestions.push(...buildSuggestions(planParts ?? null))
   return suggestions
+}
+
+/**
+ * The builds to offer: a plan in parts builds its next part, or everything
+ * left in one pull request, once the earlier parts are merged; a plan in one
+ * part, or none, is built as a whole.
+ */
+export function buildSuggestions(planParts: TaskPlanParts | null): TaskSuggestion[] {
+  const next = planParts ? nextBuild(planParts) : { label: 'Build it' }
+  if (!next) return []
+  const offered: TaskSuggestion[] = [{ action: 'code', label: next.label, ...(next.parts ? { parts: next.parts } : {}) }]
+  const left = planParts?.parts.filter((part) => part.status === 'not_built') ?? []
+  // A build offered again keeps its parts; the rest go with it only once nothing is open.
+  if (next.parts && !planParts?.open && left.length > 1) {
+    const rest = { first: next.parts.first, last: null }
+    offered.push({ action: 'code', label: buildPartsMessage(rest), parts: rest })
+  }
+  return offered
 }

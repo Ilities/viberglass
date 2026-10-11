@@ -117,7 +117,7 @@ export class TicketToolGroup implements ToolGroup {
 
     server.tool(
       "task_trigger",
-      "Start a workflow phase run for a task (research, planning, or execution). Returns the run ID for tracking.",
+      "Start a workflow phase run for a task (planning or execution). Returns the run ID for tracking.",
       ticketTriggerSchema,
       async (params) => {
         const result = await services.tickets.trigger(params.taskId, {

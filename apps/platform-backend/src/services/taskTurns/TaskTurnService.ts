@@ -1,4 +1,4 @@
-import { type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { addPartMessage, buildPartsMessage, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import { AgentSessionDAO, type AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentTurnDAO, type AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
@@ -8,6 +8,7 @@ import { agentSessionMutex } from "../agentSession/AgentSessionMutex";
 import { SessionTurnContinuationService } from "../agentSession/SessionTurnContinuationService";
 import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
 import { TaskDiscussionService } from "../tasks/TaskDiscussionService";
+import { TaskPartsService } from "../tasks/TaskPartsService";
 import { TaskAskPolicyService } from "./TaskAskPolicyService";
 import { TaskTurnAgentResolver } from "./TaskTurnAgentResolver";
 import { ACTION_MESSAGE, sessionModeFor } from "./turnActions";
@@ -21,6 +22,10 @@ export interface AskInput {
   postedMessageId?: string;
   /** Asked by a webhook set to build on its own, with nobody asking. */
   fromWebhook?: boolean;
+  /** For a build: the plan's parts to build in a new pull request. Without them it continues the open one, else builds what's left. */
+  parts?: PartRange;
+  /** For a build: the parts go into the open pull request rather than one of their own. */
+  add?: boolean;
 }
 
 export interface AskResult {
@@ -43,6 +48,7 @@ interface Dependencies {
   turns: Pick<AgentTurnDAO, "nextSequence" | "create" | "getInFlightAssistantTurn">;
   events: Pick<AgentSessionEventDAO, "getMaxSequence" | "create">;
   continuation: Pick<SessionTurnContinuationService, "launchForPendingMessages">;
+  parts: Pick<TaskPartsService, "resolveBuild" | "extendOpen">;
 }
 
 /**
@@ -66,6 +72,7 @@ export class TaskTurnService {
       turns,
       events,
       continuation: deps.continuation ?? new SessionTurnContinuationService(sessions, turns, events),
+      parts: new TaskPartsService(),
       ...deps,
     };
   }
@@ -74,12 +81,19 @@ export class TaskTurnService {
     const ticket = await this.deps.tickets.getTicket(taskId);
     if (!ticket) throw new TaskTurnError(TASK_TURN_ERROR_CODE.TASK_NOT_FOUND, "Task not found");
     const action = input.action ?? "reply";
-    const text = input.message.trim() || ACTION_MESSAGE[action];
-    if (!text) throw new TaskTurnError(TASK_TURN_ERROR_CODE.NOTHING_ASKED, "Write what you'd like the agent to do.");
+    if (!input.message.trim() && !ACTION_MESSAGE[action]) {
+      throw new TaskTurnError(TASK_TURN_ERROR_CODE.NOTHING_ASKED, "Write what you'd like the agent to do.");
+    }
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
     await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
+    const adding = action === "code" && Boolean(input.add);
+    const buildParts = action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null, { add: adding }) : null;
+    const text =
+      input.message.trim() || (buildParts ? (adding ? addPartMessage(buildParts.first) : buildPartsMessage(buildParts)) : ACTION_MESSAGE[action]);
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
+    // Only once the build can be asked for, so a refused ask leaves the open pull request as it was.
+    if (adding && buildParts) await this.deps.parts.extendOpen(ticket, buildParts);
     const messageId = input.postedMessageId ?? (actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null);
 
     // Locked per task and agent so two asks can't each open a session.
@@ -90,7 +104,7 @@ export class TaskTurnService {
       return agentSessionMutex.runExclusive(open.id, async () => {
         // Read again under the session's lock: the worker may have stored its harness session since.
         const session = (await this.deps.sessions.getById(open.id)) ?? open;
-        const turn = await this.queueMessage(session, { text, action, actorId, messageId });
+        const turn = await this.queueMessage(session, { text, action, actorId, messageId, buildParts });
         const running = await this.deps.turns.getInFlightAssistantTurn(session.id);
         if (running) {
           return { session, currentTurn: running, job: { id: running.jobId, status: "queued" }, messageId };
@@ -133,7 +147,7 @@ export class TaskTurnService {
   /** The person's message as the session's next user turn, waiting for the agent. */
   private async queueMessage(
     session: AgentSession,
-    message: { text: string; action: TaskTurnAction; actorId: string | null; messageId: string | null },
+    message: { text: string; action: TaskTurnAction; actorId: string | null; messageId: string | null; buildParts: PartRange | null },
   ): Promise<AgentTurn> {
     const [sequence, maxEvent] = await Promise.all([
       this.deps.turns.nextSequence(session.id),
@@ -148,6 +162,7 @@ export class TaskTurnService {
       userId: message.actorId,
       action: message.action,
       taskMessageId: message.messageId,
+      buildParts: message.buildParts,
     });
     await this.deps.events.create({
       sessionId: session.id,

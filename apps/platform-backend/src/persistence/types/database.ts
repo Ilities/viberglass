@@ -34,21 +34,7 @@ export interface ProjectsTable {
   id: Generated<string>;
   name: string;
   slug: string;
-  ticket_system:
-    | "jira"
-    | "linear"
-    | "github"
-    | "gitlab"
-    | "bitbucket"
-    | "azure"
-    | "asana"
-    | "trello"
-    | "monday"
-    | "clickup"
-    | "shortcut"
-    | "slack"
-    | "custom"
-    | "native";
+  ticket_system: string;
   credentials: Json | null;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
@@ -64,6 +50,7 @@ export interface ProjectsTable {
   key_prefix: string;
   next_task_number: Generated<number>;
   default_owner_id: string | null;
+  default_clanker_id: string | null;
   default_reviewer_ids: Generated<string[]>;
   question_reminder_hours: Generated<number>;
   created_at: Generated<Timestamp>;
@@ -95,52 +82,42 @@ export interface TicketsTable {
   annotations: Generated<Json>;
   external_ticket_id: string | null;
   external_ticket_url: string | null;
-  ticket_system:
-    | 2
-    | "jira"
-    | "linear"
-    | "github"
-    | "gitlab"
-    | "bitbucket"
-    | "azure"
-    | "asana"
-    | "trello"
-    | "monday"
-    | "clickup"
-    | "shortcut"
-    | "slack"
-    | "custom"
-    | "native";
+  ticket_system: 2 | string;
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "in_review" | "resolved">;
-  workflow_phase: Generated<"research" | "planning" | "execution">;
+  workflow_phase: Generated<"planning" | "execution">;
   archived_at: Timestamp | null;
-  pull_request_url: string | null;
   taken_over_by: string | null;
   taken_over_at: Timestamp | null;
-  task_branch: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
+}
+
+export interface TaskPullRequestsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  branch: string;
+  url: string | null;
+  first_part: Generated<number>;
+  /** Null: through the plan's last part. */
+  last_part: number | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface TaskPlanPartMarksTable {
+  ticket_id: string;
+  part_number: number;
+  mark: "done" | "skipped";
+  marked_by: string | null;
+  created_at: Generated<Timestamp>;
 }
 
 export interface IntegrationsTable {
   id: Generated<string>;
   name: string;
-  system:
-    | "jira"
-    | "linear"
-    | "github"
-    | "gitlab"
-    | "bitbucket"
-    | "azure"
-    | "asana"
-    | "trello"
-    | "monday"
-    | "clickup"
-    | "shortcut"
-    | "slack"
-    | "custom";
+  system: string;
   config: Json;
   is_active: Generated<boolean>;
   created_at: Generated<Timestamp>;
@@ -227,6 +204,7 @@ export interface ClankerConfigFilesTable {
 }
 
 export interface ClankersTable {
+  deleted_at: Generated<Timestamp | null>;
   id: Generated<string>;
   name: string;
   slug: string;
@@ -297,7 +275,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw" | "agent_login">;
+  job_kind: Generated<"planning" | "execution" | "reply" | "claw" | "agent_login">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -395,28 +373,35 @@ export interface JobLogLinesTable {
 export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
-  provider: "github" | "jira" | "shortcut" | "custom";
-  provider_project_id: string | null;
+  provider: string;
   integration_id: string | null;
   secret_location: "database" | "ssm" | "env";
   secret_path: string | null;
   webhook_secret_encrypted: string | null;
   allowed_events: Generated<string[]>;
-  auto_execute: Generated<boolean>;
+  plan_new_issues: Generated<boolean>;
   bot_username: string | null;
-  label_mappings: Generated<JsonObject>;
   active: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
 
+export interface TrackerIssueRulesTable {
+  id: Generated<string>;
+  project_id: string;
+  integration_id: string;
+  label: string | null;
+  plan_new_issues: Generated<boolean>;
+  created_at: Generated<Timestamp>;
+}
+
 export interface WebhookDeliveryAttemptsTable {
   id: Generated<string>;
-  provider: "github" | "jira" | "shortcut" | "custom";
+  provider: string;
   webhook_config_id: string | null;
   delivery_id: string;
   event_type: string;
-  status: "pending" | "processing" | "succeeded" | "failed";
+  status: "pending" | "processing" | "succeeded" | "failed" | "ignored";
   error_message: string | null;
   payload: Json;
   project_id: string | null;
@@ -448,7 +433,13 @@ export interface UsersTable {
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
   deactivated_at: Timestamp | null;
-  slack_user_id: string | null;
+}
+
+export interface UserChatIdentitiesTable {
+  user_id: string;
+  adapter_name: string;
+  chat_user_id: string;
+  created_at: Generated<Timestamp>;
 }
 
 export interface InvitesTable {
@@ -501,8 +492,21 @@ export interface TaskMessagesTable {
   ticket_id: string;
   author_id: string | null;
   body_markdown: string;
+  external_author_name: string | null;
+  external_source: string | null;
   created_at: Generated<Timestamp>;
   edited_at: Timestamp | null;
+}
+
+export interface TaskIssueLinksTable {
+  ticket_id: string;
+  provider: string;
+  issue_key: string;
+  issue_url: string | null;
+  integration_id: string | null;
+  webhook_config_id: string | null;
+  api_base_url: string | null;
+  created_at: Generated<Timestamp>;
 }
 
 export interface TaskMentionsTable {
@@ -559,7 +563,7 @@ export interface SpaceMembersTable {
 export interface TicketPhaseDocumentsTable {
   id: Generated<string>;
   ticket_id: string;
-  phase: "research" | "planning" | "execution";
+  phase: "planning" | "execution";
   content: Generated<string>;
   storage_url: string | null;
   created_at: Generated<Timestamp>;
@@ -599,7 +603,7 @@ export interface TicketPhaseDocumentCommentsTable {
   id: Generated<string>;
   document_id: string;
   ticket_id: string;
-  phase: "research" | "planning";
+  phase: "planning";
   line_number: number;
   quote_exact: string | null;
   quote_prefix: string | null;
@@ -697,6 +701,8 @@ export interface AgentTurnsTable {
   consumed_by_turn_id: string | null;
   action: TaskTurnAction | null;
   task_message_id: string | null;
+  build_first_part: number | null;
+  build_last_part: number | null;
   started_at: Timestamp | null;
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
@@ -770,9 +776,12 @@ export interface ApiTokensTable {
 }
 
 export interface Database {
+  user_chat_identities: UserChatIdentitiesTable;
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
   tickets: TicketsTable;
+  task_pull_requests: TaskPullRequestsTable;
+  task_plan_part_marks: TaskPlanPartMarksTable;
   integrations: IntegrationsTable;
   project_integrations: ProjectIntegrationsTable;
   integration_credentials: IntegrationCredentialsTable;
@@ -784,6 +793,8 @@ export interface Database {
   clankers: ClankersTable;
   model_endpoints: ModelEndpointsTable;
   clanker_model_endpoints: ClankerModelEndpointsTable;
+  model_host_accounts: ModelHostAccountsTable;
+  model_deployments: ModelDeploymentsTable;
   mcp_servers: McpServersTable;
   skills: SkillsTable;
   clanker_mcp_servers: ClankerMcpServersTable;
@@ -804,6 +815,8 @@ export interface Database {
   task_participants: TaskParticipantsTable;
   task_messages: TaskMessagesTable;
   task_mentions: TaskMentionsTable;
+  task_issue_links: TaskIssueLinksTable;
+  tracker_issue_rules: TrackerIssueRulesTable;
   task_reads: TaskReadsTable;
   task_summaries: TaskSummariesTable;
   task_activity: TaskActivityTable;
@@ -837,6 +850,32 @@ export interface ModelEndpointsTable {
   source: Generated<"manual" | "deployment">;
   deployment_id: string | null;
   may_cold_start: boolean;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ModelHostAccountsTable {
+  id: Generated<string>;
+  name: string;
+  host: string;
+  client_id: string;
+  client_secret_id: string;
+  endpoint_key_secret_id: string;
+  hugging_face_token_secret_id: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ModelDeploymentsTable {
+  id: Generated<string>;
+  name: string;
+  account_id: string;
+  external_id: string;
+  model: string;
+  flavour: Json;
+  serving_args: Json;
+  mode: Generated<string>;
+  waking_since: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

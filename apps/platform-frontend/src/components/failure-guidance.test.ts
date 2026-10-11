@@ -1,5 +1,5 @@
 import { JOB_FAILURE_CODE, type JobFailure } from '@viberglass/types'
-import { failureGuidance } from './failure-guidance'
+import { failureGuidance, failureHeadline } from './failure-guidance'
 
 const quota: JobFailure = {
   code: JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED,
@@ -22,6 +22,29 @@ describe('failureGuidance', () => {
     expect(guidance.nextStep).toMatch(/same setup will fail the same way/)
   })
 
+  it("sends admins to the runner's model when a request didn't fit its context", () => {
+    const guidance = failureGuidance({ ...quota, code: JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED }, true, 'shop', { name: 'Qwen', slug: 'qwen' })
+    expect(guidance.fix).toEqual({ label: "Check Qwen's model", href: '/settings/agents/qwen' })
+  })
+
+  it("leads with the agent's own error when the failure is a generic agent one", () => {
+    const failure: JobFailure = {
+      code: JOB_FAILURE_CODE.AGENT_FAILED,
+      title: 'Agent failed',
+      summary: 'The agent stopped with an error before finishing.',
+      category: 'agent',
+      retryable: true,
+      technicalDetail: '\n  Internal error: Session too large to compact  \nat stack line',
+    }
+    expect(failureHeadline(failure).reported).toBe('Internal error: Session too large to compact')
+    expect(failureGuidance(failure, false, 'shop').reported).toBe('Internal error: Session too large to compact')
+    expect(failureHeadline({ ...failure, technicalDetail: 'x'.repeat(500) }).reported).toHaveLength(200)
+  })
+
+  it("keeps the agent's error in the technical details when the failure has a name", () => {
+    expect(failureHeadline({ ...quota, technicalDetail: '429 Too Many Requests' }).reported).toBeUndefined()
+  })
+
   it('tells members that an admin is needed, without a fix link', () => {
     const guidance = failureGuidance(quota, false, 'shop')
     expect(guidance.fix).toBeUndefined()
@@ -34,7 +57,7 @@ describe('failureGuidance', () => {
       true,
       'shop'
     )
-    expect(guidance.fix?.href).toBe('/spaces/shop/settings')
+    expect(guidance.fix?.href).toBe('/spaces/shop/settings/repository')
   })
 
   it('offers a retry, not a setup fix, when the agent failed', () => {

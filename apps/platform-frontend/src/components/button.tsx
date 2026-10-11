@@ -42,8 +42,9 @@ function getVariantAndColor(
   variant: 'solid' | 'outline' | 'ghost' | 'surface'
   color?: string
 } {
-  if (outline) return { variant: 'outline' }
-  if (plain) return { variant: 'ghost' }
+  // Secondary actions are neutral, so beside a primary button they read as its alternative, not as a second accent or a link.
+  if (outline) return { variant: 'outline', color: 'gray' }
+  if (plain) return { variant: 'ghost', color: 'gray' }
   if (surface) return { variant: 'surface', color: color ? colorMap[color] : 'gray' }
 
   if (color === 'light' || color === 'white') {
@@ -90,6 +91,7 @@ export const Button = forwardRef(function Button(
       <RadixButton
         variant={variant}
         color={mappedColor as React.ComponentProps<typeof RadixButton>['color']}
+        highContrast={outline || plain}
         className={combinedClassName}
         asChild
       >
@@ -107,6 +109,7 @@ export const Button = forwardRef(function Button(
       {...buttonProps}
       variant={variant}
       color={mappedColor as React.ComponentProps<typeof RadixButton>['color']}
+      highContrast={outline || plain}
       type={type ?? 'button'}
       disabled={disabled}
       className={combinedClassName}

@@ -3,6 +3,7 @@ import { buildFeatureBranchName, JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
 import { failingWith, JobFailureError } from "./JobFailureError";
 import {
+  pullRequestBody,
   resolvePullRequestDescription,
   resolvePullRequestTitle,
 } from "./pullRequestContent";
@@ -75,7 +76,6 @@ export async function runClawJob(
       consoleErrors: context?.consoleErrors || [],
       affectedFiles: context?.affectedFiles || [],
       ticketMedia: context?.ticketMedia || [],
-      researchDocument: context?.researchDocument,
       planDocument: context?.planDocument,
       maxChanges: mergedSettings.maxChanges,
       testRequired: mergedSettings.testRequired,
@@ -127,7 +127,7 @@ export async function runClawJob(
       },
       async () =>
         failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
-          gitService.pushBranch(repoDir, featureBranch, params.scmToken),
+          gitService.pushBranch(repoDir, featureBranch, params.gitAuth),
         ),
     );
 
@@ -144,18 +144,14 @@ export async function runClawJob(
       },
       async (span) => {
         const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
-          gitService.createPullRequest(
-            repoDir,
-            featureBranch,
-            pullRequestBaseBranch,
-            pullRequestTitle,
-            pullRequestDescription,
-            {
-              sourceRepositoryUrl: scm?.sourceRepository || repository,
-              destinationRepositoryUrl: pullRequestRepository,
-            },
-            params.scmToken,
-          ),
+          params.callbackClient.repository.openPullRequest(params.data.id, params.data.tenantId, {
+            sourceRepository: scm?.sourceRepository || repository,
+            destinationRepository: pullRequestRepository,
+            head: featureBranch,
+            base: pullRequestBaseBranch,
+            title: pullRequestTitle,
+            body: pullRequestBody(pullRequestDescription),
+          }),
         );
         if (url) span.setAttribute(ATTR_VG_PULL_REQUEST_URL, url);
         return url;

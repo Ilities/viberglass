@@ -9,13 +9,14 @@ import { TicketPhaseDocumentCommentService } from "../../services/TicketPhaseDoc
 import { TicketPhaseDocumentRevisionService } from "../../services/TicketPhaseDocumentRevisionService";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
 import { TicketPlanningService } from "../../services/TicketPlanningService";
-import { TicketResearchService } from "../../services/TicketResearchService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 import { requireAuth } from "../middleware/authentication";
 import { validateUuidParam } from "../middleware/validation";
 import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 import { registerTicketCrudRoutes } from "./tickets/crudRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
+import { TaskPartMarksService } from "../../services/tasks/TaskPartMarksService";
+import { TaskPartsService } from "../../services/tasks/TaskPartsService";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
 import { registerDocumentCommentRoutes } from "./tickets/documentCommentRoutes";
 import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
@@ -36,6 +37,8 @@ import { TaskSituationService } from "../../services/tasks/TaskSituationService"
 import { TaskReadDAO } from "../../persistence/ticketing/TaskReadDAO";
 import { TaskAskPolicyService } from "../../services/taskTurns/TaskAskPolicyService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
+import { registerTaskCopyRoutes } from "./tickets/copyRoutes";
+import { TaskCopyService } from "../../services/tasks/TaskCopyService";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { registerTaskQuestionRoutes } from "./tickets/questionRoutes";
 import { registerTaskSteeringRoutes } from "./tickets/steeringRoutes";
@@ -64,7 +67,6 @@ const ticketPhaseDocumentRevisionService =
 const ticketPhaseDocumentCommentService =
   new TicketPhaseDocumentCommentService();
 
-const ticketResearchService = new TicketResearchService();
 const ticketPlanningService = new TicketPlanningService();
 
 router.use(requireAuth);
@@ -81,6 +83,9 @@ registerTaskDiscussionRoutes(router, {
   timeline: new TaskTimelineService(),
   turns: taskTurns,
   mentions: new TaskMentionDAO(),
+});
+registerTaskCopyRoutes(router, {
+  copies: new TaskCopyService({ tickets: ticketService, spaceAccess: new SpaceAccessService(), discussion: taskDiscussion }),
 });
 registerTaskQuestionRoutes(router, { answers: new AgentQuestionAnswerService({ asker: taskTurns }) });
 const steering = new TaskSteeringService({ turns: taskTurns });
@@ -170,7 +175,6 @@ registerTicketWorkflowPhaseRoutes(router, {
   ticketWorkflowService,
   ticketPhaseDocumentService,
   ticketPhaseDocumentRevisionService,
-  ticketResearchService,
   ticketPlanningService,
 });
 registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });
@@ -179,6 +183,8 @@ registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });
 registerTicketExecutionRoutes(router, {
   ticketDAO: ticketService,
   buildPullRequestService,
+  parts: new TaskPartsService(),
+  marks: new TaskPartMarksService(),
 });
 
 const agentSessionDAO = new AgentSessionDAO();

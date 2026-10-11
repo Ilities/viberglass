@@ -1,10 +1,14 @@
+import { ModelEndpointConfigEnvironment } from "@viberglass/agent-core";
 import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import type { MistralVibeConfig } from "./config";
 import { MistralVibeAgent } from "./MistralVibeAgent";
 
 const mistralVibePlugin: AgentPlugin<MistralVibeConfig> = {
   id: "mistral-vibe",
-  displayName: "Mistral Vibe",
+  label: "Mistral Vibe",
+  description: "Mistral-native coding option optimized for quick iterative execution.",
+  logo: "logo.ico",
+  telemetryProvider: "mistral_ai",
 
   create(config, logger, gitService?: IAgentGitService) {
     return new MistralVibeAgent(config, logger, gitService);
@@ -24,6 +28,11 @@ const mistralVibePlugin: AgentPlugin<MistralVibeConfig> = {
     },
     maxTokens: 4000,
     temperature: 0.1,
+  },
+
+  customEndpoints: {
+    apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"],
+    environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
   },
 
   envAliases: {

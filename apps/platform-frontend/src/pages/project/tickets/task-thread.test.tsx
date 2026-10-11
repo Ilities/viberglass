@@ -86,14 +86,18 @@ describe('describeActivity', () => {
     expect(describeActivity(entry({ kind: 'owner_changed', payload: { userId: DANA } }), nameOf)).toBe('Maria made Dana the owner')
     expect(describeActivity(entry({ kind: 'document_approved', payload: { step: 'planning' } }), nameOf)).toBe('Maria approved the plan')
     expect(
-      describeActivity(entry({ kind: 'run_failed', actorType: 'agent', actor: null, payload: { step: 'research', reason: 'Credential expired' } }), nameOf)
-    ).toBe('The research run failed: Credential expired')
+      describeActivity(entry({ kind: 'run_failed', actorType: 'agent', actor: null, payload: { step: 'planning', reason: 'Credential expired' } }), nameOf)
+    ).toBe('The plan run failed: Credential expired')
     expect(describeActivity(entry({ kind: 'message_posted', payload: { mentioned: [DANA] } }), nameOf)).toBe(
       'Maria wrote in the discussion and mentioned Dana'
     )
     const merged = { kind: 'pull_request_merged' as const, actorType: 'system' as const, actor: null }
     expect(describeActivity(entry({ ...merged, payload: { mergedBy: 'dev-koskinen' } }), nameOf)).toBe('Merged by dev-koskinen')
     expect(describeActivity(entry({ ...merged, payload: {} }), nameOf)).toBe('The pull request was merged')
+    const partMerged = { kind: 'part_merged' as const, actorType: 'system' as const, actor: null }
+    expect(describeActivity(entry({ ...partMerged, payload: { parts: [1], next: 2, mergedBy: 'dev-koskinen' } }), nameOf)).toBe(
+      'Part 1 merged by dev-koskinen; part 2 is next'
+    )
   })
 })
 
@@ -106,16 +110,16 @@ const THREAD: TaskTimelineEntry[] = [
     at: '2026-10-01T10:00:00Z',
     activity: { id: 'e-1', ticketId: 't-1', actorType: 'human', actor: MARIA, kind: 'task_created', payload: {}, createdAt: '2026-10-01T10:00:00Z' },
   },
-  { kind: 'artifact_version', id: 'v-1', at: '2026-10-01T10:05:00Z', artifact: 'research', version: 1, author: null, byAgent: true },
-  { kind: 'message', id: 'm-1', at: '2026-10-01T10:06:00Z', author: MARIA, body: 'Looks right to me', channel: 'thread', sessionId: null },
-  { kind: 'message', id: 'm-2', at: '2026-10-01T10:07:00Z', author: MARIA, body: 'Check the checkout too', channel: 'session', sessionId: 's-1' },
+  { kind: 'artifact_version', id: 'v-1', at: '2026-10-01T10:05:00Z', artifact: 'plan', version: 1, author: null, byAgent: true },
+  { kind: 'message', id: 'm-1', at: '2026-10-01T10:06:00Z', author: MARIA, externalAuthor: null, body: 'Looks right to me', channel: 'thread', sessionId: null },
+  { kind: 'message', id: 'm-2', at: '2026-10-01T10:07:00Z', author: MARIA, externalAuthor: null, body: 'Check the checkout too', channel: 'session', sessionId: 's-1' },
 ]
 
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
-  documents: { research: { content: '# Research' }, planning: { content: '' } },
+  plan: { content: '# Plan' },
   capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
-  newComments: { research: 1, planning: 0 },
+  newComments: 1,
   agentWorking: false,
 }
 
@@ -129,7 +133,6 @@ function renderThread(
       <MemoryRouter>
         <TaskThread
           taskId="t-1"
-          project="web"
           refreshKey="1"
           onOpenArtifact={onOpenArtifact}
           agents={[{ kind: 'agent', id: CLAUDE, name: 'Claude' }]}
@@ -153,12 +156,12 @@ function agentTurn(overrides: Partial<Extract<TaskTimelineEntry, { kind: 'agent_
     id: 'turn-1',
     at: '2026-10-01T10:08:00Z',
     agent: { id: CLAUDE, name: 'Claude' },
-    action: 'research',
+    action: 'plan',
     status: 'completed',
     outcome: {
-      intent: 'Revising the research: covering the checkout',
-      reply: 'Revising the research: covering the checkout\n\nI added a section on the checkout flow.',
-      produced: ['research'],
+      intent: 'Revising the plan: covering the checkout',
+      reply: 'Revising the plan: covering the checkout\n\nI added a section on the checkout flow.',
+      produced: ['plan'],
       codeDiscarded: false,
       resumed: true,
     },
@@ -178,7 +181,7 @@ describe('TaskThread', () => {
   it('shows messages, document versions and events in one thread', async () => {
     renderThread()
     expect(await screen.findByText('Maria created the task')).toBeInTheDocument()
-    expect(screen.getByText('Research v1')).toBeInTheDocument()
+    expect(screen.getByText('Plan v1')).toBeInTheDocument()
     expect(screen.getByText('Looks right to me')).toBeInTheDocument()
     expect(screen.getByText(/to the agent/)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /session/ })).not.toBeInTheDocument()
@@ -198,19 +201,19 @@ describe('TaskThread', () => {
     renderThread()
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Messages only' }))
     expect(screen.queryByText('Maria created the task')).not.toBeInTheDocument()
-    expect(screen.getByText('Research v1')).toBeInTheDocument()
+    expect(screen.getByText('Plan v1')).toBeInTheDocument()
   })
 
   it("opens the latest version as the current document, and an earlier one at its own version", async () => {
     mockTimeline.mockResolvedValue([
       ...THREAD,
-      { kind: 'artifact_version', id: 'v-2', at: '2026-10-01T10:08:00Z', artifact: 'research', version: 2, author: null, byAgent: true },
+      { kind: 'artifact_version', id: 'v-2', at: '2026-10-01T10:08:00Z', artifact: 'plan', version: 2, author: null, byAgent: true },
     ])
     const { onOpenArtifact } = renderThread()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open Research v2' }))
-    expect(onOpenArtifact).toHaveBeenLastCalledWith('research', null)
-    fireEvent.click(screen.getByRole('button', { name: 'Open Research v1' }))
-    expect(onOpenArtifact).toHaveBeenLastCalledWith('research', 1)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Plan v2' }))
+    expect(onOpenArtifact).toHaveBeenLastCalledWith(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Plan v1' }))
+    expect(onOpenArtifact).toHaveBeenLastCalledWith(1)
   })
 
   it("shows the agent's turn: what it set out to do, what it made, and whether it continued its session; what it said is a click away", async () => {
@@ -218,10 +221,11 @@ describe('TaskThread', () => {
     renderThread()
 
     const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
-    expect(turn).toHaveTextContent('asked for the research')
-    expect(turn).toHaveTextContent('continued its session')
-    expect(turn).toHaveTextContent('Revising the research: covering the checkout')
-    expect(turn).toHaveTextContent('Wrote the research.')
+    expect(turn).toHaveTextContent('asked for the plan')
+    expect(turn).toHaveTextContent('resumed session')
+    expect(within(turn).getByRole('link', { name: 'Run details' })).toHaveAttribute('href', '/?run=job-1')
+    expect(turn).toHaveTextContent('Revising the plan: covering the checkout')
+    expect(turn).toHaveTextContent('Wrote the plan.')
     expect(turn).not.toHaveTextContent('I added a section on the checkout flow.')
     fireEvent.click(within(turn).getByRole('button', { name: 'Show what it said' }))
     expect(turn).toHaveTextContent('I added a section on the checkout flow.')
@@ -237,14 +241,75 @@ describe('TaskThread', () => {
   })
 
   it('says a turn is working, or failed, with the way to its run', async () => {
-    mockTimeline.mockResolvedValue([agentTurn({ id: 'a', status: 'failed', outcome: null }), agentTurn({ id: 'b', status: 'running', outcome: null })])
+    mockTimeline.mockResolvedValue([agentTurn({ id: 'a', status: 'failed', outcome: null }), agentTurn({ id: 'b', status: 'running', outcome: null, jobId: 'job-2' })])
     renderThread()
 
     expect(await screen.findByText('Working on it…')).toBeInTheDocument()
-    expect(screen.getByText('This turn failed.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'See what happened' })).toHaveAttribute('href', '/spaces/web/runs/job-1')
-    // While it works, nothing new is suggested.
+    expect(screen.getByRole('link', { name: 'Live log' })).toHaveAttribute('href', expect.stringMatching(/^[^?]*\?run=job-2$/))
+    expect(screen.getByText('This turn failed')).toBeInTheDocument()
+    // The run opens beside the thread on the same page, rather than on a page that sends you back here.
+    const failedRun = within(screen.getAllByRole('listitem', { name: "Claude's turn" })[0]).getByRole('link', { name: /Run details/ })
+    expect(failedRun).toHaveAttribute('href', expect.stringMatching(/^[^?]*\?run=job-1$/))
+    // While it works, nothing new is suggested, and the failed turn isn't offered again.
     expect(screen.queryByRole('group', { name: 'Suggested actions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('shows why the latest turn failed, and tries it again with the same agent from beside it', async () => {
+    mockTimeline.mockResolvedValue([agentTurn({ status: 'failed', outcome: null })])
+    mockAsk.mockResolvedValue({ sessionId: 's-1', turnId: 't-2', jobId: 'job-2', status: 'pending' })
+    render(
+      <Theme>
+        <MemoryRouter>
+          <TaskThread
+            taskId="t-1"
+            refreshKey="1"
+            onOpenArtifact={jest.fn()}
+            agents={[]}
+            suggestionInput={SUGGESTION_INPUT}
+            canPost
+            canAsk
+            runnableAgents={[]}
+            onAsked={jest.fn()}
+            runs={[
+              {
+                jobId: 'job-1', jobKind: 'planning', status: 'failed', repository: 'acme/web', task: 'Plan', tenantId: 'tenant-1',
+                createdAt: '2026-10-01T10:08:00Z', processedAt: '2026-10-01T10:08:00Z', finishedAt: '2026-10-01T10:14:00Z',
+                ticketId: 't-1', clankerId: CLAUDE, ticket: null,
+                failure: { code: 'X', title: 'Agent stopped responding', summary: 'It went quiet.', retryable: true },
+              },
+            ]}
+          />
+        </MemoryRouter>
+      </Theme>
+    )
+
+    const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
+    expect(turn).toHaveTextContent('Agent stopped responding')
+    fireEvent.click(within(turn).getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'plan', body: 'Try again with Claude', agentId: CLAUDE }))
+  })
+
+  it('folds failed attempts in a row, with the retries between them, into one row that opens in place', async () => {
+    const retry = (id: string): TaskTimelineEntry => ({ kind: 'message', id, at: '2026-10-01T10:09:00Z', author: MARIA, externalAuthor: null, body: 'Try again with Claude', channel: 'thread', sessionId: null })
+    mockTimeline.mockResolvedValue([
+      agentTurn({ id: 'a', status: 'failed', outcome: null }),
+      retry('r-1'),
+      agentTurn({ id: 'b', status: 'cancelled', outcome: null }),
+      retry('r-2'),
+      agentTurn({ id: 'c', status: 'failed', outcome: null }),
+      { kind: 'message', id: 'm-9', at: '2026-10-01T10:10:00Z', author: MARIA, externalAuthor: null, body: 'Use the staging data', channel: 'thread', sessionId: null },
+      agentTurn({ id: 'd', status: 'completed' }),
+    ])
+    renderThread()
+
+    const fold = await screen.findByRole('button', { name: /3 failed or stopped attempts · latest/ })
+    expect(screen.getByText('Use the staging data')).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem', { name: "Claude's turn" })).toHaveLength(1)
+    expect(screen.queryByText('Try again with Claude')).not.toBeInTheDocument()
+    fireEvent.click(fold)
+    expect(screen.getAllByRole('listitem', { name: "Claude's turn" })).toHaveLength(4)
+    expect(screen.getAllByText('Try again with Claude')).toHaveLength(2)
   })
 
   it('offers the next moves, and asks the agent as you', async () => {
@@ -254,12 +319,13 @@ describe('TaskThread', () => {
 
     const actions = await screen.findByRole('group', { name: 'Suggested actions' })
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([
-      'Revise the research with 1 comment',
-      'Write the plan',
+      'Revise the plan with 1 comment',
+      // On the same row, so every way to ask the agent lines up.
+      'Bring in another agent',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'Revise the research with 1 comment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revise the plan with 1 comment' }))
 
-    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'research', body: 'Revise the research with 1 comment' }))
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'plan', body: 'Revise the plan with 1 comment' }))
     await waitFor(() => expect(onAsked).toHaveBeenCalled())
   })
 
@@ -272,7 +338,7 @@ describe('TaskThread', () => {
     fireEvent.change(box, { target: { value: '@ag' } })
     fireEvent.click(await screen.findByRole('option', { name: /Claude/ }))
     fireEvent.change(box, { target: { value: '@Claude cover Safari too' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `${agentMentionToken('Claude', CLAUDE)} cover Safari too`))
   })
@@ -286,7 +352,7 @@ describe('TaskThread', () => {
     fireEvent.change(box, { target: { value: 'Can you look, @da' } })
     fireEvent.click(await screen.findByRole('option', { name: 'Dana' }))
     expect(box).toHaveValue('Can you look, @Dana ')
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `Can you look, ${mentionToken('Dana', DANA)} `))
     await waitFor(() => expect(mockTimeline).toHaveBeenCalledTimes(2))
@@ -315,7 +381,7 @@ describe('TaskThread', () => {
     expect(fireEvent.keyDown(box, { key: 'Enter' })).toBe(true)
 
     fireEvent.change(box, { target: { value: 'Can you look, @Dana ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `Can you look, ${mentionToken('Dana', DANA)} `))
   })
 
@@ -330,7 +396,7 @@ describe('TaskThread', () => {
         actorType: 'human',
         actor: { id: 'q', name: 'Quinn' },
         kind: 'comment_added',
-        payload: { step: 'research', quote: '`greeting.js` exports **greeting**', commentId: `c-${id}`, comment },
+        payload: { step: 'planning', quote: '`greeting.js` exports **greeting**', commentId: `c-${id}`, comment },
         createdAt: '2026-10-01T10:09:00Z',
       },
     })
@@ -344,7 +410,7 @@ describe('TaskThread', () => {
         actorType: 'human',
         actor: MARIA,
         kind: 'comment_status_changed',
-        payload: { step: 'research', commentId: 'c-1', status: 'resolved' },
+        payload: { step: 'planning', commentId: 'c-1', status: 'resolved' },
         createdAt: '2026-10-01T10:10:00Z',
       },
     }
@@ -355,7 +421,6 @@ describe('TaskThread', () => {
         <MemoryRouter>
           <TaskThread
             taskId="t-1"
-            project="web"
             refreshKey="1"
             onOpenArtifact={jest.fn()}
             onOpenComments={onOpenComments}
@@ -377,6 +442,6 @@ describe('TaskThread', () => {
     expect(screen.getAllByText('Open')[0]).toBeInTheDocument()
     expect(screen.queryByText(/resolved a comment/)).not.toBeInTheDocument()
     fireEvent.click(within(first).getByRole('button', { name: 'Open in comments' }))
-    expect(onOpenComments).toHaveBeenCalledWith('research')
+    expect(onOpenComments).toHaveBeenCalled()
   })
 })

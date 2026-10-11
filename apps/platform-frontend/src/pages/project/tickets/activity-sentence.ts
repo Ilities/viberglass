@@ -1,7 +1,7 @@
 import type { TaskActivityEntry } from '@viberglass/types'
 import { readableQuote } from './readable-quote'
 
-const STEP: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build', claw: 'scheduled run' }
+const STEP: Record<string, string> = { planning: 'plan', execution: 'build', claw: 'scheduled run' }
 
 /** One plain sentence per Activity entry. `nameOf` turns a user id in the payload into a name. */
 export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: string) => string): string {
@@ -43,6 +43,24 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       return `${who} marked the task as done`
     case 'pull_request_merged':
       return typeof entry.payload.mergedBy === 'string' ? `Merged by ${entry.payload.mergedBy}` : 'The pull request was merged'
+    case 'part_merged': {
+      const parts = Array.isArray(entry.payload.parts) ? entry.payload.parts.filter((part) => typeof part === 'number') : []
+      const merged = parts.length > 0 ? `Part ${parts.join(', ')} merged` : 'A part of the plan merged'
+      const by = typeof entry.payload.mergedBy === 'string' ? ` by ${entry.payload.mergedBy}` : ''
+      const next = typeof entry.payload.next === 'number' ? `; part ${entry.payload.next} is next` : ''
+      return `${merged}${by}${next}`
+    }
+    case 'part_marked': {
+      const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
+      return entry.payload.mark === 'skipped' ? `${who} skipped ${part} of the plan` : `${who} marked ${part} of the plan done`
+    }
+    case 'part_unmarked': {
+      const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
+      const reopened = entry.payload.reopened === true ? ', so the task is open again' : ''
+      return `${who} took back the mark on ${part} of the plan${reopened}`
+    }
+    case 'build_discarded':
+      return `${who} discarded the build of ${typeof entry.payload.parts === 'string' ? entry.payload.parts : 'some parts'}, which never opened its pull request`
     case 'comment_added':
       // Entries from before quotes name the line instead.
       if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`

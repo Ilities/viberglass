@@ -1,5 +1,5 @@
 import type { Router } from "express";
-import { TICKET_WORKFLOW_PHASE, type TextQuote } from "@viberglass/types";
+import type { TextQuote } from "@viberglass/types";
 import logger from "../../../config/logger";
 import type { TicketPhaseDocumentCommentService } from "../../../services/TicketPhaseDocumentCommentService";
 import { validateUuidParam } from "../../middleware/validation";
@@ -13,41 +13,18 @@ function parseTextQuote(raw: unknown): TextQuote | null | undefined {
   return { exact, prefix, suffix };
 }
 
-function parseCommentableWorkflowPhaseParam(
-  rawPhase: string,
-): "research" | "planning" | null {
-  if (rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
-    return TICKET_WORKFLOW_PHASE.RESEARCH;
-  }
-  if (rawPhase === TICKET_WORKFLOW_PHASE.PLANNING) {
-    return TICKET_WORKFLOW_PHASE.PLANNING;
-  }
-
-  return null;
-}
-
-/** Comments anchored to the text of a task's research or plan. */
+/** Comments anchored to the text of a task's plan. */
 export function registerDocumentCommentRoutes(
   router: Router,
   { ticketPhaseDocumentCommentService }: { ticketPhaseDocumentCommentService: TicketPhaseDocumentCommentService },
 ): void {
-  // GET /api/tasks/:id/phases/:phase/comments - Get inline comments for a phase document
+  // GET /api/tasks/:id/plan/comments - The plan's inline comments
   router.get(
-    "/:id/phases/:phase/comments",
+    "/:id/plan/comments",
     validateUuidParam("id"),
     async (req, res) => {
-      const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
-        });
-      }
-
       try {
-        const comments = await ticketPhaseDocumentCommentService.listComments(
-          req.params.id,
-          phase,
-        );
+        const comments = await ticketPhaseDocumentCommentService.listComments(req.params.id);
 
         return res.json({
           success: true,
@@ -62,31 +39,23 @@ export function registerDocumentCommentRoutes(
           });
         }
 
-        logger.error("Error fetching phase document comments", {
+        logger.error("Error fetching plan comments", {
           ticketId: req.params.id,
-          phase,
           error: message,
         });
         return res.status(500).json({
           error: "Internal server error",
-          message: "Failed to fetch phase document comments",
+          message: "Failed to fetch plan comments",
         });
       }
     },
   );
 
-  // POST /api/tasks/:id/phases/:phase/comments - Create an inline comment for a phase document
+  // POST /api/tasks/:id/plan/comments - Comment on the plan
   router.post(
-    "/:id/phases/:phase/comments",
+    "/:id/plan/comments",
     validateUuidParam("id"),
     async (req, res) => {
-      const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
-        });
-      }
-
       const { lineNumber, content } = req.body;
       const quote = parseTextQuote(req.body.quote);
       if (
@@ -104,7 +73,6 @@ export function registerDocumentCommentRoutes(
       try {
         const comment = await ticketPhaseDocumentCommentService.createComment(
           req.params.id,
-          phase,
           {
             quote,
             lineNumber: Number.isInteger(lineNumber) ? lineNumber : undefined,
@@ -138,32 +106,24 @@ export function registerDocumentCommentRoutes(
           });
         }
 
-        logger.error("Error creating phase document comment", {
+        logger.error("Error creating plan comment", {
           ticketId: req.params.id,
-          phase,
           error: message,
         });
         return res.status(500).json({
           error: "Internal server error",
-          message: "Failed to create phase document comment",
+          message: "Failed to create plan comment",
         });
       }
     },
   );
 
-  // PUT /api/tasks/:id/phases/:phase/comments/:commentId - Update an inline comment
+  // PUT /api/tasks/:id/plan/comments/:commentId - Update an inline comment
   router.put(
-    "/:id/phases/:phase/comments/:commentId",
+    "/:id/plan/comments/:commentId",
     validateUuidParam("id"),
     validateUuidParam("commentId"),
     async (req, res) => {
-      const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
-        });
-      }
-
       const { content, status } = req.body;
       const statusIsValid =
         status === undefined || status === "open" || status === "resolved";
@@ -181,7 +141,6 @@ export function registerDocumentCommentRoutes(
       try {
         const comment = await ticketPhaseDocumentCommentService.updateComment(
           req.params.id,
-          phase,
           req.params.commentId,
           {
             content,
@@ -212,15 +171,20 @@ export function registerDocumentCommentRoutes(
           });
         }
 
-        logger.error("Error updating phase document comment", {
+        if (message === "Only the comment's author can edit it") {
+          return res.status(403).json({
+            error: message,
+          });
+        }
+
+        logger.error("Error updating plan comment", {
           ticketId: req.params.id,
-          phase,
           commentId: req.params.commentId,
           error: message,
         });
         return res.status(500).json({
           error: "Internal server error",
-          message: "Failed to update phase document comment",
+          message: "Failed to update plan comment",
         });
       }
     },

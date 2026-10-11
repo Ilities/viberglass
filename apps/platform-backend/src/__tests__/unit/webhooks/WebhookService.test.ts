@@ -1,1256 +1,335 @@
+import {
+  InvalidWebhookPayloadError,
+  type InboundWebhookAction,
+  type InboundWebhookEvent,
+  type WebhookReceiver,
+} from "@viberglass/integration-core";
+import type { InboundIssue } from "@viberglass/types";
 import { WebhookService } from "../../../webhooks/WebhookService";
-import { createDefaultInboundEventProcessorResolver } from "../../../webhooks/InboundEventProcessorResolver";
 import { WebhookConfigResolver } from "../../../webhooks/WebhookConfigResolver";
-import { createDefaultProviderWebhookPolicyResolver } from "../../../webhooks/ProviderWebhookPolicyResolver";
 import { InboundWebhookDeliveryLifecycle } from "../../../webhooks/InboundWebhookDeliveryLifecycle";
 import { WebhookRetryService } from "../../../webhooks/WebhookRetryService";
-import type { ParsedWebhookEvent, WebhookProvider } from "../../../webhooks/WebhookProvider";
+import { InboundEventHandler } from "../../../webhooks/InboundEventHandler";
+import { WebhookTaskCreator } from "../../../webhooks/WebhookTaskCreator";
 import type { WebhookConfig } from "../../../persistence/webhook/WebhookConfigDAO";
+import type { WebhookDeliveryAttempt } from "../../../persistence/webhook/WebhookDeliveryDAO";
 
-type ProviderName = "github" | "jira" | "shortcut" | "custom";
+const PROVIDER = "tracker";
 
-function createConfig(provider: ProviderName): WebhookConfig {
+function createConfig(overrides: Partial<WebhookConfig> = {}): WebhookConfig {
   const timestamp = new Date("2026-02-09T00:00:00.000Z");
   return {
-    id: `cfg-${provider}`,
+    id: "cfg-1",
     projectId: "project-1",
-    provider,
-    providerProjectId: `${provider}-project-1`,
+    provider: PROVIDER,
     integrationId: "integration-1",
     secretLocation: "database",
     secretPath: null,
-    webhookSecretEncrypted: `${provider}-secret`,
+    webhookSecretEncrypted: "secret",
     allowedEvents: ["*"],
-    autoExecute: false,
-    botUsername: null,
-    labelMappings: {},
+    planNewIssues: false,
+    botUsername: "viberglass-bot",
     active: true,
     createdAt: timestamp,
     updatedAt: timestamp,
+    ...overrides,
   };
 }
 
-function createEvent(
-  provider: ProviderName,
-  metadata: ParsedWebhookEvent["metadata"] = {},
-): ParsedWebhookEvent {
-  return {
-    provider,
-    eventType: "event_updated",
-    deduplicationId: `${provider}-delivery-1`,
-    timestamp: "2026-02-09T00:00:00.000Z",
-    payload: { provider, sample: true },
-    metadata,
+const EVENT: InboundWebhookEvent = {
+  eventType: "issue.opened",
+  deduplicationId: "delivery-1",
+  timestamp: "2026-02-09T00:00:00.000Z",
+  payload: { sample: true },
+  metadata: { issueKey: "T-1" },
+};
+
+const ISSUE: InboundIssue = {
+  key: "T-1",
+  url: "https://tracker.example/T-1",
+  apiBaseUrl: null,
+  title: "Login fails",
+  description: "After a reset",
+  author: null,
+  severity: "high",
+  labels: [],
+  repository: null,
+  metadata: {},
+};
+
+const TRACKER = { provider: PROVIDER, integrationId: "integration-1", webhookConfigId: "cfg-1" };
+
+function createHarness(params: { config?: WebhookConfig | null; action?: InboundWebhookAction } = {}) {
+  const config = params.config === undefined ? createConfig() : params.config;
+  const receiver = {
+    targetsOneSpace: false,
+    signatureOf: jest.fn((headers: Record<string, string>) => headers["x-signature"]),
+    verifySignature: jest.fn().mockReturnValue(true),
+    parseEvent: jest.fn().mockReturnValue(EVENT),
+    retryHeaders: jest.fn().mockReturnValue({ "x-delivery": "delivery-1" }),
+    read: jest.fn().mockReturnValue(params.action ?? { kind: "issue", issue: ISSUE }),
+  } satisfies WebhookReceiver;
+  const receivers = { get: (provider: string) => (provider === PROVIDER ? receiver : undefined), providers: () => [PROVIDER] };
+
+  const configDAO = { getConfigById: jest.fn().mockResolvedValue(config) };
+  const deliveryDAO = {
+    updateDeliveryStatus: jest.fn().mockResolvedValue(undefined),
+    getDeliveryById: jest.fn().mockResolvedValue(null),
+    getDeliveryByIdForConfig: jest.fn().mockResolvedValue(null),
+    getDeliveryByDeliveryId: jest.fn().mockResolvedValue(null),
   };
+  const deduplication = {
+    shouldProcessDelivery: jest.fn().mockResolvedValue({ shouldProcess: true, existingId: undefined }),
+    recordDeliveryStart: jest.fn().mockResolvedValue({ id: "delivery-row-1" }),
+    recordDeliverySuccessById: jest.fn().mockResolvedValue(undefined),
+    recordDeliveryFailureById: jest.fn().mockResolvedValue(undefined),
+    getFailedDeliveries: jest.fn().mockResolvedValue([]),
+  };
+  const secretService = { getSecret: jest.fn().mockResolvedValue("secret") };
+  const tickets = {
+    createTicket: jest.fn().mockResolvedValue({ id: "ticket-new" }),
+    updateTicket: jest.fn().mockResolvedValue(undefined),
+  };
+  const planner = { request: jest.fn().mockResolvedValue("job-1") };
+  const issues = {
+    issue: jest.fn().mockResolvedValue({ ticketId: "ticket-1", projectId: "project-1" }),
+    commented: jest.fn().mockResolvedValue({ ticketId: "ticket-1" }),
+  };
+
+  const handler = new InboundEventHandler(issues, new WebhookTaskCreator(tickets, planner));
+  const configResolver = new WebhookConfigResolver(configDAO);
+  const lifecycle = new InboundWebhookDeliveryLifecycle(deduplication, deliveryDAO);
+  const serviceConfig = { defaultTenantId: "tenant-default" };
+  const retryService = new WebhookRetryService(receivers, configResolver, lifecycle, handler, deliveryDAO, serviceConfig);
+  const service = new WebhookService(
+    receivers,
+    deduplication,
+    secretService,
+    handler,
+    configResolver,
+    lifecycle,
+    retryService,
+    serviceConfig,
+  );
+
+  return { service, receiver, configDAO, deliveryDAO, deduplication, secretService, tickets, planner, issues };
 }
 
-function createGitHubIssuesEvent(action: string): ParsedWebhookEvent {
-  return {
-    provider: "github",
-    eventType: `issues.${action}`,
-    deduplicationId: "github-delivery-1",
-    timestamp: "2026-02-09T00:00:00.000Z",
-    payload: {
-      action,
-      issue: {
-        number: 123,
-        title: "Fix login bug",
-        body: "Login fails after reset",
-        html_url: "https://github.com/acme/repo/issues/123",
-        user: { login: "reporter" },
-        state: "open",
-        labels: [{ name: "high" }],
-      },
-      repository: {
-        full_name: "github-project-1",
-        owner: { login: "acme" },
-        name: "repo",
-      },
-      sender: {
-        login: "reporter",
-      },
-    },
-    metadata: {
-      repositoryId: "github-project-1",
-      action,
-      issueKey: "123",
-      sender: "reporter",
-    },
-  };
-}
+const rawBody = Buffer.from('{"sample":true}');
+const SIGNED = { "x-signature": "sha256=signature" };
 
-function createGitHubIssueCommentEvent(action: string): ParsedWebhookEvent {
-  return {
-    provider: "github",
-    eventType: `issue_comment.${action}`,
-    deduplicationId: "github-delivery-comment-1",
-    timestamp: "2026-02-09T00:00:00.000Z",
-    payload: {
-      action,
-      issue: {
-        number: 123,
-        title: "Fix login bug",
-        body: "Login fails after reset",
-        html_url: "https://github.com/acme/repo/issues/123",
-      },
-      comment: {
-        id: 77,
-        body: "@viberator fix this please",
-        user: { login: "alice" },
-        created_at: "2026-02-09T00:00:00.000Z",
-        updated_at: "2026-02-09T00:00:00.000Z",
-      },
-      repository: {
-        full_name: "github-project-1",
-      },
-      sender: {
-        login: "alice",
-      },
-    },
-    metadata: {
-      repositoryId: "github-project-1",
-      action,
-      issueKey: "123",
-      commentId: "77",
-      sender: "alice",
-    },
-  };
-}
-
-function createJiraIssueCreatedEvent(): ParsedWebhookEvent {
-  return {
-    provider: "jira",
-    eventType: "issue_created",
-    deduplicationId: "jira-delivery-issue-1",
-    timestamp: "2026-02-09T00:00:00.000Z",
-    payload: {
-      webhookEvent: "jira:issue_created",
-      issue: {
-        key: "OPS-42",
-        fields: {
-          summary: "Login outage",
-          description: "Production login endpoint returns 500",
-          priority: { name: "High" },
-          issuetype: { name: "Bug" },
-          project: { key: "OPS", id: "10001" },
-        },
-      },
-      user: {
-        displayName: "Alice Reporter",
-      },
-    },
-    metadata: {
-      repositoryId: "OPS",
-      projectId: "10001",
-      issueKey: "OPS-42",
-      sender: "Alice Reporter",
-    },
-  };
-}
-
-function createJiraCommentCreatedEvent(): ParsedWebhookEvent {
-  return {
-    provider: "jira",
-    eventType: "comment_created",
-    deduplicationId: "jira-delivery-comment-1",
-    timestamp: "2026-02-09T00:00:00.000Z",
-    payload: {
-      webhookEvent: "comment_created",
-      issue: {
-        key: "OPS-42",
-        fields: {
-          summary: "Login outage",
-        },
-      },
-      comment: {
-        id: "9001",
-        body: "@viberator fix this now",
-        author: {
-          displayName: "Bob Commenter",
-        },
-      },
-    },
-    metadata: {
-      repositoryId: "OPS",
-      issueKey: "OPS-42",
-      commentId: "9001",
-      sender: "Bob Commenter",
-    },
-  };
-}
-
-function createUnsupportedJiraIssueUpdateEvent(): ParsedWebhookEvent {
-  return {
-    provider: "jira",
-    eventType: "issue_updated",
-    deduplicationId: "jira-delivery-unsupported-1",
-    timestamp: "2026-02-09T00:00:00.000Z",
-    payload: {
-      webhookEvent: "jira:issue_updated",
-      issue_event_type_name: "issue_assigned",
-      issue: {
-        key: "OPS-99",
-        fields: {
-          summary: "Assignment change",
-        },
-      },
-    },
-    metadata: {
-      repositoryId: "OPS",
-      issueKey: "OPS-99",
-      action: "issue_assigned",
-      sender: "workflow-bot",
-    },
-  };
-}
-
-function createProvider(
-  providerName: ProviderName,
-  event: ParsedWebhookEvent,
-  signatureValid = true,
-): {
-  provider: WebhookProvider;
-  parseEvent: jest.Mock;
-  verifySignature: jest.Mock;
-} {
-  const parseEvent = jest.fn().mockReturnValue(event);
-  const verifySignature = jest.fn().mockReturnValue(signatureValid);
-  const provider = {
-    name: providerName,
-    parseEvent,
-    verifySignature,
-    getSupportedEvents: jest.fn().mockReturnValue([event.eventType]),
-    validateConfig: jest.fn().mockReturnValue(true),
-    postComment: jest.fn(),
-    updateLabels: jest.fn(),
-    postResult: jest.fn(),
-  } as unknown as WebhookProvider;
-
-  return { provider, parseEvent, verifySignature };
+function deliver(
+  harness: ReturnType<typeof createHarness>,
+  options: { provider?: string; configId?: string; headers?: Record<string, string> } = {},
+) {
+  return harness.service.processWebhook(options.headers ?? SIGNED, EVENT.payload, rawBody, undefined, {
+    providerName: options.provider ?? PROVIDER,
+    configId: "configId" in options ? options.configId : "cfg-1",
+  });
 }
 
 describe("WebhookService", () => {
-  const rawBody = Buffer.from('{"sample":true}');
+  it("resolves the webhook from the id in its address and de-duplicates by the delivery id", async () => {
+    const harness = createHarness();
+    const result = await deliver(harness);
 
-  function createHarness(params: {
-    providerName: ProviderName;
-    event: ParsedWebhookEvent;
-    config?: WebhookConfig;
-    signatureValid?: boolean;
-  }) {
-    const { providerName, event, signatureValid = true } = params;
-    const config = params.config ?? createConfig(providerName);
-    const providerFixture = createProvider(providerName, event, signatureValid);
+    expect(result).toEqual({ status: "processed", ticketId: "ticket-1", jobId: undefined });
+    expect(harness.configDAO.getConfigById).toHaveBeenCalledWith("cfg-1");
+    expect(harness.deduplication.shouldProcessDelivery).toHaveBeenCalledWith("delivery-1", "cfg-1");
+    expect(harness.receiver.read).toHaveBeenCalledWith(EVENT, { botUsername: "viberglass-bot" });
+  });
 
-    const registry = {
-      getProviderForHeaders: jest.fn().mockReturnValue(providerFixture.provider),
-      get: jest.fn().mockReturnValue(providerFixture.provider),
-    };
-    const configDAO = {
-      getConfigById: jest.fn().mockResolvedValue(null),
-      getByIntegrationId: jest.fn().mockResolvedValue(null),
-      listByIntegrationId: jest.fn().mockResolvedValue([]),
-      getActiveConfigByProviderProject: jest.fn().mockResolvedValue(config),
-      listConfigsByProject: jest.fn().mockResolvedValue([]),
-      listConfigsByProvider: jest.fn().mockResolvedValue([config]),
-    };
-    const deliveryDAO = {
-      updateDeliveryStatus: jest.fn().mockResolvedValue(undefined),
-      getDeliveryByDeliveryId: jest.fn().mockResolvedValue(null),
-    };
-    const deduplication = {
-      shouldProcessDelivery: jest
-        .fn()
-        .mockResolvedValue({ shouldProcess: true, existingId: undefined }),
-      recordDeliveryStart: jest.fn().mockResolvedValue({ id: "delivery-row-1" }),
-      recordDeliverySuccessById: jest.fn().mockResolvedValue(undefined),
-      recordDeliveryFailureById: jest.fn().mockResolvedValue(undefined),
-      getFailedDeliveries: jest.fn().mockResolvedValue([]),
-    };
-    const secretService = {
-      getSecret: jest.fn().mockResolvedValue(`${providerName}-secret`),
-    };
-    const ticketDAO = {
-      createTicket: jest.fn().mockResolvedValue({ id: "ticket-1" }),
-      findLatestShortcutStoryTicketByStoryId: jest.fn().mockResolvedValue(null),
-      updateTicket: jest.fn().mockResolvedValue(undefined),
-    };
-    const builds = {
-      request: jest.fn().mockResolvedValue("job-1"),
-    };
-    const projectIntegrationLinkDAO = {
-      getIntegrationProjects: jest.fn().mockResolvedValue([]),
-    };
+  it.each([
+    ["names another provider's webhook", { config: createConfig({ provider: "other" }) }, {}],
+    ["carries no webhook id", {}, { configId: undefined }],
+    ["names a webhook that doesn't exist", { config: null }, {}],
+    ["names a provider no integration receives", {}, { provider: "unknown" }],
+  ])("answers not found to an address that %s", async (_case, harnessOptions, deliveryOptions) => {
+    const harness = createHarness(harnessOptions);
+    const result = await deliver(harness, deliveryOptions);
 
-    // Create the processor resolver with the mocked dependencies
-    const processorResolver = createDefaultInboundEventProcessorResolver(
-      ticketDAO as any,
-      builds,
-      projectIntegrationLinkDAO as any,
-    );
-    const configResolver = new WebhookConfigResolver(configDAO as any);
-    const providerPolicyResolver = createDefaultProviderWebhookPolicyResolver();
-    const deliveryLifecycle = new InboundWebhookDeliveryLifecycle(
-      deduplication as any,
-      deliveryDAO as any,
-    );
-    const serviceConfig = {
-      defaultTenantId: "tenant-default",
-    };
-    const retryService = new WebhookRetryService(
-      registry as any,
-      configResolver,
-      deliveryLifecycle,
-      providerPolicyResolver,
-      processorResolver,
-      deliveryDAO as any,
-      serviceConfig,
-    );
+    expect(result).toEqual({ status: "not_found", reason: "No webhook with this address" });
+    expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
+    expect(harness.issues.issue).not.toHaveBeenCalled();
+  });
 
-    const service = new WebhookService(
-      registry as any,
-      deduplication as any,
-      secretService as any,
-      processorResolver,
-      configResolver,
-      providerPolicyResolver,
-      deliveryLifecycle,
-      retryService,
-      serviceConfig,
-    );
-
-    return {
-      service,
-      providerFixture,
-      mocks: {
-        registry,
-        configDAO,
-        deliveryDAO,
-        deduplication,
-        secretService,
-        ticketDAO,
-        builds,
-        projectIntegrationLinkDAO,
-      },
-    };
-  }
-
-  it("resolves config by provider and providerProjectId without github bias", async () => {
-    const event = createEvent("shortcut", {
-      repositoryId: "shortcut-project-1",
+  it("answers invalid to a payload the sender has to fix, and ignores one that merely can't be parsed", async () => {
+    const harness = createHarness();
+    harness.receiver.parseEvent.mockImplementationOnce(() => {
+      throw new InvalidWebhookPayloadError("Missing required field: title");
     });
-    const { service, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config: createConfig("shortcut"),
-    });
+    expect(await deliver(harness)).toEqual({ status: "invalid", reason: "Missing required field: title" });
 
-    const result = await service.processWebhook(
-      {
-        "x-shortcut-delivery": "shortcut-delivery",
-        "payload-signature": "sha256=valid-signature",
-      },
-      event.payload,
-      rawBody,
-      "tenant-1",
-      { providerName: "shortcut" },
+    harness.receiver.parseEvent.mockImplementationOnce(() => {
+      throw new Error("Missing header");
+    });
+    expect(await deliver(harness)).toEqual({ status: "ignored", reason: "Event parsing failed: Missing header" });
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
+  });
+
+  it("passes an issue to the connection's issues and records the task it reached", async () => {
+    const harness = createHarness();
+    await deliver(harness);
+
+    expect(harness.issues.issue).toHaveBeenCalledWith(TRACKER, ISSUE);
+    expect(harness.deduplication.recordDeliverySuccessById).toHaveBeenCalledWith("delivery-row-1", "ticket-1", "project-1");
+  });
+
+  it("passes a comment to the linked tasks", async () => {
+    const comment = { issueKey: "T-1", author: { name: "Bob", email: null }, body: "fix it", mentionsBot: true };
+    const harness = createHarness({ action: { kind: "comment", comment } });
+    const result = await deliver(harness);
+
+    expect(result.status).toBe("processed");
+    expect(harness.issues.commented).toHaveBeenCalledWith(TRACKER, comment);
+  });
+
+  it("records an ignored issue as ignored, with the reason", async () => {
+    const harness = createHarness();
+    harness.issues.issue.mockResolvedValue({ ignoredReason: "No space takes the issue" });
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "ignored", reason: "No space takes the issue" });
+    expect(harness.deliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith("delivery-row-1", "ignored", "No space takes the issue");
+    expect(harness.deduplication.recordDeliveryFailureById).not.toHaveBeenCalled();
+  });
+
+  it("records what the integration read as ignored when it ignores the event", async () => {
+    const harness = createHarness({ action: { kind: "ignored", reason: "Written by the bot account" } });
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "ignored", reason: "Written by the bot account" });
+    expect(harness.issues.issue).not.toHaveBeenCalled();
+  });
+
+  it("ignores an issue for a webhook that isn't part of a connection", async () => {
+    const harness = createHarness({ config: createConfig({ integrationId: null }) });
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "ignored", reason: "The webhook isn't part of a connection" });
+    expect(harness.issues.issue).not.toHaveBeenCalled();
+  });
+
+  it("creates the task a webhook asks for in its space, and asks for its plan when the webhook is set to", async () => {
+    const task = { title: "Checkout broken", description: "500 on pay", severity: "critical" as const, category: "bug", url: "https://x" };
+    const harness = createHarness({
+      config: createConfig({ provider: PROVIDER, planNewIssues: true }),
+      action: { kind: "task", task },
+    });
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "processed", ticketId: "ticket-new", jobId: "job-1" });
+    expect(harness.tickets.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1", title: "Checkout broken", severity: "critical", ticketSystem: PROVIDER }),
     );
+    expect(harness.tickets.updateTicket).toHaveBeenCalledWith("ticket-new", { externalTicketId: undefined, externalTicketUrl: "https://x" });
+    expect(harness.planner.request).toHaveBeenCalledWith("ticket-new");
+  });
+
+  it("verifies the signature the integration finds in the headers against the webhook's secret", async () => {
+    const harness = createHarness();
+    await deliver(harness, { headers: { "x-signature": "sha256=abc", "x-other": "1" } });
+
+    expect(harness.receiver.signatureOf).toHaveBeenCalledWith({ "x-signature": "sha256=abc", "x-other": "1" });
+    expect(harness.receiver.verifySignature).toHaveBeenCalledWith(rawBody, "sha256=abc", "secret");
+  });
+
+  it("returns duplicate for a delivery already handled", async () => {
+    const harness = createHarness();
+    harness.deduplication.shouldProcessDelivery.mockResolvedValue({ shouldProcess: false, existingId: "row-0" });
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "duplicate", reason: "Delivery already processed", existingId: "row-0" });
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid signature and records the failed delivery", async () => {
+    const harness = createHarness();
+    harness.receiver.verifySignature.mockReturnValue(false);
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "rejected", reason: "Invalid signature" });
+    expect(harness.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
+    expect(harness.deduplication.recordDeliveryFailureById).toHaveBeenCalledWith("delivery-row-1", "Rejected: Invalid signature");
+    expect(harness.issues.issue).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delivery when the webhook has no secret, and an unsigned one", async () => {
+    const harness = createHarness();
+    harness.secretService.getSecret.mockRejectedValueOnce(new Error("no secret"));
+    expect(await deliver(harness)).toEqual({ status: "rejected", reason: "Webhook secret is not configured" });
+
+    expect(await deliver(harness, { headers: {} })).toEqual({ status: "rejected", reason: "Missing signature header" });
+    expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+  });
+
+  it("ignores events the webhook isn't set to receive, with the event in the reason", async () => {
+    const harness = createHarness({ config: createConfig({ allowedEvents: ["comment.created"] }) });
+    const result = await deliver(harness);
 
     expect(result.status).toBe("ignored");
-    expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
-      "shortcut",
-      "shortcut-project-1",
-    );
-    expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
-      "shortcut-delivery-1",
-      "cfg-shortcut",
-    );
-    expect(mocks.configDAO.getActiveConfigByProviderProject).not.toHaveBeenCalledWith(
-      "github",
-      expect.anything(),
-    );
+    expect(result.reason).toContain("issue.opened");
+    expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+    expect(harness.deliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith("delivery-row-1", "ignored", expect.stringContaining("isn't set to receive"));
   });
 
-  it("resolves Shortcut config candidates from issue key when project metadata is absent", async () => {
-    const event: ParsedWebhookEvent = {
-      provider: "shortcut",
-      eventType: "story_created",
-      deduplicationId: "shortcut-delivery-story-1",
-      timestamp: "2026-02-09T00:00:00.000Z",
-      payload: {
-        object_type: "story",
-        action: "create",
-        data: {
-          id: 321,
-          name: "Broken flow",
-          story_type: "bug",
-          app_url: "https://app.shortcut.com/acme/story/321",
-        },
-      },
-      metadata: {
-        issueKey: "321",
-      },
-    };
-    const config = createConfig("shortcut");
-    config.providerProjectId = "321";
-    config.allowedEvents = ["story_created"];
+  describe("retryDelivery", () => {
+    function createDelivery(overrides: Partial<WebhookDeliveryAttempt> = {}): WebhookDeliveryAttempt {
+      return {
+        id: "delivery-row-1",
+        provider: PROVIDER,
+        webhookConfigId: "cfg-1",
+        deliveryId: "delivery-1",
+        eventType: "issue.opened",
+        payload: { sample: true },
+        status: "failed",
+        errorMessage: "boom",
+        ticketId: null,
+        projectId: null,
+        createdAt: new Date("2026-02-09T00:00:00.000Z"),
+        processedAt: null,
+        ...overrides,
+      };
+    }
 
-    const { service, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config,
+    it("replays a failed delivery through its integration, with the headers it needs to parse it again", async () => {
+      const harness = createHarness();
+      harness.deliveryDAO.getDeliveryById.mockResolvedValue(createDelivery());
+      const result = await harness.service.retryDelivery("delivery-1", { deliveryAttemptId: "delivery-row-1" });
+
+      expect(result).toEqual({ status: "processed", ticketId: "ticket-1", jobId: undefined });
+      expect(harness.receiver.retryHeaders).toHaveBeenCalledWith({ deliveryId: "delivery-1", eventType: "issue.opened" });
+      expect(harness.receiver.parseEvent).toHaveBeenCalledWith({ sample: true }, { "x-delivery": "delivery-1" });
+      expect(harness.issues.issue).toHaveBeenCalledWith(TRACKER, ISSUE);
     });
 
-    const result = await service.processWebhook(
-      {
-        "x-shortcut-delivery": "shortcut-delivery-story-1",
-        "payload-signature": "sha256=valid-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "shortcut" },
-    );
+    it("records a retried delivery that is ignored as ignored, with the reason", async () => {
+      const harness = createHarness();
+      harness.deliveryDAO.getDeliveryById.mockResolvedValue(createDelivery());
+      harness.issues.issue.mockResolvedValue({ ignoredReason: "No space takes the issue" });
+      const result = await harness.service.retryDelivery("delivery-1", { deliveryAttemptId: "delivery-row-1" });
 
-    expect(result.status).toBe("processed");
-    expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
-      "shortcut",
-      "321",
-    );
-  });
-
-  it("creates Shortcut ticket and prefers config project linkage", async () => {
-    const config = createConfig("shortcut");
-    config.allowedEvents = ["story_created"];
-    config.autoExecute = false;
-    config.projectId = "project-from-config";
-
-    const event: ParsedWebhookEvent = {
-      provider: "shortcut",
-      eventType: "story_created",
-      deduplicationId: "shortcut-delivery-project-1",
-      timestamp: "2026-02-09T00:00:00.000Z",
-      payload: {
-        object_type: "story",
-        action: "create",
-        data: {
-          id: 777,
-          name: "Shortcut story",
-          description: "Story body",
-          story_type: "feature",
-          app_url: "https://app.shortcut.com/acme/story/777",
-        },
-      },
-      metadata: {
-        issueKey: "777",
-        repositoryId: "shortcut-project-1",
-      },
-    };
-
-    const { service, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config,
+      expect(result).toEqual({ status: "ignored", reason: "No space takes the issue" });
+      expect(harness.deliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith("delivery-row-1", "ignored", "No space takes the issue");
     });
 
-    const result = await service.processWebhook(
-      {
-        "x-shortcut-delivery": "shortcut-delivery-project-1",
-        "payload-signature": "sha256=valid-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "shortcut" },
-    );
+    it("fails a delivery that wasn't sent to a webhook", async () => {
+      const harness = createHarness();
+      harness.deliveryDAO.getDeliveryById.mockResolvedValue(createDelivery({ webhookConfigId: null }));
+      const result = await harness.service.retryDelivery("delivery-1", { deliveryAttemptId: "delivery-row-1" });
 
-    expect(result.status).toBe("processed");
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: "project-from-config",
-        title: "Shortcut story",
-        autoFixRequested: false,
-      }),
-    );
-    expect(mocks.builds.request).not.toHaveBeenCalled();
-  });
-
-  it("creates Shortcut ticket using integration-linked project when config project is missing", async () => {
-    const linkedProjectId = "11111111-1111-4111-8111-111111111111";
-    const config = createConfig("shortcut");
-    config.allowedEvents = ["story_created"];
-    config.projectId = null;
-
-    const event: ParsedWebhookEvent = {
-      provider: "shortcut",
-      eventType: "story_created",
-      deduplicationId: "shortcut-delivery-linked-project-1",
-      timestamp: "2026-02-09T00:00:00.000Z",
-      payload: {
-        object_type: "story",
-        action: "create",
-        data: {
-          id: 888,
-          name: "Shortcut story linked project",
-          description: "Story body",
-          story_type: "feature",
-          app_url: "https://app.shortcut.com/acme/story/888",
-        },
-      },
-      metadata: {
-        issueKey: "888",
-        repositoryId: "shortcut-project-1",
-      },
-    };
-
-    const { service, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config,
-    });
-    mocks.projectIntegrationLinkDAO.getIntegrationProjects.mockResolvedValue([
-      {
-        id: "link-1",
-        projectId: linkedProjectId,
-        integrationId: "integration-1",
-        isPrimary: true,
-        createdAt: "2026-02-09T00:00:00.000Z",
-      },
-    ]);
-
-    const result = await service.processWebhook(
-      {
-        "x-shortcut-delivery": "shortcut-delivery-linked-project-1",
-        "payload-signature": "sha256=valid-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "shortcut" },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(mocks.projectIntegrationLinkDAO.getIntegrationProjects).toHaveBeenCalledWith(
-      "integration-1",
-    );
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: linkedProjectId,
-        title: "Shortcut story linked project",
-      }),
-    );
-  });
-
-  it("updates existing Shortcut ticket for story_updated events", async () => {
-    const config = createConfig("shortcut");
-    config.allowedEvents = ["story_updated"];
-    config.projectId = "project-from-config";
-
-    const event: ParsedWebhookEvent = {
-      provider: "shortcut",
-      eventType: "story_updated",
-      deduplicationId: "shortcut-delivery-updated-1",
-      timestamp: "2026-02-16T12:05:30.000Z",
-      payload: {
-        object_type: "story",
-        action: "update",
-        data: {
-          id: 777,
-          name: "Shortcut story updated",
-          description: "Updated body from Shortcut",
-          story_type: "bug",
-          app_url: "https://app.shortcut.com/acme/story/777",
-        },
-      },
-      metadata: {
-        issueKey: "777",
-        repositoryId: "shortcut-project-1",
-      },
-    };
-
-    const { service, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config,
-    });
-    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue({
-      id: "ticket-shortcut-777",
+      expect(result).toEqual({ status: "failed", reason: "Webhook configuration not found" });
+      expect(harness.configDAO.getConfigById).not.toHaveBeenCalled();
     });
 
-    const result = await service.processWebhook(
-      {
-        "x-shortcut-delivery": "shortcut-delivery-updated-1",
-        "payload-signature": "sha256=valid-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "shortcut" },
-    );
+    it("doesn't replay a delivery that already succeeded", async () => {
+      const harness = createHarness();
+      harness.deliveryDAO.getDeliveryById.mockResolvedValue(createDelivery({ status: "succeeded" }));
+      const result = await harness.service.retryDelivery("delivery-1", { deliveryAttemptId: "delivery-row-1" });
 
-    expect(result).toEqual({
-      status: "processed",
-      ticketId: "ticket-shortcut-777",
-      jobId: undefined,
+      expect(result).toEqual({ status: "duplicate", reason: "Delivery already succeeded", existingId: "delivery-row-1" });
+      expect(harness.issues.issue).not.toHaveBeenCalled();
     });
-    expect(mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId).toHaveBeenCalledWith(
-      "project-from-config",
-      "777",
-    );
-    expect(mocks.ticketDAO.updateTicket).toHaveBeenCalledWith(
-      "ticket-shortcut-777",
-      expect.objectContaining({
-        title: "Shortcut story updated",
-        description: "Updated body from Shortcut",
-        severity: "high",
-        category: "bug",
-        externalTicketId: "777",
-        externalTicketUrl: "https://app.shortcut.com/acme/story/777",
-      }),
-    );
-  });
-
-  it("ignores Shortcut story_updated when no matching Viberglass ticket exists", async () => {
-    const config = createConfig("shortcut");
-    config.allowedEvents = ["story_updated"];
-    config.projectId = "project-from-config";
-
-    const event: ParsedWebhookEvent = {
-      provider: "shortcut",
-      eventType: "story_updated",
-      deduplicationId: "shortcut-delivery-updated-missing-1",
-      timestamp: "2026-02-16T12:05:30.000Z",
-      payload: {
-        object_type: "story",
-        action: "update",
-        data: {
-          id: 999,
-          description: "Updated body from Shortcut",
-        },
-      },
-      metadata: {
-        issueKey: "999",
-        repositoryId: "shortcut-project-1",
-      },
-    };
-
-    const { service, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config,
-    });
-    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue(null);
-
-    const result = await service.processWebhook(
-      {
-        "x-shortcut-delivery": "shortcut-delivery-updated-missing-1",
-        "payload-signature": "sha256=valid-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "shortcut" },
-    );
-
-    expect(result.status).toBe("ignored");
-    expect(result.reason).toBe("No Viberglass ticket found for Shortcut story '999'");
-    expect(mocks.ticketDAO.updateTicket).not.toHaveBeenCalled();
-  });
-
-  it("uses Jira signature headers consistently for verification", async () => {
-    const event: ParsedWebhookEvent = {
-      provider: "jira",
-      eventType: "comment_created",
-      deduplicationId: "jira-delivery-signature-1",
-      timestamp: "2026-02-09T00:00:00.000Z",
-      payload: {
-        issue: {
-          key: "jira-project-1-1",
-          fields: {
-            summary: "Signature validation test",
-          },
-        },
-        comment: {
-          id: "1",
-          body: "no bot command",
-          author: {
-            displayName: "Tester",
-          },
-        },
-      },
-      metadata: {
-        repositoryId: "jira-project-1",
-        issueKey: "jira-project-1-1",
-      },
-    };
-    const { service, providerFixture } = createHarness({
-      providerName: "jira",
-      event,
-      config: createConfig("jira"),
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-atlassian-webhook-signature": "sha256=jira-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "jira" },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(providerFixture.verifySignature).toHaveBeenCalledWith(
-      rawBody,
-      "sha256=jira-signature",
-      "jira-secret",
-    );
-  });
-
-  it("returns duplicate when deduplication marks delivery as already handled", async () => {
-    const event = createEvent("github", { repositoryId: "github-project-1" });
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config: createConfig("github"),
-    });
-    mocks.deduplication.shouldProcessDelivery.mockResolvedValue({
-      shouldProcess: false,
-      existingId: "existing-delivery-row",
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result).toEqual({
-      status: "duplicate",
-      reason: "Delivery already processed",
-      existingId: "existing-delivery-row",
-    });
-    expect(mocks.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
-  });
-
-  it("rejects invalid signatures and records failed deliveries", async () => {
-    const event = createEvent("github", { repositoryId: "github-project-1" });
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config: createConfig("github"),
-      signatureValid: false,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=bad-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result).toEqual({
-      status: "rejected",
-      reason: "Invalid signature",
-    });
-    expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
-      "github-delivery-1",
-      "cfg-github",
-    );
-    expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
-    expect(mocks.deduplication.recordDeliveryFailureById).toHaveBeenCalledWith(
-      "delivery-row-1",
-      "Rejected: Invalid signature",
-    );
-  });
-
-  it("rejects unsigned Jira deliveries when no secret is configured", async () => {
-    const config = createConfig("jira");
-    config.webhookSecretEncrypted = null;
-    const event: ParsedWebhookEvent = {
-      provider: "jira",
-      eventType: "comment_created",
-      deduplicationId: "jira-delivery-unsigned-1",
-      timestamp: "2026-02-09T00:00:00.000Z",
-      payload: {
-        issue: {
-          key: "jira-project-1-2",
-          fields: {
-            summary: "Unsigned Jira test",
-          },
-        },
-        comment: {
-          id: "2",
-          body: "no bot command",
-          author: {
-            displayName: "Tester",
-          },
-        },
-      },
-      metadata: {
-        repositoryId: "jira-project-1",
-        issueKey: "jira-project-1-2",
-      },
-    };
-    const { service, providerFixture, mocks } = createHarness({
-      providerName: "jira",
-      event,
-      config,
-    });
-    mocks.secretService.getSecret.mockRejectedValue(
-      new Error("Webhook secret not found"),
-    );
-
-    const result = await service.processWebhook(
-      {
-        "x-atlassian-webhook-identifier": "jira-delivery-1",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "jira" },
-    );
-
-    expect(result).toEqual({
-      status: "rejected",
-      reason: "Webhook secret is not configured",
-    });
-    expect(providerFixture.verifySignature).not.toHaveBeenCalled();
-    expect(mocks.ticketDAO.createTicket).not.toHaveBeenCalled();
-  });
-
-  it("rejects signed deliveries for providers with no configured secret", async () => {
-    const config = createConfig("shortcut");
-    config.webhookSecretEncrypted = null;
-    const event = createEvent("shortcut", { repositoryId: "shortcut-project-1" });
-    const { service, providerFixture, mocks } = createHarness({
-      providerName: "shortcut",
-      event,
-      config,
-    });
-    mocks.secretService.getSecret.mockResolvedValue("");
-
-    const result = await service.processWebhook(
-      {
-        "payload-signature": "sha256=some-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "shortcut" },
-    );
-
-    expect(result).toEqual({
-      status: "rejected",
-      reason: "Webhook secret is not configured",
-    });
-    expect(providerFixture.verifySignature).not.toHaveBeenCalled();
-  });
-
-  it("creates Jira ticket for issue_created and prefers config project linkage", async () => {
-    const config = createConfig("jira");
-    config.allowedEvents = ["issue_created"];
-    config.autoExecute = false;
-    config.projectId = "project-from-config";
-    config.providerProjectId = "OPS";
-
-    const event = createJiraIssueCreatedEvent();
-    const { service, mocks } = createHarness({
-      providerName: "jira",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-atlassian-webhook-signature": "sha256=jira-signature",
-      },
-      event.payload,
-      rawBody,
-      "tenant-from-header",
-      { providerName: "jira" },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: "project-from-config",
-        title: "Login outage",
-        autoFixRequested: false,
-      }),
-    );
-    expect(mocks.builds.request).not.toHaveBeenCalled();
-  });
-
-  it("creates Jira ticket and job for bot-triggered comment_created flow", async () => {
-    const config = createConfig("jira");
-    config.allowedEvents = ["comment_created"];
-    config.botUsername = "viberator";
-
-    const event = createJiraCommentCreatedEvent();
-    const { service, mocks } = createHarness({
-      providerName: "jira",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-atlassian-webhook-signature": "sha256=jira-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "jira" },
-    );
-
-    expect(result).toEqual({
-      status: "processed",
-      ticketId: "ticket-1",
-      jobId: "job-1",
-    });
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Login outage",
-        autoFixRequested: true,
-      }),
-    );
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
-  });
-
-  it("ignores unsupported Jira issue actions with explicit reason", async () => {
-    const config = createConfig("jira");
-    config.allowedEvents = ["*"];
-    config.providerProjectId = "OPS";
-
-    const event = createUnsupportedJiraIssueUpdateEvent();
-    const { service, mocks } = createHarness({
-      providerName: "jira",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-atlassian-webhook-signature": "sha256=jira-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "jira" },
-    );
-
-    expect(result.status).toBe("ignored");
-    expect(result.reason).toContain("issue_updated.issue_assigned");
-    expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
-    expect(mocks.ticketDAO.createTicket).not.toHaveBeenCalled();
-  });
-
-  it("resolves Jira config from issue key project prefix when metadata lacks project IDs", async () => {
-    const config = createConfig("jira");
-    config.providerProjectId = "OPS";
-    config.allowedEvents = ["issue_created"];
-
-    const event = {
-      ...createJiraIssueCreatedEvent(),
-      metadata: {
-        issueKey: "OPS-42",
-      },
-    };
-    const { service, mocks } = createHarness({
-      providerName: "jira",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-atlassian-webhook-signature": "sha256=jira-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "jira" },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
-      "jira",
-      "OPS",
-    );
-  });
-
-  it("creates GitHub ticket for issues.opened and links to config project deterministically", async () => {
-    const config = createConfig("github");
-    config.allowedEvents = ["issues.opened"];
-    config.autoExecute = false;
-    config.projectId = "project-from-config";
-
-    const event = createGitHubIssuesEvent("opened");
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      "tenant-from-header",
-      { providerName: "github" },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: "project-from-config",
-        title: "Fix login bug",
-        autoFixRequested: false,
-      }),
-    );
-    expect(mocks.builds.request).not.toHaveBeenCalled();
-  });
-
-  it("asks for a build automatically on issues.opened when autoExecute is enabled", async () => {
-    const config = createConfig("github");
-    config.allowedEvents = ["issues.opened"];
-    config.autoExecute = true;
-
-    const event = createGitHubIssuesEvent("opened");
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result).toEqual({
-      status: "processed",
-      ticketId: "ticket-1",
-      jobId: "job-1",
-    });
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
-  });
-
-  it("skips GitHub auto-execute when label-gated policy does not match issue labels", async () => {
-    const config = createConfig("github");
-    config.allowedEvents = ["issues.opened"];
-    config.autoExecute = true;
-    config.labelMappings = {
-      github: {
-        autoExecuteMode: "label_gated",
-        requiredLabels: ["autofix"],
-      },
-    };
-
-    const event = createGitHubIssuesEvent("opened");
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(mocks.builds.request).not.toHaveBeenCalled();
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        autoFixRequested: false,
-      }),
-    );
-  });
-
-  it("asks for a build when the label-gated policy matches the issue's labels", async () => {
-    const config = createConfig("github");
-    config.allowedEvents = ["issues.opened"];
-    config.autoExecute = true;
-    config.labelMappings = {
-      github: {
-        autoExecuteMode: "label_gated",
-        requiredLabels: ["high"],
-      },
-    };
-
-    const event = createGitHubIssuesEvent("opened");
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result).toEqual({
-      status: "processed",
-      ticketId: "ticket-1",
-      jobId: "job-1",
-    });
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        autoFixRequested: true,
-      }),
-    );
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
-  });
-
-  it("creates ticket and job for bot-triggered issue_comment.created flow", async () => {
-    const config = createConfig("github");
-    config.allowedEvents = ["issue_comment.created"];
-    config.botUsername = "viberator";
-
-    const event = createGitHubIssueCommentEvent("created");
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result).toEqual({
-      status: "processed",
-      ticketId: "ticket-1",
-      jobId: "job-1",
-    });
-    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Fix login bug",
-        autoFixRequested: true,
-      }),
-    );
-    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
-  });
-
-  it("ignores disallowed GitHub events with delivery diagnostics", async () => {
-    const config = createConfig("github");
-    config.allowedEvents = ["issues.opened"];
-
-    const event = createGitHubIssuesEvent("closed");
-    const { service, mocks, providerFixture } = createHarness({
-      providerName: "github",
-      event,
-      config,
-    });
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      { providerName: "github" },
-    );
-
-    expect(result.status).toBe("ignored");
-    expect(result.reason).toContain("not allowed");
-    expect(providerFixture.verifySignature).not.toHaveBeenCalled();
-    expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
-    expect(mocks.deduplication.recordDeliveryFailureById).toHaveBeenCalledWith(
-      "delivery-row-1",
-      expect.stringContaining("issues.closed"),
-    );
-  });
-
-  it("uses integration-scoped config resolution deterministically with provider project match", async () => {
-    const event = createGitHubIssuesEvent("opened");
-    const { service, mocks } = createHarness({
-      providerName: "github",
-      event,
-      config: createConfig("github"),
-    });
-
-    const nonMatchingConfig = {
-      ...createConfig("github"),
-      id: "cfg-github-a",
-      providerProjectId: "github-project-2",
-      createdAt: new Date("2026-02-09T00:00:00.000Z"),
-      updatedAt: new Date("2026-02-09T00:00:00.000Z"),
-    };
-    const matchingConfig = {
-      ...createConfig("github"),
-      id: "cfg-github-b",
-      providerProjectId: "github-project-1",
-      createdAt: new Date("2026-02-08T00:00:00.000Z"),
-      updatedAt: new Date("2026-02-08T00:00:00.000Z"),
-      allowedEvents: ["issues.opened"],
-    };
-    mocks.configDAO.listByIntegrationId.mockResolvedValue([
-      nonMatchingConfig,
-      matchingConfig,
-    ]);
-    mocks.configDAO.getActiveConfigByProviderProject.mockResolvedValue(null);
-    mocks.configDAO.listConfigsByProvider.mockResolvedValue([
-      nonMatchingConfig,
-      matchingConfig,
-    ]);
-
-    const result = await service.processWebhook(
-      {
-        "x-hub-signature-256": "sha256=github-signature",
-      },
-      event.payload,
-      rawBody,
-      undefined,
-      {
-        providerName: "github",
-        integrationId: "integration-1",
-      },
-    );
-
-    expect(result.status).toBe("processed");
-    expect(mocks.configDAO.listByIntegrationId).toHaveBeenCalledWith(
-      "integration-1",
-      { activeOnly: false },
-    );
-    expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
-      "github-delivery-1",
-      "cfg-github-b",
-    );
-    expect(mocks.configDAO.getActiveConfigByProviderProject).not.toHaveBeenCalled();
   });
 });

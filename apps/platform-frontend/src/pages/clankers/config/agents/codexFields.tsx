@@ -16,7 +16,7 @@ export function CodexAgentFields({ codexAuthMode, onCodexAuthModeChange }: Codex
       <Label>Sign in with</Label>
       <Description>
         {usesChatGpt
-          ? "Save and start the runner, then connect your ChatGPT account from the runner's page. Codex stays signed in from then on."
+          ? "Save and start the agent, then connect your ChatGPT account from the agent's page. Codex stays signed in from then on."
           : 'An OpenAI API key, chosen below.'}
       </Description>
       <Select
