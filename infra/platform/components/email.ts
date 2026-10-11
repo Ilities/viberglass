@@ -29,9 +29,14 @@ export function createEmail(config: InfrastructureConfig): EmailOutputs | undefi
   if (!config.emailDomain) return undefined;
   const domain = config.emailDomain;
 
+  // The identity, its DKIM and its MAIL FROM domain are already configured by hand
+  // (and MAIL FROM isn't representable in this provider version), so import it and
+  // leave those attributes alone rather than letting an update reset them.
   const identity = new aws.sesv2.EmailIdentity(`${config.environment}-viberglass-email`, {
     emailIdentity: domain,
     tags: config.tags,
+  }, {
+    ignoreChanges: ["dkimSigningAttributes", "configurationSetName", "verifiedForSendingStatus"],
   });
 
   const dkimRecords = identity.dkimSigningAttributes.apply((attributes) =>
