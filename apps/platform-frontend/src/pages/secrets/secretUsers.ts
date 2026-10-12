@@ -32,7 +32,7 @@ export function collectSecretUsers(agents: Clanker[], uses: SecretUse[]): Map<st
   }
   for (const agent of agents) {
     for (const binding of agent.secretBindings) add(binding.secretId, 'agents', agent.name)
-    const loginSecretId = summarizeRunner(agent, []).loginSecretId
+    const loginSecretId = summarizeRunner(agent, []).signIn?.loginSecretId
     if (loginSecretId) add(loginSecretId, 'agents', agent.name)
   }
   for (const use of uses) add(use.secretId, KIND_KEY[use.kind], use.name)

@@ -36,9 +36,7 @@ function manifest(id: string, overrides: Partial<IntegrationManifest> = {}): Int
     description: '',
     category: 'ticketing',
     status: 'ready',
-    authTypes: [],
     configFields: [],
-    supports: { issues: true },
     ...overrides,
   }
 }
@@ -46,9 +44,9 @@ function manifest(id: string, overrides: Partial<IntegrationManifest> = {}): Int
 const TRACKER = manifest('tracker', {
   configFields: [{ key: 'siteUrl', label: 'Site URL', type: 'string' }],
   credentialUse: 'Comments on linked issues.',
-  webhookProvider: 'tracker',
+  receivesWebhooks: true,
 })
-const JSON_WEBHOOK = manifest('json-webhook', { category: 'inbound', webhookProvider: 'json-webhook' })
+const JSON_WEBHOOK = manifest('json-webhook', { category: 'inbound', receivesWebhooks: true })
 const INSTALLED_APP = manifest('installed-app', { category: 'chat' })
 
 const mockRegistry = new IntegrationFrontendRegistry()

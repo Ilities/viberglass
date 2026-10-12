@@ -5,10 +5,10 @@ import { MCP_HEADER_ENV_VAR_PREFIX } from './mcpServer'
 export type SecretLocation = 'env' | 'database' | 'ssm'
 
 /** What the platform keeps a secret for, when it manages the secret itself. */
-export type SecretPurpose = 'codex_login' | 'model_host'
+export type SecretPurpose = 'agent_login' | 'model_host'
 
 export function isSecretPurpose(value: unknown): value is SecretPurpose {
-  return value === 'codex_login' || value === 'model_host'
+  return value === 'agent_login' || value === 'model_host'
 }
 
 export interface Secret {
@@ -21,7 +21,7 @@ export interface Secret {
   sourceEnvVar?: string | null
   /** For model keys: the provider that issued the key. */
   provider?: ModelProviderId | null
-  /** Set for secrets the platform manages, such as a runner's ChatGPT login; pickers leave these out. */
+  /** Set for secrets the platform manages, such as a runner's agent login; pickers leave these out. */
   purpose?: SecretPurpose | null
   createdAt: string
   updatedAt: string

@@ -1,6 +1,5 @@
 import type { Logger } from "winston";
-import type { CallbackClient } from "../infrastructure/CallbackClient";
-import type { CredentialProvider } from "../infrastructure/CredentialProvider";
+import type { AgentLoginUploader } from "@viberglass/agent-core";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 
 export type AuthProgressReporter = (
@@ -13,10 +12,9 @@ export interface AgentAuthLifecycleFactoryInput {
   requestedAgent?: string;
   clankerConfig?: Record<string, unknown>;
   logger: Logger;
-  callbackClient: CallbackClient;
+  loginUploader: AgentLoginUploader;
   workDir: string;
   sendProgress: AuthProgressReporter;
-  credentialProvider?: CredentialProvider;
 }
 
 export interface AgentAuthLifecycleFactory {

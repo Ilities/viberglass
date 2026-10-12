@@ -1,9 +1,9 @@
 import { Button } from '@/components/button'
-import { isObjectRecord } from '@viberglass/types'
+import { DEVICE_CODE_PROGRESS, isObjectRecord } from '@viberglass/types'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import { HandoffCard } from './handoff-card'
 
-interface CodexDeviceAuthPrompt {
+interface DeviceCodePrompt {
   verificationUri: string
   userCode: string
 }
@@ -12,11 +12,11 @@ function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null
 }
 
-/** The latest Codex device-login request among a run's progress updates, if one is still waiting. */
-export function resolveCodexDeviceAuthPrompt(
+/** The latest device-code sign-in request among a run's progress updates, if one is still waiting. */
+export function resolveDeviceCodePrompt(
   progressUpdates: Array<{ details: Record<string, unknown> | null }>,
   currentProgress: Record<string, unknown> | null
-): CodexDeviceAuthPrompt | null {
+): DeviceCodePrompt | null {
   const detailCandidates: Array<Record<string, unknown>> = []
   const currentDetails = currentProgress?.details
   if (isObjectRecord(currentDetails)) detailCandidates.push(currentDetails)
@@ -27,8 +27,8 @@ export function resolveCodexDeviceAuthPrompt(
 
   for (const details of detailCandidates) {
     // Newest first: a completed sign-in after the request means nobody needs to act.
-    if (details.kind === 'codex_device_auth_completed') return null
-    if (details.kind !== 'codex_device_auth_required' && details.kind !== 'codex_device_auth_pending') continue
+    if (details.kind === DEVICE_CODE_PROGRESS.completed) return null
+    if (details.kind !== DEVICE_CODE_PROGRESS.required && details.kind !== DEVICE_CODE_PROGRESS.pending) continue
     const verificationUri = readString(details.verificationUri)
     const userCode = readString(details.userCode)
     if (verificationUri && userCode) return { verificationUri, userCode }
@@ -36,13 +36,13 @@ export function resolveCodexDeviceAuthPrompt(
   return null
 }
 
-/** Codex waits for someone to sign in with a device code before the run can go on. */
-export function CodexDeviceAuthCard({ prompt }: { prompt: CodexDeviceAuthPrompt }) {
+/** The agent waits for someone to sign in with a device code before the run can go on. */
+export function DeviceCodeCard({ prompt }: { prompt: DeviceCodePrompt }) {
   return (
     <HandoffCard
       owner="you"
       eyebrow="Your move · sign-in needed"
-      title="Codex needs you to sign in"
+      title="The agent needs you to sign in"
       actions={
         <>
           <Button href={prompt.verificationUri} target="_blank" color="brand">

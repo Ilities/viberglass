@@ -22,8 +22,8 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
       lambdaTimeout: strategy.type === 'lambda' ? String(strategy.timeout || '') : '',
       lambdaEphemeralStorage: strategy.type === 'lambda' ? String(strategy.ephemeralStorage || '') : '',
       values: { [agent.type]: pickSettingValues(getAgentSettingFields(agent.type), agent) },
-      codexAuthMode: agent.codexAuth?.mode ?? DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
-      codexLoginSecretId: agent.codexAuth?.loginSecretId ?? '',
+      signInMethod: agent.signIn?.method ?? '',
+      loginSecretId: agent.signIn?.loginSecretId ?? '',
     },
   }
 }

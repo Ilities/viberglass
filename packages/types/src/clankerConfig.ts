@@ -1,13 +1,9 @@
+import type { AgentSignIn } from "./agentSignIn";
 import type { AgentType } from "./clanker";
 
 export type ClankerConfigVersion = 1;
 
 export type ClankerStrategyType = "docker" | "ecs" | "lambda" | "kubernetes";
-
-export type CodexAuthMode =
-  | "api_key"
-  | "chatgpt_device"
-  | "chatgpt_device_stored";
 
 export interface ClankerRuntimeConfig {
   settings?: {
@@ -90,19 +86,11 @@ export type ClankerStrategyConfig =
   | LambdaStrategyConfig
   | KubernetesStrategyConfig;
 
-export interface CodexAuthConfig {
-  mode: CodexAuthMode;
-  secretName: string;
-  apiKeySecretName?: string;
-  /** The runner's stored ChatGPT login, set when the runner is connected. */
-  loginSecretId?: string;
-}
-
 /** The harness a runner runs, with its declared settings stored as strings under their keys. */
 export interface ClankerAgentConfig {
   type: AgentType;
-  /** How Codex signs in; set on Codex runners only. */
-  codexAuth?: CodexAuthConfig;
+  /** An interactive sign-in the harness declares; without one the runner uses an API key. */
+  signIn?: AgentSignIn;
   [setting: string]: unknown;
 }
 

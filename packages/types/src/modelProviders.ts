@@ -59,6 +59,8 @@ export interface ModelProvider {
    */
   keyPrefixes: string[]
   keyCheck: ModelKeyCheck
+  /** Only for tests: never offered for a person's key. */
+  testOnly?: boolean
 }
 
 const bearer: ModelKeyAuth = { scheme: 'bearer' }
@@ -174,6 +176,7 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
     keyUrl: 'https://example.invalid/keys',
     keyPrefixes: [],
     keyCheck: { url: '/v1/models', auth: bearer, baseUrlEnv: 'VIBERGLASS_FAKE_PROVIDER_URL' },
+    testOnly: true,
   },
   {
     id: 'groq',

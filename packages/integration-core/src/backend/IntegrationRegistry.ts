@@ -24,17 +24,13 @@ export class IntegrationRegistry {
     return Array.from(this.plugins.keys())
   }
 
+  /** The provider an integration's webhooks are stored under: its id, when it receives them. */
   getWebhookProvider(system: string): string | null {
     const plugin = this.plugins.get(system)
-    return plugin?.webhookProvider ?? null
+    return plugin?.receivesWebhooks ? plugin.id : null
   }
 
   getDefaultInboundEvents(provider: string): string[] {
-    for (const plugin of this.plugins.values()) {
-      if (plugin.webhookProvider === provider) {
-        return plugin.defaultInboundEvents ?? ['*']
-      }
-    }
-    return ['*']
+    return this.plugins.get(provider)?.defaultInboundEvents ?? ['*']
   }
 }

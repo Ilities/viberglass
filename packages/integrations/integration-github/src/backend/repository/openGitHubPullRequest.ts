@@ -7,8 +7,8 @@ const FAILED = 'GitHub PR Creation Failed'
 
 /** Opens the pull request through the REST API; the open one's address when GitHub says the branch already has one. */
 export async function openGitHubPullRequest(api: GitHubApi, pullRequest: PullRequestToOpen, token: string): Promise<string> {
-  const source = parseGitHubCloneUrl(pullRequest.sourceRepository)
-  const destination = parseGitHubCloneUrl(pullRequest.destinationRepository)
+  const source = parseGitHubCloneUrl(pullRequest.sourceRepository, api.webHost)
+  const destination = parseGitHubCloneUrl(pullRequest.destinationRepository, api.webHost)
   const crossRepository = source.owner !== destination.owner || source.repo !== destination.repo
   const ownerHead = `${source.owner}:${pullRequest.head}`
 
@@ -59,7 +59,7 @@ async function existingPullRequestUrl(api: GitHubApi, destination: GitHubReposit
   const list: unknown = await response.json().catch(() => null)
   const first = Array.isArray(list) ? list[0] : undefined
   const url = isObjectRecord(first) ? first.html_url : undefined
-  return typeof url === 'string' && url ? url : `https://github.com/${destination.owner}/${destination.repo}/pulls`
+  return typeof url === 'string' && url ? url : `https://${api.webHost}/${destination.owner}/${destination.repo}/pulls`
 }
 
 async function send(api: GitHubApi, url: string, init: RequestInit): Promise<GitHubResponse> {

@@ -74,7 +74,7 @@ These are the single source of truth instructions for agent behavior and backend
 3. Write `Dockerfile.fragment` (Debian, as the viberator user) and `Dockerfile.lambda.fragment` (Amazon Linux, as root) — the install steps and the ENV the CLI needs.
 4. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
 
-The worker and the platform are registry-driven: a harness's name, settings (`settings`, fields the runner form renders and the worker passes on as env vars) and config file editor come from its plugin through the generated catalog. Codex's sign-in is still special-cased until sign-in becomes a harness capability.
+The worker and the platform are registry-driven: a harness's name, settings (`settings`, fields the runner form renders and the worker passes on as env vars), config file editor and interactive sign-ins (`signInMethods`, run through one login job, secret purpose and upload route) come from its plugin through the generated catalog.
 
 ### 5) Naming Conventions
 

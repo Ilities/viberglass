@@ -79,7 +79,6 @@ export class ViberatorWorker {
         settings: this.settings,
         callbackToken: payload?.callbackToken,
         platformApiUrl: payload?.platformApiUrl,
-        credentialProvider: this.credentialProvider,
         authFactory: this.agentAuthLifecycleFactory,
         sendProgress: (client, step, message, details) =>
           sendWorkerProgress(client, this.logger, this.currentJobId, this.currentTenantId, step, message, details),

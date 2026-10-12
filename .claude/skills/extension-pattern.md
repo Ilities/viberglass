@@ -94,7 +94,7 @@ The package lists `@viberglass/types` as a peer dependency.
 ### Integrations (GitHub, GitLab, Shortcut…)
 
 **Extension packages:** `packages/integrations/integration-<name>`, listed in `viberglass.plugins.json`.
-- `src/manifest.ts` — plain data (`IntegrationManifest` from `@viberglass/types`) that the backend and frontend entries both spread: label, description, category, config fields, `credentialUse`, `webhookProvider`.
+- `src/manifest.ts` — plain data (`IntegrationManifest` from `@viberglass/types`) that the backend and frontend entries both spread: label, description, category, config fields, `credentialUse`, `receivesWebhooks`.
 - `src/backend/plugin.ts` — the manifest plus capabilities: `createIntegration`, `createCommenter` for trackers, `webhook` (a `WebhookReceiver`) when it receives webhooks, `repository` (a `RepositoryHost`) for a code host.
 - `src/frontend/plugin.ts` — the manifest plus `Icon` and optional slots (`trackerWebhook`, `AuthSetupSection`).
 

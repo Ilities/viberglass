@@ -103,8 +103,8 @@ export function ClankersPage() {
                     </h3>
                     <p className="mt-0.5 text-sm leading-5 text-zinc-700 dark:text-zinc-300">
                       {clanker.agent ? getAgentLabel(clanker.agent) : 'No agent'}
-                      {summary.usesChatGptLogin
-                        ? ' · ChatGPT login'
+                      {summary.signIn
+                        ? ` · ${summary.signIn.label}`
                         : summary.providerLabel && ` · ${summary.providerLabel}`}
                     </p>
                     {summary.model && (

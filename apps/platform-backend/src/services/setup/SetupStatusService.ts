@@ -1,5 +1,5 @@
 import {
-  AGENT_LABELS,
+  getAgentLabel,
   MODEL_PROVIDERS,
   type Clanker,
   type IntegrationCredential,
@@ -71,7 +71,7 @@ export class SetupStatusService {
     const agent = defaultAgent
       ? {
           clankerId: defaultAgent.id,
-          agentName: AGENT_LABELS[defaultAgent.agent ?? "claude-code"],
+          agentName: getAgentLabel(defaultAgent.agent),
           status: defaultAgent.status,
           statusMessage: defaultAgent.statusMessage ?? null,
         }

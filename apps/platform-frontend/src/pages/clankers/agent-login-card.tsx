@@ -4,19 +4,21 @@ import { Timestamp } from '@/components/timestamp'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { startAgentLogin } from '@/service/api/clanker-api'
 import type { Secret } from '@/service/api/secret-api'
-import type { Clanker } from '@viberglass/types'
 import { useEffect, useState } from 'react'
-import { CodexDeviceAuthCard, resolveCodexDeviceAuthPrompt } from '../project/jobs/codex-device-auth-card'
+import { getAgentLabel, type Clanker } from '@viberglass/types'
+import { DeviceCodeCard, resolveDeviceCodePrompt } from '../project/jobs/device-code-card'
 
-interface ChatGptLoginCardProps {
+interface AgentLoginCardProps {
   clanker: Clanker
+  /** What the agent signs in with, e.g. "ChatGPT account". */
+  accountLabel: string
   /** The stored login, once the runner has been connected. */
   login: Secret | null
   onConnected: () => void
 }
 
-/** Connects a Codex runner to a ChatGPT account: a login-only job shows a code to enter, then stores the login. */
-export function ChatGptLoginCard({ clanker, login, onConnected }: ChatGptLoginCardProps) {
+/** Connects a runner's agent to its account: a login-only job shows a code to enter, then stores the login. */
+export function AgentLoginCard({ clanker, accountLabel, login, onConnected }: AgentLoginCardProps) {
   const [jobId, setJobId] = useState<string>()
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
@@ -28,9 +30,10 @@ export function ChatGptLoginCard({ clanker, login, onConnected }: ChatGptLoginCa
     if (job?.status === 'failed') setError(job.result?.errorMessage ?? 'The login did not finish.')
   }, [job?.status, job?.result?.errorMessage, onConnected])
 
-  const prompt = job?.status === 'active' ? resolveCodexDeviceAuthPrompt(job.progressUpdates ?? [], job.progress) : null
+  const prompt = job?.status === 'active' ? resolveDeviceCodePrompt(job.progressUpdates ?? [], job.progress) : null
   const inProgress = Boolean(jobId) && !finished
   const isRunning = clanker.status === 'active'
+  const agentLabel = getAgentLabel(clanker.agent)
 
   async function connect() {
     setError(null)
@@ -46,20 +49,20 @@ export function ChatGptLoginCard({ clanker, login, onConnected }: ChatGptLoginCa
 
   return (
     <div className="app-frame rounded-lg p-6">
-      <Subheading className="mb-2">ChatGPT login</Subheading>
+      <Subheading className="mb-2">{accountLabel}</Subheading>
       <p className="text-sm text-[var(--gray-11)]">
         {login ? (
           <>
-            Connected. Codex keeps the login fresh after each run; last updated <Timestamp date={login.updatedAt} />.
+            Connected. {agentLabel} keeps the login fresh after each run; last updated <Timestamp date={login.updatedAt} />.
           </>
         ) : (
-          'Not connected. Connect a ChatGPT account so Codex can run tasks.'
+          `Not connected. Connect its ${accountLabel} so ${agentLabel} can run tasks.`
         )}
       </p>
 
       {prompt && (
         <div className="mt-4">
-          <CodexDeviceAuthCard prompt={prompt} />
+          <DeviceCodeCard prompt={prompt} />
         </div>
       )}
       {inProgress && !prompt && <p className="mt-4 text-sm text-[var(--gray-9)]">Starting the login on the agent…</p>}
@@ -73,7 +76,7 @@ export function ChatGptLoginCard({ clanker, login, onConnected }: ChatGptLoginCa
             </Button>
           ) : (
             <Button color="brand" onClick={() => void connect()} disabled={!isRunning || isStarting}>
-              Connect ChatGPT
+              Connect
             </Button>
           )}
           {!isRunning && <span className="text-sm text-[var(--gray-9)]">Start the agent first; the login runs on it.</span>}

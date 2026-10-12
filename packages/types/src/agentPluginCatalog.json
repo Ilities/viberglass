@@ -19,7 +19,8 @@
       "anthropic-messages"
     ],
     "settings": [],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": []
   },
   {
     "agent": "qwen-cli",
@@ -79,7 +80,8 @@
         "providerDefault": "endpoint"
       }
     ],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": []
   },
   {
     "agent": "codex",
@@ -101,7 +103,15 @@
       "openai-responses"
     ],
     "settings": [],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": [
+      {
+        "id": "chatgpt",
+        "label": "ChatGPT account",
+        "kind": "device_code",
+        "credentialEnvVar": "CODEX_AUTH_JSON"
+      }
+    ]
   },
   {
     "agent": "opencode",
@@ -158,7 +168,8 @@
         "{env:NAME}"
       ],
       "template": "{\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"provider\": {\n    \"my-proxy\": {\n      \"npm\": \"@ai-sdk/openai-compatible\",\n      \"options\": {\n        \"baseURL\": \"https://llm-proxy.example.com/v1\",\n        \"apiKey\": \"{env:OPENAI_API_KEY}\"\n      },\n      \"models\": {\n        \"my-model\": { \"name\": \"My model\" }\n      }\n    }\n  }\n}"
-    }
+    },
+    "signInMethods": []
   },
   {
     "agent": "kimi-code",
@@ -207,7 +218,8 @@
         "providerDefault": "model"
       }
     ],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": []
   },
   {
     "agent": "mistral-vibe",
@@ -228,7 +240,8 @@
       "anthropic-messages"
     ],
     "settings": [],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": []
   },
   {
     "agent": "antigravity",
@@ -257,7 +270,8 @@
         "providerDefault": "model"
       }
     ],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": []
   },
   {
     "agent": "pi",
@@ -288,7 +302,8 @@
         "${NAME}"
       ],
       "template": "{\n  \"providers\": {\n    \"my-proxy\": {\n      \"baseUrl\": \"https://llm-proxy.example.com/v1\",\n      \"api\": \"openai-completions\",\n      \"apiKey\": \"$OPENAI_API_KEY\",\n      \"models\": [{ \"id\": \"my-model\" }]\n    }\n  }\n}"
-    }
+    },
+    "signInMethods": []
   },
   {
     "agent": "fake",
@@ -303,6 +318,7 @@
     "harnessConfigFiles": [],
     "modelApiFormats": [],
     "settings": [],
-    "harnessConfigEditor": null
+    "harnessConfigEditor": null,
+    "signInMethods": []
   }
 ]

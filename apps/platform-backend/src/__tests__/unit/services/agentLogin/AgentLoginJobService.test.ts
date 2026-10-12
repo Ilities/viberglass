@@ -1,5 +1,5 @@
 import type { Clanker } from "@viberglass/types";
-import { AgentLoginJobService } from "../../../../services/codexLogin/AgentLoginJobService";
+import { AgentLoginJobService } from "../../../../services/agentLogin/AgentLoginJobService";
 
 jest.mock("../../../../persistence/clanker/ClankerDAO", () => ({ ClankerDAO: jest.fn() }));
 jest.mock("../../../../services/JobService", () => ({ JobService: jest.fn() }));
@@ -7,7 +7,7 @@ jest.mock("../../../../services/job/JobBootstrapService", () => ({ JobBootstrapS
 jest.mock("../../../../services/CredentialRequirementsService", () => ({ CredentialRequirementsService: jest.fn() }));
 jest.mock("../../../../workers/WorkerExecutionService", () => ({ WorkerExecutionService: jest.fn() }));
 
-function runner(overrides: Partial<Clanker> = {}, mode = "chatgpt_device_stored"): Clanker {
+function runner(overrides: Partial<Clanker> = {}, signIn: Record<string, unknown> | null = { method: "chatgpt" }): Clanker {
   return {
     id: "runner-1",
     name: "Codex runner",
@@ -18,7 +18,7 @@ function runner(overrides: Partial<Clanker> = {}, mode = "chatgpt_device_stored"
     deploymentConfig: {
       version: 1,
       strategy: { type: "docker" },
-      agent: { type: "codex", codexAuth: { mode, secretName: "CODEX_AUTH_JSON" } },
+      agent: { type: "codex", ...(signIn ? { signIn } : {}) },
     },
     configFiles: [],
     agent: "codex",
@@ -66,7 +66,7 @@ describe("AgentLoginJobService", () => {
   });
 
   it("refuses a runner that signs in with an API key", async () => {
-    const { service } = build(runner({}, "api_key"));
+    const { service } = build(runner({}, null));
     await expect(service.start("runner-1")).rejects.toMatchObject({ code: "LOGIN_NOT_APPLICABLE" });
   });
 

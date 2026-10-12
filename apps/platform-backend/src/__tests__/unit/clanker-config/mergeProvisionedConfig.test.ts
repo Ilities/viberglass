@@ -37,7 +37,7 @@ function buildBaseClanker(overrides: Partial<Clanker>): Clanker {
 }
 
 describe("mergeProvisionedStrategyIntoConfig", () => {
-  it("preserves codex chatgpt device auth in v1 config", () => {
+  it("preserves the agent's sign-in in v1 config", () => {
     const clanker = buildBaseClanker({
       deploymentConfig: {
         version: 1,
@@ -47,10 +47,7 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
         },
         agent: {
           type: "codex",
-          codexAuth: {
-            mode: "chatgpt_device",
-            secretName: "CODEX_AUTH_JSON",
-          },
+          signIn: { method: "chatgpt" },
         },
         runtime: {
           settings: {
@@ -68,14 +65,14 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
 
     const strategy = cloneObjectRecord(merged.strategy);
     const agent = cloneObjectRecord(merged.agent);
-    const codexAuth = cloneObjectRecord(agent?.codexAuth);
+    const signIn = cloneObjectRecord(agent?.signIn);
     const runtime = cloneObjectRecord(merged.runtime);
     const settings = cloneObjectRecord(runtime?.settings);
 
     expect(strategy?.type).toBe("docker");
     expect(strategy?.containerImage).toBe("ghcr.io/org/worker:latest");
     expect(agent?.type).toBe("codex");
-    expect(codexAuth?.mode).toBe("chatgpt_device");
+    expect(signIn?.method).toBe("chatgpt");
     expect(settings?.maxChanges).toBe(25);
   });
 

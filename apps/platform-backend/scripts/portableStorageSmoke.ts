@@ -68,9 +68,9 @@ async function main(): Promise<void> {
     const provider = new CredentialProvider(logger, { suppliedCredentials: credentials, ssmEnabled: false });
     assert.equal(await provider.getCredential({ envVar: "AGENT_KEY" }), privateValue);
     assert.equal(await provider.getCredential({ envVar: "OTHER_RUN_KEY" }), undefined);
-    const auth = JSON.stringify({ tokens: "test-token".repeat(1000) });
-    await secrets.upsertWorkerAuthCache("CODEX_AUTH", auth, "database");
-    assert.equal(await secrets.resolveSecretValueByName("CODEX_AUTH"), auth);
+    const login = JSON.stringify({ tokens: "test-token".repeat(1000) });
+    await secrets.createSecret({ name: "AGENT_LOGIN", purpose: "agent_login", secretLocation: "database", secretValue: login });
+    assert.equal(await secrets.resolveSecretValueByName("AGENT_LOGIN"), login);
 
     await sql`CREATE TABLE jobs (id text PRIMARY KEY, status text, progress jsonb, result jsonb,
       error_message text, started_at timestamptz, finished_at timestamptz, last_heartbeat timestamptz)`.execute(db);

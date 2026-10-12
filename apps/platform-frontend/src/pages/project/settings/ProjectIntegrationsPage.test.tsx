@@ -43,7 +43,7 @@ function connection(id: string, name: string, system: Integration['system']): In
 }
 
 function type(id: IntegrationManifest['id'], label: string, category: IntegrationManifest['category']): IntegrationManifest {
-  return { id, label, category, description: '', authTypes: [], configFields: [], supports: { issues: true }, status: 'ready' }
+  return { id, label, category, description: '', configFields: [], status: 'ready' }
 }
 
 describe('ProjectIntegrationsPage', () => {

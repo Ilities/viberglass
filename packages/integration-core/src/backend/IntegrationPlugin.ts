@@ -9,7 +9,7 @@ export interface IntegrationPlugin<Config = object> extends IntegrationManifest 
   checkConnection?(config: AuthCredentials & Config): Promise<void>
   /** For trackers: posts back to the issues their tasks are linked to, with the connection's credentials. */
   createCommenter?(config: AuthCredentials & Config): TrackerCommenter
-  /** Set when the manifest names a `webhookProvider`: how its deliveries are signed, parsed and read. */
+  /** Set when the manifest `receivesWebhooks`: how its deliveries are signed, parsed and read. */
   webhook?: WebhookReceiver
   /** Set for a code host: opening pull requests and reading them, and checking a repository. */
   repository?: RepositoryHost

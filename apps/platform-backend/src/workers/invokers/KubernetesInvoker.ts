@@ -3,7 +3,7 @@ import { resolveClankerConfig } from "../../clanker-config";
 import type { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import type { JobDispatchStateDAO } from "../../persistence/job/JobDispatchStateDAO";
 import type { JobBootstrapService } from "../../services/job/JobBootstrapService";
-import type { CodexLoginService } from "../../services/codexLogin/CodexLoginService";
+import type { AgentLoginService } from "../../services/agentLogin/AgentLoginService";
 import type { JobData } from "../../types/Job";
 import { ErrorClassification, WorkerError } from "../errors/WorkerError";
 import type { InvocationResult, WorkerInvoker } from "../WorkerInvoker";
@@ -24,7 +24,7 @@ export class KubernetesInvoker implements WorkerInvoker {
     private readonly jobs: Pick<JobBootstrapService, "saveBootstrapPayload">,
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker">,
     private readonly dispatchState: Pick<JobDispatchStateDAO, "getStatus">,
-    private readonly codexLogins: Pick<CodexLoginService, "workerBindings">,
+    private readonly logins: Pick<AgentLoginService, "workerBindings">,
     private readonly secrets: Pick<KubernetesRunSecret, "ensure" | "remove">,
   ) {}
 
@@ -76,10 +76,8 @@ export class KubernetesInvoker implements WorkerInvoker {
           scm: job.scm,
           overrides: job.overrides,
         };
-    const codex = config.agent.codexAuth;
     payload.requiredCredentials ??= await this.credentials.getRequiredCredentialsForClanker(clanker);
-    payload.credentialBindings = [...(clanker.secretBindings ?? []), ...this.codexLogins.workerBindings(clanker)];
-    payload.optionalCredentials = codex && codex.mode !== "api_key" && !codex.loginSecretId ? [codex.secretName] : [];
+    payload.credentialBindings = [...(clanker.secretBindings ?? []), ...this.logins.workerBindings(clanker)];
     delete payload.credentials;
     await this.jobs.saveBootstrapPayload(job.id, payload);
 

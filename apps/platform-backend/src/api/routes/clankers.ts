@@ -18,7 +18,7 @@ import {
 } from "../../services/errors/ClankerServiceError";
 import { nextClankerStatus } from "../../services/clankerStatusTransition";
 import { ClankerStartService } from "../../services/ClankerStartService";
-import { AgentLoginJobService } from "../../services/codexLogin/AgentLoginJobService";
+import { AgentLoginJobService } from "../../services/agentLogin/AgentLoginJobService";
 import { McpServerDAO } from "../../persistence/mcpServer/McpServerDAO";
 import { SkillDAO } from "../../persistence/skill/SkillDAO";
 
@@ -206,7 +206,7 @@ router.post(
   }),
 );
 
-// POST /api/clankers/:id/agent-login - Sign the runner's agent in (a ChatGPT login for Codex)
+// POST /api/clankers/:id/agent-login - Sign the runner's agent in with its account, such as a device-code login
 router.post(
   "/:id/agent-login",
   validateUuidParam("id"),

@@ -74,24 +74,24 @@ describe("A harness left out of the build", () => {
   });
 });
 
-describe("Codex agent config", () => {
-  it("keeps how Codex signs in", () => {
+describe("Sign-in", () => {
+  it("keeps a sign-in method the harness declares, with its login", () => {
     const { config } = resolveClankerConfig(
       clanker("codex", {
         version: 1,
         strategy: { type: "docker" },
-        agent: { type: "codex", codexAuth: { mode: "chatgpt_device_stored", loginSecretId: "login-1" } },
+        agent: { type: "codex", signIn: { method: "chatgpt", loginSecretId: "login-1" } },
       }),
     );
 
-    expect(config.agent).toEqual({
-      type: "codex",
-      codexAuth: {
-        mode: "chatgpt_device_stored",
-        secretName: "CODEX_AUTH_JSON",
-        apiKeySecretName: "OPENAI_API_KEY",
-        loginSecretId: "login-1",
-      },
-    });
+    expect(config.agent).toEqual({ type: "codex", signIn: { method: "chatgpt", loginSecretId: "login-1" } });
+  });
+
+  it("drops one the harness doesn't declare", () => {
+    const { config } = resolveClankerConfig(
+      clanker("pi", { version: 1, strategy: { type: "docker" }, agent: { type: "pi", signIn: { method: "chatgpt" } } }),
+    );
+
+    expect(config.agent).toEqual({ type: "pi" });
   });
 });

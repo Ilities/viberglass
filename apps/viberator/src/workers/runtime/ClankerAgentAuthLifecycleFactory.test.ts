@@ -8,106 +8,46 @@ describe("ClankerAgentAuthLifecycleFactory", () => {
   const logger = createLogger({
     transports: [new transports.Console({ silent: true })],
   });
-  const callbackClient = new CallbackClient(logger, {
+  const loginUploader = new CallbackClient(logger, {
     platformUrl: "http://localhost:8888",
   });
   const sendProgress = async (): Promise<void> => {};
+  const context = { agentName: "codex", jobId: "job-1", tenantId: "tenant-1" };
+  const authFailure = { success: false, changedFiles: [], executionTime: 0, cost: 0, errorMessage: "401 Unauthorized: token expired" };
 
-  test("returns noop lifecycle for non-codex agents", () => {
-    const factory = new ClankerAgentAuthLifecycleFactory();
-    const lifecycle = factory.create({
-      requestedAgent: "claude",
+  function create(input: { requestedAgent?: string; clankerConfig?: Record<string, unknown> }) {
+    return new ClankerAgentAuthLifecycleFactory().create({
+      ...input,
       logger,
-      callbackClient,
+      loginUploader,
       workDir: "/tmp/viberator-test",
       sendProgress,
     });
+  }
 
-    expect(lifecycle).toBeInstanceOf(NoopAgentAuthLifecycle);
+  test("returns noop lifecycle for a harness without its own", () => {
+    expect(create({ requestedAgent: "claude-code" })).toBeInstanceOf(NoopAgentAuthLifecycle);
   });
 
-  test("returns codex lifecycle when requested agent is codex", () => {
-    const previousMode = process.env.CODEX_AUTH_MODE;
-    const previousSecretName = process.env.CODEX_AUTH_SECRET_NAME;
+  test("returns the harness's lifecycle, signing in with an API key by default", () => {
+    const lifecycle = create({ requestedAgent: "codex" });
 
-    try {
-      delete process.env.CODEX_AUTH_MODE;
-      delete process.env.CODEX_AUTH_SECRET_NAME;
-
-      const factory = new ClankerAgentAuthLifecycleFactory();
-      const lifecycle = factory.create({
-        requestedAgent: "codex",
-        logger,
-        callbackClient,
-        workDir: "/tmp/viberator-test",
-        sendProgress,
-      });
-
-      expect(lifecycle).toBeInstanceOf(CodexAgentAuthLifecycle);
-      expect(process.env.CODEX_AUTH_MODE).toBeDefined();
-      expect(process.env.CODEX_AUTH_SECRET_NAME).toBeDefined();
-    } finally {
-      if (previousMode === undefined) {
-        delete process.env.CODEX_AUTH_MODE;
-      } else {
-        process.env.CODEX_AUTH_MODE = previousMode;
-      }
-
-      if (previousSecretName === undefined) {
-        delete process.env.CODEX_AUTH_SECRET_NAME;
-      } else {
-        process.env.CODEX_AUTH_SECRET_NAME = previousSecretName;
-      }
-    }
+    expect(lifecycle).toBeInstanceOf(CodexAgentAuthLifecycle);
+    expect(lifecycle.shouldRetryAfterFailure(context, authFailure)).toBe(false);
   });
 
-  test("detects codex agent from v1 deployment config and applies stored mode", () => {
-    const previousMode = process.env.CODEX_AUTH_MODE;
-    const previousSecretName = process.env.CODEX_AUTH_SECRET_NAME;
+  test("signs in with the runner's chosen account from its v1 config", () => {
     const previousDefaultAgent = process.env.DEFAULT_AGENT;
-
+    delete process.env.DEFAULT_AGENT;
     try {
-      delete process.env.CODEX_AUTH_MODE;
-      delete process.env.CODEX_AUTH_SECRET_NAME;
-      delete process.env.DEFAULT_AGENT;
-
-      const factory = new ClankerAgentAuthLifecycleFactory();
-      const lifecycle = factory.create({
-        clankerConfig: {
-          version: 1,
-          strategy: { type: "ecs" },
-          agent: {
-            type: "codex",
-            codexAuth: { mode: "chatgpt_device_stored" },
-          },
-        },
-        logger,
-        callbackClient,
-        workDir: "/tmp/viberator-test",
-        sendProgress,
+      const lifecycle = create({
+        clankerConfig: { version: 1, strategy: { type: "ecs" }, agent: { type: "codex", signIn: { method: "chatgpt" } } },
       });
 
       expect(lifecycle).toBeInstanceOf(CodexAgentAuthLifecycle);
-      expect(process.env.CODEX_AUTH_MODE).toBe("chatgpt_device_stored");
-      expect(process.env.CODEX_AUTH_SECRET_NAME).toBe("CODEX_AUTH_JSON");
+      expect(lifecycle.shouldRetryAfterFailure(context, authFailure)).toBe(true);
     } finally {
-      if (previousMode === undefined) {
-        delete process.env.CODEX_AUTH_MODE;
-      } else {
-        process.env.CODEX_AUTH_MODE = previousMode;
-      }
-
-      if (previousSecretName === undefined) {
-        delete process.env.CODEX_AUTH_SECRET_NAME;
-      } else {
-        process.env.CODEX_AUTH_SECRET_NAME = previousSecretName;
-      }
-
-      if (previousDefaultAgent === undefined) {
-        delete process.env.DEFAULT_AGENT;
-      } else {
-        process.env.DEFAULT_AGENT = previousDefaultAgent;
-      }
+      if (previousDefaultAgent !== undefined) process.env.DEFAULT_AGENT = previousDefaultAgent;
     }
   });
 });

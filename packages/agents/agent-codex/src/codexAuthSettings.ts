@@ -1,45 +1,18 @@
-import { isObjectRecord } from "@viberglass/types";
+import { isObjectRecord, readAgentSignIn, type AgentSignInMethod } from "@viberglass/types";
 
-export type CodexAuthMode =
-  | "api_key"
-  | "chatgpt_device"
-  | "chatgpt_device_stored";
-
-export interface CodexAuthSettings {
-  mode: CodexAuthMode;
-  secretName: string;
-  apiKeySecretName: string;
-}
-
-export const DEFAULT_CODEX_AUTH_SETTINGS: CodexAuthSettings = {
-  mode: "api_key",
-  secretName: "CODEX_AUTH_JSON",
-  apiKeySecretName: "OPENAI_API_KEY",
+/** Signing Codex in with a ChatGPT account, by a device code; the login is Codex's auth.json. */
+export const CHATGPT_SIGN_IN: AgentSignInMethod = {
+  id: "chatgpt",
+  label: "ChatGPT account",
+  kind: "device_code",
+  credentialEnvVar: "CODEX_AUTH_JSON",
 };
 
-function getString(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function normalizeCodexAuth(raw: unknown): CodexAuthSettings {
-  const source = isObjectRecord(raw) ? raw : {};
-  const mode =
-    source.mode === "chatgpt_device" ||
-    source.mode === "chatgpt_device_stored"
-      ? source.mode
-      : "api_key";
-
-  return {
-    mode,
-    secretName: DEFAULT_CODEX_AUTH_SETTINGS.secretName,
-    apiKeySecretName:
-      getString(source.apiKeySecretName) || DEFAULT_CODEX_AUTH_SETTINGS.apiKeySecretName,
-  };
+export interface CodexAuthSettings {
+  /** Signs in with a ChatGPT account rather than an API key. */
+  usesChatGpt: boolean;
+  /** Where the worker puts the runner's stored login. */
+  credentialEnvVar: string;
 }
 
 function resolveDeploymentConfig(
@@ -56,23 +29,12 @@ function resolveDeploymentConfig(
   return clankerConfig;
 }
 
-export function resolveCodexAuthSettings(
-  clankerConfig?: Record<string, unknown>,
-): CodexAuthSettings {
+export function resolveCodexAuthSettings(clankerConfig?: Record<string, unknown>): CodexAuthSettings {
   const deploymentConfig = resolveDeploymentConfig(clankerConfig);
-  if (!deploymentConfig) {
-    return { ...DEFAULT_CODEX_AUTH_SETTINGS };
-  }
-
-  // Only v1 config envelope is supported.
-  const agent = isObjectRecord(deploymentConfig.agent)
-    ? deploymentConfig.agent
-    : undefined;
-  if (deploymentConfig.version === 1 && agent?.type === "codex") {
-    return normalizeCodexAuth(agent.codexAuth);
-  }
-
-  throw new Error(
-    "Unsupported Codex auth config: expected v1 deployment config with agent.type='codex'",
-  );
+  const agent = deploymentConfig?.version === 1 && isObjectRecord(deploymentConfig.agent) ? deploymentConfig.agent : undefined;
+  const signIn = agent?.type === "codex" ? readAgentSignIn(agent.signIn) : undefined;
+  return {
+    usesChatGpt: signIn?.method === CHATGPT_SIGN_IN.id,
+    credentialEnvVar: CHATGPT_SIGN_IN.credentialEnvVar,
+  };
 }

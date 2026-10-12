@@ -6,6 +6,8 @@ export type GitHubFetch = (url: string, init: RequestInit) => Promise<GitHubResp
 export interface GitHubApi {
   /** REST base without a trailing slash, such as https://api.github.com or https://host/api/v3 on Enterprise. */
   baseUrl: string
+  /** Where repositories and pull requests are browsed: github.com, or the Enterprise server. */
+  webHost: string
   fetch: GitHubFetch
 }
 

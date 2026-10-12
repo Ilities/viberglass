@@ -12,11 +12,10 @@ const mockAutoSummariser = { afterTurn: jest.fn() };
 const mockDocumentCheck = { missing: jest.fn() };
 
 const mockSecretService = {
-  upsertWorkerAuthCache: jest.fn(),
   resolveBindings: jest.fn(),
 };
 
-const mockCodexLogins = { saveLogin: jest.fn() };
+const mockLogins = { saveLogin: jest.fn() };
 
 const mockAgentTurnDAO = {
   getByJobId: jest.fn(),
@@ -59,7 +58,7 @@ jest.mock("../../../../api/middleware/callbackTokenValidation", () => ({
 jest.mock("../../../../api/middleware/validation", () => ({
   validateResultCallback: jest.fn(),
   validateProgressUpdate: jest.fn(),
-  validateCodexAuthCache: jest.fn(),
+  validateAgentLogin: jest.fn(),
   validateLogEntry: jest.fn(),
   validateLogBatch: jest.fn(),
 }));
@@ -78,9 +77,10 @@ jest.mock("../../../../services/SecretResolutionService", () => ({
   SecretResolutionService: jest.fn(() => mockSecretService),
 }));
 
-jest.mock("../../../../services/codexLogin/CodexLoginService", () => ({
-  CodexLoginService: jest.fn(() => mockCodexLogins),
-}));
+jest.mock("../../../../services/agentLogin/AgentLoginService", () => {
+  class AgentLoginNotApplicableError extends Error {}
+  return { AgentLoginService: jest.fn(() => mockLogins), AgentLoginNotApplicableError };
+});
 
 jest.mock("../../../../services/SecretService", () => ({
   SecretService: jest.fn(() => mockSecretService),
@@ -143,6 +143,7 @@ import {
   SecretServiceError,
   SECRET_SERVICE_ERROR_CODE,
 } from "../../../../services/errors/SecretServiceError";
+import { AgentLoginNotApplicableError } from "../../../../services/agentLogin/AgentLoginService";
 
 function getRouteHandler(path: string, method: string): unknown {
   const layer = jobsRouter.stack.find(
@@ -218,44 +219,51 @@ describe("job result callbacks", () => {
     expect(mockSecretService.resolveBindings).not.toHaveBeenCalled();
   });
 
-  it("stores a Kubernetes Codex auth refresh in the encrypted database", async () => {
-    mockJobService.getJobStatus.mockResolvedValue({ data: { tenantId: "tenant-1" } });
-    mockJobService.getBootstrapPayload.mockResolvedValue({
-      status: "active", payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "CODEX_AUTH" }] },
-    });
-    mockSecretService.upsertWorkerAuthCache.mockResolvedValue({ id: "secret-1", secretLocation: "database" });
-    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
-    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
-    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "CODEX_AUTH", authJson: "{}" } }, response());
-    expect(mockSecretService.upsertWorkerAuthCache).toHaveBeenCalledWith("CODEX_AUTH", "{}", "database");
-  });
+  function loginHandler(): (req: unknown, res: unknown) => Promise<void> {
+    const handler = getRouteHandler("/:jobId/agent-login", "post");
+    if (typeof handler !== "function") throw new Error("Missing agent login handler");
+    return async (req, res) => {
+      await handler(req, res);
+    };
+  }
 
-  it("updates the Kubernetes runner's stored Codex login", async () => {
+  const loginRequest = { params: { jobId: "job-1" }, tenantId: "tenant-1", body: { credential: "{}" } };
+
+  it("stores the login a runner's worker uploaded as the runner's own", async () => {
     mockJobService.getJobStatus.mockResolvedValue({ clankerId: "runner-1", data: { tenantId: "tenant-1" } });
-    mockJobService.getBootstrapPayload.mockResolvedValue({ status: "active", payload: {
-      workerType: "kubernetes", requiredCredentials: [{ envVar: "CODEX_AUTH_JSON", exposeToAgent: false }],
-    } });
-    mockCodexLogins.saveLogin.mockResolvedValue({ id: "login-1", secretLocation: "database" });
-    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
-    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
+    mockJobService.getBootstrapPayload.mockResolvedValue({ status: "active", payload: { workerType: "kubernetes" } });
+    mockLogins.saveLogin.mockResolvedValue({ id: "login-1", secretLocation: "database" });
     const res = response();
-    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "CODEX_AUTH_JSON", authJson: "{}" } }, res);
-    expect(mockCodexLogins.saveLogin).toHaveBeenCalledWith("runner-1", "{}");
-    expect(mockSecretService.upsertWorkerAuthCache).not.toHaveBeenCalled();
+
+    await loginHandler()(loginRequest, res);
+
+    expect(mockLogins.saveLogin).toHaveBeenCalledWith("runner-1", "{}");
     expect(res.json).toHaveBeenCalledWith({ success: true, secretId: "login-1", secretLocation: "database" });
   });
 
-  it("refuses a Kubernetes auth refresh for an unlisted secret", async () => {
-    mockJobService.getJobStatus.mockResolvedValue({ data: { tenantId: "tenant-1" } });
-    mockJobService.getBootstrapPayload.mockResolvedValue({
-      status: "active", payload: { workerType: "kubernetes", requiredCredentials: [] },
-    });
-    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
-    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
+  it("refuses a login from a run without a runner, or a Kubernetes run that is over", async () => {
+    mockJobService.getJobStatus.mockResolvedValueOnce({ data: { tenantId: "tenant-1" } });
+    const withoutRunner = response();
+    await loginHandler()(loginRequest, withoutRunner);
+
+    mockJobService.getJobStatus.mockResolvedValueOnce({ clankerId: "runner-1", data: { tenantId: "tenant-1" } });
+    mockJobService.getBootstrapPayload.mockResolvedValue({ status: "completed", payload: { workerType: "kubernetes" } });
+    const finished = response();
+    await loginHandler()(loginRequest, finished);
+
+    expect(withoutRunner.status).toHaveBeenCalledWith(403);
+    expect(finished.status).toHaveBeenCalledWith(403);
+    expect(mockLogins.saveLogin).not.toHaveBeenCalled();
+  });
+
+  it("refuses a login for a runner that signs in with an API key", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({ clankerId: "runner-1", data: { tenantId: "tenant-1" } });
+    mockLogins.saveLogin.mockRejectedValue(new AgentLoginNotApplicableError("no sign-in"));
     const res = response();
-    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "OTHER", authJson: "{}" } }, res);
+
+    await loginHandler()(loginRequest, res);
+
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(mockSecretService.upsertWorkerAuthCache).not.toHaveBeenCalled();
   });
 
   beforeEach(() => {
@@ -371,44 +379,17 @@ describe("job result callbacks", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Job not found" });
   });
 
-  it("maps typed auth cache overflow errors to 413", async () => {
-    mockJobService.getJobStatus.mockResolvedValue({
-      data: {
-        tenantId: "tenant-1",
-      },
-    });
-    mockSecretService.upsertWorkerAuthCache.mockRejectedValue(
-      new SecretServiceError(
-        SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_TOO_LARGE,
-        "Codex auth cache exceeds SSM size limit (4100 bytes)",
-      ),
+  it("maps typed secret errors from storing a login to their status", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({ clankerId: "runner-1", data: { tenantId: "tenant-1" } });
+    mockLogins.saveLogin.mockRejectedValue(
+      new SecretServiceError(SECRET_SERVICE_ERROR_CODE.SECRET_VALUE_REQUIRED, "Secret value is required"),
     );
+    const res = response();
 
-    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
-    if (typeof handler !== "function") {
-      throw new Error("Route handler was not a function");
-    }
+    await loginHandler()(loginRequest, res);
 
-    const req = {
-      params: { jobId: "job-1" },
-      tenantId: "tenant-1",
-      callbackTokenValidated: true,
-      body: {
-        secretName: "CODEX_AUTH_CACHE",
-        authJson: "{\"token\":\"abc\"}",
-      },
-    };
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-    };
-
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(413);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Codex auth cache exceeds SSM size limit (4100 bytes)",
-    });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "Secret value is required" });
   });
 
   it("counts a batch of session events as a heartbeat, so a long agent turn is not given up", async () => {

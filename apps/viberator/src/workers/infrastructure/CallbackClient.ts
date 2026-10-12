@@ -125,27 +125,14 @@ export class CallbackClient {
       { timeoutMs: 10000, label: "worker heartbeat" }, { jobId });
   }
 
-  async sendCodexAuthCache(
-    jobId: string,
-    tenantId: string,
-    payload: {
-      secretName: string;
-      authJson: string;
-      updatedAt?: string;
-    },
-  ): Promise<void> {
-    const body = {
-      secretName: payload.secretName,
-      authJson: payload.authJson,
-      updatedAt: payload.updatedAt || new Date().toISOString(),
-    };
-
+  /** Stores the login the agent got or refreshed as the runner's own. */
+  async sendAgentLogin(jobId: string, tenantId: string, credential: string): Promise<void> {
     await this.post(
-      `${this.apiUrl}/api/jobs/${jobId}/codex-auth-cache`,
+      `${this.apiUrl}/api/jobs/${jobId}/agent-login`,
       tenantId,
-      body,
-      { timeoutMs: 10000, label: "Codex auth cache" },
-      { jobId, secretName: payload.secretName },
+      { credential },
+      { timeoutMs: 10000, label: "agent login" },
+      { jobId },
     );
   }
 

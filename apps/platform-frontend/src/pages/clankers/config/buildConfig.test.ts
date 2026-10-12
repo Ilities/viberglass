@@ -95,17 +95,24 @@ describe('buildClankerDeploymentConfig', () => {
     expect(result.agent).toEqual({ type: 'antigravity', model: 'gemini-3.1-pro-high' })
   })
 
-  test('keeps how Codex signs in', () => {
+  test('keeps a sign-in the harness declares, with its login', () => {
     const result = buildClankerDeploymentConfig({
       strategyName: 'docker',
       selectedAgent: 'codex',
-      form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, codexAuthMode: 'chatgpt_device_stored', codexLoginSecretId: 'login-1' },
+      form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, signInMethod: 'chatgpt', loginSecretId: 'login-1' },
     })
 
-    expect(result.agent).toEqual({
-      type: 'codex',
-      codexAuth: { mode: 'chatgpt_device_stored', secretName: 'CODEX_AUTH_JSON', loginSecretId: 'login-1' },
+    expect(result.agent).toEqual({ type: 'codex', signIn: { method: 'chatgpt', loginSecretId: 'login-1' } })
+  })
+
+  test("signs in with an API key on a harness that doesn't declare the chosen sign-in", () => {
+    const result = buildClankerDeploymentConfig({
+      strategyName: 'docker',
+      selectedAgent: 'opencode',
+      form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, signInMethod: 'chatgpt' },
     })
+
+    expect(result.agent).toEqual({ type: 'opencode' })
   })
 
   test('includes lambda memorySize and timeout in managed mode', () => {

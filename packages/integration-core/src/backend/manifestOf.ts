@@ -9,11 +9,9 @@ export function manifestOf(plugin: IntegrationPlugin): IntegrationManifest {
     description: plugin.description,
     category: plugin.category,
     status: plugin.status,
-    authTypes: plugin.authTypes,
     configFields: plugin.configFields,
-    supports: plugin.supports,
     credentialUse: plugin.credentialUse,
-    webhookProvider: plugin.webhookProvider,
+    receivesWebhooks: plugin.receivesWebhooks,
     defaultInboundEvents: plugin.defaultInboundEvents,
   }
 }

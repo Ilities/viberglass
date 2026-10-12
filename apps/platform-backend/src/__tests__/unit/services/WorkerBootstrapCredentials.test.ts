@@ -22,10 +22,4 @@ describe("WorkerBootstrapCredentials", () => {
     const service = new WorkerBootstrapCredentials({ async resolveBindings() { return {}; } });
     await expect(service.resolve({ requiredCredentials: [{ envVar: "DELETED" }] })).rejects.toThrow("unavailable: DELETED");
   });
-
-  it("allows a first Codex device login to start before an auth cache exists", async () => {
-    const service = new WorkerBootstrapCredentials({ async resolveBindings() { return {}; } });
-    await expect(service.resolve({ requiredCredentials: [{ envVar: "CODEX_AUTH" }], optionalCredentials: ["CODEX_AUTH"] }))
-      .resolves.toEqual({});
-  });
 });

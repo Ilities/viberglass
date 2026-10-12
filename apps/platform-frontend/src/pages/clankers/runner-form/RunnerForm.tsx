@@ -18,6 +18,7 @@ import { buildClankerDeploymentConfig } from '../config/buildConfig'
 import { defaultProvisioningMode } from '../config/normalizers'
 import { keysForProvider, providerOptionsForAgent, settingsForProvider, splitRunnerBindings } from '../config/modelKey'
 import { readClankerDeploymentConfig } from '../config/readConfig'
+import { chosenSignInMethod } from '../config/signIn'
 import { SecretBindingsField } from '../config/secret-bindings-field'
 import { DeploymentStrategyCards } from '../config/selectionCards'
 import { StrategySpecificFields } from '../config/strategies'
@@ -32,8 +33,8 @@ import { ToolsSection } from './ToolsSection'
 import { RunnerFormSection as Section } from './RunnerFormSection'
 import type { RunnerFormProps } from './runnerFormTypes'
 
-function settingsOf({ values, codexAuthMode, codexLoginSecretId }: AgentSettings): AgentSettings {
-  return { values, codexAuthMode, codexLoginSecretId }
+function settingsOf({ values, signInMethod, loginSecretId }: AgentSettings): AgentSettings {
+  return { values, signInMethod, loginSecretId }
 }
 
 export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel, openAdvanced = false }: RunnerFormProps) {
@@ -105,9 +106,9 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
   const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
   const providerOptions = providerOptionsForAgent(agent)
   const currentOption = providerOptions.find((option) => option.provider === provider)
-  const usesChatGptLogin = agent === 'codex' && settings.codexAuthMode !== 'api_key'
+  const signsIn = chosenSignInMethod(agent, settings.signInMethod) !== null
   const modelKey: SecretBinding | null =
-    modelKeyId && !usesChatGptLogin && !endpointState.selection
+    modelKeyId && !signsIn && !endpointState.selection
       ? { secretId: modelKeyId, envVar: currentOption?.envVar ?? modelKeyEnvVar }
       : null
   const bindings = [...(modelKey ? [modelKey] : []), ...extras]

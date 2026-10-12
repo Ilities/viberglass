@@ -16,6 +16,7 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { MODEL_PROVIDERS } from "../src/modelProviders";
+import { readSignInMethods, type AgentSignInMethod } from "../src/agentSignIn";
 import {
   readHarnessConfigEditor,
   readSettingFields,
@@ -66,6 +67,7 @@ interface LoadedPlugin {
   modelApiFormats: string[];
   settings: AgentSettingField[];
   harnessConfigEditor: HarnessConfigEditor | null;
+  signInMethods: AgentSignInMethod[];
 }
 
 interface CatalogEntry {
@@ -119,11 +121,24 @@ function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
     modelApiFormats: (plugin.customEndpoints?.apiFormats ?? []).filter((value: unknown): value is string => typeof value === "string"),
     settings: checkedSettings(packageName, plugin.settings),
     harnessConfigEditor: checkedHarnessConfigEditor(packageName, plugin.harnessConfigEditor, harnessConfigPatterns),
+    signInMethods: checkedSignInMethods(packageName, plugin.signInMethods),
   };
 }
 
+function checkedSignInMethods(packageName: string, raw: unknown): AgentSignInMethod[] {
+  if (raw === undefined) return [];
+  const methods = readSignInMethods(raw);
+  if (!Array.isArray(raw) || methods.length !== raw.length) {
+    throw new Error(`Plugin ${packageName} has a malformed sign-in method: each needs an id, a label, kind "device_code" and credentialEnvVar.`);
+  }
+  if (new Set(methods.map((method) => method.id)).size !== methods.length) {
+    throw new Error(`Plugin ${packageName} declares a sign-in method id twice.`);
+  }
+  return methods;
+}
+
 // Keys the agent config already uses for something else.
-const RESERVED_SETTING_KEYS = new Set(["type", "codexAuth"]);
+const RESERVED_SETTING_KEYS = new Set(["type", "signIn"]);
 
 function checkedSettings(packageName: string, raw: unknown): AgentSettingField[] {
   if (raw === undefined) return [];
@@ -316,7 +331,7 @@ function publishLogo(p: LoadedPlugin): string | null {
 }
 
 // Per harness, in config order (the order the runner form offers them): what the platform
-// shows, the env var names it reads its key and endpoint from, the config files it accepts, and its settings.
+// shows, the env var names it reads its key and endpoint from, the config files it accepts, its settings and its sign-ins.
 const agentPlugins = loadedPlugins.map((p) => ({
   agent: p.id,
   label: p.label,
@@ -331,6 +346,7 @@ const agentPlugins = loadedPlugins.map((p) => ({
   modelApiFormats: p.modelApiFormats,
   settings: p.settings,
   harnessConfigEditor: p.harnessConfigEditor,
+  signInMethods: p.signInMethods,
 }));
 
 fs.writeFileSync(

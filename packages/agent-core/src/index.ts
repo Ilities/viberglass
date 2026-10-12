@@ -59,7 +59,8 @@ export type { IAgentGitService } from "./git/IAgentGitService";
 export { NoopAgentGitService } from "./git/NoopAgentGitService";
 
 // Auth lifecycle
-export type { AgentAuthContext, AgentAuthLifecycle } from "./agentAuthLifecycle";
+export type { AgentAuthContext, AgentAuthLifecycle, AgentLoginUploader } from "./agentAuthLifecycle";
+export { decodeStoredLogin } from "./agentAuthLifecycle";
 
 // Endpoint environment
 export type { AgentEndpointEnvironment } from "./agentEndpointEnvironment";

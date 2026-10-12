@@ -1,7 +1,7 @@
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import type { NewProject } from "../../persistence/project/ProjectDAO";
 import { randomBytes } from "crypto";
-import { NATIVE_TICKET_ORIGIN } from "@viberglass/types";
+import { DEFAULT_AGENT_TYPE, NATIVE_TICKET_ORIGIN } from "@viberglass/types";
 import type {
   Clanker,
   CreateClankerRequest,
@@ -125,7 +125,7 @@ export class DemoWorkspaceSeeder {
       name: DEMO_RUNNER_NAME,
       description: "Shows who ran the demo tasks. It never runs anything.",
       deploymentStrategyId: docker?.id ?? null,
-      agent: "opencode",
+      agent: DEFAULT_AGENT_TYPE,
       secretBindings: [],
     });
     await this.deps.records.record("clanker", runner.id);

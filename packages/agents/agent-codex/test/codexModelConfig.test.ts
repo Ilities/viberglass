@@ -55,7 +55,7 @@ describe("Codex model endpoint", () => {
       logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as never,
       workDir: "",
       clankerConfig: { deploymentConfig: { resolvedModelEndpoint: endpoint } },
-      callbackClient: undefined,
+      loginUploader: { sendAgentLogin: async () => {} },
       sendProgress: async () => {},
     });
     expect(lifecycle?.constructor.name).toBe("NoopAgentAuthLifecycle");

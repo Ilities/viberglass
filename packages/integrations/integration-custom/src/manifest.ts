@@ -7,9 +7,7 @@ export const manifest: IntegrationManifest = {
     'Create tasks from any system with a simple JSON webhook.',
   category: 'inbound',
   status: 'ready',
-  authTypes: [],
   configFields: [],
-  supports: { issues: false, webhooks: true, pullRequests: false },
-  webhookProvider: 'custom',
+  receivesWebhooks: true,
   defaultInboundEvents: ['ticket_created'],
 }

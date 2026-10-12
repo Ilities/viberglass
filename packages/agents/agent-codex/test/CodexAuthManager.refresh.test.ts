@@ -10,22 +10,22 @@ const LOGIN = JSON.stringify({ tokens: { access_token: "a", refresh_token: "r1" 
 
 describe("CodexAuthManager stored login", () => {
   let home: string;
-  const sendCodexAuthCache = jest.fn(async () => undefined);
+  const sendAgentLogin = jest.fn(async () => undefined);
 
   function manager() {
     return new CodexAuthManager(
       logger,
-      { sendCodexAuthCache },
+      { sendAgentLogin },
       home,
       async () => undefined,
-      { mode: "chatgpt_device_stored", secretName: "CODEX_AUTH_JSON", apiKeySecretName: "OPENAI_API_KEY" },
+      { usesChatGpt: true, credentialEnvVar: "CODEX_AUTH_JSON" },
     );
   }
 
   beforeEach(() => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), "codex-auth-"));
     process.env.CODEX_HOME = home;
-    sendCodexAuthCache.mockClear();
+    sendAgentLogin.mockClear();
   });
 
   afterEach(() => {
@@ -48,15 +48,12 @@ describe("CodexAuthManager stored login", () => {
     await codex.materializeAuthCacheFromEnv();
 
     await codex.uploadIfRefreshed("job-1", "tenant-1");
-    expect(sendCodexAuthCache).not.toHaveBeenCalled();
+    expect(sendAgentLogin).not.toHaveBeenCalled();
 
     const refreshed = JSON.stringify({ tokens: { access_token: "b", refresh_token: "r2" } });
     fs.writeFileSync(path.join(home, "auth.json"), refreshed);
     await codex.uploadIfRefreshed("job-1", "tenant-1");
 
-    expect(sendCodexAuthCache).toHaveBeenCalledWith("job-1", "tenant-1", {
-      secretName: "CODEX_AUTH_JSON",
-      authJson: refreshed,
-    });
+    expect(sendAgentLogin).toHaveBeenCalledWith("job-1", "tenant-1", refreshed);
   });
 });

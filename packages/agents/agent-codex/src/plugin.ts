@@ -4,10 +4,8 @@ import { isObjectRecord } from "@viberglass/types";
 import type { CodexConfig } from "./config";
 import { CodexAgent } from "./CodexAgent";
 import { CodexAuthManager } from "./CodexAuthManager";
-import type { ICodexCallbackClient, ICodexCredentialProvider } from "./CodexAuthManager";
 import { CodexAgentAuthLifecycle } from "./CodexAgentAuthLifecycle";
-import { resolveCodexAuthSettings } from "./codexAuthSettings";
-import { Logger } from "winston";
+import { CHATGPT_SIGN_IN, resolveCodexAuthSettings } from "./codexAuthSettings";
 
 function usesModelEndpoint(clankerConfig: Record<string, unknown> | undefined): boolean {
   const config = isObjectRecord(clankerConfig?.deploymentConfig) ? clankerConfig.deploymentConfig : clankerConfig;
@@ -65,32 +63,22 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
     environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
   },
 
+  signInMethods: [CHATGPT_SIGN_IN],
+
   authLifecycle(ctx): AgentAuthLifecycle {
     // A model endpoint brings its own key; there's no OpenAI account to sign in to.
     if (usesModelEndpoint(ctx.clankerConfig)) return new NoopAgentAuthLifecycle();
-    const codexAuthSettings = resolveCodexAuthSettings(ctx.clankerConfig);
-    process.env.CODEX_AUTH_MODE = codexAuthSettings.mode;
-    process.env.CODEX_AUTH_SECRET_NAME = codexAuthSettings.secretName;
-
-    const codexAuthManager = new CodexAuthManager(
-      ctx.logger as Logger,
-      ctx.callbackClient as ICodexCallbackClient,
-      ctx.workDir,
-      ctx.sendProgress,
-      codexAuthSettings,
-      ctx.credentialProvider as ICodexCredentialProvider | undefined,
-    );
+    const settings = resolveCodexAuthSettings(ctx.clankerConfig);
+    // CodexAgent reads it to leave the API key out when Codex signs in with ChatGPT.
+    process.env.CODEX_AUTH_MODE = settings.usesChatGpt ? CHATGPT_SIGN_IN.id : "api_key";
+    const codexAuthManager = new CodexAuthManager(ctx.logger, ctx.loginUploader, ctx.workDir, ctx.sendProgress, settings);
 
     return new CodexAgentAuthLifecycle({
-      mode: codexAuthSettings.mode,
-      materializeFromEnvironment: () =>
-        codexAuthManager.materializeAuthCacheFromEnv(),
-      ensureDeviceAuth: (jobId, tenantId) =>
-        codexAuthManager.ensureDeviceAuth(jobId, tenantId),
-      forceFreshDeviceAuth: (jobId, tenantId) =>
-        codexAuthManager.forceFreshDeviceAuth(jobId, tenantId),
-      uploadIfRefreshed: (jobId, tenantId) =>
-        codexAuthManager.uploadIfRefreshed(jobId, tenantId),
+      usesChatGpt: settings.usesChatGpt,
+      materializeFromEnvironment: () => codexAuthManager.materializeAuthCacheFromEnv(),
+      ensureDeviceAuth: (jobId, tenantId) => codexAuthManager.ensureDeviceAuth(jobId, tenantId),
+      forceFreshDeviceAuth: (jobId, tenantId) => codexAuthManager.forceFreshDeviceAuth(jobId, tenantId),
+      uploadIfRefreshed: (jobId, tenantId) => codexAuthManager.uploadIfRefreshed(jobId, tenantId),
     });
   },
 

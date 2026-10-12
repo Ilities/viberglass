@@ -1,4 +1,4 @@
-import { isObjectRecord } from "@viberglass/types";
+import { DEFAULT_AGENT_TYPE, isObjectRecord } from "@viberglass/types";
 import type {
   Clanker,
 } from "@viberglass/types";
@@ -14,7 +14,7 @@ export function mergeProvisionedStrategyIntoConfig(
   const nextConfig: Record<string, unknown> = {
     version: 1,
     strategy,
-    agent: agent || { type: "claude-code" },
+    agent: agent || { type: DEFAULT_AGENT_TYPE },
   };
 
   if (resolved.runtime) {

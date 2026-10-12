@@ -3,25 +3,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { spawn } from "child_process";
-import { gunzipSync } from "node:zlib";
 import { Logger } from "winston";
-import { sanitizeAgentEnvironment } from "@viberglass/agent-core";
+import { decodeStoredLogin, sanitizeAgentEnvironment, type AgentLoginUploader } from "@viberglass/agent-core";
+import { DEVICE_CODE_PROGRESS } from "@viberglass/types";
 import type { CodexAuthSettings } from "./codexAuthSettings";
-
-// Minimal interface for the callback client (implemented by apps/viberator's CallbackClient)
-export interface ICodexCallbackClient {
-  sendCodexAuthCache(
-    jobId: string,
-    tenantId: string,
-    payload: { secretName: string; authJson: string; updatedAt?: string },
-  ): Promise<void>;
-}
-
-// Minimal interface for the credential provider (implemented by apps/viberator's CredentialProvider)
-export interface ICodexCredentialProvider {
-  getSharedParameterName(key: string): string;
-  getRawSsmValue(parameterName: string): Promise<string | undefined>;
-}
 
 interface DeviceAuthState {
   verificationUri?: string;
@@ -35,7 +20,6 @@ const VERIFICATION_URI_PATTERN = /https?:\/\/[^\s)]+/i;
 const LABELED_DEVICE_CODE_PATTERN =
   /(?:device code|one-time code|verification code|enter code|use code)\s*[:=-]?\s*([A-Z0-9-]{4,})/i;
 const HYPHENATED_DEVICE_CODE_PATTERN = /\b([A-Z0-9]{4,}(?:-[A-Z0-9]{4,})+)\b/;
-const CODEX_AUTH_GZIP_PREFIX = "gz+b64:";
 
 type ProgressReporter = (
   step: string,
@@ -106,17 +90,6 @@ export function compactJsonForStorage(jsonContent: string): string {
   }
 }
 
-export function decodeCodexAuthFromSharedValue(secretValue: string): string {
-  const trimmed = secretValue.trim();
-  if (!trimmed.startsWith(CODEX_AUTH_GZIP_PREFIX)) {
-    return trimmed;
-  }
-
-  const base64Payload = trimmed.slice(CODEX_AUTH_GZIP_PREFIX.length);
-  const decodedBuffer = Buffer.from(base64Payload, "base64");
-  return gunzipSync(decodedBuffer).toString("utf-8");
-}
-
 export function normalizeCodexHomeEnv(env: NodeJS.ProcessEnv): void {
   const codexHome = env.CODEX_HOME?.trim();
   if (codexHome) {
@@ -139,20 +112,18 @@ export class CodexAuthManager {
 
   constructor(
     private readonly logger: Logger,
-    private readonly callbackClient: ICodexCallbackClient,
+    private readonly loginUploader: AgentLoginUploader,
     private readonly workDir: string,
     private readonly sendProgress: ProgressReporter,
     private readonly settings: CodexAuthSettings,
-    private readonly credentialProvider?: ICodexCredentialProvider,
   ) {}
 
   async materializeAuthCacheFromEnv(): Promise<void> {
-    const storedValue = process.env[this.settings.secretName];
-    // Values stored in SSM may be gzip-encoded to fit its size limit.
-    const secretValue = storedValue ? decodeCodexAuthFromSharedValue(storedValue) : storedValue;
+    const storedValue = process.env[this.settings.credentialEnvVar];
+    const secretValue = storedValue ? decodeStoredLogin(storedValue) : storedValue;
     if (!secretValue || secretValue.trim().length === 0) {
       this.logger.info("No Codex auth cache value found in environment", {
-        secretName: this.settings.secretName,
+        credentialEnvVar: this.settings.credentialEnvVar,
       });
       return;
     }
@@ -162,7 +133,7 @@ export class CodexAuthManager {
 
     this.logger.info("Materializing Codex auth cache from environment", {
       authPath,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
       authBytes: Buffer.byteLength(secretValue, "utf-8"),
     });
 
@@ -176,7 +147,7 @@ export class CodexAuthManager {
 
     this.logger.info("Materialized Codex auth cache from credential", {
       authPath,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
       authBytes: Buffer.byteLength(secretValue, "utf-8"),
     });
   }
@@ -185,8 +156,7 @@ export class CodexAuthManager {
     this.logger.info("Ensuring Codex auth is available for job", {
       jobId,
       tenantId,
-      mode: this.settings.mode,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
     });
 
     await this.materializeAuthCacheFromEnv();
@@ -199,55 +169,22 @@ export class CodexAuthManager {
       return;
     }
 
-    if (this.settings.mode === "chatgpt_device_stored") {
-      this.logger.info("No valid local auth cache, attempting shared SSM auth cache", {
-        jobId,
-        tenantId,
-      });
-      await this.materializeAuthCacheFromSsm();
-
-      if (await this.hasValidAuthCache()) {
-        this.logger.info("Using shared Codex auth cache from SSM", {
-          jobId,
-          tenantId,
-        });
-        return;
-      }
-
-      this.logger.info("Shared auth cache unavailable, starting interactive Codex device login", {
-        jobId,
-        tenantId,
-        requireAuthCacheUpload: true,
-      });
-      await this.runDeviceAuthLogin(jobId, tenantId, {
-        requireAuthCacheUpload: true,
-      });
-      return;
-    }
-
-    this.logger.info("Starting interactive Codex device login", {
+    this.logger.info("No stored Codex login, starting interactive Codex device login", {
       jobId,
       tenantId,
-      mode: this.settings.mode,
-      requireAuthCacheUpload: false,
     });
-    await this.runDeviceAuthLogin(jobId, tenantId, {
-      requireAuthCacheUpload: false,
-    });
+    await this.runDeviceAuthLogin(jobId, tenantId);
   }
 
   async forceFreshDeviceAuth(jobId: string, tenantId: string): Promise<void> {
     this.logger.warn("Forcing fresh Codex device auth after token failure", {
       jobId,
       tenantId,
-      mode: this.settings.mode,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
     });
 
     await this.clearLocalAuthCacheFiles(jobId, tenantId);
-    await this.runDeviceAuthLogin(jobId, tenantId, {
-      requireAuthCacheUpload: true,
-    });
+    await this.runDeviceAuthLogin(jobId, tenantId);
   }
 
   private getPrimaryAuthFilePath(): string {
@@ -376,15 +313,11 @@ export class CodexAuthManager {
     }
   }
 
-  private async runDeviceAuthLogin(
-    jobId: string,
-    tenantId: string,
-    options: { requireAuthCacheUpload: boolean },
-  ): Promise<void> {
+  /** Signs Codex in with a device code and uploads the login; a login it can't keep fails the sign-in. */
+  private async runDeviceAuthLogin(jobId: string, tenantId: string): Promise<void> {
     this.logger.info("Preparing Codex device auth login", {
       jobId,
       tenantId,
-      requireAuthCacheUpload: options.requireAuthCacheUpload,
       workDir: this.workDir,
     });
 
@@ -420,7 +353,7 @@ export class CodexAuthManager {
             "auth",
             "Waiting for Codex device authorization",
             {
-              kind: "codex_device_auth_pending",
+              kind: DEVICE_CODE_PROGRESS.pending,
               verificationUri: authState.verificationUri || null,
               userCode: authState.userCode || null,
             },
@@ -449,7 +382,7 @@ export class CodexAuthManager {
             userCodeSuffix: authState.userCode.slice(-4),
           });
           void this.sendProgress("auth", "Codex login required", {
-            kind: "codex_device_auth_required",
+            kind: DEVICE_CODE_PROGRESS.required,
             verificationUri: authState.verificationUri,
             userCode: authState.userCode,
           });
@@ -515,41 +448,10 @@ export class CodexAuthManager {
     });
 
     await this.sendProgress("auth", "Codex device authentication completed", {
-      kind: "codex_device_auth_completed",
+      kind: DEVICE_CODE_PROGRESS.completed,
     });
-    this.logger.info("Codex device authentication completed", {
-      jobId,
-      tenantId,
-      requireAuthCacheUpload: options.requireAuthCacheUpload,
-    });
-
-    try {
-      this.logger.info("Uploading Codex auth cache after login", {
-        jobId,
-        tenantId,
-        secretName: this.settings.secretName,
-      });
-      await this.uploadAuthCache(jobId, tenantId);
-      this.logger.info("Uploaded Codex auth cache after login", {
-        jobId,
-        tenantId,
-        secretName: this.settings.secretName,
-      });
-    } catch (error) {
-      if (options.requireAuthCacheUpload) {
-        this.logger.error("Failed to upload required Codex auth cache after login", {
-          jobId,
-          tenantId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        throw error;
-      }
-      this.logger.warn("Failed to upload Codex auth cache after login", {
-        jobId,
-        tenantId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    this.logger.info("Codex device authentication completed; uploading the login", { jobId, tenantId });
+    await this.uploadAuthCache(jobId, tenantId);
   }
 
   /**
@@ -573,108 +475,6 @@ export class CodexAuthManager {
         tenantId,
         error: error instanceof Error ? error.message : String(error),
       });
-    }
-  }
-
-  private getSharedAuthSsmPath(): string {
-    // Use CredentialProvider's path construction when available for consistency
-    if (this.credentialProvider) {
-      return this.credentialProvider.getSharedParameterName(this.settings.secretName);
-    }
-
-    // Fallback to legacy path construction
-    const prefix = (
-      process.env.SECRETS_SSM_PREFIX || "/viberator/secrets"
-    ).replace(/\/+$/, "");
-    const normalizedSecretName = this.settings.secretName.replace(/^\/+/, "");
-    return `${prefix}/${normalizedSecretName}`;
-  }
-
-  private async materializeAuthCacheFromSsm(): Promise<void> {
-    const authPath = this.getPrimaryAuthFilePath();
-    const authDir = path.dirname(authPath);
-    const parameterName = this.getSharedAuthSsmPath();
-
-    this.logger.info("Attempting to materialize Codex auth cache from shared SSM", {
-      authPath,
-      parameterName,
-      usingCredentialProvider: Boolean(this.credentialProvider),
-    });
-
-    try {
-      let secretValue: string | undefined;
-
-      if (this.credentialProvider) {
-        // Use CredentialProvider for consistent SSM fetching
-        secretValue = await this.credentialProvider.getRawSsmValue(parameterName);
-      } else {
-        // Fallback: check environment variable (for Docker workers)
-        secretValue = process.env[this.settings.secretName];
-      }
-
-      if (!secretValue || secretValue.trim().length === 0) {
-        this.logger.info("Shared SSM Codex auth cache is missing or empty", {
-          parameterName,
-        });
-        return;
-      }
-
-      const materializedAuthJson = decodeCodexAuthFromSharedValue(secretValue);
-      if (!materializedAuthJson || materializedAuthJson.trim().length === 0) {
-        this.logger.info("Shared SSM Codex auth cache decoded to empty payload", {
-          parameterName,
-        });
-        return;
-      }
-
-      await fs.promises.mkdir(authDir, { recursive: true });
-      await fs.promises.writeFile(authPath, materializedAuthJson, {
-        encoding: "utf-8",
-        mode: 0o600,
-      });
-      await fs.promises.chmod(authPath, 0o600);
-      this.syncedAuthHash = hashAuthJson(materializedAuthJson);
-
-      this.logger.info("Materialized Codex auth cache from shared SSM", {
-        authPath,
-        parameterName,
-        authBytes: Buffer.byteLength(materializedAuthJson, "utf-8"),
-        rawAuthBytes: Buffer.byteLength(secretValue, "utf-8"),
-      });
-    } catch (error) {
-      const errorName = error instanceof Error ? error.name : undefined;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorName === "ParameterNotFound") {
-        this.logger.info("Shared Codex auth cache parameter not found", {
-          parameterName,
-        });
-        return;
-      }
-      if (
-        errorName === "AccessDeniedException" ||
-        errorName === "UnrecognizedClientException" ||
-        errorName === "InvalidClientTokenId" ||
-        errorName === "ExpiredTokenException" ||
-        errorName === "CredentialsProviderError"
-      ) {
-        this.logger.error("Failed to read shared Codex auth cache from SSM due to auth error", {
-          parameterName,
-          errorName,
-          errorMessage,
-        });
-        throw new Error(
-          `Failed to read shared Codex auth cache from SSM at ${parameterName}: ${errorName}`,
-        );
-      }
-
-      this.logger.error("Failed to read shared Codex auth cache from SSM", {
-        parameterName,
-        errorName: errorName || "UnknownError",
-        errorMessage,
-      });
-      throw new Error(
-        `Failed to read shared Codex auth cache from SSM at ${parameterName}`,
-      );
     }
   }
 
@@ -707,7 +507,7 @@ export class CodexAuthManager {
       jobId,
       tenantId,
       authPath,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
     });
 
     const authJson = await fs.promises.readFile(authPath, "utf-8");
@@ -733,19 +533,16 @@ export class CodexAuthManager {
     this.logger.info("Sending Codex auth cache upload callback", {
       jobId,
       tenantId,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
       authBytes: Buffer.byteLength(compactedAuthJson, "utf-8"),
       rawAuthBytes: Buffer.byteLength(authJson, "utf-8"),
     });
-    await this.callbackClient.sendCodexAuthCache(jobId, tenantId, {
-      secretName: this.settings.secretName,
-      authJson: compactedAuthJson,
-    });
+    await this.loginUploader.sendAgentLogin(jobId, tenantId, compactedAuthJson);
     this.syncedAuthHash = hashAuthJson(compactedAuthJson);
     this.logger.info("Codex auth cache upload callback succeeded", {
       jobId,
       tenantId,
-      secretName: this.settings.secretName,
+      credentialEnvVar: this.settings.credentialEnvVar,
     });
   }
 }

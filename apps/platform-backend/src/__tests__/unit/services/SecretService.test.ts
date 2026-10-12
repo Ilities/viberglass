@@ -1,6 +1,6 @@
 import {
   compactJsonForStorage,
-  encodeCodexAuthForSsm,
+  encodeLoginForSsm,
 } from "../../../services/SecretService";
 import { gunzipSync } from "node:zlib";
 
@@ -37,7 +37,7 @@ describe("SecretService compactJsonForStorage", () => {
       tokens: Array.from({ length: 700 }, () => "token-value"),
     });
 
-    const encoded = encodeCodexAuthForSsm(largeJson);
+    const encoded = encodeLoginForSsm(largeJson);
 
     expect(encoded.startsWith("gz+b64:")).toBe(true);
 
@@ -51,6 +51,6 @@ describe("SecretService compactJsonForStorage", () => {
 
   it("returns compacted payload directly when under SSM size limit", () => {
     const smallJson = JSON.stringify({ token: "abc" }, null, 2);
-    expect(encodeCodexAuthForSsm(smallJson)).toBe('{"token":"abc"}');
+    expect(encodeLoginForSsm(smallJson)).toBe('{"token":"abc"}');
   });
 });

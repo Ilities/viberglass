@@ -15,9 +15,7 @@ import type { Database } from "../types/database";
 
 export type TicketsRow = Selectable<Database["tickets"]>;
 
-// Normalize legacy ticket_system values (2 was the old GitHub enum value)
 function normalizeTicketSystem(value: unknown): TicketOrigin {
-  if (value === 2) return "github";
   if (isTicketOrigin(value)) return value;
   return NATIVE_TICKET_ORIGIN;
 }

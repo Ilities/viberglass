@@ -33,16 +33,16 @@ describe('readClankerDeploymentConfig', () => {
     expect(result.form.values).toEqual({ 'claude-code': {} })
   })
 
-  test('reads how Codex signs in', () => {
+  test('reads how the harness signs in', () => {
     const result = readClankerDeploymentConfig({
       deploymentConfig: {
         version: 1,
         strategy: { type: 'docker' },
-        agent: { type: 'codex', codexAuth: { mode: 'chatgpt_device_stored', secretName: 'CODEX_AUTH_JSON', loginSecretId: 'login-1' } },
+        agent: { type: 'codex', signIn: { method: 'chatgpt', loginSecretId: 'login-1' } },
       },
     })
 
-    expect(result.form).toMatchObject({ codexAuthMode: 'chatgpt_device_stored', codexLoginSecretId: 'login-1' })
+    expect(result.form).toMatchObject({ signInMethod: 'chatgpt', loginSecretId: 'login-1' })
   })
 
   test('gives a runner saved without a config the defaults', () => {

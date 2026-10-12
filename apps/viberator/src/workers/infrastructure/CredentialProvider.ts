@@ -64,19 +64,7 @@ export class CredentialProvider {
   }
 
   /**
-   * Get the SSM parameter name for a key (non-tenant-scoped)
-   * Used for shared secrets like Codex auth cache
-   *
-   * @param key - The credential key
-   * @returns The full SSM parameter path
-   */
-  getSharedParameterName(key: string): string {
-    const safeKey = key.replace(/[^a-zA-Z0-9_.-]/g, "_");
-    return `${this.pathPrefix}/${safeKey}`;
-  }
-
-  /**
-   * Resolve a shared auth cache through supplied values or SSM, without environment fallback.
+   * Read an SSM parameter through supplied values or SSM, without environment fallback.
    *
    * @param parameterName - The full SSM parameter path
    * @returns The parameter value or undefined if not found

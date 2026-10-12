@@ -132,7 +132,7 @@ export function IntegrationDetailPage() {
         setExistingIntegration(fullIntegration)
 
         // Spaces, for choosing which space a webhook's deliveries go to.
-        if (type.webhookProvider) {
+        if (type.receivesWebhooks) {
           try {
             const loadedProjects = await getProjects()
             if (isActive) {
@@ -379,7 +379,7 @@ export function IntegrationDetailPage() {
       )}
 
       {/* Inbound webhook section */}
-      {isConfigured && integrationType.webhookProvider && (
+      {isConfigured && integrationType.receivesWebhooks && (
         !trackerWebhook ? (
           <CustomInboundWebhookSection
             planNewIssues={webhook.planNewIssues}

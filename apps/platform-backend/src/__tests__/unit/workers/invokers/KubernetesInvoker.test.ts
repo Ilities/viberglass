@@ -114,11 +114,11 @@ describe("KubernetesInvoker", () => {
     expect(client.deleteNamespacedJob).not.toHaveBeenCalled();
   });
 
-  it("includes the runner's Codex login binding without putting values in the Job", async () => {
+  it("includes the runner's login binding without putting values in the Job", async () => {
     const { client, invoker, workerBindings, saveBootstrapPayload } = setup();
     const runner: Clanker = { ...clanker, agent: "codex", secretBindings: [{ envVar: "OPENAI_API_KEY", secretId: "model-key" }], deploymentConfig: {
       version: 1, strategy: { type: "kubernetes", containerImage: "worker:codex" },
-      agent: { type: "codex", codexAuth: { mode: "chatgpt_device_stored", loginSecretId: "runner-login" } },
+      agent: { type: "codex", signIn: { method: "chatgpt", loginSecretId: "runner-login" } },
     } };
     workerBindings.mockReturnValue([{ envVar: "CODEX_AUTH_JSON", secretId: "runner-login" }]);
     await invoker.invoke(job, runner);
@@ -128,7 +128,6 @@ describe("KubernetesInvoker", () => {
         { envVar: "OPENAI_API_KEY", secretId: "model-key" },
         { envVar: "CODEX_AUTH_JSON", secretId: "runner-login" },
       ],
-      optionalCredentials: [],
     }));
     expect(JSON.stringify(client.createNamespacedJob.mock.calls[0][0])).not.toContain("runner-login");
   });

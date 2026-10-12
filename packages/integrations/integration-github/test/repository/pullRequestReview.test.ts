@@ -53,7 +53,7 @@ describe('GitHubRepositoryHost.fetchPullRequestReview', () => {
   it("uses GitHub Enterprise's GraphQL endpoint next to its REST base", async () => {
     const fetchFn = github(pullRequest)
 
-    await host(fetchFn, 'https://github.acme.internal/api/v3').fetchPullRequestReview(URL_1, 'tok', null)
+    await host(fetchFn, 'https://github.acme.internal/api/v3').fetchPullRequestReview('https://github.acme.internal/acme/app/pull/7', 'tok', null)
 
     expect(fetchFn.mock.calls[0][0]).toBe('https://github.acme.internal/api/graphql')
   })

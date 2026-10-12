@@ -94,8 +94,8 @@ describe("CodexAgent CLI invocation", () => {
     }
   });
 
-  test("uses codex exec positional prompt and test instruction for device auth mode", async () => {
-    process.env.CODEX_AUTH_MODE = "chatgpt_device";
+  test("uses codex exec positional prompt and test instruction for a ChatGPT sign-in", async () => {
+    process.env.CODEX_AUTH_MODE = "chatgpt";
     const logger = createLogger({
       silent: true,
       transports: [new transports.Console({ silent: true })],
@@ -137,8 +137,8 @@ describe("CodexAgent CLI invocation", () => {
     );
   });
 
-  test("does not inject OPENAI_API_KEY for stored device auth mode", async () => {
-    process.env.CODEX_AUTH_MODE = "chatgpt_device_stored";
+  test("does not inject OPENAI_API_KEY for a ChatGPT sign-in", async () => {
+    process.env.CODEX_AUTH_MODE = "chatgpt";
     const logger = createLogger({
       silent: true,
       transports: [new transports.Console({ silent: true })],

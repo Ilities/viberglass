@@ -1,5 +1,6 @@
 import type {
   AgentSettingField,
+  AgentSignInMethod,
   HarnessConfigEditor,
   ModelApiFormat,
   PluginManifest,
@@ -9,21 +10,17 @@ import { Logger } from "winston";
 import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
 import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
-import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
+import type { AgentAuthLifecycle, AgentLoginUploader } from "./agentAuthLifecycle";
 import type { AgentEndpointEnvironment } from "./agentEndpointEnvironment";
 import type { IAgentGitService } from "./git/IAgentGitService";
 
-/**
- * Runtime context supplied to plugin factory functions for auth lifecycle
- * and endpoint environment. The concrete types of callbackClient and
- * credentialProvider are known to callers but opaque to agent-core.
- */
+/** Runtime context supplied to a plugin's auth lifecycle. */
 export interface AgentRuntimeContext {
   logger: Logger;
   workDir: string;
   clankerConfig?: Record<string, unknown>;
-  callbackClient: unknown;
-  credentialProvider?: unknown;
+  /** Uploads the harness's login; the worker's callback client. */
+  loginUploader: AgentLoginUploader;
   sendProgress: (
     step: string,
     message: string,
@@ -125,7 +122,15 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
   /** Optional custom ACP event mapper; falls back to generic if absent */
   readonly acpEventMapper?: AcpEventMapper;
 
-  /** Optional per-agent auth lifecycle (e.g. Codex device auth) */
+  /**
+   * Interactive sign-ins besides API keys. A runner that chooses one gets its
+   * stored login in the method's `credentialEnvVar`; `authLifecycle` signs in,
+   * reports a device code as `DEVICE_CODE_PROGRESS`, and uploads the login with
+   * the context's `AgentLoginUploader`.
+   */
+  readonly signInMethods?: readonly AgentSignInMethod[];
+
+  /** Optional per-agent auth lifecycle, for harnesses with an interactive sign-in. */
   readonly authLifecycle?: (ctx: AgentRuntimeContext) => AgentAuthLifecycle;
 
   readonly customEndpoints?: {

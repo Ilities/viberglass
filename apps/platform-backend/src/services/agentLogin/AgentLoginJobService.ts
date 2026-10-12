@@ -10,7 +10,7 @@ import { CLANKER_SERVICE_ERROR_CODE, ClankerServiceError } from "../errors/Clank
 import { JobBootstrapService } from "../job/JobBootstrapService";
 import { JobService } from "../JobService";
 import { traceCarrierField } from "../ticketRunOrchestration";
-import { usesChatGptLogin } from "./CodexLoginService";
+import { usesInteractiveSignIn } from "./AgentLoginService";
 
 const logger = createChildLogger({ service: "AgentLoginJobService" });
 
@@ -36,10 +36,10 @@ export class AgentLoginJobService {
     if (!clanker) {
       throw new ClankerServiceError(CLANKER_SERVICE_ERROR_CODE.CLANKER_NOT_FOUND, "Agent runner not found");
     }
-    if (!usesChatGptLogin(clanker)) {
+    if (!usesInteractiveSignIn(clanker)) {
       throw new ClankerServiceError(
         CLANKER_SERVICE_ERROR_CODE.LOGIN_NOT_APPLICABLE,
-        "Only a Codex runner set to sign in with a ChatGPT account has a login to connect.",
+        "Only a runner set to sign in with an account, rather than an API key, has a login to connect.",
       );
     }
     if (clanker.status !== "active" || !clanker.deploymentStrategyId) {

@@ -71,8 +71,7 @@ export class ClankerAgentAuthLifecycleFactory implements AgentAuthLifecycleFacto
         logger: input.logger,
         workDir: input.workDir,
         clankerConfig: input.clankerConfig,
-        callbackClient: input.callbackClient,
-        credentialProvider: input.credentialProvider,
+        loginUploader: input.loginUploader,
         sendProgress: input.sendProgress,
       });
     }

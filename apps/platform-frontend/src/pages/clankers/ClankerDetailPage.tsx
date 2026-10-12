@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { RunnerInstructionsAndTools } from './runner-instructions-and-tools'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
-import { ChatGptLoginCard } from './chatgpt-login-card'
+import { AgentLoginCard } from './agent-login-card'
 import { summarizeRunner } from './config/runnerSummary'
 import { RunnerReadinessBadge } from '@/components/runner-readiness-badge'
 import { Timestamp } from '@/components/timestamp'
@@ -123,7 +123,7 @@ export function ClankerDetailPage() {
       const clankerData = await getClankerBySlug(slug)
       if (!clankerData) return
 
-      const loginSecretId = summarizeRunner(clankerData, []).loginSecretId
+      const loginSecretId = summarizeRunner(clankerData, []).signIn?.loginSecretId
       const endpointList = clankerData.modelEndpoint ? await listModelEndpoints().catch(() => []) : []
       const endpointSecretId = endpointList.find((endpoint) => endpoint.id === clankerData.modelEndpoint?.endpointId)?.secretId
       const secretIds = [
@@ -428,8 +428,8 @@ export function ClankerDetailPage() {
                         <TextLink href="/settings/models">{summary.endpoint.name}</TextLink>
                         <span className="ml-2 font-mono text-xs text-[var(--gray-9)]">{summary.endpoint.host}</span>
                       </>
-                    ) : summary.usesChatGptLogin
-                      ? 'OpenAI (ChatGPT login)'
+                    ) : summary.signIn
+                      ? `Signs in with its ${summary.signIn.label}`
                       : summary.customEndpoint
                         ? `${summary.providerLabel ?? 'Unknown'} key, sent to a custom endpoint`
                         : (summary.providerLabel ?? 'Not set')}
@@ -461,8 +461,8 @@ export function ClankerDetailPage() {
                   </dd>
                   <dt className="text-sm text-[var(--gray-9)]">Key</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
-                    {summary.usesChatGptLogin ? (
-                      'ChatGPT login'
+                    {summary.signIn ? (
+                      `${summary.signIn.label} login`
                     ) : clanker.modelEndpoint ? (
                       summary.endpoint?.keyLabel ? (
                         <>
@@ -485,10 +485,11 @@ export function ClankerDetailPage() {
                 </dl>
               </div>
 
-              {summary.usesChatGptLogin && (
-                <ChatGptLoginCard
+              {summary.signIn && (
+                <AgentLoginCard
                   clanker={clanker}
-                  login={secrets.find((secret) => secret.id === summary.loginSecretId) ?? null}
+                  accountLabel={summary.signIn.label}
+                  login={secrets.find((secret) => secret.id === summary.signIn?.loginSecretId) ?? null}
                   onConnected={() => void loadData()}
                 />
               )}

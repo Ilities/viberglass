@@ -1,5 +1,6 @@
 import {
   AGENT_LABELS,
+  DEFAULT_AGENT_TYPE,
   agentForModelApiFormat,
   getAgentSettingFields,
   getDefaultAgentBindingForProvider,
@@ -210,7 +211,7 @@ export class SetupAgentService {
   }
 
   private describe(clanker: Clanker, compute: DefaultAgent["compute"]): DefaultAgent {
-    const agent = clanker.agent ?? "claude-code";
+    const agent = clanker.agent ?? DEFAULT_AGENT_TYPE;
     return {
       clankerId: clanker.id,
       slug: clanker.slug,

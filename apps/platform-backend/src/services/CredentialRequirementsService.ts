@@ -1,30 +1,23 @@
-import type { Clanker, CredentialRequest } from "@viberglass/types";
-import { getCodexAuthConfig } from "../clanker-config";
+import { getRunnerSignIn, type Clanker, type CredentialRequest } from "@viberglass/types";
 import { SecretResolutionService } from "./SecretResolutionService";
-import { CodexLoginService, usesChatGptLogin } from "./codexLogin/CodexLoginService";
-import { secretsSsmPrefix } from "./secretStorageDefaults";
+import { AgentLoginService } from "./agentLogin/AgentLoginService";
 
 export class CredentialRequirementsService {
   constructor(
     private readonly secretResolutionService: Pick<SecretResolutionService, "getCredentialRequests"> = new SecretResolutionService(),
-    private readonly codexLogins: Pick<CodexLoginService, "workerBindings"> = new CodexLoginService(),
+    private readonly logins: Pick<AgentLoginService, "workerBindings"> = new AgentLoginService(),
   ) {}
 
   async getRequiredCredentialsForClanker(clanker: Clanker): Promise<CredentialRequest[]> {
     const requests = await this.secretResolutionService.getCredentialRequests(clanker.secretBindings || []);
-    if (!usesChatGptLogin(clanker)) return requests;
+    const runnerSignIn = getRunnerSignIn(clanker.deploymentConfig);
+    if (!runnerSignIn) return requests;
 
-    const secretName = getCodexAuthConfig(clanker)?.secretName;
-    const loginBindings = this.codexLogins.workerBindings(clanker);
-    if (loginBindings.length > 0) {
-      const loginRequests = (await this.secretResolutionService.getCredentialRequests(loginBindings)).map(
-        (request) => ({ ...request, exposeToAgent: false }),
-      );
-      return [...requests.filter((request) => request.envVar !== secretName), ...loginRequests];
-    }
-
-    // Not connected yet: the shared login cache, kept at the prefix plus its name.
-    if (!secretName || requests.some((request) => request.envVar === secretName)) return requests;
-    return [...requests, { envVar: secretName, ssmPath: `${secretsSsmPrefix()}/${secretName}` }];
+    // The stored login is the worker's: it signs the harness in with it. A runner not signed in yet
+    // has none, and the harness asks for a device code on its first run.
+    const loginRequests = (await this.secretResolutionService.getCredentialRequests(this.logins.workerBindings(clanker))).map(
+      (request) => ({ ...request, exposeToAgent: false }),
+    );
+    return [...requests.filter((request) => request.envVar !== runnerSignIn.method.credentialEnvVar), ...loginRequests];
   }
 }

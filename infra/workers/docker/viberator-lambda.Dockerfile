@@ -45,7 +45,13 @@ RUN npm install -g opencode-ai@1.18.34
 # Lambda fragment: Kimi Code agent (Amazon Linux, as root)
 ENV PATH="/root/.kimi-code/bin:${PATH}"
 # The installer keeps the older kimi-cli as kimi-legacy, which refuses to run.
-RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
+# The global installer: code.kimi.com's downloads come from its mainland-China CDN, which runners elsewhere time out on.
+# Downloaded before running, so a failed download fails the step instead of piping an empty script to bash.
+RUN for attempt in 1 2 3; do \
+      curl -fsSL --retry 3 https://code.kimi.ai/kimi-code/install.sh -o /tmp/kimi-install.sh && bash /tmp/kimi-install.sh && break; \
+      if [ "$attempt" = 3 ]; then exit 1; fi; sleep 15; \
+    done \
+    && rm -f /tmp/kimi-install.sh \
     && rm -f /root/.local/bin/kimi-legacy /root/.local/bin/kimi-cli
 
 # Lambda fragment: Mistral Vibe agent (Amazon Linux, as root)

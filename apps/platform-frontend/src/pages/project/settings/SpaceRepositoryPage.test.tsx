@@ -136,9 +136,7 @@ describe('SpaceRepositoryPage', () => {
         label: 'Jira',
         category: 'ticketing',
         description: 'Jira integration',
-        authTypes: ['token'],
         configFields: [],
-        supports: { issues: true },
         status: 'ready',
       } as IntegrationManifest,
       {
@@ -146,9 +144,7 @@ describe('SpaceRepositoryPage', () => {
         label: 'GitHub',
         category: 'scm',
         description: 'GitHub integration',
-        authTypes: ['token'],
         configFields: [],
-        supports: { issues: true, pullRequests: true },
         status: 'ready',
       } as IntegrationManifest,
     ])

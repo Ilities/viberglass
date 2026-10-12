@@ -4,13 +4,7 @@ import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Link } from '@/components/link'
 import type { JobStatus } from '@/service/api/job-api'
 import type { ReactNode } from 'react'
-
-/** A repository identifier (URL, host/owner/repo or owner/repo) as a browsable URL; owner/repo means GitHub. */
-function repositoryUrl(repository: string): string {
-  if (repository.startsWith('http://') || repository.startsWith('https://')) return repository
-  if (repository.includes('.')) return `https://${repository}`
-  return `https://github.com/${repository}`
-}
+import { addressPath, repositoryWebUrl } from '@/lib/repositoryAddress'
 
 export function formatRunDuration(start: string | null, end: string | null): string | null {
   if (!start) return null
@@ -39,7 +33,7 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
 /** Where and how this run ran, as quiet label and value pairs. */
 export function RunFacts({ job, isPolling }: { job: JobStatus; isPolling: boolean }) {
   const repository = job.data.repository
-  const repoUrl = repository ? repositoryUrl(repository) : null
+  const repoUrl = repository ? repositoryWebUrl(repository) : null
   const baseBranch = job.data.baseBranch || 'main'
   const duration = formatRunDuration(job.processedAt, job.finishedAt)
 
@@ -56,9 +50,9 @@ export function RunFacts({ job, isPolling }: { job: JobStatus; isPolling: boolea
             {job.clanker.agent && <span className="text-[var(--gray-9)]"> · {job.clanker.agent}</span>}
           </Fact>
         )}
-        {repoUrl && (
+        {repository && (
           <Fact label="Repository">
-            <ExternalLink href={repoUrl}>{repository.replace(/^https?:\/\/(www\.)?github\.com\//, '')}</ExternalLink>
+            {repoUrl ? <ExternalLink href={repoUrl}>{addressPath(repository)}</ExternalLink> : addressPath(repository)}
           </Fact>
         )}
         {repoUrl && (

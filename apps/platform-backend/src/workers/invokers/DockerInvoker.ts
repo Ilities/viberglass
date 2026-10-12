@@ -7,7 +7,7 @@ import fs from "fs";
 import { PassThrough } from "stream";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
-import { CodexLoginService } from "../../services/codexLogin/CodexLoginService";
+import { AgentLoginService } from "../../services/agentLogin/AgentLoginService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
 import { dockerJobContainerName } from "./dockerJobContainerName";
@@ -52,7 +52,7 @@ export class DockerInvoker implements WorkerInvoker {
   readonly name = "DockerInvoker";
   private docker: Docker;
   private secretResolutionService: SecretResolutionService;
-  private codexLogins = new CodexLoginService();
+  private logins = new AgentLoginService();
 
   constructor(config?: { socketPath?: string; host?: string; port?: number }) {
     this.docker = new Docker({
@@ -100,7 +100,7 @@ export class DockerInvoker implements WorkerInvoker {
       secretEnvironment =
         await this.secretResolutionService.resolveBindings([
           ...(clanker.secretBindings || []),
-          ...this.codexLogins.workerBindings(clanker),
+          ...this.logins.workerBindings(clanker),
         ]);
     } catch (error) {
       throw new WorkerError(

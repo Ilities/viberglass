@@ -23,13 +23,14 @@ function createClanker(overrides: Partial<Clanker> = {}): Clanker {
   };
 }
 
-function codexClanker(mode: string, secretName = "CODEX_AUTH_JSON"): Clanker {
+function codexClanker(signIn?: Record<string, unknown>, secretBindings: SecretBinding[] = []): Clanker {
   return createClanker({
     agent: "codex",
+    secretBindings,
     deploymentConfig: {
       version: 1,
       strategy: { type: "docker" },
-      agent: { type: "codex", codexAuth: { mode, secretName } },
+      agent: { type: "codex", ...(signIn ? { signIn } : {}) },
     },
   });
 }
@@ -42,7 +43,6 @@ describe("CredentialRequirementsService", () => {
   beforeEach(() => {
     getCredentialRequests.mockReset();
     getCredentialRequests.mockResolvedValue([]);
-    delete process.env.SECRETS_SSM_PREFIX;
   });
 
   it("asks for each of the runner's bindings", async () => {
@@ -64,37 +64,28 @@ describe("CredentialRequirementsService", () => {
     ]);
   });
 
-  it("adds the shared codex login cache in device auth modes", async () => {
-    for (const mode of ["chatgpt_device", "chatgpt_device_stored"]) {
-      await expect(service.getRequiredCredentialsForClanker(codexClanker(mode))).resolves.toEqual([
-        { envVar: "CODEX_AUTH_JSON", ssmPath: "/viberator/secrets/CODEX_AUTH_JSON" },
-      ]);
-    }
-  });
-
-  it("keeps an attached CODEX_AUTH_JSON binding instead of adding the shared cache", async () => {
-    getCredentialRequests.mockResolvedValue([{ envVar: "CODEX_AUTH_JSON", ssmPath: null }]);
-
-    await expect(service.getRequiredCredentialsForClanker(codexClanker("chatgpt_device"))).resolves.toEqual([
-      { envVar: "CODEX_AUTH_JSON", ssmPath: null },
-    ]);
-  });
-
   it("asks for a connected runner's own login, for the worker only", async () => {
     workerBindings.mockReturnValueOnce([{ envVar: "CODEX_AUTH_JSON", secretId: "login-1" }]);
     getCredentialRequests.mockImplementation(async (bindings: SecretBinding[]) =>
       bindings.map((binding) => ({ envVar: binding.envVar, ssmPath: null, exposeToAgent: true })),
     );
 
-    await expect(service.getRequiredCredentialsForClanker(codexClanker("chatgpt_device_stored"))).resolves.toEqual([{ envVar: "CODEX_AUTH_JSON", ssmPath: null, exposeToAgent: false }]);
+    await expect(service.getRequiredCredentialsForClanker(codexClanker({ method: "chatgpt", loginSecretId: "login-1" }))).resolves.toEqual([
+      { envVar: "CODEX_AUTH_JSON", ssmPath: null, exposeToAgent: false },
+    ]);
   });
 
-  it("does not add the codex login cache for API key auth", async () => {
-    await expect(service.getRequiredCredentialsForClanker(codexClanker("api_key"))).resolves.toEqual([]);
+  it("asks for no login before the runner has signed in, and drops a binding under the login's variable", async () => {
+    getCredentialRequests.mockImplementation(async (bindings: SecretBinding[]) =>
+      bindings.map((binding) => ({ envVar: binding.envVar, ssmPath: null })),
+    );
+
+    await expect(
+      service.getRequiredCredentialsForClanker(codexClanker({ method: "chatgpt" }, [{ envVar: "CODEX_AUTH_JSON", secretId: "other" }])),
+    ).resolves.toEqual([]);
   });
 
-  it("uses the default codex auth secret name even when config provides a custom name", async () => {
-    const required = await service.getRequiredCredentialsForClanker(codexClanker("chatgpt_device", "CUSTOM_CODEX_SECRET"));
-    expect(required.map((request) => request.envVar)).toEqual(["CODEX_AUTH_JSON"]);
+  it("leaves a runner that signs in with an API key alone", async () => {
+    await expect(service.getRequiredCredentialsForClanker(codexClanker())).resolves.toEqual([]);
   });
 });

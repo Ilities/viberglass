@@ -5,7 +5,9 @@ import {
   type AgentSettingField,
   type HarnessConfigEditor,
 } from './agentSettings'
+import { readAgentSignIn, readSignInMethods, type AgentSignIn, type AgentSignInMethod } from './agentSignIn'
 import type { AgentType } from './clanker'
+import { isClankerConfigV1, type ClankerConfigV1 } from './clankerConfig'
 
 /** A harness this build includes, as its plugin describes it. */
 export interface AgentCatalogEntry {
@@ -23,6 +25,8 @@ export interface AgentCatalogEntry {
   /** What the runner form shows for this harness, besides its model key. */
   settings: AgentSettingField[]
   harnessConfigEditor: HarnessConfigEditor | null
+  /** Interactive sign-ins besides API keys. */
+  signInMethods: AgentSignInMethod[]
 }
 
 function toEntry(entry: (typeof agentPluginCatalog)[number]): AgentCatalogEntry {
@@ -36,6 +40,7 @@ function toEntry(entry: (typeof agentPluginCatalog)[number]): AgentCatalogEntry 
     endpointRank: entry.endpointRank,
     settings: readSettingFields(entry.settings),
     harnessConfigEditor: readHarnessConfigEditor(entry.harnessConfigEditor),
+    signInMethods: readSignInMethods(entry.signInMethods),
   }
 }
 
@@ -62,6 +67,23 @@ export function getAgentSettingFields(agent: string): AgentSettingField[] {
 
 export function getHarnessConfigEditor(agent: string): HarnessConfigEditor | null {
   return getAgentCatalogEntry(agent)?.harnessConfigEditor ?? null
+}
+
+export function getAgentSignInMethods(agent: string): AgentSignInMethod[] {
+  return getAgentCatalogEntry(agent)?.signInMethods ?? []
+}
+
+/** A runner's interactive sign-in and its method, when the runner chose one its harness declares. */
+export interface RunnerSignIn {
+  signIn: AgentSignIn
+  method: AgentSignInMethod
+}
+
+export function getRunnerSignIn(deploymentConfig: unknown): RunnerSignIn | null {
+  const agent: ClankerConfigV1['agent'] | undefined = isClankerConfigV1(deploymentConfig) ? deploymentConfig.agent : undefined
+  const signIn = agent ? readAgentSignIn(agent.signIn) : undefined
+  const method = signIn && agent ? getAgentSignInMethods(agent.type).find((candidate) => candidate.id === signIn.method) : undefined
+  return signIn && method ? { signIn, method } : null
 }
 
 function findDefaultAgent(): AgentType {

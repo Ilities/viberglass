@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import { useMemo, type ReactNode } from 'react'
 import { describeAgentWork, summariseAgentWork } from './agent-work-summary'
 import { buildRunSteps, isStartingSandbox, type RunStep, type RunStepState } from './run-steps'
+import { addressPath } from '@/lib/repositoryAddress'
 
 interface RunActivityProps {
   job: JobStatus
@@ -71,7 +72,7 @@ function PrepareDetail({ job }: { job: JobStatus }) {
       <p>
         {job.data.repository ? (
           <>
-            <span className="font-mono text-[13px]">{job.data.repository.replace(/^https?:\/\/(www\.)?github\.com\//, '')}</span> at{' '}
+            <span className="font-mono text-[13px]">{addressPath(job.data.repository)}</span> at{' '}
             <span className="font-mono text-[13px]">{baseBranch}</span>
           </>
         ) : (

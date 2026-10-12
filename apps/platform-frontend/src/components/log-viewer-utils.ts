@@ -101,19 +101,6 @@ export function buildDisplayEntries(timeline: TimelineEvent[]): DisplayEntry[] {
   return entries
 }
 
-// Agent source → Tailwind color name
-const AGENT_COLOR_MAP: Record<string, string> = {
-  claudecodeagent: 'blue',
-  codex: 'green',
-  antigravity: 'purple',
-  qwen: 'amber',
-  kimi: 'pink',
-  mistral: 'teal',
-  opencode: 'orange',
-  qwencodeagent: 'amber',
-  kimicodeagent: 'pink',
-}
-
 // Pre-built safe Tailwind class pairs (required for Tailwind v4 purge)
 export const AGENT_COLOR_CLASSES: Record<string, { badge: string }> = {
   blue: { badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -135,11 +122,9 @@ function hashColor(name: string): string {
   return HASH_COLORS[Math.abs(hash) % HASH_COLORS.length]
 }
 
+/** A badge colour per log source: gray for the worker, and a stable colour from its name for each agent. */
 export function getAgentColor(sourceLabel: string): string {
   const name = sourceLabel.replace(/^agent:/, '').toLowerCase()
-  for (const [key, color] of Object.entries(AGENT_COLOR_MAP)) {
-    if (name.includes(key)) return color
-  }
   if (name === 'viberator') return 'gray'
   return hashColor(name)
 }

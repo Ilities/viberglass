@@ -4,18 +4,10 @@
 
 import type { TicketSystem } from './common'
 import type { PluginField, PluginManifest } from './plugin'
-import type { AuthCredentialType } from './project'
 import type { SecretLocation } from './secret'
 
 // Integration category - SCM (source control), Ticketing (issue tracking), Inbound (receives events) or Chat
 export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound' | 'chat'
-
-// Features supported by an integration
-export interface IntegrationSupport {
-  issues: boolean
-  webhooks?: boolean
-  pullRequests?: boolean
-}
 
 // Integration configuration status
 export type IntegrationConfigStatus = 'configured' | 'not_configured' | 'stub'
@@ -27,14 +19,12 @@ export interface IntegrationManifest extends PluginManifest {
   category: IntegrationCategory
   /** A stub is listed as coming soon and can't be connected. */
   status: 'ready' | 'stub'
-  authTypes: AuthCredentialType[]
   /** Settings the connection screen edits; empty when the connection has none. */
   configFields: PluginField[]
-  supports: IntegrationSupport
   /** Set when the connection holds a token: what Viberglass uses it for, shown where the token is entered. */
   credentialUse?: string
-  /** Set when the connection receives webhooks: the provider its deliveries are routed to. */
-  webhookProvider?: string
+  /** Set when the connection receives webhooks; its deliveries are routed under the integration's id. */
+  receivesWebhooks?: boolean
   /** Events a new webhook subscribes to; all of them when unset. */
   defaultInboundEvents?: string[]
 }

@@ -48,7 +48,7 @@ export async function fetchGitHubPullRequestReview(
   token: string,
   since: Date | null,
 ): Promise<PullRequestReview> {
-  const ref = parseGitHubPullRequestUrl(pullRequestUrl)
+  const ref = parseGitHubPullRequestUrl(pullRequestUrl, api.webHost)
   if (!ref) throw new Error(`Not a GitHub pull request URL: ${pullRequestUrl}`)
 
   const response = await api.fetch(graphqlUrlOf(api.baseUrl), {

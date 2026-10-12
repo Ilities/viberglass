@@ -36,10 +36,10 @@ export async function checkGitHubAccess(api: GitHubApi, repository: RepositoryRe
   if (response.status !== 200) {
     throw toError(name, response.status, response.headers, readString(record, 'message'))
   }
-  return toAccess(name, record, response.headers)
+  return toAccess(name, record, response.headers, api.webHost)
 }
 
-function toAccess(name: string, repository: Record<string, unknown>, headers: Headers): RepositoryAccess {
+function toAccess(name: string, repository: Record<string, unknown>, headers: Headers, webHost: string): RepositoryAccess {
   const permissions = isObjectRecord(repository.permissions) ? repository.permissions : {}
   // Only classic tokens report scopes; without the repo scope they can't push even with push permission.
   const scopes = headers.get('x-oauth-scopes')
@@ -62,7 +62,7 @@ function toAccess(name: string, repository: Record<string, unknown>, headers: He
   const fullName = readString(repository, 'full_name') ?? name
   return {
     fullName,
-    url: readString(repository, 'html_url') ?? `https://github.com/${fullName}`,
+    url: readString(repository, 'html_url') ?? `https://${webHost}/${fullName}`,
     defaultBranch: readString(repository, 'default_branch') ?? 'main',
     isPrivate,
   }

@@ -26,9 +26,7 @@ function item(system: string, category: IntegrationCategory): IntegrationSetting
     description: '',
     category,
     status: 'ready',
-    authTypes: [],
     configFields: [],
-    supports: { issues: false },
     configStatus: 'not_configured',
     instances: [],
   }

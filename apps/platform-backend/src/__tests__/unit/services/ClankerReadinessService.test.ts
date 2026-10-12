@@ -45,13 +45,16 @@ describe("runnerReadiness", () => {
     expect(runnerReadiness(runner(), new Set(), null)).toMatchObject({ state: "needs_key", problem: expect.stringContaining("deleted") });
   });
 
-  it("needs a ChatGPT login for a Codex runner set up to sign in", () => {
+  it("needs a login for a runner set up to sign in with an account", () => {
     const codex = runner({
       agent: "codex",
       secretBindings: [],
-      deploymentConfig: { version: 1, strategy: { type: "docker" }, agent: { type: "codex", codexAuth: { mode: "chatgpt_device", secretName: "CODEX_AUTH" } } },
+      deploymentConfig: { version: 1, strategy: { type: "docker" }, agent: { type: "codex", signIn: { method: "chatgpt" } } },
     });
-    expect(runnerReadiness(codex, new Set(), null).state).toBe("needs_login");
+    expect(runnerReadiness(codex, new Set(), null)).toMatchObject({
+      state: "needs_login",
+      problem: expect.stringContaining("ChatGPT account"),
+    });
   });
 
   it("separates a configured runner whose compute isn't up", () => {

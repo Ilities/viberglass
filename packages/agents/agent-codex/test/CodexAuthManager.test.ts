@@ -1,11 +1,9 @@
 import {
   compactJsonForStorage,
-  decodeCodexAuthFromSharedValue,
   normalizeCodexHomeEnv,
   parseDeviceAuthValues,
   sanitizeCliOutputLine,
 } from "../src/CodexAuthManager";
-import { gzipSync } from "node:zlib";
 
 describe("CodexAuthManager device auth parsing", () => {
   test("removes ANSI control sequences from CLI lines", () => {
@@ -80,18 +78,6 @@ describe("CodexAuthManager device auth parsing", () => {
 
   test("returns trimmed value when auth payload is not valid JSON", () => {
     expect(compactJsonForStorage("  not-json  ")).toBe("not-json");
-  });
-
-  test("decodes compressed shared SSM auth payload", () => {
-    const json = '{"account_id":"acct_123","token":"abc"}';
-    const encoded = `gz+b64:${gzipSync(Buffer.from(json, "utf-8")).toString("base64")}`;
-
-    expect(decodeCodexAuthFromSharedValue(encoded)).toBe(json);
-  });
-
-  test("passes through uncompressed shared auth payload", () => {
-    const json = '{"account_id":"acct_123"}';
-    expect(decodeCodexAuthFromSharedValue(json)).toBe(json);
   });
 
   test("normalizes legacy CODEX_CONFIG_DIR into CODEX_HOME", () => {

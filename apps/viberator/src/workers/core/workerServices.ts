@@ -6,7 +6,6 @@ import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import GitService from "../../services/GitService";
 import type { Configuration } from "../../types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
-import type { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { LogForwarder } from "../runtime/LogForwarder";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
@@ -29,7 +28,6 @@ export interface WorkerServicesInput {
   settings: WorkerSettings;
   callbackToken?: string;
   platformApiUrl?: string;
-  credentialProvider: CredentialProvider;
   authFactory: AgentAuthLifecycleFactory;
   /** Reports progress on the job being run, whichever it is when called. */
   sendProgress: (client: CallbackClient, step: string, message: string, details?: Record<string, unknown>) => Promise<void>;
@@ -60,10 +58,9 @@ export async function createWorkerServices(input: WorkerServicesInput): Promise<
       requestedAgent: input.settings.requestedAgent,
       clankerConfig: input.settings.clankerConfig,
       logger,
-      callbackClient,
+      loginUploader: callbackClient,
       workDir: input.workDir,
       sendProgress: (step, message, details) => input.sendProgress(callbackClient, step, message, details),
-      credentialProvider: input.credentialProvider,
     }),
   };
 }

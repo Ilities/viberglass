@@ -87,7 +87,7 @@ export function SecretsPage() {
 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
   const modelKeys = secrets.filter((secret) => secret.provider && !secret.purpose)
-  const logins = secrets.filter((secret) => secret.purpose === 'codex_login')
+  const logins = secrets.filter((secret) => secret.purpose === 'agent_login')
   const otherSecrets = secrets.filter((secret) => !secret.provider && !secret.purpose)
   const usedBy = useMemo(() => collectSecretUsers(runners, uses), [runners, uses])
   const showStorage = secrets.some((secret) => secret.secretLocation !== 'database')
@@ -273,9 +273,9 @@ export function SecretsPage() {
           )}
           {logins.length > 0 && (
             <section className="space-y-3">
-              <Subheading>ChatGPT logins</Subheading>
+              <Subheading>Agent logins</Subheading>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Codex agents keep these signed in. Reconnect an agent from its page; deleting a login signs the agent out.
+                Agents that sign in with an account keep these signed in. Reconnect an agent from its page; deleting a login signs the agent out.
               </p>
               <SecretsTable secrets={logins} usedBy={usedBy} showStorage={showStorage} onEdit={openEditDialog} onDelete={handleDelete} />
             </section>
@@ -329,7 +329,7 @@ export function SecretsPage() {
                     }
                   >
                     <option value={NO_PROVIDER}>None</option>
-                    {MODEL_PROVIDERS.filter((provider) => provider.id !== 'fake').map((provider) => (
+                    {MODEL_PROVIDERS.filter((provider) => !provider.testOnly).map((provider) => (
                       <option key={provider.id} value={provider.id}>
                         {provider.displayName}
                       </option>

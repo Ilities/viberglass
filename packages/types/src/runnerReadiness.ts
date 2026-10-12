@@ -1,7 +1,6 @@
-import { isTestOnlyAgent } from './agentCatalog'
+import { getRunnerSignIn, isTestOnlyAgent } from './agentCatalog'
 import { AGENT_PROVIDER_BINDINGS, getAgentEnvVarNames } from './agentProviders'
 import type { Clanker } from './clanker'
-import { isClankerConfigV1 } from './clankerConfig'
 import { JOB_FAILURE_CODE } from './job'
 
 /**
@@ -29,17 +28,6 @@ export interface RunnerReadiness {
 
 type RunnerShape = Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'status' | 'deploymentStrategyId' | 'modelEndpoint'>
 
-/** Whether the runner's Codex signs in with a ChatGPT login rather than an API key. */
-export function runnerUsesChatGptLogin(clanker: Pick<Clanker, 'deploymentConfig'>): boolean {
-  const agent = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig.agent : null
-  return agent?.codexAuth !== undefined && agent.codexAuth.mode !== 'api_key'
-}
-
-function chatGptLoginSecretId(clanker: Pick<Clanker, 'deploymentConfig'>): string | null {
-  const agent = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig.agent : null
-  return agent?.codexAuth?.loginSecretId || null
-}
-
 /** What stops the runner's agent from authenticating as configured, or null. */
 export function runnerCredentialProblem(
   clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'modelEndpoint'>,
@@ -49,10 +37,11 @@ export function runnerCredentialProblem(
   if (!agent) return { state: 'needs_key', problem: 'No agent is chosen. An admin can edit the agent to pick one.' }
   // Endpoint credentials belong to the shared endpoint, whose references are validated on save.
   if (clanker.modelEndpoint) return null
-  if (runnerUsesChatGptLogin(clanker)) {
-    return chatGptLoginSecretId(clanker)
+  const signIn = getRunnerSignIn(clanker.deploymentConfig)
+  if (signIn) {
+    return signIn.signIn.loginSecretId
       ? null
-      : { state: 'needs_login', problem: 'Not connected to ChatGPT yet. An admin can connect it from the agent.' }
+      : { state: 'needs_login', problem: `Not signed in with its ${signIn.method.label} yet. An admin can connect it from the agent.` }
   }
   // An agent with no provider to pick, like the test agent, needs no key.
   if (isTestOnlyAgent(agent) || !AGENT_PROVIDER_BINDINGS.some((binding) => binding.agent === agent)) return null

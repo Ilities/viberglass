@@ -12,11 +12,9 @@ export class WorkerBootstrapCredentials {
     }
     const values = await this.secrets.resolveBindings(parseSecretBindings(payload.credentialBindings));
     const credentials: Record<string, string> = {};
-    const optional = Array.isArray(payload.optionalCredentials) ? payload.optionalCredentials : [];
     for (const request of requests) {
       const name = request.envVar;
       const value = Object.prototype.hasOwnProperty.call(values, name) ? values[name] : undefined;
-      if (value === undefined && optional.includes(name)) continue;
       if (value === undefined) throw new Error(`Required worker credential is unavailable: ${name}`);
       Object.defineProperty(credentials, name, { value, enumerable: true });
     }

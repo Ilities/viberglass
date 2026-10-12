@@ -3,7 +3,7 @@ import { type GitHubApi, restHeaders } from './gitHubApi'
 import { parseGitHubPullRequestUrl } from './gitHubRepositoryNames'
 
 export async function fetchGitHubPullRequestOutcome(api: GitHubApi, pullRequestUrl: string, token: string): Promise<PullRequestOutcome> {
-  const ref = parseGitHubPullRequestUrl(pullRequestUrl)
+  const ref = parseGitHubPullRequestUrl(pullRequestUrl, api.webHost)
   if (!ref) throw new Error(`Not a GitHub pull request URL: ${pullRequestUrl}`)
   const { owner, repo, number } = ref
 

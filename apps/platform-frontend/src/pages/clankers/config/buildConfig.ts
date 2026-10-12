@@ -1,13 +1,14 @@
 import {
   DEFAULT_AGENT_TYPE,
   getAgentSettingFields,
+  getAgentSignInMethods,
   isObjectRecord,
   pickSettingValues,
   type AgentType,
   type ClankerAgentConfig,
   type ClankerStrategyConfig,
 } from '@viberglass/types'
-import { DEFAULT_CODEX_AUTH_SECRET_NAME, type BuildConfigInput } from './types'
+import type { BuildConfigInput } from './types'
 import { normalizeStrategyName } from './normalizers'
 
 function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
@@ -59,23 +60,21 @@ function buildAgent(selectedAgent: AgentType, input: BuildConfigInput): ClankerA
   return {
     type: selectedAgent,
     ...pickSettingValues(getAgentSettingFields(selectedAgent), input.form.values[selectedAgent]),
-    // Signing in isn't a declared setting yet, so Codex keeps its own.
-    ...(selectedAgent === 'codex'
-      ? {
-          codexAuth: {
-            mode: input.form.codexAuthMode,
-            secretName: DEFAULT_CODEX_AUTH_SECRET_NAME,
-            ...(input.form.codexLoginSecretId ? { loginSecretId: input.form.codexLoginSecretId } : {}),
-          },
-        }
-      : {}),
+    ...signInOf(selectedAgent, input),
   }
+}
+
+/** The sign-in the runner chose, when its harness declares it; without one the runner uses an API key. */
+function signInOf(agent: AgentType, input: BuildConfigInput): Pick<ClankerAgentConfig, 'signIn'> {
+  const { signInMethod, loginSecretId } = input.form
+  if (!getAgentSignInMethods(agent).some((method) => method.id === signInMethod)) return {}
+  return { signIn: { method: signInMethod, ...(loginSecretId ? { loginSecretId } : {}) } }
 }
 
 /** Agent settings this form has inputs for; blanking one of these clears it. */
 function shownAgentSettings(agent: AgentType): Set<string> {
   const keys = getAgentSettingFields(agent).map((field) => field.key)
-  return new Set(agent === 'codex' ? [...keys, 'codexAuth'] : keys)
+  return new Set(getAgentSignInMethods(agent).length > 0 ? [...keys, 'signIn'] : keys)
 }
 
 /** Keeps the stored agent's settings the form doesn't show. */

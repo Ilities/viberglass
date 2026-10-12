@@ -7,7 +7,5 @@ export const manifest: IntegrationManifest = {
     'Send notifications and create issues directly from Slack channels.',
   category: 'chat',
   status: 'ready',
-  authTypes: ['token'],
   configFields: [],
-  supports: { issues: true, webhooks: false },
 }

@@ -1,7 +1,13 @@
 import { Select as RadixSelect } from '@radix-ui/themes'
 import { EndpointModelField } from './EndpointModelField'
 import { ModelEndpointDialog } from '@/pages/models/ModelEndpointDialog'
-import { getAgentModelApiFormats, getAgentSettingFields, type ModelEndpoint, type ModelEndpointSelection } from '@viberglass/types'
+import {
+  getAgentModelApiFormats,
+  getAgentSettingFields,
+  getAgentSignInMethods,
+  type ModelEndpoint,
+  type ModelEndpointSelection,
+} from '@viberglass/types'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
 import { Select } from '@/components/select'
@@ -9,7 +15,8 @@ import type { Secret } from '@/service/api/secret-api'
 import { AGENT_LABELS, type AgentType, type ModelProviderId } from '@viberglass/types'
 import { useState } from 'react'
 import { AgentSettingFields } from '../config/agentSettingFields'
-import { CodexAgentFields } from '../config/codexFields'
+import { chosenSignInMethod } from '../config/signIn'
+import { SignInField } from '../config/signInField'
 import type { AgentSettings } from '../config/types'
 import { keysForProvider, providerOptionsForAgent } from '../config/modelKey'
 import { AddModelKeyDialog } from './AddModelKeyDialog'
@@ -57,7 +64,8 @@ export function ModelSection({
   // Only endpoints that speak an API this agent understands; the rest would fail at the first run.
   const usableEndpoints = endpoints.filter((item) => formats.includes(item.apiFormat))
   const options = providerOptionsForAgent(agent)
-  const usesChatGptLogin = agent === 'codex' && settings.codexAuthMode !== 'api_key'
+  const signInMethods = getAgentSignInMethods(agent)
+  const signsIn = chosenSignInMethod(agent, settings.signInMethod) !== null
   const keys = keysForProvider(secrets, provider, modelKeyId)
   const envVar = options.find((option) => option.provider === provider)?.envVar
 
@@ -67,14 +75,15 @@ export function ModelSection({
 
   return (
     <FieldGroup>
-      {agent === 'codex' && (
-        <CodexAgentFields
-          codexAuthMode={settings.codexAuthMode}
-          onCodexAuthModeChange={(codexAuthMode) => onSettingsChange({ codexAuthMode })}
+      {signInMethods.length > 0 && (
+        <SignInField
+          methods={signInMethods}
+          value={settings.signInMethod}
+          onChange={(signInMethod) => onSettingsChange({ signInMethod })}
         />
       )}
 
-      {!usesChatGptLogin && (
+      {!signsIn && (
         <>
           <Field>
             <Label>Provider</Label>

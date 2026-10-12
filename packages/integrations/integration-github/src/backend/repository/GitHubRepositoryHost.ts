@@ -4,7 +4,7 @@ import { checkGitHubAccess } from './checkGitHubAccess'
 import { fetchGitHubPullRequestOutcome } from './fetchGitHubPullRequestOutcome'
 import { fetchGitHubPullRequestReview } from './fetchGitHubPullRequestReview'
 import type { GitHubApi, GitHubFetch } from './gitHubApi'
-import { parseGitHubPullRequestUrl, parseGitHubRepository } from './gitHubRepositoryNames'
+import { gitHubWebHost, parseGitHubPullRequestUrl, parseGitHubRepository } from './gitHubRepositoryNames'
 import { openGitHubPullRequest } from './openGitHubPullRequest'
 
 export interface GitHubRepositoryHostOptions {
@@ -20,14 +20,18 @@ export class GitHubRepositoryHost implements RepositoryHost {
 
   constructor(options: GitHubRepositoryHostOptions = {}) {
     const baseUrl = options.apiBaseUrl || process.env.GITHUB_API_URL || 'https://api.github.com'
-    this.api = { baseUrl: baseUrl.replace(/\/+$/, ''), fetch: options.fetch ?? ((url, init) => fetch(url, init)) }
+    this.api = {
+      baseUrl: baseUrl.replace(/\/+$/, ''),
+      webHost: gitHubWebHost(baseUrl),
+      fetch: options.fetch ?? ((url, init) => fetch(url, init)),
+    }
   }
 
   parseRepository(input: string): RepositoryRef | null {
-    const name = parseGitHubRepository(input)
+    const name = parseGitHubRepository(input, this.api.webHost)
     if (!name) return null
     const fullName = `${name.owner}/${name.repo}`
-    return { fullName, url: `https://github.com/${fullName}` }
+    return { fullName, url: `https://${this.api.webHost}/${fullName}` }
   }
 
   checkAccess(repository: RepositoryRef, token: string): Promise<RepositoryAccess> {
@@ -39,7 +43,7 @@ export class GitHubRepositoryHost implements RepositoryHost {
   }
 
   ownsPullRequest(url: string): boolean {
-    return parseGitHubPullRequestUrl(url) !== null
+    return parseGitHubPullRequestUrl(url, this.api.webHost) !== null
   }
 
   fetchPullRequestOutcome(url: string, token: string): Promise<PullRequestOutcome> {

@@ -16,7 +16,9 @@ The target for every step: nothing outside a plugin's package names it, except t
 - "Test connection" calls the plugin's optional `checkConnection`; the legacy `PMIntegration` classes, the per-space integration config endpoints and their DAO are gone.
 - Harness settings are fields: a plugin declares `settings` (key, label, string or select, the env vars the worker sets, the provider default that fills it) and `harnessConfigEditor`, and the catalog carries them. `AgentType` is an open string checked against the catalog. One backend normalizer, one frontend form, reader and builder, and one worker step replace the per-harness config types, normalizers, form fields and endpoint environments. Configs from before the v1 format are no longer read. Both kinds of plugin share the field type, `PluginField`.
 - Worker internals are in the plugins. Plugins name the env vars their CLI reads (`agentEnv`, besides keys, endpoints and settings), and the agent allowlist is what the registered harnesses name. A harness's output normalizer and usage parsers live in its package (`createOutputNormalizer`); agent-core keeps the stream-json one most harnesses share, and the frontend only reads the normalized `item` events. `npm run generate:dockerfiles` composes the per-harness, multi-agent, ECS and Lambda images from each harness's `Dockerfile.fragment` and `Dockerfile.lambda.fragment`; the local Docker image is the multi-agent one.
-- Both kinds of plugin share `PluginManifest` (id, label, description). Each integration package has a `src/manifest.ts` its backend and frontend entries spread; the API sends it as is. Icons are frontend plugin components. The connection screen goes by the manifest: config form when it has `configFields`, token section when it has `credentialUse`, webhook section when it has `webhookProvider` (the tracker one when the frontend plugin has `trackerWebhook`), install section instead of a name prompt when it has `AuthSetupSection`.
+- Sign-in is a harness capability. A plugin declares `signInMethods` (a device code is the only kind so far) and a runner stores its choice as `agent.signIn`. One login job, one `agent_login` secret purpose, one upload route (`POST /api/jobs/:jobId/agent-login`) and one device-code card serve every harness; the runner form, readiness and summary go by the declared method. Each runner keeps its own login; the shared login cache and the per-run sign-in mode are gone.
+- Leftovers: badge colours come from the log source's name; the integration manifests lost `supports` and `authTypes`, which nothing read, and the stubs their config fields; `receivesWebhooks` replaced `webhookProvider`, so deliveries route under the integration's id; GitHub Enterprise repository, clone and pull request addresses follow the host of `GITHUB_API_URL`; the frontend shows any host's repository and pull request addresses by their path. `pluginIdsStayInPackages.test.ts` fails when a plugin id shows up outside its package, tests and migrations.
+- Both kinds of plugin share `PluginManifest` (id, label, description). Each integration package has a `src/manifest.ts` its backend and frontend entries spread; the API sends it as is. Icons are frontend plugin components. The connection screen goes by the manifest: config form when it has `configFields`, token section when it has `credentialUse`, webhook section when it `receivesWebhooks` (the tracker one when the frontend plugin has `trackerWebhook`), install section instead of a name prompt when it has `AuthSetupSection`.
 
 ## Learned so far
 
@@ -24,42 +26,7 @@ The target for every step: nothing outside a plugin's package names it, except t
 - A generic registry wasn't worth it: the agent and integration registries share three lines and differ in what an unknown id does.
 - `category` names the slot a connection fills for a space (primary code host, primary tracker); that is a real concept and stays. Capabilities sit beside it.
 
-## Harnesses
-
-### H3 leftovers
-
-- The run log's agent badge colours (`AGENT_COLOR_MAP` in `log-viewer-utils.ts`) are keyed by harness and class names, some stale; unknown names fall back to a hashed colour.
-
-### H4. Sign-in as a capability
-
-- The manifest declares sign-in methods:
-  - API keys per provider (the existing `providers` bindings)
-  - interactive logins (device code, OAuth), each with the credential files to cache
-- The platform gets one generic login flow, replacing:
-  - `CodexLoginService` and `AgentLoginJobService` with one login job
-  - the `codex_login` secret purpose with one login secret purpose that carries the harness id
-  - `codexAuthCacheRoute` with one credential cache route, keyed by harness
-  - the Codex credential bindings in the invokers (`KubernetesInvoker`, `DockerInvoker`, `WorkerInvokerFactory`, `CredentialRequirementsService`) with generic ones
-  - `CallbackClient.sendCodexAuthCache` in the worker with a generic call
-  - the codex `if` branches in `ModelSection.tsx` and `RunnerForm.tsx`, and the `codexAuth` reads in `runnerReadiness.ts` and `runnerSummary.ts`, now driven by the declared methods
-  - the `codexAuth` branch in the backend's `clanker-config/index.ts` (with `codexAuth.ts`) and the frontend's `buildConfig.ts`, `readConfig.ts` and `codexFields.tsx`, and `codexAuth` on `ClankerAgentConfig`
-  - `codex-device-auth-card.tsx`, `chatgpt-login-card.tsx` and the Codex parts of `SecretsPage.tsx` with a generic device-code or OAuth card; a plugin slot only if a harness really needs its own
-- The Codex config re-exports in `apps/viberator/src/config/clankerConfig.ts` are removed.
-
 ## Integrations
-
-### I1 leftovers
-
-- Stub manifests (GitLab, Bitbucket, Linear, Monday) still declare aspirational `supports` and config fields; fix them when each is built.
-
-### I2 leftovers
-
-- `IntegrationRegistry.getWebhookProvider` and the manifest's `webhookProvider` equal the integration id everywhere; it could become a flag.
-
-### I3 leftovers
-
-- GitHub Enterprise: the API address follows `GITHUB_API_URL`, but the GitHub host's URL patterns (repository addresses, pull request addresses, clone URLs) still only recognise github.com.
-- The frontend still assumes github.com in a few places: the setup screen's token help (kept on purpose while GitHub is the only code host), placeholders, and `run-facts.tsx`, `run-record-panel.tsx`, `run-activity.tsx` and `build-pull-request-panel.tsx`, which read a bare `owner/repo` as github.com or strip `github.com/` for display.
 
 ### I4 leftovers
 

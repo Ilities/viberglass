@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { ENV_VAR_NAME_PATTERN, type ModelProviderId, type SecretPurpose } from "@viberglass/types";
+import { ENV_VAR_NAME_PATTERN, STORED_LOGIN_GZIP_PREFIX, type ModelProviderId, type SecretPurpose } from "@viberglass/types";
 import {
   SecretDAO,
   SecretLocation,
@@ -23,7 +23,6 @@ const logger = createChildLogger({ service: "SecretService" });
 
 const IV_LENGTH = 12;
 const MAX_SSM_SECRET_SIZE_BYTES = 3900;
-const CODEX_AUTH_GZIP_PREFIX = "gz+b64:";
 
 export function compactJsonForStorage(jsonContent: string): string {
   const trimmed = jsonContent.trim();
@@ -39,7 +38,8 @@ export function compactJsonForStorage(jsonContent: string): string {
   }
 }
 
-export function encodeCodexAuthForSsm(authJson: string): string {
+/** A login as SSM can hold it: compacted, and gzipped when that still doesn't fit. */
+export function encodeLoginForSsm(authJson: string): string {
   const compacted = compactJsonForStorage(authJson);
   if (!compacted) {
     return "";
@@ -51,7 +51,7 @@ export function encodeCodexAuthForSsm(authJson: string): string {
   }
 
   const gzipped = gzipSync(Buffer.from(compacted, "utf-8"), { level: 9 });
-  return `${CODEX_AUTH_GZIP_PREFIX}${gzipped.toString("base64")}`;
+  return `${STORED_LOGIN_GZIP_PREFIX}${gzipped.toString("base64")}`;
 }
 
 export interface SecretInput {
@@ -288,52 +288,6 @@ export class SecretService {
   async resolveSecretValueByName(name: string): Promise<string | null> {
     const secret = await this.secretDao.getSecretByName(name);
     return secret ? this.resolveSecretValue(secret) : null;
-  }
-
-  async upsertWorkerAuthCache(
-    name: string,
-    authJson: string,
-    location: "ssm" | "database" = "ssm",
-  ): Promise<SecretMetadata> {
-    const normalizedName = name.trim();
-    if (!normalizedName) {
-      throw new SecretServiceError(
-        SECRET_SERVICE_ERROR_CODE.SECRET_NAME_REQUIRED,
-        "Secret name is required",
-      );
-    }
-    if (!authJson || authJson.trim().length === 0) {
-      throw new SecretServiceError(
-        SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_PAYLOAD_REQUIRED,
-        "Auth cache payload is required",
-      );
-    }
-
-    const preparedAuthJson = location === "ssm" ? encodeCodexAuthForSsm(authJson) : compactJsonForStorage(authJson);
-    const payloadBytes = Buffer.byteLength(preparedAuthJson, "utf-8");
-    if (location === "ssm" && payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
-      throw new SecretServiceError(
-        SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_TOO_LARGE,
-        `Codex auth cache exceeds SSM size limit (${payloadBytes} bytes)`,
-      );
-    }
-
-    const existing = await this.secretDao.getSecretByName(normalizedName);
-    if (existing) {
-      return this.updateSecret(existing.id, {
-        secretLocation: location,
-        secretValue: preparedAuthJson,
-        secretPath: existing.secretPath,
-      });
-    }
-
-    // Codex workers read the shared cache at the prefix plus this name.
-    return this.createSecret({
-      name: normalizedName,
-      secretLocation: location,
-      ...(location === "ssm" ? { secretPath: `${this.ssmPrefix}/${normalizedName}` } : {}),
-      secretValue: preparedAuthJson,
-    });
   }
 
   /**

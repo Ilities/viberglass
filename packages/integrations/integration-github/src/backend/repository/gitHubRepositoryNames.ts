@@ -8,21 +8,33 @@ export interface GitHubPullRequestRef extends GitHubRepositoryName {
 }
 
 const NAME = '[A-Za-z0-9_.-]+'
-const REPOSITORY_PATTERNS = [
-  // owner/repo
-  new RegExp(`^(${NAME})/(${NAME})$`),
-  // https://github.com/owner/repo, github.com/owner/repo, with optional .git, path or query
-  new RegExp(`^(?:https?://)?(?:www\\.)?github\\.com/(${NAME})/(${NAME})(?:[/?#].*)?$`, 'i'),
-  // git@github.com:owner/repo.git
-  new RegExp(`^git@github\\.com:(${NAME})/(${NAME})$`, 'i'),
-]
-const PULL_REQUEST_URL = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/
-const CLONE_URL = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i
 
-/** Reads `owner/repo` or a GitHub URL (web, clone or SSH); null when it isn't one. */
-export function parseGitHubRepository(input: string): GitHubRepositoryName | null {
+/** Where people browse repositories: the Enterprise server for its https://host/api/v3, else github.com. */
+export function gitHubWebHost(apiBaseUrl: string): string {
+  const url = new URL(apiBaseUrl)
+  return /\/api\/v3\/?$/.test(url.pathname) ? url.host : 'github.com'
+}
+
+function escapeHost(host: string): string {
+  return host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function repositoryPatterns(host: string): RegExp[] {
+  const escaped = escapeHost(host)
+  return [
+    // owner/repo
+    new RegExp(`^(${NAME})/(${NAME})$`),
+    // https://host/owner/repo, host/owner/repo, with optional .git, path or query
+    new RegExp(`^(?:https?://)?(?:www\\.)?${escaped}/(${NAME})/(${NAME})(?:[/?#].*)?$`, 'i'),
+    // git@host:owner/repo.git
+    new RegExp(`^git@${escaped}:(${NAME})/(${NAME})$`, 'i'),
+  ]
+}
+
+/** Reads `owner/repo` or a GitHub URL (web, clone or SSH) on `host`; null when it isn't one. */
+export function parseGitHubRepository(input: string, host = 'github.com'): GitHubRepositoryName | null {
   const trimmed = input.trim().replace(/\/+$/, '')
-  for (const pattern of REPOSITORY_PATTERNS) {
+  for (const pattern of repositoryPatterns(host)) {
     const match = pattern.exec(trimmed)
     if (!match) continue
     const repo = match[2].replace(/\.git$/i, '')
@@ -32,15 +44,15 @@ export function parseGitHubRepository(input: string): GitHubRepositoryName | nul
   return null
 }
 
-/** A github.com pull request URL as owner, repo and number; null for anything else. */
-export function parseGitHubPullRequestUrl(url: string): GitHubPullRequestRef | null {
-  const match = PULL_REQUEST_URL.exec(url)
+/** A pull request URL on `host` as owner, repo and number; null for anything else. */
+export function parseGitHubPullRequestUrl(url: string, host = 'github.com'): GitHubPullRequestRef | null {
+  const match = new RegExp(`^https://${escapeHost(host)}/([^/]+)/([^/]+)/pull/(\\d+)/?$`).exec(url)
   return match ? { owner: match[1], repo: match[2], number: Number(match[3]) } : null
 }
 
-/** Owner and name from a repository's clone URL, HTTPS or SSH. */
-export function parseGitHubCloneUrl(repositoryUrl: string): GitHubRepositoryName {
-  const match = repositoryUrl.match(CLONE_URL)
+/** Owner and name from a repository's clone URL on `host`, HTTPS or SSH. */
+export function parseGitHubCloneUrl(repositoryUrl: string, host = 'github.com'): GitHubRepositoryName {
+  const match = repositoryUrl.match(new RegExp(`${escapeHost(host)}[:/]([^/]+)/([^/]+?)(?:\\.git)?$`, 'i'))
   if (!match) throw new Error(`Could not parse owner/repo from URL: ${repositoryUrl}`)
   return { owner: match[1], repo: match[2] }
 }

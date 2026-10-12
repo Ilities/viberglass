@@ -7,7 +7,7 @@ import { KubernetesInvoker } from './invokers/KubernetesInvoker';
 import { createKubernetesSecretClient, KubernetesRunSecret } from './invokers/KubernetesRunSecret';
 import { createKubernetesJobClient } from './invokers/kubernetesJobClient';
 import { JobBootstrapService } from '../services/job/JobBootstrapService';
-import { CodexLoginService } from '../services/codexLogin/CodexLoginService';
+import { AgentLoginService } from '../services/agentLogin/AgentLoginService';
 import { CredentialRequirementsService } from '../services/CredentialRequirementsService';
 import { createChildLogger } from '../config/logger';
 
@@ -36,7 +36,7 @@ export class WorkerInvokerFactory {
       new JobBootstrapService(),
       new CredentialRequirementsService(),
       new JobDispatchStateDAO(),
-      new CodexLoginService(),
+      new AgentLoginService(),
       new KubernetesRunSecret(createKubernetesSecretClient),
     ));
 

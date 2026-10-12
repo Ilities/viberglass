@@ -9,7 +9,7 @@ export interface WebhookReceivers {
 export function webhookReceiversFrom(registry: Pick<IntegrationRegistry, "list">): WebhookReceivers {
   const byProvider = new Map<string, WebhookReceiver>();
   for (const plugin of registry.list()) {
-    if (plugin.webhookProvider && plugin.webhook) byProvider.set(plugin.webhookProvider, plugin.webhook);
+    if (plugin.receivesWebhooks && plugin.webhook) byProvider.set(plugin.id, plugin.webhook);
   }
   return {
     get: (provider) => byProvider.get(provider),

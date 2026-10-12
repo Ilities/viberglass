@@ -3,6 +3,7 @@ import {
   getAgentEnvVarNames,
   getAgentSettingFields,
   getModelProvider,
+  getRunnerSignIn,
   isClankerConfigV1,
   pickSettingValues,
   runnerCredentialProblem,
@@ -26,9 +27,8 @@ export interface RunnerSummary {
   model: string | null
   /** The key the agent uses, or null when it has none. */
   key: { label: string; envVar: string } | null
-  usesChatGptLogin: boolean
-  /** For a ChatGPT login: the stored login's secret, once the runner is connected. */
-  loginSecretId: string | null
+  /** The account the agent signs in with instead of a key, and its stored login once connected. */
+  signIn: { label: string; loginSecretId: string | null } | null
   /**
    * Where the agent sends requests when it isn't the provider's own address:
    * a URL set on the runner, or a variable that sets one. Then the provider is
@@ -58,8 +58,8 @@ export function summarizeRunner(
   const config = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const agentConfig = config?.agent
   const model = clanker.modelEndpoint?.model ?? providerDefaultSetting(agent, agentConfig, 'model')
-  const usesChatGptLogin = agentConfig?.codexAuth !== undefined && agentConfig.codexAuth.mode !== 'api_key'
-  const loginSecretId = agentConfig?.codexAuth?.loginSecretId || null
+  const runnerSignIn = getRunnerSignIn(clanker.deploymentConfig)
+  const signIn = runnerSignIn ? { label: runnerSignIn.method.label, loginSecretId: runnerSignIn.signIn.loginSecretId ?? null } : null
 
   const { provider, modelKey, extras } = splitRunnerBindings(clanker.secretBindings, secrets, agent)
   const keySecret = modelKey ? secrets.find((secret) => secret.id === modelKey.secretId) : undefined
@@ -97,8 +97,7 @@ export function summarizeRunner(
     endpoint,
     model,
     key,
-    usesChatGptLogin,
-    loginSecretId,
+    signIn,
     customEndpoint,
     problem,
     extras,

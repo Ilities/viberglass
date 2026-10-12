@@ -5,15 +5,15 @@ import type {
   ClankerConfigV1,
   ClankerStrategyConfig,
   ClankerStrategyType,
-  CodexAuthConfig,
 } from "@viberglass/types";
 import {
   DEFAULT_AGENT_TYPE,
   getAgentSettingFields,
+  getAgentSignInMethods,
   isClankerConfigV1,
   pickSettingValues,
+  readAgentSignIn,
 } from "@viberglass/types";
-import { normalizeCodexAuthConfig } from "./codexAuth";
 import { toNonEmptyString, toObjectRecord } from "./parsers";
 import { normalizeDockerStrategyConfig } from "./strategies/docker";
 import { normalizeEcsStrategyConfig } from "./strategies/ecs";
@@ -51,15 +51,16 @@ function normalizeStrategy(strategyType: ClankerStrategyType, strategy: unknown)
   return normalizeDockerStrategyConfig(strategy);
 }
 
-/** The harness and the settings it declares; anything else on the stored agent is dropped. */
+/** The harness and the settings and sign-in it declares; anything else on the stored agent is dropped. */
 function normalizeAgent(agent: unknown, fallbackAgent: AgentType | null | undefined): ClankerAgentConfig {
   const source = toObjectRecord(agent) || {};
   const type = toNonEmptyString(source.type) || fallbackAgent || DEFAULT_AGENT_TYPE;
+  const signIn = readAgentSignIn(source.signIn);
+  const declared = signIn && getAgentSignInMethods(type).some((method) => method.id === signIn.method);
   return {
     type,
     ...pickSettingValues(getAgentSettingFields(type), source),
-    // Signing in isn't a declared setting yet, so Codex keeps its own.
-    ...(type === "codex" ? { codexAuth: normalizeCodexAuthConfig(source.codexAuth) } : {}),
+    ...(signIn && declared ? { signIn } : {}),
   };
 }
 
@@ -75,10 +76,6 @@ export function resolveClankerConfig(clanker: Clanker): ResolvedClankerConfig {
       ...(stored?.runtime ? { runtime: stored.runtime } : {}),
     },
   };
-}
-
-export function getCodexAuthConfig(clanker: Clanker): CodexAuthConfig | null {
-  return resolveClankerConfig(clanker).config.agent.codexAuth ?? null;
 }
 
 export function getStrategyType(clanker: Clanker): ClankerStrategyType {

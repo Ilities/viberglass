@@ -15,7 +15,7 @@ import { JobCancellationService } from "../../services/job/JobCancellationServic
 import { jobParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { isDomainError } from "../../services/errors/DomainError";
-import { registerCodexAuthCacheRoute } from "./jobs/codexAuthCacheRoute";
+import { registerAgentLoginRoute } from "./jobs/agentLoginRoute";
 import { registerJobResultRoute } from "./jobs/jobResultRoute";
 import { registerJobWorkerCallbackRoutes } from "./jobs/workerCallbackRoutes";
 import { registerWorkerStorageRoute } from "./jobs/workerStorageRoute";
@@ -229,7 +229,7 @@ const workerStorage = new WorkerStorageService(new JobBootstrapService(), signWo
 registerJobWorkerCallbackRoutes(router, workerStorage);
 registerWorkerStorageRoute(router, workerStorage);
 registerJobResultRoute(router);
-registerCodexAuthCacheRoute(router);
+registerAgentLoginRoute(router);
 registerQuestionCallbackRoute(router);
 registerPartialResultRoute(router);
 registerPullRequestRoute(router);

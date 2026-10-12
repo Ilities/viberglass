@@ -7,7 +7,7 @@ import { Cross2Icon } from '@radix-ui/react-icons'
 import { Dialog } from '@radix-ui/themes'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { describeAgentWork, summariseAgentWork } from '../jobs/agent-work-summary'
-import { CodexDeviceAuthCard, resolveCodexDeviceAuthPrompt } from '../jobs/codex-device-auth-card'
+import { DeviceCodeCard, resolveDeviceCodePrompt } from '../jobs/device-code-card'
 import { formatRunDuration } from '../jobs/run-facts'
 import { RunLog } from '../jobs/run-log'
 import { RunPrompt } from '../jobs/run-prompt'
@@ -55,7 +55,7 @@ function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string 
   )
 
   const duration = formatRunDuration(job.processedAt, job.finishedAt)
-  const codexPrompt = job.status === 'active' ? resolveCodexDeviceAuthPrompt(job.progressUpdates ?? [], job.progress) : null
+  const signInPrompt = job.status === 'active' ? resolveDeviceCodePrompt(job.progressUpdates ?? [], job.progress) : null
   const lastMessage = summary.messages.at(-1)
   const failure = job.status === 'failed' ? failureHeadline(job.result?.failure) : null
   const technicalDetail = job.result?.failure?.technicalDetail || job.result?.errorMessage || job.failedReason
@@ -80,7 +80,7 @@ function InspectorBody({ jobId, linkedTab }: { jobId: string; linkedTab: string 
           {failure.reported && <p className="mt-1 font-mono text-xs break-words text-[var(--gray-11)]">{failure.reported}</p>}
         </div>
       )}
-      {codexPrompt && <div className="mb-5"><CodexDeviceAuthCard prompt={codexPrompt} /></div>}
+      {signInPrompt && <div className="mb-5"><DeviceCodeCard prompt={signInPrompt} /></div>}
       {(lastMessage || actions.length > 0) && (
         <section className="mb-5 space-y-2">
           <h3 className="text-sm font-semibold text-[var(--gray-12)]">Summary</h3>

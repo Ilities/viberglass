@@ -13,6 +13,7 @@ import {
   formatRunResult,
 } from '../../settings/run-records/run-record-format'
 import { formatRunDuration } from './run-facts'
+import { addressPath } from '@/lib/repositoryAddress'
 
 /** What this run recorded: outcome, model, tokens and cost. The record is written as the run is dispatched and finishes. */
 export function RunRecordPanel({ jobId, compact = false }: { jobId: string; compact?: boolean }) {
@@ -53,7 +54,7 @@ function RunRecordFacts({ record, compact }: { record: RunRecord; compact: boole
           {record.pullRequest && pullRequestState ? (
             <>
               <a href={record.pullRequest.url} target="_blank" rel="noreferrer" className="text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
-                {record.pullRequest.url.replace(/^https:\/\/github\.com\//, '')}
+                {addressPath(record.pullRequest.url)}
               </a>{' '}
               <Badge color={pullRequestState.color}>{pullRequestState.label}</Badge>
             </>

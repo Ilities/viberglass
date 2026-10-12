@@ -8,7 +8,7 @@ import { cancelJob } from '@/service/api/job-api'
 import { useState } from 'react'
 import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CodexDeviceAuthCard, resolveCodexDeviceAuthPrompt } from './codex-device-auth-card'
+import { DeviceCodeCard, resolveDeviceCodePrompt } from './device-code-card'
 import { JobRefreshButton } from './job-refresh-button'
 import { RunActivity } from './run-activity'
 import { formatRunDuration, RunFacts } from './run-facts'
@@ -54,7 +54,7 @@ export function JobDetailPage() {
   const title = job.ticket?.title ?? job.data.context?.clawTemplateName ?? `${kind} run`
   const duration = formatRunDuration(job.processedAt, job.finishedAt)
   const taskHref = job.ticketId ? `/spaces/${project}/tasks/${job.ticketId}` : null
-  const codexPrompt = job.status === 'active' ? resolveCodexDeviceAuthPrompt(job.progressUpdates ?? [], job.progress) : null
+  const signInPrompt = job.status === 'active' ? resolveDeviceCodePrompt(job.progressUpdates ?? [], job.progress) : null
 
   const refresh = () => {
     void refetch()
@@ -131,7 +131,7 @@ export function JobDetailPage() {
                 onShowRawLog={() => setActiveTab('log')}
                 nextStep={
                   <div className="space-y-4">
-                    {codexPrompt && <CodexDeviceAuthCard prompt={codexPrompt} />}
+                    {signInPrompt && <DeviceCodeCard prompt={signInPrompt} />}
                     <RunNextStepCard
                       step={nextStep}
                       job={job}

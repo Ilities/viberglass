@@ -39,7 +39,8 @@ export function isCodexStoredAuthFailure(errorMessage: string): boolean {
 }
 
 export interface CodexAgentAuthLifecycleDependencies {
-  mode: string;
+  /** Signs in with a ChatGPT account rather than an API key. */
+  usesChatGpt: boolean;
   materializeFromEnvironment(): Promise<void>;
   ensureDeviceAuth(jobId: string, tenantId: string): Promise<void>;
   forceFreshDeviceAuth(jobId: string, tenantId: string): Promise<void>;
@@ -54,7 +55,7 @@ export class CodexAgentAuthLifecycle implements AgentAuthLifecycle {
   }
 
   async ensureReady(context: AgentAuthContext): Promise<void> {
-    if (context.agentName !== "codex" || this.dependencies.mode === "api_key") {
+    if (context.agentName !== "codex" || !this.dependencies.usesChatGpt) {
       return;
     }
 
@@ -68,7 +69,7 @@ export class CodexAgentAuthLifecycle implements AgentAuthLifecycle {
     return (
       !result.success &&
       context.agentName === "codex" &&
-      this.dependencies.mode === "chatgpt_device_stored" &&
+      this.dependencies.usesChatGpt &&
       isCodexStoredAuthFailure(result.errorMessage || "")
     );
   }
@@ -89,7 +90,7 @@ export class CodexAgentAuthLifecycle implements AgentAuthLifecycle {
   }
 
   async persistAfterRun(context: AgentAuthContext): Promise<void> {
-    if (context.agentName !== "codex" || this.dependencies.mode === "api_key") {
+    if (context.agentName !== "codex" || !this.dependencies.usesChatGpt) {
       return;
     }
 

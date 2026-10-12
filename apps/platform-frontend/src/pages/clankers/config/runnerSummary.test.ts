@@ -119,21 +119,21 @@ describe('summarizeRunner', () => {
     expect(summarizeRunner({ agent: 'fake', deploymentConfig: null, secretBindings: [] }, []).problem).toBeNull()
   })
 
-  it('needs no key for Codex on a ChatGPT login', () => {
+  it('needs no key for an agent that signs in with an account', () => {
     const summary = summarizeRunner(
       {
         agent: 'codex',
         deploymentConfig: {
           version: 1,
           strategy: { type: 'docker' },
-          agent: { type: 'codex', codexAuth: { mode: 'chatgpt_device', secretName: 'CODEX_AUTH_JSON' } },
+          agent: { type: 'codex', signIn: { method: 'chatgpt' } },
         },
         secretBindings: [],
       },
       [],
     )
 
-    expect(summary).toMatchObject({ usesChatGptLogin: true, loginSecretId: null })
-    expect(summary.problem).toContain('Not connected to ChatGPT')
+    expect(summary).toMatchObject({ signIn: { label: 'ChatGPT account', loginSecretId: null } })
+    expect(summary.problem).toContain('Not signed in with its ChatGPT account')
   })
 })
