@@ -39,6 +39,9 @@ import { JobsPage } from '@/pages/project/jobs/JobsPage'
 
 // Claws pages
 import { ClawsPage } from '@/pages/project/claws/ClawsPage'
+import { ArtifactPage } from '@/pages/project/artifacts/ArtifactPage'
+import { ArtifactsPage } from '@/pages/project/artifacts/ArtifactsPage'
+import { FilesPage } from '@/pages/project/files/FilesPage'
 
 // Prompt templates pages
 import { PromptTemplatesPage as ProjectPromptTemplatesPage } from '@/pages/project/prompt-templates/PromptTemplatesPage'
@@ -110,6 +113,9 @@ export function AppRoutes() {
         <Route path="/spaces/:project" element={<SpacePage />} />
         <Route path="/spaces/:project/tasks/:id" element={<TicketDetailPage />} />
         <Route path="/spaces/:project/tasks/:id/media" element={<TicketMediaPage />} />
+        <Route path="/spaces/:project/files" element={<FilesPage />} />
+        <Route path="/spaces/:project/artifacts" element={<ArtifactsPage />} />
+        <Route path="/spaces/:project/artifacts/:artifactId" element={<ArtifactPage />} />
 
         {/* Only for those who run agents */}
         <Route element={<RunnersOnly />}>

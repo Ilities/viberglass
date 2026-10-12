@@ -78,6 +78,12 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "platform",
     retryable: true,
   },
+  [JOB_FAILURE_CODE.ARTIFACT_INVALID]: {
+    title: "No valid artifact",
+    summary: "The agent was asked for an artifact but didn't declare a valid one. Its files were saved.",
+    category: "agent",
+    retryable: true,
+  },
   [JOB_FAILURE_CODE.RUNNER_UNAVAILABLE]: {
     title: "Agent couldn't start",
     summary: "No agent runner could be started for this run.",

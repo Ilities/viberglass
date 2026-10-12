@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ThreadItem } from './thread-item'
+import { TurnArtifactCard } from './turn-artifact-card'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
 
@@ -109,10 +110,12 @@ interface AgentTurnEntryProps {
   retry?: React.ReactNode
   /** In a Files space a run can wait for another to save the space's files before it starts. */
   filesSpace?: boolean
+  /** The task's space, for links to the artifacts a turn produced. */
+  space?: { id: string; slug: string }
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace = false }: AgentTurnEntryProps) {
+export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace = false, space }: AgentTurnEntryProps) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
@@ -148,7 +151,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
       who={entry.agent.name}
       isAgent
       at={entry.at}
-      note={`asked for ${ASKED_FOR[entry.action]}`}
+      note={`asked for ${filesSpace && entry.action === 'code' ? 'an artifact' : ASKED_FOR[entry.action]}`}
       label={`${entry.agent.name}'s turn`}
     >
       {working && (
@@ -192,6 +195,8 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
           {expanded ? 'Show less' : result ? 'Show what it said' : 'Show the whole reply'}
         </button>
       )}
+      {space &&
+        outcome?.artifacts?.map((artifact) => <TurnArtifactCard key={artifact.versionId} artifact={artifact} space={space} />)}
       {outcome?.files && <p className="text-xs text-[var(--gray-10)]">{filesLine(outcome.files)}</p>}
       {outcome?.mentioned && outcome.mentioned.length > 0 && (
         <p className="text-xs text-[var(--gray-10)]">

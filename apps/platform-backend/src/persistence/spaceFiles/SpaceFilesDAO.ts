@@ -1,5 +1,6 @@
-import { sql, type Selectable } from "kysely";
-import type { SpaceFilesManifestEntry, SpaceFilesSnapshotSummary } from "@viberglass/types";
+import { sql, type ExpressionBuilder, type Selectable } from "kysely";
+import type { SpaceFilesManifestEntry, SpaceFilesSnapshotSummary, TurnArtifact } from "@viberglass/types";
+import { ArtifactDAO, type NewArtifactVersion } from "../artifacts/ArtifactDAO";
 import db from "../config/database";
 import type { Database, SpaceFileRunStatus } from "../types/database";
 
@@ -27,7 +28,9 @@ export interface NewSpaceFileSnapshot {
   id: string;
   projectId: string;
   parentId: string | null;
-  jobId: string;
+  /** The run that saved it, or null for a person's change. */
+  jobId: string | null;
+  createdBy: string | null;
   storageUrl: string;
   archiveSha256: string;
   archiveBytes: number;
@@ -41,6 +44,8 @@ export interface NewSpaceFileSnapshot {
 export type CommitRefusal = "not_running" | "lease_lost" | "space_moved_on";
 
 export class SpaceFilesDAO {
+  constructor(private readonly artifacts: Pick<ArtifactDAO, "insertVersions" | "listForJob"> = new ArtifactDAO()) {}
+
   async createRun(jobId: string, projectId: string, checkpointSnapshotId: string): Promise<void> {
     await db
       .insertInto("space_file_runs")
@@ -88,12 +93,13 @@ export class SpaceFilesDAO {
         .updateTable("space_file_state")
         .set({
           lease_job_id: next.job_id,
+          lease_operation_id: null,
           lease_token: sql`lease_token + 1`,
           lease_expires_at: sql`now() + ${`${leaseMs} milliseconds`}::interval`,
           updated_at: sql`now()`,
         })
         .where("project_id", "=", projectId)
-        .where((eb) => eb.or([eb("lease_job_id", "is", null), eb("lease_expires_at", "<", sql<Date>`now()`)]))
+        .where(spaceIsFree)
         .returning(["lease_token", "current_snapshot_id"])
         .executeTakeFirst();
       if (!lease) return null;
@@ -147,12 +153,15 @@ export class SpaceFilesDAO {
    * only if the run still holds the lease and nothing else was saved since it
    * started. Saving the same run again returns what was saved the first time.
    */
-  async commitCheckpoint(snapshot: NewSpaceFileSnapshot): Promise<SpaceFileSnapshot | CommitRefusal> {
+  async commitCheckpoint(
+    snapshot: NewSpaceFileSnapshot,
+    versions: NewArtifactVersion[] = [],
+  ): Promise<{ snapshot: SpaceFileSnapshot; artifacts: TurnArtifact[] } | CommitRefusal> {
     return db.transaction().execute(async (trx) => {
       const run = await trx
         .selectFrom("space_file_runs")
         .selectAll()
-        .where("job_id", "=", snapshot.jobId)
+        .where("job_id", "=", snapshot.jobId ?? "")
         .forUpdate()
         .executeTakeFirst();
       if (!run) return "not_running";
@@ -162,7 +171,7 @@ export class SpaceFilesDAO {
           .selectAll()
           .where("id", "=", run.checkpoint_snapshot_id)
           .executeTakeFirst();
-        return saved ? toSnapshot(saved) : "not_running";
+        return saved ? { snapshot: toSnapshot(saved), artifacts: await this.artifacts.listForJob(run.job_id) } : "not_running";
       }
       if (run.status !== "running") return "not_running";
       const state = await trx
@@ -181,6 +190,7 @@ export class SpaceFilesDAO {
           project_id: snapshot.projectId,
           parent_snapshot_id: snapshot.parentId,
           job_id: snapshot.jobId,
+          created_by: snapshot.createdBy,
           storage_url: snapshot.storageUrl,
           archive_sha256: snapshot.archiveSha256,
           archive_bytes: snapshot.archiveBytes,
@@ -202,7 +212,8 @@ export class SpaceFilesDAO {
         .set({ status: "saved", finished_at: sql`now()` })
         .where("job_id", "=", run.job_id)
         .execute();
-      return toSnapshot(row);
+      const artifacts = await this.artifacts.insertVersions(trx, versions);
+      return { snapshot: toSnapshot(row), artifacts };
     });
   }
 
@@ -249,12 +260,139 @@ export class SpaceFilesDAO {
       .where("space_file_runs.status", "=", "waiting")
       .where((eb) =>
         eb.or([
-          eb("space_file_state.lease_job_id", "is", null),
+          eb.and([eb("space_file_state.lease_job_id", "is", null), eb("space_file_state.lease_operation_id", "is", null)]),
           eb("space_file_state.lease_expires_at", "<", sql<Date>`now()`),
         ]),
       )
       .execute();
     return rows.map((row) => row.project_id);
+  }
+
+  /**
+   * Holds the space for a person's change, like a run would, when nobody else
+   * does. Returns the token the change must still hold when it saves.
+   */
+  async acquireForOperation(
+    projectId: string,
+    operationId: string,
+    leaseMs: number,
+  ): Promise<{ token: string; currentSnapshotId: string | null } | null> {
+    await db.insertInto("space_file_state").values({ project_id: projectId }).onConflict((oc) => oc.column("project_id").doNothing()).execute();
+    const row = await db
+      .updateTable("space_file_state")
+      .set({
+        lease_job_id: null,
+        lease_operation_id: operationId,
+        lease_token: sql`lease_token + 1`,
+        lease_expires_at: sql`now() + ${`${leaseMs} milliseconds`}::interval`,
+        updated_at: sql`now()`,
+      })
+      .where("project_id", "=", projectId)
+      .where(spaceIsFree)
+      .returning(["lease_token", "current_snapshot_id"])
+      .executeTakeFirst();
+    return row ? { token: row.lease_token, currentSnapshotId: row.current_snapshot_id } : null;
+  }
+
+  /** Saves a person's change as the space's current files and frees the space, if the change still holds it. */
+  async commitOperation(
+    operationId: string,
+    token: string,
+    snapshot: NewSpaceFileSnapshot,
+    versions: NewArtifactVersion[] = [],
+  ): Promise<{ snapshot: SpaceFileSnapshot; artifacts: TurnArtifact[] } | "lease_lost"> {
+    return db.transaction().execute(async (trx) => {
+      const state = await trx
+        .selectFrom("space_file_state")
+        .selectAll()
+        .where("project_id", "=", snapshot.projectId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!state || state.lease_operation_id !== operationId || state.lease_token !== token) return "lease_lost";
+      if (state.current_snapshot_id !== snapshot.parentId) return "lease_lost";
+      const row = await trx
+        .insertInto("space_file_snapshots")
+        .values({
+          id: snapshot.id,
+          project_id: snapshot.projectId,
+          parent_snapshot_id: snapshot.parentId,
+          job_id: null,
+          created_by: snapshot.createdBy,
+          storage_url: snapshot.storageUrl,
+          archive_sha256: snapshot.archiveSha256,
+          archive_bytes: snapshot.archiveBytes,
+          file_count: snapshot.manifest.length,
+          total_bytes: snapshot.totalBytes,
+          manifest: JSON.stringify(snapshot.manifest),
+          changes: JSON.stringify(snapshot.changes),
+          partial: false,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      await trx
+        .updateTable("space_file_state")
+        .set({ current_snapshot_id: snapshot.id, lease_operation_id: null, lease_expires_at: null, updated_at: sql`now()` })
+        .where("project_id", "=", snapshot.projectId)
+        .execute();
+      const artifacts = await this.artifacts.insertVersions(trx, versions);
+      return { snapshot: toSnapshot(row), artifacts };
+    });
+  }
+
+  async releaseOperation(projectId: string, operationId: string): Promise<void> {
+    await db
+      .updateTable("space_file_state")
+      .set({ lease_operation_id: null, lease_expires_at: null, updated_at: sql`now()` })
+      .where("project_id", "=", projectId)
+      .where("lease_operation_id", "=", operationId)
+      .execute();
+  }
+
+  /** The space's current files, and whether a run or a person holds it right now. */
+  async getCurrent(projectId: string): Promise<{ snapshot: SpaceFileSnapshot | null; busy: boolean }> {
+    const state = await db.selectFrom("space_file_state").selectAll().where("project_id", "=", projectId).executeTakeFirst();
+    if (!state) return { snapshot: null, busy: false };
+    const busy =
+      (state.lease_job_id !== null || state.lease_operation_id !== null) &&
+      state.lease_expires_at !== null &&
+      state.lease_expires_at.getTime() > Date.now();
+    return { snapshot: state.current_snapshot_id ? await this.getSnapshot(state.current_snapshot_id) : null, busy };
+  }
+
+  /**
+   * Snapshots each space keeps beyond its latest `keep`: never the current one
+   * or one a live run started from.
+   */
+  async listSnapshotsToRetire(keep: number): Promise<string[]> {
+    const rows = await db
+      .selectFrom("space_file_snapshots as s")
+      .innerJoin("space_file_state as state", "state.project_id", "s.project_id")
+      .select("s.id")
+      .where("s.unavailable_at", "is", null)
+      .where((eb) => eb.or([eb("state.current_snapshot_id", "is", null), eb("s.id", "!=", eb.ref("state.current_snapshot_id"))]))
+      .where(sql<boolean>`NOT EXISTS (SELECT 1 FROM space_file_runs r WHERE r.base_snapshot_id = s.id AND r.status IN ('waiting', 'running'))`)
+      .where(sql<boolean>`(SELECT count(*) FROM space_file_snapshots newer WHERE newer.project_id = s.project_id AND newer.created_at > s.created_at) >= ${keep}`)
+      .execute();
+    return rows.map((row) => row.id);
+  }
+
+  async markSnapshotsUnavailable(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.updateTable("space_file_snapshots").set({ unavailable_at: sql`now()` }).where("id", "in", ids).where("unavailable_at", "is", null).execute();
+  }
+
+  async listSnapshotsToPurge(graceMs: number): Promise<Array<{ id: string; storageUrl: string }>> {
+    const rows = await db
+      .selectFrom("space_file_snapshots")
+      .select(["id", "storage_url"])
+      .where("purged_at", "is", null)
+      .where("unavailable_at", "<", sql<Date>`now() - ${`${graceMs} milliseconds`}::interval`)
+      .execute();
+    return rows.map((row) => ({ id: row.id, storageUrl: row.storage_url }));
+  }
+
+  async markSnapshotPurged(id: string): Promise<void> {
+    await db.updateTable("space_file_snapshots").set({ purged_at: sql`now()` }).where("id", "=", id).execute();
   }
 
   async getSnapshot(id: string): Promise<SpaceFileSnapshot | null> {
@@ -280,6 +418,14 @@ export class SpaceFilesDAO {
       .where("status", "=", "queued")
       .execute();
   }
+}
+
+/** Nobody holds the space, or whoever did let the lease run out. */
+function spaceIsFree(eb: ExpressionBuilder<Database, "space_file_state">) {
+  return eb.or([
+    eb.and([eb("lease_job_id", "is", null), eb("lease_operation_id", "is", null)]),
+    eb("lease_expires_at", "<", sql<Date>`now()`),
+  ]);
 }
 
 function toSnapshot(row: SnapshotRow): SpaceFileSnapshot {

@@ -53,6 +53,8 @@ export function registerFilesWorkerRoutes(router: Router, files: SpaceFilesRunSe
         sha256: body.sha256,
         archiveBytes: body.archiveBytes,
         partial: body.partial,
+        artifactManifest: body.artifactManifest ?? null,
+        ...(typeof body.artifactManifestError === "string" ? { artifactManifestError: body.artifactManifestError.slice(0, 500) } : {}),
       });
       return res.json({ success: true, data });
     } catch (error) {

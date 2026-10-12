@@ -11,6 +11,7 @@ export * from './plugin'
 // Project types
 export * from './project'
 export * from './spaceBacking'
+export * from './artifacts'
 
 // Ticket types (internal tickets)
 export * from './ticket'

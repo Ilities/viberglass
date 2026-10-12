@@ -26,7 +26,8 @@ export interface CapturedArchive {
   skipped: string[];
 }
 
-const RESERVED_AT_ROOT: ReadonlySet<string> = new Set<string>([...SPACE_FILES_RESERVED_PATHS, ".git"]);
+// `.viberglass/` is the platform's control folder, such as the artifact declaration.
+const RESERVED_AT_ROOT: ReadonlySet<string> = new Set<string>([...SPACE_FILES_RESERVED_PATHS, ".git", ".viberglass"]);
 const SKIPPED_ANYWHERE: ReadonlySet<string> = new Set<string>(SPACE_FILES_SKIPPED_DIRECTORIES);
 const MiB = 1024 * 1024;
 

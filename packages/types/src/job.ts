@@ -44,6 +44,8 @@ export const JOB_FAILURE_CODE = {
   FILES_RESTORE_FAILED: 'FILES_RESTORE_FAILED',
   /** A Files run couldn't save the agent's files, so they weren't kept. */
   FILES_SAVE_FAILED: 'FILES_SAVE_FAILED',
+  /** A run asked for an artifact declared none, or declared one that isn't valid. */
+  ARTIFACT_INVALID: 'ARTIFACT_INVALID',
   /** No worker could be started for the run. */
   RUNNER_UNAVAILABLE: 'RUNNER_UNAVAILABLE',
   /** The worker stopped reporting and was given up on. */

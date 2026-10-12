@@ -6,6 +6,11 @@ describe("outcomeOf", () => {
     expect(outcomeOf({ reply: "Done.", produced: [], files })?.files).toEqual(files);
   });
 
+  it("keeps the artifact versions a Files turn produced", () => {
+    const artifacts = [{ artifactId: "a-1", versionId: "v-2", title: "Q4 deck", number: 2, format: "html" }];
+    expect(outcomeOf({ reply: "Done.", produced: [], artifacts })?.artifacts).toEqual(artifacts);
+  });
+
   it("leaves files out for a turn that saved none", () => {
     expect(outcomeOf({ reply: "Done.", produced: ["plan"] })).not.toHaveProperty("files");
   });

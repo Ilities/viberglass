@@ -34,6 +34,15 @@ describe('suggestTaskActions', () => {
     expect(labels({ plan: doc('# P') })).toEqual([])
   })
 
+  it('offers to create the artifact in a Files space, and to revise it once there is one', () => {
+    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false }
+    expect(suggestTaskActions(input({ capabilities: coder, plan: doc('# P'), filesSpace: true }))).toEqual([
+      { action: 'code', label: 'Create artifact' },
+    ])
+    expect(labels({ capabilities: coder, plan: doc('# P'), filesSpace: true, hasArtifacts: true })).toEqual(['Revise artifact'])
+    expect(labels({ plan: doc('# P'), filesSpace: true })).toEqual([])
+  })
+
   it('offers nothing to someone who may not ask, and no build retry to someone who may not ask for code', () => {
     expect(labels({ capabilities: { canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false } })).toEqual([])
     expect(labels({ capabilities: null })).toEqual([])

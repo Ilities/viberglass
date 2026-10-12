@@ -3,6 +3,8 @@ import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
 import type { Database } from "../../persistence/types/database";
 import { up } from "../../migrations/119_space_files";
+import { up as upArtifacts } from "../../migrations/121_artifacts";
+import { ArtifactDAO, type NewArtifactVersion } from "../../persistence/artifacts/ArtifactDAO";
 import { SpaceFilesDAO, type NewSpaceFileSnapshot } from "../../persistence/spaceFiles/SpaceFilesDAO";
 
 let mockDb: Kysely<Database>;
@@ -14,6 +16,8 @@ jest.mock("../../persistence/config/database", () => ({
 }));
 
 const SPACE = "11111111-1111-4111-8111-111111111111";
+const TICKET = "22222222-2222-4222-8222-222222222222";
+const OTHER_TICKET = "33333333-3333-4333-8333-333333333333";
 const LEASE_MS = 60_000;
 let container: StartedPostgreSqlContainer;
 const dao = new SpaceFilesDAO();
@@ -27,7 +31,7 @@ async function job(): Promise<string> {
 
 function snapshotFor(jobId: string, id: string, parentId: string | null): NewSpaceFileSnapshot {
   return {
-    id, projectId: SPACE, parentId, jobId, storageUrl: `s3://bucket/spaces/${SPACE}/snapshots/${id}/workspace.tar.gz`,
+    id, projectId: SPACE, parentId, jobId, createdBy: null, storageUrl: `s3://bucket/spaces/${SPACE}/snapshots/${id}/workspace.tar.gz`,
     archiveSha256: "a".repeat(64), archiveBytes: 29, totalBytes: 5, manifest: [{ path: "a.md", bytes: 5, sha256: "b".repeat(64) }],
     changes: { added: 1, changed: 0, removed: 0 }, partial: false,
   };
@@ -44,9 +48,12 @@ beforeAll(async () => {
   mockDb = new Kysely<Database>({ dialect: new PostgresDialect({ pool: new Pool({ connectionString: container.getConnectionUri() }) }) });
   await sql`CREATE TABLE projects (id uuid PRIMARY KEY)`.execute(mockDb);
   await sql`CREATE TABLE users (id uuid PRIMARY KEY)`.execute(mockDb);
-  await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, progress jsonb)`.execute(mockDb);
+  await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, progress jsonb, ticket_id uuid)`.execute(mockDb);
+  await sql`CREATE TABLE tickets (id uuid PRIMARY KEY, task_key text)`.execute(mockDb);
   await sql`INSERT INTO projects VALUES (${SPACE})`.execute(mockDb);
+  await sql`INSERT INTO tickets VALUES (${TICKET}, 'FQD-1'), (${OTHER_TICKET}, 'FQD-2')`.execute(mockDb);
   await up(mockDb);
+  await upArtifacts(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -55,6 +62,9 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await sql`UPDATE artifacts SET current_version_id = NULL`.execute(mockDb);
+  await sql`DELETE FROM artifact_versions`.execute(mockDb);
+  await sql`DELETE FROM artifacts`.execute(mockDb);
   await sql`DELETE FROM space_file_runs`.execute(mockDb);
   await sql`DELETE FROM space_file_state`.execute(mockDb);
   await sql`DELETE FROM space_file_snapshots`.execute(mockDb);
@@ -73,7 +83,7 @@ describe("SpaceFilesDAO", () => {
     await expect(dao.startNextWaiting(SPACE, LEASE_MS)).resolves.toBeNull();
 
     const saved = await dao.commitCheckpoint(snapshotFor(first, uuid(1), null));
-    expect(saved).toMatchObject({ id: uuid(1), fileCount: 1, totalBytes: 5 });
+    expect(saved).toMatchObject({ snapshot: { id: uuid(1), fileCount: 1, totalBytes: 5 }, artifacts: [] });
 
     const next = await dao.startNextWaiting(SPACE, LEASE_MS);
     expect(next).toMatchObject({ jobId: second, baseSnapshotId: uuid(1), leaseToken: "2" });
@@ -136,5 +146,106 @@ describe("SpaceFilesDAO", () => {
     await expect(dao.listRunsOfFinishedJobs()).resolves.toEqual([holder]);
     await dao.release(holder);
     await expect(dao.listStartableSpaces()).resolves.toEqual([SPACE]);
+  });
+});
+
+function versionOf(artifactId: string, versionId: string, create: boolean, snapshotId: string | null = null, jobId: string | null = null): NewArtifactVersion {
+  return {
+    versionId, artifactId, create, projectId: SPACE, ticketId: TICKET, title: "Q4 deck", snapshotId, jobId, createdBy: null,
+    format: "html", entrypoint: "deck/index.html", files: [{ path: "deck/index.html", bytes: 5, sha256: "f".repeat(64), contentType: "text/html" }],
+    storagePrefix: `s3://bucket/spaces/${SPACE}/artifacts/${artifactId}/versions/${versionId}/files/`, totalBytes: 5,
+  };
+}
+
+describe("artifacts", () => {
+  const artifacts = new ArtifactDAO();
+
+  it("numbers each artifact's versions and keeps the latest as current, saved with the run's files", async () => {
+    const first = await enqueue(uuid(20));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    const saved = await dao.commitCheckpoint(snapshotFor(first, uuid(20), null), [versionOf(uuid(30), uuid(31), true, uuid(20))]);
+    expect(saved).toMatchObject({ artifacts: [{ artifactId: uuid(30), versionId: uuid(31), number: 1, title: "Q4 deck" }] });
+
+    const second = await enqueue(uuid(21));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await dao.commitCheckpoint(snapshotFor(second, uuid(21), uuid(20)), [versionOf(uuid(30), uuid(32), false, uuid(21), second)]);
+
+    const detail = await artifacts.getDetail(SPACE, uuid(30));
+    expect(detail).toMatchObject({ taskKey: "FQD-1", versionCount: 2, currentVersion: { id: uuid(32), number: 2 } });
+    expect(detail?.versions.map((version) => version.number)).toEqual([2, 1]);
+    await expect(artifacts.listForJob(second)).resolves.toEqual([expect.objectContaining({ versionId: uuid(32), number: 2 })]);
+  });
+
+  it("lets a task revise only its own artifacts", async () => {
+    const id = await enqueue(uuid(22));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await dao.commitCheckpoint(snapshotFor(id, uuid(22), null), [versionOf(uuid(33), uuid(34), true, uuid(22))]);
+    await expect(artifacts.revisableIds(SPACE, TICKET, [uuid(33)])).resolves.toEqual(new Set([uuid(33)]));
+    await expect(artifacts.revisableIds(SPACE, OTHER_TICKET, [uuid(33)])).resolves.toEqual(new Set());
+  });
+
+  it("finds the artifacts a person's edit to a file revises", async () => {
+    const id = await enqueue(uuid(23));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await dao.commitCheckpoint(snapshotFor(id, uuid(23), null), [versionOf(uuid(35), uuid(36), true, uuid(23))]);
+    await expect(artifacts.listCurrentWithPath(SPACE, "deck/index.html")).resolves.toEqual([expect.objectContaining({ artifactId: uuid(35) })]);
+    await expect(artifacts.listCurrentWithPath(SPACE, "brief.md")).resolves.toEqual([]);
+  });
+});
+
+describe("a person's change", () => {
+  it("holds the space against runs, and runs hold it against people", async () => {
+    const lease = await dao.acquireForOperation(SPACE, "op-1", LEASE_MS);
+    expect(lease).toMatchObject({ currentSnapshotId: null });
+    await enqueue(uuid(40));
+    await expect(dao.startNextWaiting(SPACE, LEASE_MS)).resolves.toBeNull();
+    await expect(dao.acquireForOperation(SPACE, "op-2", LEASE_MS)).resolves.toBeNull();
+
+    const saved = await dao.commitOperation("op-1", lease!.token, { ...snapshotFor("", uuid(41), null), jobId: null, createdBy: null });
+    expect(saved).toMatchObject({ snapshot: { id: uuid(41) } });
+    await expect(dao.startNextWaiting(SPACE, LEASE_MS)).resolves.toMatchObject({ baseSnapshotId: uuid(41) });
+    await expect(dao.acquireForOperation(SPACE, "op-3", LEASE_MS)).resolves.toBeNull();
+  });
+
+  it("can't save once it lost the space", async () => {
+    const lease = await dao.acquireForOperation(SPACE, "op-1", 1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await dao.acquireForOperation(SPACE, "op-2", LEASE_MS);
+    await expect(dao.commitOperation("op-1", lease!.token, { ...snapshotFor("", uuid(42), null), jobId: null, createdBy: null })).resolves.toBe("lease_lost");
+  });
+});
+
+describe("retention", () => {
+  it("retires all but the latest snapshots, never the current one or a live run's start, then lists them to purge", async () => {
+    let parent: string | null = null;
+    for (let n = 50; n < 54; n++) {
+      const id = await enqueue(uuid(n));
+      await dao.startNextWaiting(SPACE, LEASE_MS);
+      await dao.commitCheckpoint(snapshotFor(id, uuid(n), parent));
+      parent = uuid(n);
+    }
+    // A live run started from the newest snapshot; the oldest is kept by nothing.
+    await enqueue(uuid(60));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await sql`UPDATE space_file_snapshots SET created_at = created_at - (interval '1 second' * (60 - extract(epoch from created_at)::int % 60))`.execute(mockDb);
+
+    const retire = await dao.listSnapshotsToRetire(2);
+    expect(retire.sort()).toEqual([uuid(50), uuid(51)]);
+    await dao.markSnapshotsUnavailable(retire);
+    await expect(dao.listSnapshotsToPurge(60_000)).resolves.toEqual([]);
+    await expect(dao.listSnapshotsToPurge(0)).resolves.toHaveLength(2);
+  });
+
+  it("retires an artifact's old versions but never its current one", async () => {
+    const artifacts = new ArtifactDAO();
+    for (let n = 70; n < 73; n++) {
+      const id = await enqueue(uuid(n));
+      await dao.startNextWaiting(SPACE, LEASE_MS);
+      await dao.commitCheckpoint(snapshotFor(id, uuid(n), n === 70 ? null : uuid(n - 1)), [versionOf(uuid(80), uuid(n + 10), n === 70, uuid(n))]);
+    }
+    await expect(artifacts.listVersionsToRetire(1)).resolves.toEqual(expect.arrayContaining([uuid(80), uuid(81)]));
+    await expect(artifacts.listVersionsToRetire(1)).resolves.not.toContain(uuid(82));
+    await artifacts.markUnavailable([uuid(80)]);
+    await expect(artifacts.getDetail(SPACE, uuid(80))).resolves.toMatchObject({ versions: expect.arrayContaining([expect.objectContaining({ id: uuid(80), status: "expired" })]) });
   });
 });

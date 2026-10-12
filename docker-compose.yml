@@ -124,6 +124,10 @@ services:
       S3_REGION: us-east-1
       S3_ACCESS_KEY_ID: viberglass
       S3_SECRET_ACCESS_KEY: viberglass-dev-storage
+      # Artifact previews run on another host than the app (127.0.0.1, not
+      # localhost), so the app's cookies never reach them.
+      PREVIEW_PORT: 8890
+      PREVIEW_PUBLIC_URL: http://127.0.0.1:8890
       # Email (invite links, notifications). Empty means unset: nothing is emailed.
       # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
       EMAIL_FROM: ${EMAIL_FROM:-}
@@ -151,6 +155,8 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "8888:8888"
+      # Artifact previews, on their own origin.
+      - "8890:8890"
     volumes:
       # Mount source with cached mode for better performance on macOS/Windows
       - ./apps/platform-backend:/app/apps/platform-backend:cached

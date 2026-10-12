@@ -1,6 +1,9 @@
 import { registerProjectReadinessRoutes } from "./projectReadinessRoutes";
 import { registerProjectScmRoutes } from "./projectScmRoutes";
 import { registerProjectPromptRoutes } from "./projectPromptRoutes";
+import { registerSpaceFilesRoutes } from "./spaceFilesRoutes";
+import { SpaceFilesEditService } from "../../services/spaceFiles/SpaceFilesEditService";
+import { ArtifactService } from "../../services/artifacts/ArtifactService";
 import express from "express";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
@@ -299,6 +302,8 @@ registerProjectReadinessRoutes(router, projectReadinessService);
 registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectIntegrationLinkDAO, integrationDAO, integrationCredentialDAO });
 
 registerProjectPromptRoutes(router, promptTemplateService);
+
+registerSpaceFilesRoutes(router, new SpaceFilesEditService(), new ArtifactService());
 
 // GET /api/spaces/:projectId/agent-sessions
 router.get(

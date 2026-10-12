@@ -1,4 +1,4 @@
-import { isObjectRecord, type SpaceFilesSnapshotSummary, type TaskTurnOutcome, type TaskTurnProduct } from "@viberglass/types";
+import { ARTIFACT_FORMATS, isObjectRecord, type SpaceFilesSnapshotSummary, type TurnArtifact, type TaskTurnOutcome, type TaskTurnProduct } from "@viberglass/types";
 import type { JsonValue } from "../types/database";
 
 const PRODUCTS: readonly TaskTurnProduct[] = ["plan", "code", "summary"];
@@ -12,6 +12,7 @@ export function outcomeOf(json: JsonValue | null): TaskTurnOutcome | null {
     reply: json.reply,
     produced: PRODUCTS.filter((product) => produced.includes(product)),
     ...(isObjectRecord(json.files) ? { files: filesOf(json.files) } : {}),
+    ...(Array.isArray(json.artifacts) ? { artifacts: json.artifacts.flatMap(artifactOf) } : {}),
     codeDiscarded: json.codeDiscarded === true,
     resumed: typeof json.resumed === "boolean" ? json.resumed : null,
     mentioned: Array.isArray(json.mentioned) ? json.mentioned.filter(isPerson) : [],
@@ -38,6 +39,18 @@ function filesOf(json: { [key: string]: JsonValue | undefined }): SpaceFilesSnap
     changes: { added: count(changes.added), changed: count(changes.changed), removed: count(changes.removed) },
     createdAt: typeof json.createdAt === "string" ? json.createdAt : "",
   };
+}
+
+function artifactOf(value: JsonValue): TurnArtifact[] {
+  if (!isObjectRecord(value) || typeof value.artifactId !== "string" || typeof value.versionId !== "string") return [];
+  const format = ARTIFACT_FORMATS.find((candidate) => candidate === value.format) ?? "other";
+  return [{
+    artifactId: value.artifactId,
+    versionId: value.versionId,
+    title: typeof value.title === "string" ? value.title : "",
+    number: typeof value.number === "number" ? value.number : 0,
+    format,
+  }];
 }
 
 function contextUsageOf(value: JsonValue | undefined): TaskTurnOutcome["contextUsage"] {

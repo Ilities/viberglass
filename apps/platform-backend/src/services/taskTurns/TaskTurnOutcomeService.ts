@@ -63,7 +63,7 @@ interface Dependencies {
   participants: Pick<TaskParticipantDAO, "list">;
   mentions: Pick<TaskMentionDAO, "createForTurn">;
   summaries: Pick<TaskSummaryDAO, "create">;
-  files: Pick<SpaceFilesRunService, "summaryForJob">;
+  files: Pick<SpaceFilesRunService, "summaryForJob" | "artifactsForJob">;
 }
 
 /**
@@ -121,11 +121,13 @@ export class TaskTurnOutcomeService {
     const mentioned = steps.length > 0 ? await this.reviewersOf(session.ticketId) : [];
     // A Files run saves its files before it reports, even when the agent failed partway.
     const files = await this.deps.files.summaryForJob(jobId);
+    const artifacts = files ? await this.deps.files.artifactsForJob(jobId) : [];
     const outcome: TaskTurnOutcome = {
       intent: intentOf(reply),
       reply,
       produced,
       ...(files ? { files } : {}),
+      ...(artifacts.length > 0 ? { artifacts } : {}),
       codeDiscarded: result.codeDiscarded ?? false,
       resumed: result.resumed ?? null,
       mentioned,

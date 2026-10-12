@@ -1,6 +1,6 @@
 # Artifact spaces: persistent files, previews and publishing
 
-- **Status:** Product decisions accepted; phases 1 and 2 implemented and verified on 2026-10-12. Phases 3–5 remain planned.
+- **Status:** Product decisions accepted; phases 1–3 implemented and verified on 2026-10-12. Publishing (phases 4–5) remains planned.
 - **Date:** 2026-10-12.
 - **Baseline:** `main` at `6f05b6f9`, branch `feat/artifact-spaces-plan`.
 - **Requested outcome:** create a space without Git, retain its files across harness runs, save final artifacts in S3, preview web-compatible output, and publish a selected version to an external destination.
@@ -17,6 +17,7 @@
 - [Implementation stages](#implementation-stages)
 - [Phase 1 implementation and verification](#phase-1-implementation-and-verification)
 - [Phase 2 implementation and verification](#phase-2-implementation-and-verification)
+- [Phase 3 implementation and verification](#phase-3-implementation-and-verification)
 - [Accepted decisions and remaining details](#accepted-decisions-and-remaining-details)
 
 ## Direction and boundaries
@@ -289,6 +290,21 @@ Files spaces now run agents. Every turn in a Files space restores the space's la
 Validation: 1,535 backend unit tests, 248 worker tests, 476 frontend tests and six PostgreSQL integration tests for leasing, fencing, stale bases, idempotent saves and release passed. On the dev stack with Docker workers, a fake agent proved restore and append across fresh containers, queuing of two tasks in one space with the correct snapshot chain, partial saves on failure, and release on cancel. The real OpenCode harness created and deleted files in a directory without Git, then edited the restored file on a fresh worker.
 
 Not yet verified: Kubernetes and ECS workers running Files runs, and a cooperative checkpoint when a run is cancelled. Retention of old snapshots ships with stage 3, so snapshots accumulate until then.
+
+## Phase 3 implementation and verification
+
+Files spaces now produce artifacts: named deliverables with immutable versions that preview in the app, including interactive presentations.
+
+- In a Files space the build action is "Create artifact", or "Revise artifact" once the task has one. The agent creates or revises the deliverable in the space's files and declares it in `.viberglass/artifacts.json` (title, entrypoint, files and folders, and an `artifactId` to revise). The worker sends the declaration with its checkpoint and never saves the `.viberglass/` folder. The prompt lists the task's artifacts so revisions reuse their ids. Artifact runs are reply jobs, so they don't put the task in review.
+- Migration `121_artifacts` adds `artifacts` and `artifact_versions`. The backend checks a declaration against the saved files and the task (an id from another task is refused), copies each declared file into its own object under the version, and commits the versions with the snapshot in one transaction. Version and new-artifact ids derive from the checkpoint, so a repeated checkpoint can't duplicate them. An artifact run with a missing or invalid declaration keeps its files and fails with `ARTIFACT_INVALID` and a readable reason.
+- The Files view lists the working files and lets people upload, download, delete and create files, and edit Markdown and plain text up to 1 MiB. Each change holds the space like a run (`lease_operation_id`), so it's refused while a run is changing the files, and a save carries the hash of the file as opened, so an intervening change is refused with the person's text kept. Changing a file that belongs to an artifact's current version makes that artifact's next version.
+- Previews: Markdown, text, JSON and CSV render in the app. HTML, images, PDF and SVG load in an iframe from the preview origin, a separate server on its own host (`PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`; `127.0.0.1:8890` in dev, so the app's localhost cookies never reach it). A signed link valid for an hour names one version, relative paths resolve under it, and only the version's declared files exist. Responses carry a CSP sandbox (scripts allowed; no same origin, forms or top-level navigation), `connect-src 'self'`, `frame-ancestors` for the app only and CORS for the opaque origin. Bundles download as a zip.
+- Retention keeps the latest `SPACE_FILES_KEEP_SNAPSHOTS` (20) snapshots per space and `ARTIFACT_KEEP_VERSIONS` (10) versions per artifact. It never retires a current snapshot or version or a live run's starting snapshot. Retired items stop being served at once; their objects are deleted after 15 minutes and retried on failure. Rows stay, and the app shows an expired version as "no longer kept".
+- Migration `123_files_change_between_turns` tells the agent that people and other tasks change the files between its turns, so it rereads a file before relying on it.
+
+Validation: 1,576 backend unit tests, 252 worker tests, 496 frontend tests and 13 PostgreSQL integration tests passed. End to end on the dev stack, the OpenCode harness (OpenCode Go, `deepseek-v4.1-flash`) created an HTML presentation of three files with an ES module script, which previewed with working click and arrow navigation, a slide counter and full screen. A probe uploaded as the deck's script confirmed an opaque origin, no cookies, storage, parent access, app API or internet, and only its own assets. OpenCode then revised the same artifact to version 3 and created a Markdown brief. Editing the brief in the Files view made new person versions, and a stale save was refused with the text kept. A retention sweep with small limits retired and deleted the oldest versions and snapshots, kept the current files, and a later run restored them.
+
+Known gaps: the suggestion buttons send their own label, so a request typed in the composer isn't sent with "Create artifact"; describe it first, or the buttons should take the draft. Uploads and edits that find a run holding the space are refused rather than queued. Uploaded candidates that never became a snapshot are not cleaned up. Kubernetes and ECS Files runs, publishing, and a production preview host are not yet set up.
 
 ## Accepted decisions and remaining details
 

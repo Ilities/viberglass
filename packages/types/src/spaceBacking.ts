@@ -1,9 +1,8 @@
+import type { TurnArtifact } from './artifacts'
+
 export const SPACE_BACKING_KINDS = ['git', 'files'] as const
 
 export type SpaceBackingKind = (typeof SPACE_BACKING_KINDS)[number]
-
-/** Shown where a Files space is asked to build code: its tasks produce files, not pull requests. */
-export const FILES_BUILD_UNAVAILABLE = 'Files spaces save the agent’s files instead of opening pull requests. Ask the agent in the conversation.'
 
 /** Limits a Files space's working files must stay within, checked when they are saved and restored. */
 export const SPACE_FILES_LIMITS = {
@@ -62,6 +61,14 @@ export interface FilesCheckpointRequest {
   sha256: string
   archiveBytes: number
   partial: boolean
+  /** `.viberglass/artifacts.json` as the agent wrote it, parsed; null when it wrote none. */
+  artifactManifest?: unknown
+  /** Why `.viberglass/artifacts.json` couldn't be read, when it couldn't. */
+  artifactManifestError?: string
 }
 
-export type FilesCheckpointResult = SpaceFilesSnapshotSummary
+export type FilesCheckpointResult = SpaceFilesSnapshotSummary & {
+  artifacts: TurnArtifact[]
+  /** Set when the run was asked for an artifact and its declaration was missing or invalid; the files were still saved. */
+  artifactError: string | null
+}

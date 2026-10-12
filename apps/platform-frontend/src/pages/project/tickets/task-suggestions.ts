@@ -26,6 +26,10 @@ export interface TaskSuggestionInput {
   sinceSummary?: { finishedTurns: number; messages: number }
   /** The plan part by part; without it, a build is offered for the whole plan. */
   planParts?: TaskPlanParts | null
+  /** In a Files space a build makes an artifact, not a pull request. */
+  filesSpace?: boolean
+  /** Whether the task has produced an artifact already, so the next one revises it. */
+  hasArtifacts?: boolean
 }
 
 /** When the thread has grown enough that a summary helps people and the next agent. */
@@ -72,6 +76,8 @@ export function suggestTaskActions({
   agentWorking,
   sinceSummary,
   planParts,
+  filesSpace = false,
+  hasArtifacts = false,
 }: TaskSuggestionInput): TaskSuggestion[] {
   if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
   const suggestions: TaskSuggestion[] = []
@@ -84,8 +90,17 @@ export function suggestTaskActions({
   if (sinceSummary && (sinceSummary.finishedTurns >= SUMMARY_AFTER.finishedTurns || sinceSummary.messages >= SUMMARY_AFTER.messages)) {
     suggestions.push({ action: 'summarise', label: 'Summarise so far' })
   }
-  if (capabilities.canAskForCode) suggestions.push(...buildSuggestions(planParts ?? null))
+  if (capabilities.canAskForCode) {
+    suggestions.push(
+      ...(filesSpace ? [artifactSuggestion(hasArtifacts)] : buildSuggestions(planParts ?? null))
+    )
+  }
   return suggestions
+}
+
+/** In a Files space, the build makes or revises the task's artifact. */
+export function artifactSuggestion(hasArtifacts: boolean): TaskSuggestion {
+  return { action: 'code', label: hasArtifacts ? 'Revise artifact' : 'Create artifact' }
 }
 
 /**

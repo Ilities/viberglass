@@ -11,7 +11,7 @@ function setup(streamed: string[] = ["Writing the plan: checking the theme store
     workerEvents: { batchIngest: jest.fn() },
     mentions: { createForTurn: jest.fn() },
     summaries: { create: jest.fn() },
-    files: { summaryForJob: jest.fn().mockResolvedValue(null) },
+    files: { summaryForJob: jest.fn().mockResolvedValue(null), artifactsForJob: jest.fn().mockResolvedValue([]) },
     participants: {
       list: jest.fn().mockResolvedValue([
         { userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" },

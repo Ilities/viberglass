@@ -11,7 +11,7 @@ import { TaskDiscussionService } from "../tasks/TaskDiscussionService";
 import { TaskPartsService } from "../tasks/TaskPartsService";
 import { TaskAskPolicyService } from "./TaskAskPolicyService";
 import { TaskTurnAgentResolver } from "./TaskTurnAgentResolver";
-import { ACTION_MESSAGE, sessionModeFor } from "./turnActions";
+import { ACTION_MESSAGE, CREATE_ARTIFACT_MESSAGE, sessionModeFor } from "./turnActions";
 import { SpaceRunAvailabilityService } from "../spaces/SpaceRunAvailabilityService";
 
 export interface AskInput {
@@ -41,7 +41,7 @@ export interface AskResult {
 type AskedTicket = Pick<Ticket, "id" | "projectId" | "title" | "workflowPhase">;
 
 interface Dependencies {
-  execution: Pick<SpaceRunAvailabilityService, "assertAvailable">;
+  execution: Pick<SpaceRunAvailabilityService, "backingOf">;
   tickets: { getTicket(id: string): Promise<AskedTicket | null> };
   policy: Pick<TaskAskPolicyService, "assertCanAsk">;
   discussion: Pick<TaskDiscussionService, "create">;
@@ -90,11 +90,20 @@ export class TaskTurnService {
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
     await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
-    await this.deps.execution.assertAvailable(ticket.projectId, action);
-    const adding = action === "code" && Boolean(input.add);
-    const buildParts = action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null, { add: adding }) : null;
+    // A Files space has no plan parts or pull requests: its build makes an artifact.
+    const files = (await this.deps.execution.backingOf(ticket.projectId)) === "files";
+    const adding = !files && action === "code" && Boolean(input.add);
+    const buildParts =
+      !files && action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null, { add: adding }) : null;
     const text =
-      input.message.trim() || (buildParts ? (adding ? addPartMessage(buildParts.first) : buildPartsMessage(buildParts)) : ACTION_MESSAGE[action]);
+      input.message.trim() ||
+      (files && action === "code"
+        ? CREATE_ARTIFACT_MESSAGE
+        : buildParts
+          ? adding
+            ? addPartMessage(buildParts.first)
+            : buildPartsMessage(buildParts)
+          : ACTION_MESSAGE[action]);
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
     // Only once the build can be asked for, so a refused ask leaves the open pull request as it was.
     if (adding && buildParts) await this.deps.parts.extendOpen(ticket, buildParts);

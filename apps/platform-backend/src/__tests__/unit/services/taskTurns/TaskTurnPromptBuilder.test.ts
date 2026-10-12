@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/120_files_turn_prompt";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/123_files_change_between_turns";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -155,10 +155,22 @@ describe("TaskTurnPromptBuilder", () => {
     const files = await builder.build("p", context(), "reply", false, true);
     expect(files.prompt).toContain("Your working directory holds this space's shared files, not a repository.");
     expect(files.prompt).not.toContain("code changes are thrown away");
+    expect(files.prompt).toContain("read a file again before you rely on what it says");
 
     const git = await builder.build("p", context(), "reply", false);
     expect(git.prompt).toContain("code changes are thrown away");
     expect(git.prompt).not.toContain("shared files");
+  });
+
+  it("asks a Files build for an artifact it declares, naming the task's artifacts to revise", async () => {
+    const { prompt } = await builder.build("p", context(), "code", true, true, [{ id: "a-1", title: "Q4 deck", entrypoint: "deck/index.html" }]);
+
+    expect(prompt).toContain("Then declare it in .viberglass/artifacts.json");
+    expect(prompt).toContain('{"artifacts": [{"title": "Q4 roadmap deck", "entrypoint": "deck/index.html", "files": ["deck/"]}]}');
+    expect(prompt).toContain('This task\'s artifacts so far: "Q4 deck" (artifactId a-1, opens deck/index.html).');
+    expect(prompt).not.toContain("Build it: make the change in the code");
+    expect(prompt).not.toContain("Change the code as needed.");
+    expect(prompt).toContain("Your working directory holds this space's shared files");
   });
 
   it("tells a build of some parts to build only those, in a pull request of its own", async () => {

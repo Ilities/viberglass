@@ -170,6 +170,8 @@ app.use(
     optionsSuccessStatus: 200,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Id"],
+    // Downloads name their file; the app reads the name to save it.
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 

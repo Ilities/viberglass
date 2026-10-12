@@ -35,6 +35,8 @@ import { chatBot } from "../chat";
 import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 import { spaceFilesRuns } from "../services/spaceFiles/SpaceFilesRunService";
 import { TaskTurnJobDispatcher } from "../services/taskTurns/TaskTurnJobDispatcher";
+import { createPreviewApp } from "./previewServer";
+import { SpaceFilesRetention } from "../services/spaceFiles/SpaceFilesRetention";
 
 // Load environment variables
 dotenv.config();
@@ -103,6 +105,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         "Files space runs",
         () => spaceFilesRuns.sweep(),
         parseInt(process.env.SPACE_FILES_SWEEP_INTERVAL_MS || "60000", 10),
+      ),
+      new PeriodicSweeper(
+        "Files retention",
+        () => new SpaceFilesRetention().sweep(),
+        parseInt(process.env.SPACE_FILES_RETENTION_SWEEP_INTERVAL_MS || "600000", 10),
       ),
       new PeriodicSweeper(
         "credential expiry warnings",
@@ -242,6 +249,12 @@ async function startServer(): Promise<void> {
 
   if (port === false) {
     throw new Error("Invalid port configuration");
+  }
+
+  // Artifact previews run on their own origin, so their scripts never share the app's.
+  const previewPort = process.env.PREVIEW_PORT ? Number(process.env.PREVIEW_PORT) : null;
+  if (previewPort) {
+    http.createServer(createPreviewApp()).listen(previewPort, () => logger.info("Preview origin listening", { port: previewPort }));
   }
 
   // Listen on provided port and optional host.

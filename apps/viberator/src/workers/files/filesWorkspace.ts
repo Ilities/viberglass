@@ -5,7 +5,13 @@ import { pipeline } from "stream/promises";
 import type { ReadableStream as WebReadableStream } from "stream/web";
 import type { Logger } from "winston";
 import { withSpan } from "@viberglass/telemetry";
-import { JOB_FAILURE_CODE, type FilesCheckpointResult, type FilesWorkspacePayload } from "@viberglass/types";
+import {
+  ARTIFACT_MANIFEST_PATH,
+  JOB_FAILURE_CODE,
+  type FilesCheckpointRequest,
+  type FilesCheckpointResult,
+  type FilesWorkspacePayload,
+} from "@viberglass/types";
 import { JobFailureError } from "../core/JobFailureError";
 import type { FilesCallbackClient } from "../infrastructure/FilesCallbackClient";
 import { FilesRequestRejected } from "../infrastructure/FilesCallbackClient";
@@ -57,9 +63,31 @@ export async function prepareFilesWorkspace(run: FilesRun, jobWorkDir: string): 
 }
 
 /**
+ * What the agent declared in `.viberglass/artifacts.json`, as written; the
+ * platform checks its shape. Absent means it declared nothing.
+ */
+export function readArtifactManifest(repoDir: string): Pick<FilesCheckpointRequest, "artifactManifest" | "artifactManifestError"> {
+  const file = path.join(repoDir, ARTIFACT_MANIFEST_PATH);
+  let text: string;
+  try {
+    text = fs.readFileSync(file, "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { artifactManifest: null };
+    return { artifactManifestError: `artifacts.json couldn't be read: ${messageOf(error)}` };
+  }
+  try {
+    return { artifactManifest: JSON.parse(text) as unknown };
+  } catch (error) {
+    return { artifactManifestError: `artifacts.json isn't valid JSON: ${messageOf(error)}` };
+  }
+}
+
+/**
  * Saves the working directory as the space's next files. Uploading alone
  * changes nothing; the platform keeps the files only once it accepts the
- * save, so any failure here fails the run.
+ * save, so any failure here fails the run. A complete run also sends the
+ * artifacts it declared; when the platform refuses them, the files are still
+ * saved but the run fails.
  */
 export async function saveFilesWorkspace(
   run: FilesRun,
@@ -67,9 +95,12 @@ export async function saveFilesWorkspace(
   options: { partial: boolean },
 ): Promise<FilesCheckpointResult> {
   await run.sendProgress("files-save", "Saving files", { partial: options.partial });
+  // Only a complete run produces artifacts.
+  const declared = options.partial ? {} : readArtifactManifest(repoDir);
   const archive = path.join(path.dirname(repoDir), `space-files-${run.files.checkpointSnapshotId}.tar.gz`);
+  let saved: FilesCheckpointResult;
   try {
-    return await withSpan("files.save", { attributes: { "vg.files.partial": options.partial } }, async () => {
+    saved = await withSpan("files.save", { attributes: { "vg.files.partial": options.partial } }, async () => {
       const captured = await captureWorkspace(repoDir, archive);
       if (captured.skipped.length > 0) {
         run.logger.warn("Left links and special files out of the saved files", { jobId: run.jobId, skipped: captured.skipped.slice(0, 50) });
@@ -88,6 +119,7 @@ export async function saveFilesWorkspace(
         sha256: captured.sha256,
         archiveBytes: captured.archiveBytes,
         partial: options.partial,
+        ...declared,
       });
       run.logger.info("Saved the space's files", { jobId: run.jobId, snapshotId: saved.id, fileCount: saved.fileCount, partial: saved.partial });
       return saved;
@@ -98,6 +130,8 @@ export async function saveFilesWorkspace(
   } finally {
     fs.rmSync(archive, { force: true });
   }
+  if (saved.artifactError) throw new JobFailureError(JOB_FAILURE_CODE.ARTIFACT_INVALID, saved.artifactError);
+  return saved;
 }
 
 function messageOf(error: unknown): string {

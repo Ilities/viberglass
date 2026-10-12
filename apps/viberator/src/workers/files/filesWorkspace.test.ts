@@ -19,6 +19,8 @@ const SAVED: FilesCheckpointResult = {
   partial: false,
   changes: { added: 1, changed: 0, removed: 0 },
   createdAt: "2026-10-12T00:00:00.000Z",
+  artifacts: [],
+  artifactError: null,
 };
 
 function run(overrides: Partial<FilesRun> = {}, baseSnapshotId: string | null = null): FilesRun {
@@ -112,6 +114,7 @@ describe("saveFilesWorkspace", () => {
       sha256: createHash("sha256").update(body).digest("hex"),
       archiveBytes: body.length,
       partial: false,
+      artifactManifest: null,
     });
     // The archive is written beside the working directory, not into it, and removed afterwards.
     expect(fs.readdirSync(root)).toEqual(["repo"]);
@@ -133,6 +136,64 @@ describe("saveFilesWorkspace", () => {
     await expect(saveFilesWorkspace(files, repoDir, { partial: false })).rejects.toThrow(
       "Couldn't save the space's files: the platform refused them: Another run saved this space first",
     );
+  });
+
+  it("sends the artifacts the agent declared, and leaves the declaration out of the saved files", async () => {
+    const repoDir = path.join(root, "repo");
+    const manifest = { artifacts: [{ title: "Q4 deck", entrypoint: "deck/index.html", files: ["deck/"] }] };
+    fs.mkdirSync(path.join(repoDir, ".viberglass"), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, ".viberglass", "artifacts.json"), JSON.stringify(manifest));
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const files = run();
+
+    await saveFilesWorkspace(files, repoDir, { partial: false });
+
+    expect(files.client.checkpoint).toHaveBeenCalledWith("job-1", "tenant-1", expect.objectContaining({ artifactManifest: manifest }));
+  });
+
+  it("tells the platform when the declaration isn't valid JSON", async () => {
+    const repoDir = path.join(root, "repo");
+    fs.mkdirSync(path.join(repoDir, ".viberglass"), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, ".viberglass", "artifacts.json"), "{ not json");
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const files = run();
+
+    await saveFilesWorkspace(files, repoDir, { partial: false });
+
+    const request = (files.client.checkpoint as jest.Mock).mock.calls[0][2];
+    expect(request.artifactManifestError).toMatch(/^artifacts\.json isn't valid JSON/);
+    expect(request).not.toHaveProperty("artifactManifest");
+  });
+
+  it("declares no artifacts from a partial save", async () => {
+    const repoDir = path.join(root, "repo");
+    fs.mkdirSync(path.join(repoDir, ".viberglass"), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, ".viberglass", "artifacts.json"), JSON.stringify({ artifacts: [] }));
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const files = run();
+
+    await saveFilesWorkspace(files, repoDir, { partial: true });
+
+    const request = (files.client.checkpoint as jest.Mock).mock.calls[0][2];
+    expect(request).not.toHaveProperty("artifactManifest");
+    expect(request).not.toHaveProperty("artifactManifestError");
+  });
+
+  it("fails the run with the platform's reason when its artifacts were refused, after the files were saved", async () => {
+    const repoDir = path.join(root, "repo");
+    fs.mkdirSync(repoDir);
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const files = run({
+      client: {
+        storageGrant: jest.fn(async () => ({ url: "https://storage.test/write", expiresAt: "later" })),
+        checkpoint: jest.fn(async () => ({ ...SAVED, artifactError: "The run was asked for an artifact but declared none." })),
+      },
+    });
+
+    const failure = saveFilesWorkspace(files, repoDir, { partial: false });
+
+    await expect(failure).rejects.toMatchObject({ code: "ARTIFACT_INVALID", message: "The run was asked for an artifact but declared none." });
+    expect(files.client.checkpoint).toHaveBeenCalledTimes(1);
   });
 
   it("fails the run when the upload fails, without asking the platform to keep anything", async () => {

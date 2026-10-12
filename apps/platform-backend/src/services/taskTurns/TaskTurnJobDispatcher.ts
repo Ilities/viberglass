@@ -118,7 +118,8 @@ export class TaskTurnJobDispatcher {
     const task = acpSessionId ? prompts.prompt : prompts.coldStartPrompt;
 
     const jobData = jobDataFor(
-      action,
+      // A Files artifact run opens no pull request, so it isn't an execution run that puts the task in review.
+      files && action === "code" ? "reply" : action,
       {
         id: jobId,
         tenantId: "api-server",

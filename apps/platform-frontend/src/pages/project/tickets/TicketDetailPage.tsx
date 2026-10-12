@@ -117,9 +117,10 @@ export function TicketDetailPage() {
     )
   }
 
-  // A Files space's agent saves files rather than opening a pull request, so there is nothing to build.
-  const capabilities = filesSpace && data.capabilities ? { ...data.capabilities, canAskForCode: false } : data.capabilities
-  const taskData = { ...data, capabilities }
+  // In a Files space a build makes an artifact from the conversation; the plan has no parts to build or pull requests to open.
+  const capabilities = data.capabilities
+  const taskData =
+    filesSpace && data.capabilities ? { ...data, capabilities: { ...data.capabilities, canAskForCode: false } } : data
   const { ticket } = data
   const currentStep = ticket.workflowPhase
   const move = decideTaskNextMove({
@@ -253,6 +254,7 @@ export function TicketDetailPage() {
               refreshKey={threadRefreshKey}
               runs={data.runs}
               filesSpace={filesSpace}
+              space={space ? { id: space.id, slug: space.slug } : undefined}
               onOpenComments={() => {
                 setNarrowView('artifact')
                 setSearchParams({ ...(currentStep === 'planning' ? {} : { step: 'planning' }), view: 'comments' })
@@ -281,7 +283,7 @@ export function TicketDetailPage() {
                 newComments: liveNewComments ?? data.newComments,
                 agentWorking: move.kind === 'working',
                 lastFailure: move.kind === 'failed' ? move.failure : null,
-                planParts: data.planParts,
+                planParts: filesSpace ? null : data.planParts,
               }}
             />
           </div>

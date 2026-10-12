@@ -82,13 +82,14 @@ describe("captureWorkspace and restoreWorkspace", () => {
     expect(fs.readFileSync(path.join(restored, "notes/outline.md"), "utf8")).toBe("# Outline\n");
   });
 
-  it("leaves out the platform's files, caches, .git and links", async () => {
+  it("leaves out the platform's files, caches, .git, .viberglass and links", async () => {
     const work = path.join(root, "work");
     write(work, "keep.md", "kept");
     write(work, "PLAN.md", "plan");
     write(work, "SUMMARY.md", "summary");
     write(work, "PR_TITLE.md", "title");
     write(work, ".git/HEAD", "ref: refs/heads/main");
+    write(work, ".viberglass/artifacts.json", "{}");
     write(work, "app/node_modules/x/index.js", "cache");
     write(work, "nested/PLAN.md", "a person's own plan, kept");
     fs.symlinkSync("keep.md", path.join(work, "link.md"));

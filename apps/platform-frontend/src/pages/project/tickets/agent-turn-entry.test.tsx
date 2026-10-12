@@ -38,7 +38,12 @@ function renderEntry(entry: Extract<TaskTimelineEntry, { kind: 'agent_turn' }>, 
   render(
     <Theme>
       <MemoryRouter>
-        <AgentTurnEntry entry={entry} run={run as JobListItem | undefined} filesSpace={filesSpace} />
+        <AgentTurnEntry
+          entry={entry}
+          run={run as JobListItem | undefined}
+          filesSpace={filesSpace}
+          space={{ id: 'space-1', slug: 'deck' }}
+        />
       </MemoryRouter>
     </Theme>
   )
@@ -64,6 +69,24 @@ describe('AgentTurnEntry in a Files space', () => {
   it('shows what the turn saved', () => {
     renderEntry(turn({ outcome: { ...OUTCOME, files: FILES } }))
     expect(screen.getByText('Saved files · 2 added, 1 changed · 14 files')).toBeInTheDocument()
+  })
+
+  it('shows each artifact the turn produced, with its preview and download', () => {
+    renderEntry(
+      turn({
+        action: 'code',
+        outcome: {
+          ...OUTCOME,
+          files: FILES,
+          artifacts: [{ artifactId: 'art-1', versionId: 'ver-2', title: 'Q4 roadmap deck', number: 2, format: 'html' }],
+        },
+      })
+    )
+    const card = screen.getByLabelText('Artifact Q4 roadmap deck')
+    expect(card).toHaveTextContent('Version 2 · Web page')
+    expect(screen.getByRole('link', { name: 'Preview' })).toHaveAttribute('href', '/spaces/deck/artifacts/art-1?version=ver-2')
+    expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument()
+    expect(screen.getByText(/asked for an artifact/)).toBeInTheDocument()
   })
 
   it('says a queued run is waiting for another run to save the files', () => {

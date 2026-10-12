@@ -14,7 +14,7 @@ import {
 } from '@/components/sidebar'
 import type { AuthUser } from '@/service/api/auth-api'
 import type { Project } from '@/service/api/project-api'
-import { ActivityLogIcon, ChevronUpIcon, ClockIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon } from '@radix-ui/react-icons'
+import { ActivityLogIcon, ChevronUpIcon, ClockIcon, FileTextIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon, ReaderIcon } from '@radix-ui/react-icons'
 import { isRunner } from '@/lib/roles'
 import clsx from 'clsx'
 import { useContext } from 'react'
@@ -50,10 +50,27 @@ function NavBadge({ count }: { count?: number }) {
   )
 }
 
-function SpaceChildren({ slug, pathname, canSeeRuns }: { slug: string; pathname: string; canSeeRuns: boolean }) {
+function SpaceChildren({
+  slug,
+  pathname,
+  canSeeRuns,
+  files,
+}: {
+  slug: string
+  pathname: string
+  canSeeRuns: boolean
+  /** A Files space, which has working files and artifacts to show. */
+  files: boolean
+}) {
   const collapsed = useContext(SidebarCollapsedContext)
   const base = `/spaces/${slug}`
   const children = [
+    ...(files
+      ? [
+          { href: `${base}/files`, label: 'Files', icon: <FileTextIcon /> },
+          { href: `${base}/artifacts`, label: 'Artifacts', icon: <ReaderIcon /> },
+        ]
+      : []),
     ...(canSeeRuns
       ? [
           { href: `${base}/runs`, label: 'Runs', icon: <ActivityLogIcon /> },
@@ -128,7 +145,7 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
                     </NavIcon>
                   )}
                 </SidebarItem>
-                {expanded && <SpaceChildren slug={space.slug} pathname={pathname} canSeeRuns={runner} />}
+                {expanded && <SpaceChildren slug={space.slug} pathname={pathname} canSeeRuns={runner} files={space.backingKind === 'files'} />}
               </div>
             )
           })}

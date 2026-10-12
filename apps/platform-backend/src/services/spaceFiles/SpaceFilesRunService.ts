@@ -1,11 +1,16 @@
 import { randomUUID } from "crypto";
-import type {
-  FilesCheckpointRequest,
-  FilesCheckpointResult,
-  FilesStorageGrant,
-  FilesStorageOperation,
-  FilesWorkspacePayload,
+import {
+  isObjectRecord,
+  type FilesCheckpointRequest,
+  type FilesCheckpointResult,
+  type FilesStorageGrant,
+  type FilesStorageOperation,
+  type FilesWorkspacePayload,
+  type SpaceFilesSnapshotSummary,
+  type TurnArtifact,
 } from "@viberglass/types";
+import { ArtifactDAO, type NewArtifactVersion } from "../../persistence/artifacts/ArtifactDAO";
+import { ArtifactRegistrar } from "../artifacts/ArtifactRegistrar";
 import { createChildLogger } from "../../config/logger";
 import { SpaceFilesDAO, type SpaceFileRun, type SpaceFileSnapshot } from "../../persistence/spaceFiles/SpaceFilesDAO";
 import { JobBootstrapService } from "../job/JobBootstrapService";
@@ -42,7 +47,17 @@ export class SpaceFilesRunService {
     private daoOverride?: SpaceFilesDAO,
     private storeOverride?: SpaceFilesStore,
     private bootstrapsOverride?: Pick<JobBootstrapService, "getBootstrapPayload">,
+    private artifactsOverride?: Pick<ArtifactDAO, "listForJob">,
+    private registrarOverride?: Pick<ArtifactRegistrar, "fromDeclaration" | "storeFiles">,
   ) {}
+
+  private get artifacts(): Pick<ArtifactDAO, "listForJob"> {
+    return (this.artifactsOverride ??= new ArtifactDAO());
+  }
+
+  private get registrar(): Pick<ArtifactRegistrar, "fromDeclaration" | "storeFiles"> {
+    return (this.registrarOverride ??= new ArtifactRegistrar(this.store));
+  }
 
   private get dao(): SpaceFilesDAO {
     return (this.daoOverride ??= new SpaceFilesDAO());
@@ -77,7 +92,7 @@ export class SpaceFilesRunService {
   }
 
   async grant(jobId: string, tenantId: string, operation: FilesStorageOperation): Promise<FilesStorageGrant> {
-    const run = await this.activeRun(jobId, tenantId);
+    const { run } = await this.activeRun(jobId, tenantId);
     const bucket = this.store.bucket();
     if (!bucket) throw new Error("File storage is not configured");
     let storageUrl: string;
@@ -95,14 +110,18 @@ export class SpaceFilesRunService {
     };
   }
 
-  /** Checks the uploaded archive and makes it the space's current files. Safe to repeat. */
+  /**
+   * Checks the uploaded archive and makes it the space's current files, with
+   * the artifact versions the run declared when it was asked for one. Safe to
+   * repeat: a repeat answers with what was saved the first time.
+   */
   async checkpoint(jobId: string, tenantId: string, request: FilesCheckpointRequest): Promise<FilesCheckpointResult> {
     const existing = await this.dao.getRun(jobId);
     if (existing?.status === "saved") {
       const saved = await this.dao.getSnapshot(existing.checkpointSnapshotId);
-      if (saved) return summary(saved);
+      if (saved) return { ...summary(saved), artifacts: await this.artifacts.listForJob(jobId), artifactError: null };
     }
-    const run = await this.activeRun(jobId, tenantId);
+    const { run, payload } = await this.activeRun(jobId, tenantId);
     const bucket = this.store.bucket();
     const storageUrl = snapshotStorageUrl(bucket, run.projectId, run.checkpointSnapshotId);
 
@@ -118,20 +137,44 @@ export class SpaceFilesRunService {
       throw new InvalidSpaceArchive("The uploaded files don't match what the run reported");
     }
 
+    // Only a run asked for an artifact keeps one; its files are saved either way.
+    let versions: NewArtifactVersion[] = [];
+    let artifactError: string | null = null;
+    if (!request.partial && payload.turnAction === "code") {
+      if (request.artifactManifestError) {
+        artifactError = request.artifactManifestError;
+      } else {
+        const declared = await this.registrar.fromDeclaration(request.artifactManifest ?? null, archive.manifest, {
+          projectId: run.projectId,
+          ticketId: ticketIdOf(payload),
+          jobId,
+          createdBy: null,
+          snapshotId: run.checkpointSnapshotId,
+        });
+        if ("error" in declared) artifactError = declared.error;
+        else versions = declared.versions;
+      }
+      await this.registrar.storeFiles(() => this.store.open(storageUrl), versions);
+    }
+
     const parent = run.baseSnapshotId ? await this.dao.getSnapshot(run.baseSnapshotId) : null;
-    const committed = await this.dao.commitCheckpoint({
-      id: run.checkpointSnapshotId,
-      projectId: run.projectId,
-      parentId: run.baseSnapshotId,
-      jobId,
-      storageUrl,
-      archiveSha256: archive.sha256,
-      archiveBytes: archive.archiveBytes,
-      totalBytes: archive.totalBytes,
-      manifest: archive.manifest,
-      changes: compareManifests(parent?.manifest ?? [], archive.manifest),
-      partial: request.partial,
-    });
+    const committed = await this.dao.commitCheckpoint(
+      {
+        id: run.checkpointSnapshotId,
+        projectId: run.projectId,
+        parentId: run.baseSnapshotId,
+        jobId,
+        createdBy: null,
+        storageUrl,
+        archiveSha256: archive.sha256,
+        archiveBytes: archive.archiveBytes,
+        totalBytes: archive.totalBytes,
+        manifest: archive.manifest,
+        changes: compareManifests(parent?.manifest ?? [], archive.manifest),
+        partial: request.partial,
+      },
+      versions,
+    );
     if (typeof committed === "string") {
       // The upload stays in storage for diagnosis; it never becomes current.
       logger.warn("Refused a Files checkpoint", { jobId, projectId: run.projectId, reason: committed });
@@ -141,9 +184,20 @@ export class SpaceFilesRunService {
           : "This run no longer holds its space, so its files weren't saved.",
       );
     }
-    logger.info("Saved a Files space's files", { jobId, projectId: run.projectId, snapshotId: committed.id, files: committed.fileCount });
+    logger.info("Saved a Files space's files", {
+      jobId,
+      projectId: run.projectId,
+      snapshotId: committed.snapshot.id,
+      files: committed.snapshot.fileCount,
+      artifacts: committed.artifacts.length,
+    });
     this.launchNextSoon(run.projectId);
-    return summary(committed);
+    return { ...summary(committed.snapshot), artifacts: committed.artifacts, artifactError };
+  }
+
+  /** Starts the oldest waiting run if the space is free, after something else let it go. */
+  startWaiting(projectId: string): void {
+    this.launchNextSoon(projectId);
   }
 
   /** Keeps a live run's space while its worker sends heartbeats. */
@@ -157,9 +211,13 @@ export class SpaceFilesRunService {
     if (projectId) this.launchNextSoon(projectId);
   }
 
-  async summaryForJob(jobId: string): Promise<FilesCheckpointResult | null> {
+  async summaryForJob(jobId: string): Promise<SpaceFilesSnapshotSummary | null> {
     const snapshot = await this.dao.getSnapshotForJob(jobId);
     return snapshot ? summary(snapshot) : null;
+  }
+
+  async artifactsForJob(jobId: string): Promise<TurnArtifact[]> {
+    return this.artifacts.listForJob(jobId);
   }
 
   /** Recovers from missed releases and restarts: ends runs of finished jobs and starts waiting ones. */
@@ -202,7 +260,7 @@ export class SpaceFilesRunService {
     }
   }
 
-  private async activeRun(jobId: string, tenantId: string): Promise<SpaceFileRun> {
+  private async activeRun(jobId: string, tenantId: string): Promise<{ run: SpaceFileRun; payload: Record<string, unknown> }> {
     const bootstrap = await this.bootstraps.getBootstrapPayload(jobId);
     if (!bootstrap || bootstrap.tenantId !== tenantId || bootstrap.status !== "active") {
       throw new SpaceFilesDenied("Files are only available to this active run");
@@ -211,11 +269,16 @@ export class SpaceFilesRunService {
     if (!run || run.status !== "running" || !(await this.dao.holdsLease(run))) {
       throw new SpaceFilesDenied("This run doesn't hold its space's files");
     }
-    return run;
+    return { run, payload: bootstrap.payload ?? {} };
   }
 }
 
-function summary(snapshot: SpaceFileSnapshot): FilesCheckpointResult {
+function ticketIdOf(payload: Record<string, unknown>): string | null {
+  const context = payload.context;
+  return isObjectRecord(context) && typeof context.ticketId === "string" ? context.ticketId : null;
+}
+
+function summary(snapshot: SpaceFileSnapshot): SpaceFilesSnapshotSummary {
   return {
     id: snapshot.id,
     parentId: snapshot.parentId,

@@ -1,3 +1,4 @@
+import type { TurnArtifact } from './artifacts'
 import type { SpaceFilesSnapshotSummary } from './spaceBacking'
 
 /**
@@ -24,6 +25,8 @@ export interface TaskTurnOutcome {
   produced: TaskTurnProduct[]
   /** In a Files space: the files the turn saved, when it saved any. */
   files?: SpaceFilesSnapshotSummary | null
+  /** In a Files space: the artifact versions the turn produced. */
+  artifacts?: TurnArtifact[]
   /** The agent changed code in a turn that wasn't allowed to, so the changes were thrown away. */
   codeDiscarded: boolean
   /** Whether the turn continued the agent's earlier session; null when the worker didn't say. */

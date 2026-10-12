@@ -1,5 +1,5 @@
 import type { ColumnType, RawBuilder } from "kysely";
-import type { IntegrationCredentialType, SpaceBackingKind, SpaceFilesManifestEntry, SpaceFilesSnapshotSummary, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
+import type { ArtifactFormat, ArtifactVersionFile, IntegrationCredentialType, SpaceBackingKind, SpaceFilesManifestEntry, SpaceFilesSnapshotSummary, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
 import type {
   AgentPendingRequestStatus,
   AgentPendingRequestType,
@@ -791,6 +791,35 @@ export interface SpaceFileSnapshotsTable {
   changes: ColumnType<SpaceFilesSnapshotSummary["changes"], string, string>;
   partial: Generated<boolean>;
   created_at: Generated<Date>;
+  unavailable_at: Date | null;
+  purged_at: Date | null;
+}
+
+export interface ArtifactsTable {
+  id: string;
+  project_id: string;
+  ticket_id: string | null;
+  title: string;
+  current_version_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ArtifactVersionsTable {
+  id: string;
+  artifact_id: string;
+  number: number;
+  snapshot_id: string | null;
+  job_id: string | null;
+  created_by: string | null;
+  format: ArtifactFormat;
+  entrypoint: string;
+  files: ColumnType<ArtifactVersionFile[], string, string>;
+  storage_prefix: string;
+  total_bytes: ColumnType<string, number, number>;
+  created_at: Generated<Date>;
+  unavailable_at: Date | null;
+  purged_at: Date | null;
 }
 
 export interface SpaceFileStateTable {
@@ -799,6 +828,7 @@ export interface SpaceFileStateTable {
   lease_job_id: string | null;
   lease_token: ColumnType<string, number | undefined, number | RawBuilder<unknown>>;
   lease_expires_at: Date | null;
+  lease_operation_id: string | null;
   updated_at: Generated<Date>;
 }
 
@@ -820,6 +850,8 @@ export interface Database {
   space_file_snapshots: SpaceFileSnapshotsTable;
   space_file_state: SpaceFileStateTable;
   space_file_runs: SpaceFileRunsTable;
+  artifacts: ArtifactsTable;
+  artifact_versions: ArtifactVersionsTable;
   user_chat_identities: UserChatIdentitiesTable;
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;

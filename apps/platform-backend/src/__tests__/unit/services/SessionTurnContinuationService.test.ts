@@ -82,18 +82,21 @@ describe("SessionTurnContinuationService", () => {
   const prompts = { build: jest.fn() };
   const dispatcher = { dispatch: jest.fn() };
   const projects = { getProject: jest.fn() };
+  const artifacts = { listForTicket: jest.fn() };
   const service = new SessionTurnContinuationService(sessions, turns, events, {
     tickets,
     context: loader,
     prompts,
     dispatcher,
     projects,
+    artifacts,
   });
 
   beforeEach(() => {
     jest.resetAllMocks();
     tickets.getTicket.mockResolvedValue({ id: "ticket-1", projectId: "proj-1", title: "Dark mode" });
     projects.getProject.mockResolvedValue({ id: "proj-1", backingKind: "git" });
+    artifacts.listForTicket.mockResolvedValue([]);
     turns.nextSequence.mockResolvedValue(7);
     turns.create.mockResolvedValue({ id: "a1" });
     events.getMaxSequence.mockResolvedValue(10);
@@ -130,7 +133,7 @@ describe("SessionTurnContinuationService", () => {
     expect(loader.load).toHaveBeenCalledWith(
       expect.objectContaining({ sessionId: "sess-1", turnId: "a1", action: "plan", sessionMessages: [expect.objectContaining({ id: "u3" })] }),
     );
-    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "plan", false, false);
+    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "plan", false, false, []);
     expect(dispatcher.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ turnId: "a1", action: "plan", allowCode: false, prompts: { prompt: "delta", coldStartPrompt: "preamble\n\ndelta" } }),
       expect.any(Function),
@@ -144,7 +147,19 @@ describe("SessionTurnContinuationService", () => {
 
     await service.launchForPendingMessages(makeSession());
 
-    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "reply", false, true);
+    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "reply", false, true, []);
+  });
+
+  it("gives an artifact ask the task's artifacts to revise", async () => {
+    projects.getProject.mockResolvedValue({ id: "proj-1", backingKind: "files" });
+    const existing = [{ id: "a-1", title: "Q4 deck", entrypoint: "deck/index.html" }];
+    artifacts.listForTicket.mockResolvedValue(existing);
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn({ id: "u1", action: "code" })]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(artifacts.listForTicket).toHaveBeenCalledWith("ticket-1");
+    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "code", true, true, existing);
   });
 
   it("knows its job and shows the prompt before the worker starts", async () => {

@@ -1,4 +1,5 @@
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
+import { ArtifactDAO } from "../../persistence/artifacts/ArtifactDAO";
 import logger from "../../config/logger";
 import type { AgentSession, AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import type { AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
@@ -32,6 +33,7 @@ interface Collaborators {
   prompts: Pick<TaskTurnPromptBuilder, "build">;
   dispatcher: Pick<TaskTurnJobDispatcher, "dispatch">;
   projects: Pick<ProjectDAO, "getProject">;
+  artifacts: Pick<ArtifactDAO, "listForTicket">;
 }
 
 /**
@@ -58,6 +60,7 @@ export class SessionTurnContinuationService {
       prompts: new TaskTurnPromptBuilder(),
       dispatcher: deps.dispatcher ?? new TaskTurnJobDispatcher(),
       projects: new ProjectDAO(),
+      artifacts: new ArtifactDAO(),
       ...deps,
     };
   }
@@ -98,7 +101,9 @@ export class SessionTurnContinuationService {
         sessionMessages: pending.filter((entry) => !entry.taskMessageId),
       });
       const filesSpace = (await this.deps.projects.getProject(ticket.projectId))?.backingKind === "files";
-      const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode, filesSpace);
+      // Asked for an artifact, the agent revises the task's existing ones by id.
+      const artifacts = filesSpace && action === "code" ? await this.deps.artifacts.listForTicket(ticket.id) : [];
+      const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode, filesSpace, artifacts);
       const job = await this.deps.dispatcher.dispatch(
         {
           session,

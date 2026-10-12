@@ -38,6 +38,9 @@ export const ACTION_MESSAGE: Record<TaskTurnAction, string> = {
   summarise: "Summarise so far",
 };
 
+/** What asking for a build says in a Files space, where it makes or revises an artifact. */
+export const CREATE_ARTIFACT_MESSAGE = "Create the artifact";
+
 /** Of the messages a turn answers, the latest one that asked for something specific decides; else it's a reply. */
 export function actionForPending(actions: Array<TaskTurnAction | null>): TaskTurnAction {
   for (let index = actions.length - 1; index >= 0; index--) {

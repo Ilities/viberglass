@@ -36,6 +36,8 @@ const SAVED = {
   partial: false,
   changes: { added: 1, changed: 0, removed: 0 },
   createdAt: "now",
+  artifacts: [],
+  artifactError: null,
 };
 
 let repoDir: string;

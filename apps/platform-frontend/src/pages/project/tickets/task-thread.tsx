@@ -55,6 +55,8 @@ interface TaskThreadProps {
   runs?: JobListItem[]
   /** Whether the task's space is backed by files rather than a repository. */
   filesSpace?: boolean
+  /** The task's space, for links to the artifacts its turns produced. */
+  space?: { id: string; slug: string }
 }
 
 /** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
@@ -77,6 +79,7 @@ export function TaskThread({
   onAsked,
   runs = [],
   filesSpace = false,
+  space,
 }: TaskThreadProps) {
   const { user } = useAuth()
   const personName = usePersonName()
@@ -120,11 +123,14 @@ export function TaskThread({
     suggestionInput.agentWorking || latestTurn?.status === 'queued' || latestTurn?.status === 'running'
   const summaries = summaryFacts(entries)
   const retry = retrySuggestion({ ...suggestionInput, agentWorking, latestTurn })
+  const hasArtifacts = entries.some((entry) => entry.kind === 'agent_turn' && (entry.outcome?.artifacts?.length ?? 0) > 0)
   const suggestions = suggestTaskActions({
     ...suggestionInput,
     agentWorking,
     latestTurn,
     sinceSummary: summaries.sinceLatest,
+    filesSpace,
+    hasArtifacts,
   })
   const onTask = new Set(entries.flatMap((entry) => (entry.kind === 'agent_turn' ? [entry.agent.id] : [])))
   const bringable = runnableAgents.filter((agent) => !onTask.has(agent.id))
@@ -146,6 +152,7 @@ export function TaskThread({
         entry={entry}
         run={runs.find((run) => run.jobId === entry.jobId)}
         filesSpace={filesSpace}
+        space={space}
         summaryVersion={summaries.versionByTurn.get(entry.id)}
         retry={retry && entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />}
       />

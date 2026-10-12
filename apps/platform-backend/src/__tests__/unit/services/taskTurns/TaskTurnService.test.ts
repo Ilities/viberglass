@@ -2,7 +2,6 @@ import type { AgentSession } from "../../../../persistence/agentSession/AgentSes
 import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDAO";
 import { TASK_ASK_POLICY_ERROR_CODE, TaskAskPolicyError } from "../../../../services/errors/TaskAskPolicyError";
 import { TaskTurnService } from "../../../../services/taskTurns/TaskTurnService";
-import { TICKET_SERVICE_ERROR_CODE, TicketServiceError } from "../../../../services/errors/TicketServiceError";
 
 const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "planning" as const };
 
@@ -60,7 +59,7 @@ function turn(overrides: Partial<AgentTurn> = {}): AgentTurn {
 
 function setup() {
   const deps = {
-    execution: { assertAvailable: jest.fn().mockResolvedValue(undefined) },
+    execution: { backingOf: jest.fn().mockResolvedValue("git") },
     tickets: { getTicket: jest.fn().mockResolvedValue(TICKET) },
     policy: { assertCanAsk: jest.fn().mockResolvedValue(undefined) },
     discussion: { create: jest.fn().mockResolvedValue("message-1") },
@@ -85,15 +84,16 @@ function setup() {
 }
 
 describe("TaskTurnService", () => {
-  it("refuses a build in a Files space before posting or scheduling work", async () => {
+  it("asks for an artifact in a Files space, with no plan parts or pull request", async () => {
     const { service, deps } = setup();
-    deps.execution.assertAvailable.mockRejectedValue(new TicketServiceError(TICKET_SERVICE_ERROR_CODE.FILES_BUILD_UNAVAILABLE, "Files spaces save files"));
-    await expect(service.ask("t-1", "maria", { message: "Make a presentation", action: "code" })).rejects.toMatchObject({ code: "FILES_BUILD_UNAVAILABLE", statusCode: 409 });
-    expect(deps.execution.assertAvailable).toHaveBeenCalledWith("p-1", "code");
-    expect(deps.discussion.create).not.toHaveBeenCalled();
-    expect(deps.sessions.create).not.toHaveBeenCalled();
-    expect(deps.continuation.launchForPendingMessages).not.toHaveBeenCalled();
+    deps.execution.backingOf.mockResolvedValue("files");
+
+    await service.ask("t-1", "maria", { message: "", action: "code" });
+
+    expect(deps.execution.backingOf).toHaveBeenCalledWith("p-1");
     expect(deps.parts.resolveBuild).not.toHaveBeenCalled();
+    expect(deps.parts.extendOpen).not.toHaveBeenCalled();
+    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Create the artifact");
   });
   it("posts the person's words in the thread and makes them the session's next turn", async () => {
     const { deps, service } = setup();

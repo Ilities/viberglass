@@ -36,7 +36,7 @@ function setup() {
     holdsLease: jest.fn().mockResolvedValue(true),
     getSnapshot: jest.fn<Promise<SpaceFileSnapshot | null>, [string]>().mockResolvedValue(null),
     getSnapshotForJob: jest.fn(),
-    commitCheckpoint: jest.fn().mockResolvedValue(snapshot()),
+    commitCheckpoint: jest.fn().mockResolvedValue({ snapshot: snapshot(), artifacts: [] }),
     renewLease: jest.fn(),
     release: jest.fn<Promise<string | null>, [string]>().mockResolvedValue(null),
     listRunsOfFinishedJobs: jest.fn().mockResolvedValue([]),
@@ -46,12 +46,19 @@ function setup() {
     bucket: () => "bucket",
     sign: jest.fn().mockResolvedValue("https://storage/signed"),
     open: jest.fn().mockImplementation(async () => Readable.from([EMPTY])),
+    put: jest.fn(),
+    delete: jest.fn(),
   };
   const bootstraps = { getBootstrapPayload: jest.fn().mockResolvedValue({ tenantId: "api-server", status: "active", payload: {} }) };
-  const service = new SpaceFilesRunService(dao as never, store, bootstraps);
+  const artifacts = { listForJob: jest.fn().mockResolvedValue([]) };
+  const registrar = {
+    fromDeclaration: jest.fn().mockResolvedValue({ versions: [] }),
+    storeFiles: jest.fn().mockResolvedValue(undefined),
+  };
+  const service = new SpaceFilesRunService(dao as never, store, bootstraps, artifacts, registrar);
   const launcher = jest.fn().mockResolvedValue(undefined);
   service.setLauncher(launcher);
-  return { dao, store, bootstraps, service, launcher };
+  return { dao, store, bootstraps, service, launcher, registrar, artifacts };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -103,9 +110,45 @@ describe("SpaceFilesRunService", () => {
     const saved = await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false });
 
     expect(saved).toMatchObject({ id: "snap-new", fileCount: 0, partial: false });
-    expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.objectContaining({ id: "snap-new", jobId: "job-1", parentId: null, archiveSha256: EMPTY_SHA }));
+    expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.objectContaining({ id: "snap-new", jobId: "job-1", parentId: null, archiveSha256: EMPTY_SHA }), []);
     await flush();
     expect(launcher).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-2" }));
+  });
+
+  it("keeps the artifacts a run asked for one declared, with their files copied out of the archive", async () => {
+    const { dao, service, registrar, bootstraps } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "code", context: { ticketId: "t-1" } } });
+    const version = { versionId: "v-1", artifactId: "a-1" };
+    registrar.fromDeclaration.mockResolvedValue({ versions: [version] });
+    const added = [{ artifactId: "a-1", versionId: "v-1", title: "Deck", number: 1, format: "html" }];
+    dao.commitCheckpoint.mockResolvedValue({ snapshot: snapshot(), artifacts: added });
+    const manifest = { artifacts: [{ title: "Deck", entrypoint: "deck/index.html" }] };
+
+    const saved = await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: manifest });
+
+    expect(registrar.fromDeclaration).toHaveBeenCalledWith(manifest, [], expect.objectContaining({ projectId: "space-1", ticketId: "t-1", jobId: "job-1", snapshotId: "snap-new" }));
+    expect(registrar.storeFiles).toHaveBeenCalledWith(expect.any(Function), [version]);
+    expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.anything(), [version]);
+    expect(saved).toMatchObject({ artifacts: added, artifactError: null });
+  });
+
+  it("saves the files but reports why a run asked for an artifact declared none it could keep", async () => {
+    const { dao, service, registrar, bootstraps } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "code" } });
+    registrar.fromDeclaration.mockResolvedValue({ error: "The agent didn't declare an artifact" });
+
+    const saved = await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: null });
+
+    expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.anything(), []);
+    expect(saved).toMatchObject({ artifacts: [], artifactError: "The agent didn't declare an artifact" });
+  });
+
+  it("ignores declarations from runs that weren't asked for an artifact, and from partial saves", async () => {
+    const { service, registrar, bootstraps } = setup();
+    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: { artifacts: [] } });
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "code" } });
+    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: true, artifactManifest: { artifacts: [] } });
+    expect(registrar.fromDeclaration).not.toHaveBeenCalled();
   });
 
   it("refuses an archive that differs from what the run reported", async () => {
