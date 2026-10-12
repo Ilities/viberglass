@@ -1,6 +1,6 @@
 # Agent Plugins
 
-This directory contains the individual agent plugin packages for the Viberator orchestrator. Each agent lives in its own workspace package and registers itself via a typed `AgentPlugin` descriptor.
+This directory contains the harness plugin packages. Each harness lives in its own workspace package, listed in `viberglass.plugins.json`, and describes itself with a typed `AgentPlugin` descriptor. Nothing outside its package names it: the worker, the backend and the runner form read harnesses from the registry and the generated catalog. See [ADR 0015](../../docs/adr/0015-harnesses-and-integrations-are-plugins.md) for why, and [the integrations README](../integrations/README.md) for the other kind of plugin.
 
 ## Architecture Overview
 
@@ -9,6 +9,7 @@ packages/agents/
 ├── agent-antigravity/     @viberglass/agent-antigravity
 ├── agent-claude-code/     @viberglass/agent-claude-code
 ├── agent-codex/           @viberglass/agent-codex
+├── agent-fake/            @viberglass/agent-fake (end-to-end tests only)
 ├── agent-kimi/            @viberglass/agent-kimi
 ├── agent-mistral-vibe/    @viberglass/agent-mistral-vibe
 ├── agent-opencode/        @viberglass/agent-opencode
@@ -44,7 +45,7 @@ npm run new:agent <name>
 # e.g. npm run new:agent aider
 ```
 
-This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and substitutes the placeholder name.
+This copies `packages/agents/_template/` to `packages/agents/agent-<name>/`, substitutes the name, adds the package to `viberglass.plugins.json` and runs `npm run generate:plugins`. The new package builds and its tests pass as is; the steps below fill it in.
 
 ### Manual steps (or after running the script)
 
@@ -65,17 +66,25 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    Dockerfile.lambda.fragment  the same install on the Lambda image (Amazon Linux, as root)
    ```
 
-2. **Implement the agent class** in `src/<Name>Agent.ts`:
+2. **Implement the agent class** in `src/<Name>Agent.ts`. Task turns talk to the harness over ACP; a job without a session, such as a scheduled one, runs the CLI once:
 
    ```ts
-   import { BaseAgent, AgentCLIResult, ExecutionContext } from "@viberglass/agent-core";
+   export class AiderAgent extends BaseAgent<AiderConfig> {
+     protected requiresApiKey(): boolean { return true; }
 
-   export class AiderAgent extends BaseAgent {
-     protected async executeAgentCLI(ctx: ExecutionContext): Promise<AgentCLIResult> {
-       // spawn the CLI, stream output, return result
+     /** Starts the harness's ACP server on stdio. */
+     public getAcpServerCommand(): string[] { return ["aider", "--acp"]; }
+
+     public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+       return { AIDER_API_KEY: this.config.apiKey };
      }
+
+     /** One-shot run: clone, run the CLI with `this.executeCommand`, clean up. */
+     protected async executeAgentCLI(prompt: string, context: ExecutionContext, workDir: string): Promise<AgentCLIResult> { … }
    }
    ```
+
+   The one-shot run's stdout becomes run-log lines through `createOutputNormalizer()`. The default reads Claude Code's `stream-json`, which Qwen and Kimi also write, and passes Codex's `item` events through; a harness with its own output format overrides it, as OpenCode and Mistral Vibe do. Parse the CLI's own usage report in the package too (see `agent-opencode/src/openCodeUsage.ts`).
 
 3. **Fill in the plugin descriptor** in `src/plugin.ts`:
 
@@ -87,6 +96,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    const aiderPlugin: AgentPlugin<AiderConfig> = {
      id: "aider",
      label: "Aider",
+     description: "One sentence the runner form shows under the name.",
      create: (config, logger, gitService) => new AiderAgent(config, logger, gitService),
      defaultConfig: { … },
      envAliases: { apiKey: ["AIDER_API_KEY"] },
@@ -104,7 +114,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    export default aiderPlugin;
    ```
 
-4. **Include it in the build**: add `"@viberglass/agent-aider"` to `agents` in `viberglass.plugins.json` (`npm run new:agent` does this), then run `npm run generate:plugins`. That writes `apps/viberator/src/agents/configuredAgentPlugins.ts` and the dependency in `apps/viberator/package.json`.
+4. **Include it in the build**: add `"@viberglass/agent-aider"` to `agents` in `viberglass.plugins.json` (`npm run new:agent` does this), then run `npm run generate:plugins`. That writes `apps/viberator/src/agents/configuredAgentPlugins.ts` and the dependency in `apps/viberator/package.json`. Remove it from the list the same way to leave it out of a build.
 
 5. **Write the Dockerfile fragments**: `Dockerfile.fragment` installs the CLI on the Debian worker image, running as the `viberator` user with npm installing under its home; `Dockerfile.lambda.fragment` installs it on the Lambda image, as root on Amazon Linux. Only install steps and the ENV the CLI needs: the generator adds `AGENT_TYPE`, labels and `CMD`.
 
@@ -113,7 +123,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    ```bash
    npm install
    npm run build
-   npm run generate:catalog      # updates workerImageCatalog.json
+   npm run generate:catalog      # updates the plugin, provider and worker image catalogs
    npm run generate:dockerfiles  # creates infra/workers/docker/generated/aider.Dockerfile
    ```
 
@@ -126,6 +136,8 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
 The worker build, the catalogs and the worker Dockerfiles all follow `viberglass.plugins.json`, and the runner form takes each harness's name, description, logo, settings, config file editor and sign-in methods from the catalog. A harness left out of the build config isn't offered for new runners; runners that already use it keep its id and fail at the worker. `defaultAgent` in the build config names the harness new runners get.
 
 Set `docker.testOnly: true` for agents that must never be provisioned in infrastructure or pushed to a registry (see `agent-fake`).
+
+`apps/platform-backend/src/__tests__/unit/plugins/pluginIdsStayInPackages.test.ts` fails when a harness id appears as a string outside its package, its tests and the migrations. When code needs to treat one harness differently, that's a missing plugin field.
 
 ---
 
@@ -147,7 +159,7 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `stateExcludes` | — | Paths inside `stateDirs` left out of the archive, such as credential files the worker injects fresh each run. |
 | `harnessConfigPatterns` | — | Relative file patterns in `.harness-config/` the harness should materialise for this agent. |
 | `harnessConfigEditor` | — | `{ fileType, label, envReferences, template }`: the config file the runner form edits. `fileType` is one of `harnessConfigPatterns`; `envReferences` are how the file refers to an env var, with `NAME` in its place (the editor writes the first); `template` fills an empty editor. |
-| `settings` | — | Settings the runner form shows, stored on the runner's agent config under each `key`: `{ key, label, type: "string" \| "select", description?, placeholder?, options?, allowCustom?, providerDefault?, env }`. The worker sets each `env` var to the runner's value, so it must be on the agent env allowlist. `providerDefault` (`"model"` or `"endpoint"`) fills the setting from the chosen provider's default. Backticks in `description` show as code. |
+| `settings` | — | Settings the runner form shows, stored on the runner's agent config under each `key`: `{ key, label, type: "string" \| "select", description?, placeholder?, options?, allowCustom?, providerDefault?, env }`. The worker sets each `env` var to the runner's value; declaring it is what lets it through the agent environment. `providerDefault` (`"model"` or `"endpoint"`) fills the setting from the chosen provider's default. Backticks in `description` show as code. |
 | `materializeHarnessConfig` | — | Called after each matching harness-config file is written; use for side-effects like writing `$HOME/.aider/config`. |
 | `acpEventMapper` | — | Custom ACP event mapper. Falls back to the generic mapper if absent. |
 | `signInMethods` | — | Interactive sign-ins besides API keys: `{ id, label, kind: "device_code", credentialEnvVar }`. A runner that chooses one stores it as `agent.signIn`; the platform runs one login job for it, keeps the login as the runner's own secret, and hands it to the worker in `credentialEnvVar`. |

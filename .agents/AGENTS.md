@@ -76,6 +76,8 @@ These are the single source of truth instructions for agent behavior and backend
 
 The worker and the platform are registry-driven: a harness's name, settings (`settings`, fields the runner form renders and the worker passes on as env vars), config file editor and interactive sign-ins (`signInMethods`, run through one login job, secret purpose and upload route) come from its plugin through the generated catalog.
 
+**Adding a new integration:** Use `npm run new:integration <name>`; see `packages/integrations/README.md` for the manifest, the backend capabilities (tracker, webhooks, repository, chat) and the frontend slots. `pluginIdsStayInPackages.test.ts` fails when a plugin id shows up outside its package: give the plugin a field or capability instead of naming it.
+
 ### 5) Naming Conventions
 
 - Class files: PascalCase matching the primary exported class name.

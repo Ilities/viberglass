@@ -176,18 +176,14 @@ AI agent execution engine that processes jobs.
 - Repository cloning and branch management
 - AI agent harness execution
 - Code analysis and modification
-- Commit and pull request creation
+- Committing and pushing; the platform opens the pull request on the space's code host
 - Progress reporting to platform
 
-**Supported Agent Harnesses:**
-- Claude Code (Anthropic)
-- OpenAI Codex
-- Google Antigravity
-- Qwen CLI (Alibaba)
-- Mistral Vibe
-- OpenCode
-- Kimi Code
-- Pi
+**Agent harnesses:** the ones `viberglass.plugins.json` lists. A default build has Claude Code, OpenAI Codex, Google Antigravity, Qwen CLI, Mistral Vibe, OpenCode, Kimi Code and Pi.
+
+### Harness and integration plugins
+
+Harnesses (`packages/agents/`) and integrations (`packages/integrations/`) are plugin packages, and `viberglass.plugins.json` lists the ones a build includes. `npm run generate:plugins` registers them in the worker, the backend and the frontend; `npm run generate:catalog` and `npm run generate:dockerfiles` write the catalogs and the worker images from them. Nothing outside a plugin's package names it: the runner form, connection screen, webhooks, repositories, chat and sign-in all go through what each plugin declares. See [ADR 0015](adr/0015-harnesses-and-integrations-are-plugins.md), and to add one, [packages/agents/README.md](../packages/agents/README.md) or [packages/integrations/README.md](../packages/integrations/README.md).
 
 ### Infrastructure (`infra/`)
 

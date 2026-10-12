@@ -11,6 +11,8 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 | [../README.md](../README.md) | Quick start and overview |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guidelines |
 | [../TESTING.md](../TESTING.md) | Testing setup and commands |
+| [../packages/agents/README.md](../packages/agents/README.md) | Adding an agent harness |
+| [../packages/integrations/README.md](../packages/integrations/README.md) | Adding an integration: code host, tracker, webhooks or chat |
 | [operations/slack-integration.md](operations/slack-integration.md) | Slack app setup and operations |
 
 ## Documentation Sections

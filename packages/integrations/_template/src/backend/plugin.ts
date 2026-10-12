@@ -2,7 +2,7 @@ import type { IntegrationPlugin } from '@viberglass/integration-core'
 import { manifest } from '../manifest'
 import type { __PascalName__Config } from './types'
 
-const __name__Plugin: IntegrationPlugin<__PascalName__Config> = {
+const __camelName__Plugin: IntegrationPlugin<__PascalName__Config> = {
   ...manifest,
   // Lets "Test connection" check the credentials: throw with what went wrong.
   // async checkConnection(config) {
@@ -11,4 +11,4 @@ const __name__Plugin: IntegrationPlugin<__PascalName__Config> = {
   // },
 }
 
-export default __name__Plugin
+export default __camelName__Plugin

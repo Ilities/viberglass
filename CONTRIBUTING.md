@@ -198,6 +198,8 @@ Viberglass consists of:
 
 For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+To add an agent harness or an integration (code host, tracker, chat service), run `npm run new:agent <name>` or `npm run new:integration <name>`; see [packages/agents/README.md](packages/agents/README.md) and [packages/integrations/README.md](packages/integrations/README.md).
+
 ## Questions?
 
 Feel free to open an issue for questions about contributing.

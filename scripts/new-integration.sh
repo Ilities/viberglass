@@ -39,10 +39,12 @@ fi
 # e.g. "azure-devops" → "Azure Devops" and "AzureDevops"
 DISPLAY_NAME="$(echo "$NAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2); print}')"
 PASCAL_NAME="$(echo "$DISPLAY_NAME" | tr -d ' ')"
+CAMEL_NAME="$(echo "${PASCAL_NAME:0:1}" | tr '[:upper:]' '[:lower:]')${PASCAL_NAME:1}"
 
 echo "Scaffolding @viberglass/integration-$NAME …"
 
 cp -r "$TEMPLATE_DIR" "$TARGET_DIR"
+rm -rf "$TARGET_DIR/dist" "$TARGET_DIR/node_modules"
 
 # Rename placeholder source files
 if [[ -f "$TARGET_DIR/src/frontend/__PascalName__Icon.tsx" ]]; then
@@ -50,14 +52,27 @@ if [[ -f "$TARGET_DIR/src/frontend/__PascalName__Icon.tsx" ]]; then
 fi
 
 # Substitute placeholders in all text files
-find "$TARGET_DIR" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.json" -o -name "*.js" \) | while read -r file; do
+find "$TARGET_DIR" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.json" -o -name "*.js" -o -name "*.cjs" \) | while read -r file; do
   sed -i \
     -e "s/__PascalName__/$PASCAL_NAME/g" \
+    -e "s/__camelName__/$CAMEL_NAME/g" \
     -e "s/__DISPLAY_NAME__/$DISPLAY_NAME/g" \
     -e "s/__name__/$NAME/g" \
     -e "s/__NAME__/$NAME/g" \
     "$file"
 done
+
+# The template's own scripts only echo, so it never builds as a workspace package.
+DESCRIPTION="$DISPLAY_NAME integration for Viberglass"
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+delete pkg.private;
+pkg.description = process.argv[2];
+pkg.scripts = { build: "tsup", dev: "tsup --watch", test: "jest", "test:unit": "jest" };
+fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+' "$TARGET_DIR/package.json" "$DESCRIPTION"
 
 node "$WORKSPACE_ROOT/scripts/plugins/add.mjs" integrations "@viberglass/integration-$NAME"
 node "$WORKSPACE_ROOT/scripts/plugins/generate.mjs"
@@ -70,3 +85,4 @@ echo "  1. Add its capabilities to src/backend/plugin.ts (checkConnection, creat
 echo "  2. Fill in src/manifest.ts: description, category, configFields, credentialUse, receivesWebhooks"
 echo "  3. Replace the icon in src/frontend/, and add trackerWebhook or AuthSetupSection if needed"
 echo "  4. Run: npm install && npm run build"
+echo "  See packages/integrations/README.md for the capabilities and the connection screen."

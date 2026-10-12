@@ -2,7 +2,7 @@ import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import type { __PascalName__Config } from "./config";
 import { __PascalName__Agent } from "./__PascalName__Agent";
 
-const __name__Plugin: AgentPlugin<__PascalName__Config> = {
+const __camelName__Plugin: AgentPlugin<__PascalName__Config> = {
   id: "__NAME__",
   label: "__DISPLAY_NAME__",
   description: "TODO: one sentence for the runner form.",
@@ -55,4 +55,4 @@ const __name__Plugin: AgentPlugin<__PascalName__Config> = {
   },
 };
 
-export default __name__Plugin;
+export default __camelName__Plugin;
