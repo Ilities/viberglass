@@ -3,6 +3,7 @@ import type { Project } from "@viberglass/types";
 import { buildScmPayloadFromContext, prepareTicketRunContext } from "../../../../services/ticketRunOrchestration";
 
 const project: Project = {
+  backingKind: "git",
   id: "project-1",
   name: "Web",
   slug: "web",

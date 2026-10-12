@@ -3,6 +3,8 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
+import { ProjectReadinessBanner } from '@/components/project-readiness'
+import { Text } from '@/components/text'
 import { Switch, SwitchField } from '@/components/switch'
 import { useProject } from '@/context/project-context'
 import { getErrorMessage } from '@/lib/project-form'
@@ -57,6 +59,8 @@ export function SpaceGeneralPage() {
       <PageMeta title={`${project.name} | Settings`} />
       <div className="max-w-4xl">
         <Heading>General</Heading>
+        <Text className="mt-4">Space backing: {project.backingKind === 'files' ? 'Files' : 'Git repository'}. Backing cannot be changed after creation.</Text>
+        {project.backingKind === 'files' && <div className="mt-4"><ProjectReadinessBanner projectId={project.id} /></div>}
 
         {error && (
           <div className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">

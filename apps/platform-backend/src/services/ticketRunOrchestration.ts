@@ -1,5 +1,5 @@
 import { getStrategyType } from "../clanker-config";
-import { SCM_TOKEN_ENV_VAR } from "@viberglass/types";
+import { FILES_RUNS_UNAVAILABLE, SCM_TOKEN_ENV_VAR } from "@viberglass/types";
 import type {
   Clanker,
   ClankerStrategyType,
@@ -185,6 +185,9 @@ export async function prepareTicketRunContext(
   const project = await deps.projectDAO.getProject(input.projectId);
   if (!project) {
     throw new Error("Associated project not found");
+  }
+  if (project.backingKind === "files") {
+    throw new TicketServiceError(TICKET_SERVICE_ERROR_CODE.FILES_EXECUTION_UNAVAILABLE, FILES_RUNS_UNAVAILABLE);
   }
 
   const scmConfig = (await deps.projectScmConfigDAO.getByProjectId(

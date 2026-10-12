@@ -19,7 +19,7 @@ export function SetupError({ message }: { message: string | null }) {
   )
 }
 
-const STEPS = ['Model', 'Repository', 'Space', 'Agent', 'First task'] as const
+const STEPS = ['Model', 'Backing', 'Space', 'Agent', 'First task'] as const
 
 /** One setup screen: the setup's steps with this one marked, and this step's form or progress in a panel. */
 export function SetupFrame({
@@ -27,21 +27,23 @@ export function SetupFrame({
   title,
   intro,
   children,
+  files = false,
 }: {
   step: number
   title: string
   intro: React.ReactNode
   children: React.ReactNode
+  files?: boolean
 }) {
   return (
     <div className="w-full">
       <PageHeader
         eyebrow="Settings › Set up"
-        title="Make your first agent ready"
-        description="Connect a model, choose a repository, and name your space."
+        title="Set up your first space"
+        description="Connect a model, choose how to store your work, and name your space."
       />
       <ol aria-label="Setup steps" className="mb-7 flex flex-wrap gap-2 text-xs text-[var(--gray-10)]">
-        {STEPS.map((name, index) => (
+        {(files ? STEPS.slice(0, 3) : STEPS).map((name, index) => (
           <li
             key={name}
             aria-current={index + 1 === step ? 'step' : undefined}

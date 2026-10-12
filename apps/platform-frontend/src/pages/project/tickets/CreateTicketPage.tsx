@@ -77,7 +77,9 @@ export function CreateTicketPage() {
       {projectData ? <div className="mt-6"><ProjectReadinessBanner projectId={projectData.id} /></div> : null}
 
       <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-        Once the task is created, choose Write the plan to have an agent read the codebase and write what it found and what it would change.
+        {projectData?.backingKind === 'files'
+          ? 'Describe the document, presentation or other artifact you want to create. You can discuss the task now; agent runs are coming soon.'
+          : 'Once the task is created, choose Write the plan to have an agent read the codebase and write what it found and what it would change.'}
       </p>
 
       {error && (
@@ -90,7 +92,7 @@ export function CreateTicketPage() {
         <FieldGroup>
           <Field>
             <Label>Title</Label>
-            <Input name="title" placeholder="e.g. Let customers save their cart" required />
+            <Input name="title" placeholder={projectData?.backingKind === 'files' ? 'e.g. Prepare the quarterly presentation' : 'e.g. Let customers save their cart'} required />
           </Field>
 
           <Field>

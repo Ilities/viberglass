@@ -19,6 +19,7 @@ const DONE = [testTask('3', { state: 'done', label: 'Done' }, { status: 'resolve
 
 function space(role: WorkspaceRole, membership: 'maintainer' | 'member' | null = null): Project {
   return {
+    backingKind: "git",
     id: 'space-1',
     name: 'Web shop',
     slug: 'web',

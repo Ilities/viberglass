@@ -1,34 +1,17 @@
-import { randomUUID } from "crypto";
-import { deriveKeyPrefix } from "@viberglass/types";
-import type { Selectable } from "kysely";
+import { insertProject } from "./insertProject";
+import { mapProject } from "./mapProject";
+import { normalizeAgentInstructions, slugify } from "./projectFields";
+export { slugify } from "./projectFields";
 import db from "../config/database";
-import type { Database } from "../types/database";
 import type { Project } from "@viberglass/types";
 
 /** A new space; private defaults to open, and it starts with no default reviewers. */
 export type NewProject = Omit<
   Project,
-  "id" | "createdAt" | "updatedAt" | "slug" | "isPrivate" | "keyPrefix" | "defaultReviewerIds" | "questionReminderHours"
+  "id" | "createdAt" | "updatedAt" | "slug" | "isPrivate" | "keyPrefix" | "defaultReviewerIds" | "questionReminderHours" | "backingKind"
 > & {
   isPrivate?: boolean;
-};
-
-type ProjectsRow = Selectable<Database["projects"]>;
-
-export const slugify = (text: string) =>
-  text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-") // Replace spaces with -
-    .replace(/[^\w-]+/g, "") // Remove all non-word chars
-    .replace(/--+/g, "-"); // Replace multiple - with single -
-
-const normalizeAgentInstructions = (instructions?: string | null) => {
-  if (instructions === undefined) return undefined;
-  if (instructions === null) return null;
-  const trimmed = instructions.trim();
-  return trimmed.length > 0 ? instructions : null;
+  backingKind?: Project["backingKind"];
 };
 
 export class ProjectDAO {
@@ -37,55 +20,7 @@ export class ProjectDAO {
     request: NewProject,
     maintainerId?: string,
   ): Promise<Project> {
-    const projectId = randomUUID();
-    const timestamp = new Date();
-    const slug = slugify(request.name);
-
-    const agentInstructions = normalizeAgentInstructions(
-      request.agentInstructions,
-    );
-
-    const result = await db.transaction().execute(async (trx) => {
-      const prefixes = await trx.selectFrom("projects").select("key_prefix").execute();
-      const keyPrefix = deriveKeyPrefix(request.name, new Set(prefixes.map((p) => p.key_prefix)));
-      const row = await trx
-        .insertInto("projects")
-        .values({
-          id: projectId,
-          name: request.name,
-          slug: slug,
-          ticket_system: request.ticketSystem,
-          webhook_url: request.webhookUrl || null,
-          auto_fix_enabled: request.autoFixEnabled,
-          auto_fix_tags: request.autoFixTags,
-          custom_field_mappings: JSON.stringify(request.customFieldMappings),
-          agent_instructions: agentInstructions,
-          primary_ticketing_integration_id:
-            request.primaryTicketingIntegrationId ?? null,
-          primary_scm_integration_id: request.primaryScmIntegrationId ?? null,
-          is_private: request.isPrivate ?? false,
-          key_prefix: keyPrefix,
-          default_owner_id: request.defaultOwnerId ?? null,
-          created_at: timestamp,
-          updated_at: timestamp,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-      if (maintainerId) {
-        await trx
-          .insertInto("space_members")
-          .values({
-            project_id: projectId,
-            user_id: maintainerId,
-            role: "maintainer",
-            added_by: maintainerId,
-          })
-          .execute();
-      }
-      return row;
-    });
-
-    return this.mapRowToProject(result);
+    return insertProject(request, maintainerId);
   }
 
   /** The agent a task's space sends asks to when nobody names one; null when the space hasn't picked one. */
@@ -108,7 +43,7 @@ export class ProjectDAO {
 
     if (!row) return null;
 
-    return this.mapRowToProject(row);
+    return mapProject(row);
   }
 
   async updateProject(
@@ -171,7 +106,7 @@ export class ProjectDAO {
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    return this.mapRowToProject(result);
+    return mapProject(result);
   }
 
   /** Active projects only; archived projects stay reachable by id. */
@@ -189,43 +124,11 @@ export class ProjectDAO {
       .offset(offset)
       .execute();
 
-    return rows.map((row) => this.mapRowToProject(row));
+    return rows.map((row) => mapProject(row));
   }
 
   async deleteProject(id: string): Promise<void> {
     await db.deleteFrom("projects").where("id", "=", id).execute();
-  }
-
-  private mapRowToProject(row: ProjectsRow): Project {
-    return {
-      id: row.id,
-      name: row.name,
-      slug: row.slug,
-      ticketSystem: row.ticket_system,
-      credentials:
-        typeof row.credentials === "string"
-          ? JSON.parse(row.credentials)
-          : row.credentials,
-      webhookUrl: row.webhook_url || undefined,
-      autoFixEnabled: row.auto_fix_enabled,
-      autoFixTags: row.auto_fix_tags || [],
-      customFieldMappings:
-        typeof row.custom_field_mappings === "string"
-          ? JSON.parse(row.custom_field_mappings)
-          : row.custom_field_mappings,
-      agentInstructions: row.agent_instructions ?? undefined,
-      primaryTicketingIntegrationId: row.primary_ticketing_integration_id ?? undefined,
-      primaryScmIntegrationId: row.primary_scm_integration_id ?? undefined,
-      archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
-      isPrivate: row.is_private,
-      keyPrefix: row.key_prefix,
-      defaultOwnerId: row.default_owner_id,
-      defaultAgentId: row.default_clanker_id,
-      defaultReviewerIds: row.default_reviewer_ids,
-      questionReminderHours: row.question_reminder_hours,
-      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
-    };
   }
 
   async findByName(name: string) {
@@ -237,7 +140,7 @@ export class ProjectDAO {
 
     if (!row) return null;
 
-    return this.mapRowToProject(row);
+    return mapProject(row);
   }
 
   async archiveProject(id: string): Promise<Project> {
@@ -248,10 +151,7 @@ export class ProjectDAO {
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    return this.mapRowToProject(result);
+    return mapProject(result);
   }
 
-  private toISOString(value: Date | string): string {
-    return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-  }
 }

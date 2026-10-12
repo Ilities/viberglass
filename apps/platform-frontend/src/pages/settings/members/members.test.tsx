@@ -71,6 +71,7 @@ describe('InviteForm for guests', () => {
     autoFixEnabled: false,
     autoFixTags: [],
     customFieldMappings: {},
+    backingKind: 'git' as const,
     defaultReviewerIds: [],
     questionReminderHours: 4,
     createdAt: at,

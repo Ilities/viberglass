@@ -8,8 +8,10 @@ import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 
-/** How long before a credential expires that it's flagged. */
-export const EXPIRY_WARNING_MS = 7 * 24 * 3_600_000;
+export { EXPIRY_WARNING_MS } from "./readiness/scmCredentialCheck";
+
+import { filesSpaceReadiness } from "./readiness/filesSpaceReadiness";
+import { scmCredentialCheck } from "./readiness/scmCredentialCheck";
 
 export class ProjectReadinessService {
   constructor(
@@ -20,6 +22,7 @@ export class ProjectReadinessService {
     private readonly secretDAO: Pick<SecretDAO, "getSecret"> = new SecretDAO(),
     private readonly demo: Pick<DemoWorkspaceService, "getDemo"> = new DemoWorkspaceService(),
     private readonly tickets: Pick<TicketDAO, "projectHasRuns"> = new TicketDAO(),
+    private readonly storageEnvironment: () => Record<string, string | undefined> = () => process.env,
   ) {}
 
   async getReadiness(projectId: string): Promise<ProjectReadiness | null> {
@@ -45,14 +48,13 @@ export class ProjectReadinessService {
     }
 
     const [scmConfig, runners] = await Promise.all([
-      this.scmConfigDAO.getByProjectId(projectId),
+      project.backingKind === "files" ? Promise.resolve(null) : this.scmConfigDAO.getByProjectId(projectId),
       this.clankerDAO.listClankers(),
     ]);
 
     // In the order setup asks for them: model key, repository, its token, a running agent.
     const existingSecretIds = await this.findExistingSecretIds(runners);
-    const checks: ProjectReadinessCheck[] = [
-      agentCredentialsCheck(runners, existingSecretIds),
+    const backingChecks: ProjectReadinessCheck[] = project.backingKind === "files" ? filesSpaceReadiness(this.storageEnvironment()) : [
       scmConfig?.sourceRepository.trim()
         ? {
             key: "repository",
@@ -68,7 +70,11 @@ export class ProjectReadinessService {
             summary: "Choose the codebase this project should automate.",
             remediationUrl: `/spaces/${project.slug}/settings/repository`,
           },
-      await this.getScmCredentialCheck(project.slug, scmConfig),
+      await scmCredentialCheck(project.slug, scmConfig, this.credentialDAO),
+    ];
+    const checks: ProjectReadinessCheck[] = [
+      agentCredentialsCheck(runners, existingSecretIds),
+      ...backingChecks,
       agentRunnerCheck(runners, existingSecretIds),
     ];
 
@@ -86,56 +92,4 @@ export class ProjectReadinessService {
     return new Set(found.flatMap((secret) => (secret ? [secret.id] : [])));
   }
 
-  private async getScmCredentialCheck(
-    projectSlug: string,
-    scmConfig: Awaited<ReturnType<ProjectScmConfigDAO["getByProjectId"]>>,
-  ): Promise<ProjectReadinessCheck> {
-    const remediationUrl = `/spaces/${projectSlug}/settings/repository`;
-    if (!scmConfig?.integrationCredentialId) {
-      return {
-        key: "scmCredential",
-        label: "SCM credential",
-        state: "missing",
-        code: "select_scm_credential",
-        summary: "Select a credential that can read the repository and create pull requests.",
-        remediationUrl,
-      };
-    }
-
-    const credential = await this.credentialDAO.getById(
-      scmConfig.integrationCredentialId,
-    );
-    const expiresAt = credential?.expiresAt
-      ? new Date(credential.expiresAt)
-      : null;
-    if (
-      !credential ||
-      credential.integrationId !== scmConfig.integrationId ||
-      (expiresAt !== null && expiresAt.getTime() <= Date.now())
-    ) {
-      return {
-        key: "scmCredential",
-        label: "SCM credential",
-        state: "invalid",
-        code: "replace_expired_scm_credential",
-        summary: credential ? "The selected SCM credential has expired." : "The selected SCM credential is no longer available.",
-        remediationUrl,
-      };
-    }
-
-    // Warned a week ahead, so it's replaced before runs start failing on it.
-    const expiresSoon = expiresAt !== null && expiresAt.getTime() - Date.now() <= EXPIRY_WARNING_MS;
-    return {
-      key: "scmCredential",
-      label: "SCM credential",
-      state: "ready",
-      summary: "The selected SCM credential is available.",
-      ...(expiresSoon && expiresAt
-        ? {
-            warning: `The SCM credential expires on ${expiresAt.toISOString().slice(0, 10)}. Replace it before then, or runs will stop.`,
-            remediationUrl,
-          }
-        : {}),
-    };
-  }
 }

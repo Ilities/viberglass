@@ -2,6 +2,7 @@ import type { NewProject } from "../../persistence/project/ProjectDAO";
 import { NATIVE_TICKET_ORIGIN } from "@viberglass/types";
 import type {
   CreatedSpace,
+  CreateSetupSpaceRequest,
   Integration,
   IntegrationCredential,
   ProjectScmConfig,
@@ -22,12 +23,7 @@ import {
 } from "../errors/SetupServiceError";
 import { findSetupCodeHost, requireSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
 
-export interface CreateSpaceInput {
-  name: string;
-  /** From the repository step. */
-  repository: string;
-  baseBranch?: string;
-}
+export type CreateSpaceInput = CreateSetupSpaceRequest;
 
 
 interface Projects {
@@ -94,6 +90,10 @@ export class SetupSpaceService {
         "Give the space a name with at least one letter or number.",
       );
     }
+    if (input.backingKind === "files") {
+      const project = await this.findOrCreateProject(name, slug, null, createdBy);
+      return { projectId: project.id, name: project.name, slug: project.slug, backingKind: "files", repositoryUrl: null, baseBranch: null };
+    }
     const codeHost = requireSetupCodeHost(this.codeHost);
     const repositoryUrl = toRepositoryUrl(input.repository, codeHost);
     if (!repositoryUrl) {
@@ -116,7 +116,7 @@ export class SetupSpaceService {
       integrationCredentialId: credential.id,
     });
 
-    return { projectId: project.id, name: project.name, slug: project.slug, repositoryUrl, baseBranch };
+    return { projectId: project.id, name: project.name, slug: project.slug, backingKind: "git", repositoryUrl, baseBranch };
   }
 
   private async getConnection(codeHost: SetupCodeHost): Promise<{ integration: Integration; credential: IntegrationCredential }> {
@@ -134,13 +134,14 @@ export class SetupSpaceService {
   private async findOrCreateProject(
     name: string,
     slug: string,
-    repositoryUrl: string,
+    repositoryUrl: string | null,
     createdBy: string | undefined,
   ): Promise<Project> {
     const existing = await this.projects.findByName(slug);
     if (!existing) {
       return this.projects.createProject({
         name,
+        backingKind: repositoryUrl === null ? "files" : "git",
         ticketSystem: NATIVE_TICKET_ORIGIN,
         credentials: { type: "token" },
         autoFixEnabled: false,
@@ -150,7 +151,9 @@ export class SetupSpaceService {
     }
 
     const scmConfig = await this.scmConfigs.getByProjectId(existing.id);
-    if (existing.archivedAt || (scmConfig && !sameRepository(repositoryUrl, scmConfig.sourceRepository))) {
+    const backingKind = repositoryUrl === null ? "files" : "git";
+    if (existing.archivedAt || (existing.backingKind ?? "git") !== backingKind ||
+        (scmConfig && (repositoryUrl === null || !sameRepository(repositoryUrl, scmConfig.sourceRepository)))) {
       throw new SetupServiceError(
         SETUP_SERVICE_ERROR_CODE.SPACE_EXISTS,
         `There's already a space called "${existing.name}"${existing.archivedAt ? " (archived)" : ""}. Choose another name.`,

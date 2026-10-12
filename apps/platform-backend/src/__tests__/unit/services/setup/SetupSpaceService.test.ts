@@ -29,6 +29,7 @@ const TOKEN: IntegrationCredential = {
 
 function project(overrides: Partial<Project> = {}): Project {
   return {
+    backingKind: "git",
     id: "project-1",
     name: "Web",
     slug: "web",
@@ -86,6 +87,33 @@ function build(options: {
 }
 
 describe("SetupSpaceService", () => {
+  it("creates a Files space without a connection or credentials", async () => {
+    const { service, createProject, linkIntegration, upsertByProjectId } = build({ integrations: [], credential: null });
+    const space = await service.createSpace({ name: "Slides", backingKind: "files" }, "user-1");
+    expect(createProject).toHaveBeenCalledWith(expect.objectContaining({ name: "Slides", backingKind: "files" }), "user-1");
+    expect(space).toMatchObject({ backingKind: "files", repositoryUrl: null, baseBranch: null });
+    expect(linkIntegration).not.toHaveBeenCalled();
+    expect(upsertByProjectId).not.toHaveBeenCalled();
+  });
+
+  it("reuses a Files space when setup is retried", async () => {
+    const { service, createProject } = build({ existing: project({ backingKind: "files" }) });
+    await expect(service.createSpace({ name: "Web", backingKind: "files" })).resolves.toMatchObject({ projectId: "project-1", backingKind: "files" });
+    expect(createProject).not.toHaveBeenCalled();
+  });
+
+  it("doesn't convert an unfinished Git space to Files", async () => {
+    const { service, upsertByProjectId } = build({ existing: project(), scm: null });
+    await expect(service.createSpace({ name: "Web", backingKind: "files" })).rejects.toMatchObject({ code: SETUP_SERVICE_ERROR_CODE.SPACE_EXISTS });
+    expect(upsertByProjectId).not.toHaveBeenCalled();
+  });
+
+  it("doesn't attach a repository to an existing Files space", async () => {
+    const { service, upsertByProjectId } = build({ existing: project({ backingKind: "files" }) });
+    await expect(service.createSpace({ name: "Web", repository: "acme/web" })).rejects.toMatchObject({ code: SETUP_SERVICE_ERROR_CODE.SPACE_EXISTS });
+    expect(upsertByProjectId).not.toHaveBeenCalled();
+  });
+
   it("creates the space on the connected repository with its token", async () => {
     const { service, findByName, createProject, linkIntegration, upsertByProjectId } = build();
 
@@ -111,6 +139,7 @@ describe("SetupSpaceService", () => {
       projectId: "project-1",
       name: "Web",
       slug: "web",
+      backingKind: "git",
       repositoryUrl: "https://github.com/Acme/web",
       baseBranch: "develop",
     });

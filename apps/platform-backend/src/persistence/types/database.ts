@@ -1,5 +1,5 @@
 import type { ColumnType } from "kysely";
-import type { IntegrationCredentialType, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
+import type { IntegrationCredentialType, SpaceBackingKind, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
 import type {
   AgentPendingRequestStatus,
   AgentPendingRequestType,
@@ -32,6 +32,7 @@ export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
 export interface ProjectsTable {
   id: Generated<string>;
+  backing_kind: Generated<SpaceBackingKind>;
   name: string;
   slug: string;
   ticket_system: string;

@@ -10,6 +10,7 @@ export * from './plugin'
 
 // Project types
 export * from './project'
+export * from './spaceBacking'
 
 // Ticket types (internal tickets)
 export * from './ticket'

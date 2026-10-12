@@ -22,6 +22,7 @@ jest.mock('@/service/api/integration-api', () => ({
 }))
 
 const SPACE: Project = {
+  backingKind: "git",
   id: 'space-1',
   name: 'Web shop',
   slug: 'web',

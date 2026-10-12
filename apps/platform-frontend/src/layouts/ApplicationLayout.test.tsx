@@ -136,7 +136,7 @@ describe('ApplicationLayout navigation', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true })
     mockedGetProjects.mockResolvedValue([
       {
-        id: 'new-space', name: 'New API space', slug: 'new-api-space', createdAt: '', updatedAt: '',
+        id: 'new-space', backingKind: 'git', name: 'New API space', slug: 'new-api-space', createdAt: '', updatedAt: '',
         ticketSystem: 'custom', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {},
         isPrivate: false, keyPrefix: 'NEW', defaultReviewerIds: [], questionReminderHours: 4,
       },

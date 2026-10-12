@@ -1,8 +1,9 @@
 import { Button } from '@/components/button'
 import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
+import { SpaceBackingField } from '@/components/space-backing-field'
 import { saveRepository } from '@/service/api/setup-api'
-import type { RepositoryAccess } from '@viberglass/types'
+import type { RepositoryAccess, SpaceBackingKind } from '@viberglass/types'
 import { useState } from 'react'
 import { ExternalLink, SetupError, SetupFrame } from './SetupFrame'
 
@@ -19,7 +20,8 @@ export function gitHubTokenUrl(repository: string): string {
   return `https://github.com/settings/personal-access-tokens/new?${params.toString()}`
 }
 
-export function RepositoryStep({ onDone }: { onDone: (repository: RepositoryAccess) => void }) {
+export function RepositoryStep({ onDone, onChooseFiles }: { onDone: (repository: RepositoryAccess) => void; onChooseFiles: () => void }) {
+  const [backingKind, setBackingKind] = useState<SpaceBackingKind>('git')
   const [repository, setRepository] = useState('')
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -27,6 +29,10 @@ export function RepositoryStep({ onDone }: { onDone: (repository: RepositoryAcce
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (backingKind === 'files') {
+      onChooseFiles()
+      return
+    }
     setError(null)
     setIsChecking(true)
     try {
@@ -40,13 +46,15 @@ export function RepositoryStep({ onDone }: { onDone: (repository: RepositoryAcce
 
   return (
     <SetupFrame
+      files={backingKind === 'files'}
       step={2}
-      title="Point at your repository"
-      intro="Agents work in a GitHub repository: they read it, push a branch and open a pull request for review."
+      title="Choose your space backing"
+      intro="Use a repository for code, or Files for documents, presentations and other artifacts."
     >
       <form onSubmit={handleSubmit} className="grid gap-6">
         <SetupError message={error} />
-        <Field>
+        <SpaceBackingField value={backingKind} onChange={setBackingKind} />
+        {backingKind === 'git' && <><Field>
           <Label>Repository</Label>
           <Input
             name="repository"
@@ -70,9 +78,9 @@ export function RepositoryStep({ onDone }: { onDone: (repository: RepositoryAcce
             <ExternalLink href={gitHubTokenUrl(repository)}>Create a token with the right permissions</ExternalLink>,
             then choose this repository under Repository access.
           </Description>
-        </Field>
+        </Field></>}
         <div>
-          <Button type="submit" color="brand" disabled={isChecking || !repository.trim() || !token.trim()}>
+          <Button type="submit" color="brand" disabled={isChecking || (backingKind === 'git' && (!repository.trim() || !token.trim()))}>
             {isChecking ? 'Checking with GitHub…' : 'Continue'}
           </Button>
         </div>

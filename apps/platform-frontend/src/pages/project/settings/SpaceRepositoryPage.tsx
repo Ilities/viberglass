@@ -3,6 +3,8 @@ import { FieldGroup, Fieldset } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { useProject } from '@/context/project-context'
+import type { Project } from '@viberglass/types'
+import { Navigate } from 'react-router-dom'
 import { IssueTrackerField } from './IssueTrackerField'
 import { NO_SELECTION, RepositoryFields } from './RepositoryFields'
 import { SpaceAdvancedSettings } from './SpaceAdvancedSettings'
@@ -19,9 +21,13 @@ function Notice({ tone, children }: { tone: 'error' | 'success'; children: React
 /** The code a space's agents work on, where its tasks live, and how pull requests are opened. */
 export function SpaceRepositoryPage() {
   const { project } = useProject()
-  const form = useSpaceRepositoryForm(project)
-
   if (!project) return null
+  if (project.backingKind === 'files') return <Navigate to={`/spaces/${project.slug}/settings/general`} replace />
+  return <GitRepositorySettings project={project} />
+}
+
+function GitRepositorySettings({ project }: { project: Project }) {
+  const form = useSpaceRepositoryForm(project)
   const connectionsHref = `/spaces/${project.slug}/settings/connections`
 
   return (

@@ -2,6 +2,7 @@ import type { AgentSession } from "../../../../persistence/agentSession/AgentSes
 import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDAO";
 import { TASK_ASK_POLICY_ERROR_CODE, TaskAskPolicyError } from "../../../../services/errors/TaskAskPolicyError";
 import { TaskTurnService } from "../../../../services/taskTurns/TaskTurnService";
+import { TICKET_SERVICE_ERROR_CODE, TicketServiceError } from "../../../../services/errors/TicketServiceError";
 
 const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "planning" as const };
 
@@ -59,6 +60,7 @@ function turn(overrides: Partial<AgentTurn> = {}): AgentTurn {
 
 function setup() {
   const deps = {
+    execution: { assertAvailable: jest.fn().mockResolvedValue(undefined) },
     tickets: { getTicket: jest.fn().mockResolvedValue(TICKET) },
     policy: { assertCanAsk: jest.fn().mockResolvedValue(undefined) },
     discussion: { create: jest.fn().mockResolvedValue("message-1") },
@@ -83,6 +85,16 @@ function setup() {
 }
 
 describe("TaskTurnService", () => {
+  it.each(["plan", "code", "reply", "summarise"] as const)("refuses unavailable Files %s turns before posting or scheduling work", async (action) => {
+    const { service, deps } = setup();
+    deps.execution.assertAvailable.mockRejectedValue(new TicketServiceError(TICKET_SERVICE_ERROR_CODE.FILES_EXECUTION_UNAVAILABLE, "Files runs are unavailable"));
+    await expect(service.ask("t-1", "maria", { message: "Make a presentation", action })).rejects.toMatchObject({ code: "FILES_EXECUTION_UNAVAILABLE", statusCode: 409 });
+    expect(deps.execution.assertAvailable).toHaveBeenCalledWith("p-1");
+    expect(deps.discussion.create).not.toHaveBeenCalled();
+    expect(deps.sessions.create).not.toHaveBeenCalled();
+    expect(deps.continuation.launchForPendingMessages).not.toHaveBeenCalled();
+    expect(deps.parts.resolveBuild).not.toHaveBeenCalled();
+  });
   it("posts the person's words in the thread and makes them the session's next turn", async () => {
     const { deps, service } = setup();
 

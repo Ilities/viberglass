@@ -24,6 +24,7 @@ beforeAll(() => {
 const CODEX_AGENT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 
 const SPACE: Project = {
+  backingKind: "git",
   id: 'space-1',
   name: 'Web shop',
   slug: 'web',

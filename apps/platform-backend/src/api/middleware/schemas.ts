@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { AVAILABLE_AGENT_TYPES, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
+import { AVAILABLE_AGENT_TYPES, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SPACE_BACKING_KINDS, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -111,6 +111,7 @@ export const archiveTicketsSchema = Joi.object({
 
 export const projectSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
+  backingKind: Joi.string().valid(...SPACE_BACKING_KINDS).default("git"),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds, NATIVE_TICKET_ORIGIN)
     .default(NATIVE_TICKET_ORIGIN),
@@ -363,8 +364,9 @@ export const setupAgentSchema = Joi.alternatives().try(
 
 export const setupSpaceSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),
-  repository: Joi.string().trim().min(1).max(500).required(),
-  baseBranch: Joi.string().trim().min(1).max(255).optional(),
+  backingKind: Joi.string().valid(...SPACE_BACKING_KINDS).default("git"),
+  repository: Joi.when("backingKind", { is: "files", then: Joi.forbidden(), otherwise: Joi.string().trim().min(1).max(500).required() }),
+  baseBranch: Joi.when("backingKind", { is: "files", then: Joi.forbidden(), otherwise: Joi.string().trim().min(1).max(255).optional() }),
 });
 
 const secretProviderSchema = Joi.string()

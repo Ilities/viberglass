@@ -3,6 +3,7 @@ import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   CreatedSpace,
+  CreateSetupSpaceRequest,
   DefaultAgent,
   DemoWorkspace,
   ModelProviderId,
@@ -52,8 +53,8 @@ export async function saveRepository(repository: string, token: string): Promise
   return readData(await post('repository', { repository, token }), "Couldn't check the repository")
 }
 
-export async function createSpace(name: string, repository: string, baseBranch: string): Promise<CreatedSpace> {
-  return readData(await post('space', { name, repository, baseBranch }), "Couldn't create the space")
+export async function createSpace(input: CreateSetupSpaceRequest): Promise<CreatedSpace> {
+  return readData(await post('space', input), "Couldn't create the space")
 }
 
 export async function prepareDefaultAgent(choice: SetupModelChoice): Promise<DefaultAgent> {

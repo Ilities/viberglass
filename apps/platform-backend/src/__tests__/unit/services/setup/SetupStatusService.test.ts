@@ -27,6 +27,7 @@ const TOKEN: IntegrationCredential = {
 };
 
 const PROJECT: Project = {
+  backingKind: "git",
   id: "project-1",
   name: "Web",
   slug: "web",
@@ -73,7 +74,7 @@ function runner(status: ClankerStatus): Clanker {
   };
 }
 
-function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[] }) {
+function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; files?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[] }) {
   const defaultAgent = state.agent ? runner(state.agent) : null;
   return new SetupStatusService({
     secrets: {
@@ -82,7 +83,7 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
     },
     integrations: { listIntegrations: async () => (state.github ? [GITHUB] : []) },
     credentials: { getDefaultForIntegration: async () => (state.github ? TOKEN : null) },
-    projects: { listProjects: async () => (state.space ? [PROJECT] : []) },
+    projects: { listProjects: async () => [...(state.files ? [{ ...PROJECT, id: "files-space", backingKind: "files" as const }] : []), ...(state.space ? [PROJECT] : [])] },
     scmConfigs: { getByProjectId: async () => (state.space ? SCM : null) },
     clankers: {
       getClankerBySlug: async () => defaultAgent,
@@ -94,6 +95,14 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
 }
 
 describe("SetupStatusService", () => {
+  it("recognizes Files setup as complete without a repository or running agent", async () => {
+    const status = await service({ files: true }).getStatus();
+    expect(status).toMatchObject({ complete: true, repositoryConnected: false, agent: null, space: { backingKind: "files", repositoryUrl: null } });
+  });
+  it("resumes the Git space when a newer Files space also exists", async () => {
+    const status = await service({ files: true, space: true }).getStatus();
+    expect(status.space).toMatchObject({ backingKind: "git", repositoryUrl: SCM.sourceRepository });
+  });
   it("has everything left on a fresh workspace", async () => {
     await expect(service({}).getStatus()).resolves.toEqual({
       connectedProviders: [],
@@ -113,7 +122,7 @@ describe("SetupStatusService", () => {
       connectedProviders: ["opencode-go"],
       connectedEndpoints: [],
       repositoryConnected: true,
-      space: { projectId: "project-1", name: "Web", slug: "web", repositoryUrl: "https://github.com/acme/web" },
+      space: { projectId: "project-1", name: "Web", slug: "web", backingKind: "git", repositoryUrl: "https://github.com/acme/web" },
       agent: { clankerId: "clanker-1", agentName: "OpenCode", status: "deploying", statusMessage: "Docker image ready" },
       complete: false,
       demo: null,

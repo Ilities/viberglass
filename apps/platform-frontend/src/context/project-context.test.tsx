@@ -9,6 +9,7 @@ import { ProjectProvider, useProject } from './project-context'
 jest.mock('@/service/api/project-api', () => ({ getProjectBySlug: jest.fn() }))
 
 const SPACE: Project = {
+  backingKind: "git",
   id: 'space-1', name: 'Web shop', slug: 'web', ticketSystem: 'custom', credentials: { type: 'token' },
   autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'WEB',
   defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '',

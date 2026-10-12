@@ -12,6 +12,7 @@ import { TaskPartsService } from "../tasks/TaskPartsService";
 import { TaskAskPolicyService } from "./TaskAskPolicyService";
 import { TaskTurnAgentResolver } from "./TaskTurnAgentResolver";
 import { ACTION_MESSAGE, sessionModeFor } from "./turnActions";
+import { SpaceRunAvailabilityService } from "../spaces/SpaceRunAvailabilityService";
 
 export interface AskInput {
   /** What the person wrote; a suggested action may leave it empty. */
@@ -40,6 +41,7 @@ export interface AskResult {
 type AskedTicket = Pick<Ticket, "id" | "projectId" | "title" | "workflowPhase">;
 
 interface Dependencies {
+  execution: Pick<SpaceRunAvailabilityService, "assertAvailable">;
   tickets: { getTicket(id: string): Promise<AskedTicket | null> };
   policy: Pick<TaskAskPolicyService, "assertCanAsk">;
   discussion: Pick<TaskDiscussionService, "create">;
@@ -64,6 +66,7 @@ export class TaskTurnService {
     const turns = new AgentTurnDAO();
     const events = new AgentSessionEventDAO();
     this.deps = {
+      execution: new SpaceRunAvailabilityService(),
       tickets: new TicketDAO(),
       policy: new TaskAskPolicyService(),
       discussion: new TaskDiscussionService(),
@@ -87,6 +90,7 @@ export class TaskTurnService {
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
     await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
+    await this.deps.execution.assertAvailable(ticket.projectId);
     const adding = action === "code" && Boolean(input.add);
     const buildParts = action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null, { add: adding }) : null;
     const text =

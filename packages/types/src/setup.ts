@@ -1,5 +1,6 @@
 import type { AgentType, ClankerStatus } from './clanker'
 import type { ModelProviderId } from './modelProviders'
+import type { SpaceBackingKind } from './spaceBacking'
 
 /** What setup runs the default agent on: a provider's key, or a workspace model endpoint and one of its models. */
 export type SetupModelChoice = { provider: ModelProviderId } | { endpointId: string; model: string }
@@ -37,12 +38,17 @@ export interface SavedRepository extends RepositoryAccess {
   credentialId: string
 }
 
+export type CreateSetupSpaceRequest =
+  | { name: string; backingKind?: 'git'; repository: string; baseBranch?: string }
+  | { name: string; backingKind: 'files' }
+
 export interface CreatedSpace {
   projectId: string
   name: string
   slug: string
-  repositoryUrl: string
-  baseBranch: string
+  backingKind: SpaceBackingKind
+  repositoryUrl: string | null
+  baseBranch: string | null
 }
 
 export interface DefaultAgent {
@@ -68,9 +74,9 @@ export interface SetupStatus {
   /** Workspace model endpoints, which setup can run the default agent on instead of a provider's key. */
   connectedEndpoints: Array<{ id: string; name: string; models: string[] }>
   repositoryConnected: boolean
-  space: { projectId: string; name: string; slug: string; repositoryUrl: string } | null
+  space: Pick<CreatedSpace, 'projectId' | 'name' | 'slug' | 'backingKind' | 'repositoryUrl'> | null
   agent: { clankerId: string; agentName: string; status: ClankerStatus; statusMessage: string | null } | null
-  /** A space exists and a runner can work on it; setup has nothing left to ask. */
+  /** Space setup is complete; Files execution can remain unavailable. */
   complete: boolean
   /** Set while the demo workspace is loaded. */
   demo: DemoWorkspace | null

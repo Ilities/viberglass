@@ -203,6 +203,7 @@ describe('SpaceRepositoryPage', () => {
 
   it('keeps the save confirmation when the space context refreshes', async () => {
     const project: Project = {
+      backingKind: "git",
       ...PROJECT,
       autoFixTags: [],
       isPrivate: false,

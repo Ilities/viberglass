@@ -121,9 +121,15 @@ describe("setup routes", () => {
       .send({ name: "Web", repository: "https://github.com/acme/web", baseBranch: "main" })
       .expect(201, { success: true, data: { slug: "web" } });
     expect(mockSpaceService.createSpace).toHaveBeenCalledWith(
-      { name: "Web", repository: "https://github.com/acme/web", baseBranch: "main" },
+      { name: "Web", backingKind: "git", repository: "https://github.com/acme/web", baseBranch: "main" },
       undefined,
     );
+  });
+
+  it("creates a Files space without repository fields", async () => {
+    mockSpaceService.createSpace.mockResolvedValue({ slug: "slides", backingKind: "files" });
+    await request(app).post("/api/setup/space").send({ name: "Slides", backingKind: "files" }).expect(201);
+    expect(mockSpaceService.createSpace).toHaveBeenCalledWith({ name: "Slides", backingKind: "files" }, undefined);
   });
 
   it("says when the space name is taken", async () => {

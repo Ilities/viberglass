@@ -11,6 +11,7 @@ const FIX_LABEL: Record<ProjectReadinessCode | 'fix', string> = {
   replace_expired_scm_credential: 'Replace credential',
   start_agent_runner: 'Start agent',
   configure_agent_credentials: 'Add model key',
+  configure_storage: 'Configure storage',
   fix: 'Fix',
 }
 
@@ -92,7 +93,8 @@ export function ProjectReadinessBanner({
     )
   }
 
-  const incomplete = readiness.checks.filter((check) => check.state !== 'ready')
+  const filesUnavailable = readiness.checks.some((check) => check.key === 'filesExecution' && check.state === 'unavailable')
+  const incomplete = readiness.checks.filter((check) => check.state !== 'ready' && (!filesUnavailable || check.key === 'storage' || check.key === 'filesExecution'))
   return (
     <section
       aria-label="Setup needed"

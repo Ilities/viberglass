@@ -24,13 +24,14 @@ export function AboutSpacePage() {
 
   useEffect(() => {
     if (!projectId) return
-    getProjectScmConfig(projectId)
-      .then(setScm)
-      .catch(() => setScm(null))
+    if (project?.backingKind === 'files') setScm(null)
+    else getProjectScmConfig(projectId)
+        .then(setScm)
+        .catch(() => setScm(null))
     getSpaceMembers(projectId)
       .then((members) => setMaintainers(members.filter((member) => member.role === 'maintainer')))
       .catch(() => setMaintainers([]))
-  }, [projectId])
+  }, [projectId, project?.backingKind])
 
   if (!project) return null
   return (
@@ -41,7 +42,8 @@ export function AboutSpacePage() {
         <FactList title={project.name}>
           <Fact label="Task keys">{project.keyPrefix}-…</Fact>
           <Fact label="Who sees it">{project.isPrivate ? 'Only its members' : 'Everyone in the workspace'}</Fact>
-          <Fact label="Repository">{scm ? `${scm.sourceRepository} · ${scm.baseBranch}` : 'Not set up yet'}</Fact>
+          <Fact label="Space backing">{project.backingKind === 'files' ? 'Files' : 'Git repository'}</Fact>
+          {project.backingKind !== 'files' && <Fact label="Repository">{scm ? `${scm.sourceRepository} · ${scm.baseBranch}` : 'Not set up yet'}</Fact>}
           <Fact label="Maintained by">{maintainers.length > 0 ? maintainers.map((member) => member.name).join(', ') : 'Workspace admins'}</Fact>
         </FactList>
         <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">Only its maintainers and workspace admins can change how this space works.</p>

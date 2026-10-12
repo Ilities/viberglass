@@ -12,9 +12,12 @@ const FRESH: SetupStatus = {
 }
 
 const REPOSITORY = { fullName: 'Acme/web', url: 'https://github.com/Acme/web', defaultBranch: 'main', isPrivate: true }
-const SPACE = { projectId: 'p1', name: 'web', slug: 'web', repositoryUrl: 'https://github.com/Acme/web' }
+const SPACE: NonNullable<SetupStatus['space']> = { backingKind: 'git', projectId: 'p1', name: 'web', slug: 'web', repositoryUrl: 'https://github.com/Acme/web' }
 
 describe('resumeSetup', () => {
+  it('finishes Files setup without asking for a repository or agent', () => {
+    expect(resumeSetup({ ...FRESH, space: { ...SPACE, backingKind: 'files', repositoryUrl: null } }, REPOSITORY)).toEqual({ step: 'filesReady', model: null })
+  });
   it('starts with the model key on a fresh workspace', () => {
     expect(resumeSetup(FRESH, null)).toEqual({ step: 'model', model: null })
   })

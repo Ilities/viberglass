@@ -7,6 +7,7 @@ jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, 
 jest.mock("../../../../services/demo/DemoWorkspaceSeeder", () => ({ DemoWorkspaceSeeder: jest.fn() }));
 
 const DEMO_PROJECT: Project = {
+  backingKind: "git",
   id: "demo-project",
   name: "Demo: Acme storefront",
   slug: "demo-acme-storefront",

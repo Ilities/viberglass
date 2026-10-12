@@ -4,6 +4,7 @@
 
 import { TicketOrigin, TicketSystem } from './common'
 import type { SpaceCapabilities } from './spaceAccess'
+import type { SpaceBackingKind } from './spaceBacking'
 
 // Worker settings that can be configured at project level
 export interface ProjectWorkerSettings {
@@ -65,6 +66,7 @@ export interface ProjectCredentials extends AuthCredentials {}
 // Project configuration
 export interface Project {
   id: string
+  backingKind: SpaceBackingKind
   name: string
   slug: string
   /**
@@ -120,6 +122,7 @@ export interface Project {
 export type ProjectReadinessState = 'ready' | 'missing' | 'invalid' | 'unavailable'
 
 export type ProjectReadinessCode =
+  | 'configure_storage'
   | 'configure_repository'
   | 'select_scm_credential'
   | 'replace_expired_scm_credential'
@@ -128,7 +131,7 @@ export type ProjectReadinessCode =
 
 export interface ProjectReadinessCheck {
   /** `demo`: the demo workspace's space, which is sample data and never runs. */
-  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials' | 'demo'
+  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials' | 'demo' | 'storage' | 'filesExecution'
   label: string
   state: ProjectReadinessState
   code?: ProjectReadinessCode
@@ -149,6 +152,7 @@ export interface ProjectReadiness {
 // Request body for creating a project
 export interface CreateProjectRequest {
   name: string
+  backingKind?: SpaceBackingKind
   /**
    * @deprecated Use linked integrations instead.
    */
@@ -202,6 +206,7 @@ export interface UpdateProjectRequest {
 // Project summary for list views
 export interface ProjectSummary {
   id: string
+  backingKind: SpaceBackingKind
   name: string
   slug: string
   /**

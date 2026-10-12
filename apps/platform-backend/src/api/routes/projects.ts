@@ -1,3 +1,6 @@
+import { registerProjectReadinessRoutes } from "./projectReadinessRoutes";
+import { registerProjectScmRoutes } from "./projectScmRoutes";
+import { registerProjectPromptRoutes } from "./projectPromptRoutes";
 import express from "express";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
@@ -11,19 +14,15 @@ import {
 } from "../../persistence/integrations";
 import {
   validateCreateProject,
-  validateProjectScmConfig,
   validateUpdateProject,
   validateUuidParam,
 } from "../middleware/validation";
 import { requireAuth, requireRole } from "../middleware/authentication";
 import logger from "../../config/logger";
-import type { PromptType } from "../../persistence/promptTemplate/PromptTemplateDAO";
 import {
-  ALL_PROMPT_TYPES,
   PromptTemplateDAO,
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
 import { PromptTemplateService } from "../../services/PromptTemplateService";
-import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
@@ -31,7 +30,6 @@ import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPend
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import type {
   AgentSessionStatus,
-  UpsertProjectScmConfigRequest,
 } from "@viberglass/types";
 import { AGENT_SESSION_ACTIVE_STATUSES } from "../../types/agentSession";
 import { ProjectReadinessService } from "../../services/ProjectReadinessService";
@@ -79,12 +77,6 @@ router.param("projectId", spaceGuard);
 router.param("name", spaceGuard);
 
 registerSpaceMemberRoutes(router, new SpaceMembershipService());
-
-const normalizeOptionalString = (value?: string | null): string | null => {
-  if (value === undefined || value === null) return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
 
 /**
  * Enrich project with derived ticket system from primaryTicketingIntegrationId
@@ -219,6 +211,9 @@ router.put(
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
+      if (project.backingKind === "files" && req.body.primaryScmIntegrationId) {
+        return res.status(409).json({ error: "Files spaces cannot have a code host." });
+      }
       if (!(await everyoneCanSeeSpace(project.id, req.body.defaultReviewerIds ?? []))) {
         return res.status(400).json({ error: "Default reviewers must be people who can see this space." });
       }
@@ -299,243 +294,11 @@ router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req,
   }
 });
 
-router.get(
-  "/:projectId/readiness",
-  validateUuidParam("projectId"),
-  async (req, res) => {
-    try {
-      const readiness = await projectReadinessService.getReadiness(req.params.projectId);
-      if (!readiness) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-      return res.json({ success: true, data: readiness });
-    } catch (error) {
-      logger.error("Error fetching project readiness", {
-        projectId: req.params.projectId,
-        error: error instanceof Error ? error.message : error,
-      });
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
+registerProjectReadinessRoutes(router, projectReadinessService);
 
-router.get(
-  "/:projectId/scm-config",
-  validateUuidParam("projectId"),
-  async (req, res) => {
-    try {
-      const { projectId } = req.params;
-      const project = await projectService.getProject(projectId);
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
+registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectIntegrationLinkDAO, integrationDAO, integrationCredentialDAO });
 
-      const scmConfig = await projectScmConfigDAO.getByProjectId(projectId);
-      if (!scmConfig) {
-        return res.status(404).json({ error: "SCM configuration not found" });
-      }
-
-      res.json({ success: true, data: scmConfig });
-    } catch (error) {
-      logger.error("Error fetching project SCM config", {
-        error: error instanceof Error ? error.message : error,
-        projectId: req.params.projectId,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.put(
-  "/:projectId/scm-config",
-  validateUuidParam("projectId"),
-  validateProjectScmConfig,
-  async (req, res) => {
-    try {
-      const { projectId } = req.params;
-      const project = await projectService.getProject(projectId);
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-
-      const body = req.body as UpsertProjectScmConfigRequest;
-      const integration = await integrationDAO.getIntegration(
-        body.integrationId,
-      );
-      if (!integration) {
-        return res.status(404).json({ error: "Integration not found" });
-      }
-
-      const plugin = integrationRegistry.get(integration.system);
-      if (!plugin || plugin.category !== "scm") {
-        return res.status(400).json({
-          error: "Integration must be an SCM integration",
-        });
-      }
-
-      const isLinked = await projectIntegrationLinkDAO.isLinked(
-        projectId,
-        body.integrationId,
-      );
-      if (!isLinked) {
-        return res.status(409).json({
-          error: "Integration must be linked to this project before use as SCM",
-        });
-      }
-
-      // Validate integration credential if provided
-      if (body.integrationCredentialId) {
-        const credential = await integrationCredentialDAO.getById(
-          body.integrationCredentialId,
-        );
-        if (!credential) {
-          return res
-            .status(404)
-            .json({ error: "Integration credential not found" });
-        }
-        if (credential.integrationId !== body.integrationId) {
-          return res.status(400).json({
-            error:
-              "Integration credential does not belong to the selected integration",
-          });
-        }
-      }
-
-      const saved = await projectScmConfigDAO.upsertByProjectId(projectId, {
-        integrationId: body.integrationId,
-        sourceRepository: body.sourceRepository.trim(),
-        baseBranch: body.baseBranch?.trim() || "main",
-        pullRequestRepository: normalizeOptionalString(
-          body.pullRequestRepository,
-        ),
-        pullRequestBaseBranch: normalizeOptionalString(
-          body.pullRequestBaseBranch,
-        ),
-        branchNameTemplate: normalizeOptionalString(body.branchNameTemplate),
-        integrationCredentialId: body.integrationCredentialId ?? null,
-      });
-
-      await projectService.updateProject(projectId, {
-        primaryScmIntegrationId: body.integrationId,
-      });
-
-      res.json({ success: true, data: saved });
-    } catch (error) {
-      logger.error("Error saving project SCM config", {
-        error: error instanceof Error ? error.message : error,
-        projectId: req.params.projectId,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.delete(
-  "/:projectId/scm-config",
-  validateUuidParam("projectId"),
-  async (req, res) => {
-    try {
-      const { projectId } = req.params;
-      const project = await projectService.getProject(projectId);
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-
-      const deleted = await projectScmConfigDAO.deleteByProjectId(projectId);
-      if (!deleted) {
-        return res.status(404).json({ error: "SCM configuration not found" });
-      }
-
-      await projectService.updateProject(projectId, {
-        primaryScmIntegrationId: null,
-      });
-
-      res.status(204).send();
-    } catch (error) {
-      logger.error("Error deleting project SCM config", {
-        error: error instanceof Error ? error.message : error,
-        projectId: req.params.projectId,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-// GET /api/spaces/:id/prompt-templates
-router.get(
-  "/:id/prompt-templates",
-  validateUuidParam("id"),
-  async (req, res) => {
-    try {
-      const templates = await promptTemplateService.listForProject(
-        req.params.id,
-      );
-      res.json({ success: true, data: templates });
-    } catch (error) {
-      logger.error("Error fetching project prompt templates", {
-        error: error instanceof Error ? error.message : error,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-// PUT /api/spaces/:id/prompt-templates/:type
-router.put(
-  "/:id/prompt-templates/:type",
-  validateUuidParam("id"),
-  async (req, res) => {
-    try {
-      const type = req.params.type as PromptType;
-      if (!ALL_PROMPT_TYPES.includes(type)) {
-        return res.status(400).json({ error: "Invalid prompt type" });
-      }
-
-      const { template } = req.body as { template?: unknown };
-      if (typeof template !== "string" || template.trim().length === 0) {
-        return res.status(400).json({ error: "template is required" });
-      }
-
-      await promptTemplateService.setProjectTemplate(
-        req.params.id,
-        type,
-        template,
-      );
-      const templates = await promptTemplateService.listForProject(
-        req.params.id,
-      );
-      const updated = templates.find((t) => t.type === type);
-      res.json({ success: true, data: updated });
-    } catch (error) {
-      logger.error("Error updating project prompt template", {
-        error: error instanceof Error ? error.message : error,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-// DELETE /api/spaces/:id/prompt-templates/:type
-router.delete(
-  "/:id/prompt-templates/:type",
-  validateUuidParam("id"),
-  async (req, res) => {
-    try {
-      const type = req.params.type as PromptType;
-      if (!ALL_PROMPT_TYPES.includes(type)) {
-        return res.status(400).json({ error: "Invalid prompt type" });
-      }
-
-      await promptTemplateService.deleteProjectTemplate(req.params.id, type);
-      res.status(204).send();
-    } catch (error) {
-      logger.error("Error deleting project prompt template", {
-        error: error instanceof Error ? error.message : error,
-      });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
+registerProjectPromptRoutes(router, promptTemplateService);
 
 // GET /api/spaces/:projectId/agent-sessions
 router.get(

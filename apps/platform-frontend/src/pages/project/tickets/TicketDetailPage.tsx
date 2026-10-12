@@ -88,12 +88,14 @@ export function TicketDetailPage() {
           ? await updateTicket(data.ticket.id, { status: TICKET_STATUS.RESOLVED })
           : await setTicketStatus(data.ticket.id, TICKET_STATUS.OPEN)
         setTicket(updated)
-        toast.success(done ? 'Task finished. Its history stays; finishing merges nothing.' : 'Task reopened')
+        // Finishing or reopening changes the task's situation, which only a load brings back.
+        changed()
+        toast.success(done ? (space?.backingKind === 'files' ? 'Task marked done' : 'Task finished. Its history stays; finishing merges nothing.') : 'Task reopened')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update the task')
       }
     },
-    [data, setTicket]
+    [data, setTicket, changed, space?.backingKind]
   )
 
   if (isLoading) {
@@ -114,7 +116,10 @@ export function TicketDetailPage() {
     )
   }
 
-  const { ticket, capabilities } = data
+  const files = space?.backingKind === 'files'
+  const capabilities = files && data.capabilities ? { ...data.capabilities, canAsk: false, canAskForCode: false, canSteer: false } : data.capabilities
+  const taskData = { ...data, capabilities }
+  const { ticket } = data
   const currentStep = ticket.workflowPhase
   const move = decideTaskNextMove({
     ticket,
@@ -128,7 +133,7 @@ export function TicketDetailPage() {
 
   const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
   const requestedStep = searchParams.get('step')
-  const shownStep: TaskStep = isTaskStep(requestedStep) ? requestedStep : currentStep
+  const shownStep: TaskStep = files ? 'planning' : isTaskStep(requestedStep) ? requestedStep : currentStep
   const requestedView = searchParams.get('view')
   const shownView: StepView = isStepView(requestedView) ? requestedView : 'document'
 
@@ -187,6 +192,7 @@ export function TicketDetailPage() {
               <TaskActionsMenu
                 ticket={ticket}
                 space={project}
+                backingKind={space?.backingKind}
                 capabilities={capabilities}
                 onEdit={() => setIsEditDialogOpen(true)}
                 onSetDone={(done) => void setDone(done)}
@@ -210,7 +216,7 @@ export function TicketDetailPage() {
             className="min-w-0 overflow-hidden rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
           >
             <div className="border-b border-[var(--gray-5)] bg-[var(--gray-2)] px-5 pt-4 pb-3">
-              <TaskStepper
+              {files ? <h2 className="text-sm font-semibold">Plan</h2> : <TaskStepper
                 currentStep={currentStep}
                 move={move}
                 shownStep={shownStep}
@@ -220,17 +226,18 @@ export function TicketDetailPage() {
                 }}
                 codeProgress={codeProgress(data.planParts)}
                 onShowStep={showStep}
-              />
+              />}
             </div>
             <div className="px-6 py-5 max-sm:px-4">
               <TaskStepView
+                agentRunsAvailable={!files}
                 step={shownStep}
                 view={shownView}
                 version={shownVersion}
                 comparing={searchParams.get('compare') === '1'}
                 onCompare={(version) => showStep(shownStep, version, true)}
                 onView={showView}
-                data={data}
+                data={taskData}
                 move={move}
                 onDocumentSaved={setDocument}
                 onNewComments={countNewComments}

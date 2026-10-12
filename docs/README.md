@@ -23,6 +23,7 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 - Architecture diagrams and data flow
 - Technology stack details
 - Security architecture
+- [artifact-spaces-plan.md](artifact-spaces-plan.md) - Draft plan for spaces without Git, persistent files, artifact previews and publishing
 
 ### Deployment
 

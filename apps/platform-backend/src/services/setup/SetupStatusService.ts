@@ -84,7 +84,7 @@ export class SetupStatusService {
       repositoryConnected,
       space,
       agent,
-      complete: space !== null && hasActiveRunner,
+      complete: space !== null && (space.backingKind === "files" || hasActiveRunner),
       demo,
     };
   }
@@ -106,18 +106,25 @@ export class SetupStatusService {
     return connection ? (await this.deps.credentials.getDefaultForIntegration(connection.id)) !== null : false;
   }
 
+  /** A space with a repository wins over a Files space, so a workspace that has one still resumes Git setup. */
   private async findSpace(): Promise<SetupStatus["space"]> {
+    let filesSpace: SetupStatus["space"] = null;
     for (const project of await this.deps.projects.listProjects(50)) {
+      if (project.backingKind === "files") {
+        filesSpace ??= { projectId: project.id, name: project.name, slug: project.slug, backingKind: "files", repositoryUrl: null };
+        continue;
+      }
       const scmConfig = await this.deps.scmConfigs.getByProjectId(project.id);
       if (scmConfig) {
         return {
           projectId: project.id,
           name: project.name,
           slug: project.slug,
+          backingKind: "git",
           repositoryUrl: scmConfig.sourceRepository,
         };
       }
     }
-    return null;
+    return filesSpace;
   }
 }

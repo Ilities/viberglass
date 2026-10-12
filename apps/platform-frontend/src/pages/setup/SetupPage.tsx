@@ -12,6 +12,7 @@ import { RepositoryStep } from './RepositoryStep'
 import { SetupError } from './SetupFrame'
 import { markSetupSkipped, readStoredRepository, resumeSetup, storeRepository, type SetupStep } from './setupResume'
 import { SpaceStep } from './SpaceStep'
+import { FilesSetupComplete } from './FilesSetupComplete'
 
 interface Loaded {
   status: SetupStatus
@@ -88,7 +89,7 @@ export function SetupPage() {
             initialProvider={model && 'provider' in model ? model.provider : null}
             onDone={(chosen) => {
               setModel(chosen)
-              setStep(space ? 'agent' : repository && loaded.status.repositoryConnected ? 'space' : 'repository')
+              setStep(space?.backingKind === 'files' ? 'filesReady' : space ? 'agent' : repository && loaded.status.repositoryConnected ? 'space' : 'repository')
             }}
           />
         )}
@@ -111,6 +112,10 @@ export function SetupPage() {
         )}
         {step === 'repository' && (
           <RepositoryStep
+            onChooseFiles={() => {
+              setRepository(null)
+              setStep('space')
+            }}
             onDone={(checked) => {
               storeRepository(checked)
               setRepository(checked)
@@ -118,7 +123,7 @@ export function SetupPage() {
             }}
           />
         )}
-        {step === 'space' && repository && model && (
+        {step === 'space' && model && (
           <SpaceStep
             repository={repository}
             model={model}
@@ -126,13 +131,14 @@ export function SetupPage() {
             onDone={(created, started) => {
               setSpace(created)
               setAgent(started)
-              setStep('agent')
+              setStep(created.backingKind === 'files' ? 'filesReady' : 'agent')
             }}
           />
         )}
         {step === 'agent' && model && <AgentStep model={model} agent={agent} onReady={handleAgentReady} />}
         {step === 'task' && space && clankerId && <FirstTaskStep space={space} clankerId={clankerId} />}
-        {step !== 'task' && (
+        {step === 'filesReady' && space && <FilesSetupComplete slug={space.slug} />}
+        {step !== 'task' && step !== 'filesReady' && (
           <Text className="text-xs">
             Setting things up yourself?{' '}
             <button

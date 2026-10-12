@@ -4,6 +4,8 @@ import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
+import { SpaceBackingField } from '@/components/space-backing-field'
+import type { SpaceBackingKind } from '@viberglass/types'
 import { getErrorMessage } from '@/lib/project-form'
 import { IssueTrackerField } from '@/pages/project/settings/IssueTrackerField'
 import { NO_SELECTION, RepositoryFields, type ConnectionOption } from '@/pages/project/settings/RepositoryFields'
@@ -28,6 +30,7 @@ function findOption(options: ConnectionOption[], id: string): ConnectionOption |
 export function NewProjectPage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
+  const [backingKind, setBackingKind] = useState<SpaceBackingKind>('git')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,7 +60,7 @@ export function NewProjectPage() {
     try {
       let space = created
       if (!space) {
-        const project = await createProject({ name: name.trim() })
+        const project = await createProject({ name: name.trim(), backingKind })
         space = { id: project.id, slug: project.slug }
         setCreated(space)
       }
@@ -68,7 +71,7 @@ export function NewProjectPage() {
         await updateProject(space.id, { primaryTicketingIntegrationId: tracker.id })
       }
 
-      if (codeHostId !== NO_SELECTION) {
+      if (backingKind === 'git' && codeHostId !== NO_SELECTION) {
         const codeHost = findOption(connections.codeHosts, codeHostId)
         if (!codeHost) throw new Error('Choose a code host, or choose None.')
         if (!repositoryAddress.trim())
@@ -129,7 +132,9 @@ export function NewProjectPage() {
                 />
               </Field>
 
-              <section>
+              <SpaceBackingField value={backingKind} onChange={setBackingKind} disabled={created !== null} />
+
+              {backingKind === 'git' && <section>
                 <Subheading>Repository</Subheading>
                 <div className="mt-6 space-y-8">
                   <RepositoryFields
@@ -149,14 +154,6 @@ export function NewProjectPage() {
                     tokensError={connections.tokensError}
                   />
 
-                  <IssueTrackerField
-                    trackers={connections.trackers}
-                    value={trackerId}
-                    onChange={setTrackerId}
-                    isLoading={connections.isLoading}
-                    connectionsHref={WORKSPACE_CONNECTIONS}
-                  />
-
                   <SpaceAdvancedSettings
                     hasRepository={codeHostId !== NO_SELECTION}
                     defaultBranch={defaultBranch}
@@ -169,7 +166,15 @@ export function NewProjectPage() {
                     taskKeyExample="WEB-12"
                   />
                 </div>
-              </section>
+              </section>}
+
+              <IssueTrackerField
+                trackers={connections.trackers}
+                value={trackerId}
+                onChange={setTrackerId}
+                isLoading={connections.isLoading}
+                connectionsHref={WORKSPACE_CONNECTIONS}
+              />
 
               <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
                 <Button outline href="/">

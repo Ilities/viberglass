@@ -29,7 +29,7 @@ export function SettingsLayout() {
     { name: canMaintain ? 'General' : 'About', href: `${base}/general`, icon: canMaintain ? <GearIcon /> : <InfoCircledIcon /> },
     ...(canMaintain
       ? [
-          { name: 'Repository', href: `${base}/repository`, icon: <CodeIcon /> },
+          ...(project.backingKind === 'files' ? [] : [{ name: 'Repository', href: `${base}/repository`, icon: <CodeIcon /> }]),
           { name: 'Incoming issues', href: `${base}/issues`, icon: <DownloadIcon /> },
           { name: 'Task defaults', href: `${base}/task-defaults`, icon: <MixerHorizontalIcon /> },
         ]

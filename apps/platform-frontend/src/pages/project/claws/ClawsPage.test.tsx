@@ -14,6 +14,7 @@ jest.mock('@/service/api/clanker-api', () => ({ getClankers: jest.fn(async () =>
 jest.mock('@/service/api/secret-api', () => ({ listAllSecrets: jest.fn(async () => []) }))
 
 const SPACE: Project = {
+  backingKind: "git",
   id: 'space-1',
   name: 'Web shop',
   slug: 'web',

@@ -62,6 +62,13 @@ describe("project SCM config routes", () => {
     app.use("/api/spaces", projectsRouter);
   });
 
+  it("refuses repository configuration on Files spaces before checking connections", async () => {
+    mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID, backingKind: "files" });
+    await request(app).put(`/api/spaces/${PROJECT_ID}/scm-config`).send({ integrationId: INTEGRATION_ID, sourceRepository: "acme/web" }).expect(409);
+    expect(mockProjectScmConfigDAO.upsertByProjectId).not.toHaveBeenCalled();
+    expect(mockIntegrationDAO.getIntegration).not.toHaveBeenCalled();
+  });
+
   it("returns 404 for GET when project does not exist", async () => {
     mockProjectDAO.getProject.mockResolvedValue(null);
 

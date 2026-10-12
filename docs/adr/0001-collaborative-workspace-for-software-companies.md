@@ -4,6 +4,7 @@
 - **Date:** 2026-09-23
 - **Decider:** Jussi Hallila
 - **Amended by:** [ADR 0009](./0009-the-plan-includes-the-research.md) (the flagship workflow is Plan → Build → PR), 2026-10-06
+- **Amended by:** [ADR 0016](./0016-file-backed-spaces-and-artifacts.md) (Files backing and external artifact destinations), 2026-10-12
 
 ## Context
 Viberglass started as "tickets in, pull requests out". A beta user couldn't tell what the product was for, and argued that the software-only framing was baked in too deep. A UX audit proposed choosing between a general collaborative AI workspace and a narrower developer tool.
