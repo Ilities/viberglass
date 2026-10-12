@@ -38,7 +38,7 @@ Create one custom inbound endpoint per system that sends tasks. Each has its own
 The Slack app lets people start tasks with `/viberglass`, follow them in a Slack thread, and get DMs. See [Slack](../user/slack.md) for how people use it.
 
 1. Under Settings → Connections → Slack, enter your backend's public HTTPS address and copy the app manifest it fills in. At api.slack.com/apps, choose Create New App → From a manifest, paste it, create the app and install it to your workspace.
-2. Set `SLACK_BOT_TOKEN` (the bot token, `xoxb-…`) and `SLACK_SIGNING_SECRET` on the backend, and `PLATFORM_FRONTEND_URL` so Slack posts link to tasks. Restart the backend.
+2. On the same screen, enter the app's Bot User OAuth Token (`xoxb-…`, under OAuth & Permissions) and Signing Secret (under Basic Information) and save. The bot starts right away; the screen shows Bot active once Slack accepts the token. Set `PLATFORM_FRONTEND_URL` on the backend so Slack posts link to tasks.
 3. Each person links their account under Settings → Notifications → Link Slack.
 
 Slack must reach the backend over HTTPS. On a local install, use a tunnel such as ngrok. The slash command, interactivity and events all use `https://<your backend>/api/webhooks/slack`. Full detail, including the scopes, is in the [Slack integration guide](https://github.com/Ilities/viberglass/blob/main/docs/operations/slack-integration.md).

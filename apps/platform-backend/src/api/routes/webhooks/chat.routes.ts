@@ -1,16 +1,22 @@
-import express, { type Request, type Response } from "express";
-import bot from "../../../chat";
-import { chatAdapterNames } from "../../../chat/bot";
+import express, { type NextFunction, type Request, type Response } from "express";
+import { chatBot } from "../../../chat";
+import { chatServicesFrom } from "../../../chat/chatProviders";
 import logger from "../../../config/logger";
 import type { ExtendedRequest } from "../../../webhooks/ExtendedRequest";
 
 /** POST /api/webhooks/:adapter — a chat service's events, handed to the chat SDK's adapter for it. */
-export function createChatRoutes() {
+export function createChatRoutes(chatServices = chatServicesFrom) {
   const router = express.Router();
 
-  router.post("/:adapter", async (req: Request, res: Response) => {
+  router.post("/:adapter", async (req: Request, res: Response, next: NextFunction) => {
     const { adapter } = req.params;
-    if (!chatAdapterNames.includes(adapter)) {
+    if (!chatServices().some((service) => service.provider.adapterName === adapter)) {
+      next();
+      return;
+    }
+    // Another backend instance may have saved the connection.
+    await chatBot.refresh();
+    if (!chatBot.adapterNames.includes(adapter)) {
       logger.warn("Chat webhook received for a service that isn't set up", { adapter });
       res.status(503).json({ error: `${adapter} isn't set up on this installation` });
       return;
@@ -25,7 +31,7 @@ export function createChatRoutes() {
     }
 
     try {
-      const webResponse = await bot.webhooks[adapter](new Request(url, { method: req.method, headers, body }));
+      const webResponse = await chatBot.bot.webhooks[adapter](new Request(url, { method: req.method, headers, body }));
       res.status(webResponse.status);
       webResponse.headers.forEach((val, key) => res.setHeader(key, val));
       res.send(await webResponse.text());

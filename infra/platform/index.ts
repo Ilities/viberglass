@@ -292,29 +292,6 @@ const secretsEncryptionKeyParam = new aws.ssm.Parameter(
   },
 );
 
-// Slack integration secrets (SecureString, modifiable via SSM UI - not overwritten by Pulumi)
-const slackSigningSecretParam = new aws.ssm.Parameter(
-  `${config.environment}-viberglass-backend-slack-signing-secret`,
-  {
-    name: `/viberglass/${config.environment}/backend/slack-signing-secret`,
-    type: "SecureString",
-    value: pulumiConfig.getSecret("slackSigningSecret") ?? "not-configured",
-    keyId: kmsKeyId,
-    tags: config.tags,
-  },
-);
-
-const slackBotTokenParam = new aws.ssm.Parameter(
-  `${config.environment}-viberglass-backend-slack-bot-token`,
-  {
-    name: `/viberglass/${config.environment}/backend/slack-bot-token`,
-    type: "SecureString",
-    value: pulumiConfig.getSecret("slackBotToken") ?? "not-configured",
-    keyId: kmsKeyId,
-    tags: config.tags,
-  },
-);
-
 
 // Create backend ECS task definition with CORS allowed origins from Amplify
 // Invite links and notifications by email, when emailDomain is configured
@@ -335,10 +312,6 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   },
   webhookSecretEncryptionKeySsmArn: webhookSecretEncryptionKeyParam.arn,
   secretsEncryptionKeySsmArn: secretsEncryptionKeyParam.arn,
-  slackSsm: {
-    signingSecretArn: slackSigningSecretParam.arn,
-    botTokenArn: slackBotTokenParam.arn,
-  },
   cpu: backendCpu,
   memory: backendMemory,
   desiredCount: backendDesiredCount,

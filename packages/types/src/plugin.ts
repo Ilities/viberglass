@@ -11,6 +11,7 @@ export interface PluginManifest {
   description: string
 }
 
+/** A `secret` is kept in the secrets system and never sent back to the browser. */
 export type PluginFieldType = 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'secret'
 
 export interface PluginFieldOption {

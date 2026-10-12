@@ -2,7 +2,9 @@ import { Badge } from '@viberglass/platform-ui'
 import { Subheading } from '@viberglass/platform-ui'
 import { Input } from '@viberglass/platform-ui'
 import { Text } from '@viberglass/platform-ui'
-import { CheckCircledIcon, CheckIcon, CopyIcon, DotFilledIcon } from '@radix-ui/react-icons'
+import { CheckCircledIcon, CheckIcon, CopyIcon, CrossCircledIcon, DotFilledIcon } from '@radix-ui/react-icons'
+import type { AuthSetupSectionProps } from '@viberglass/integration-core/frontend'
+import type { ChatBotStatus } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -91,19 +93,43 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Promise<{ configured: boolean }> }) {
+function BotStatusBadge({ status }: { status: ChatBotStatus }) {
+  if (status.configured && status.error) {
+    return (
+      <Badge color="red" className="shrink-0">
+        <CrossCircledIcon className="mr-1 inline-block h-3 w-3" />
+        Credentials rejected
+      </Badge>
+    )
+  }
+  if (status.configured) {
+    return (
+      <Badge color="green" className="shrink-0">
+        <CheckCircledIcon className="mr-1 inline-block h-3 w-3" />
+        Bot active
+      </Badge>
+    )
+  }
+  return (
+    <Badge color="zinc" className="shrink-0">
+      <DotFilledIcon className="mr-1 inline-block h-3 w-3" />
+      Not configured
+    </Badge>
+  )
+}
+
+export function SlackInstallSection({ getBotStatus }: AuthSetupSectionProps) {
   const [host, setHost] = useState('')
-  const [botConfigured, setBotConfigured] = useState<boolean | null>(null)
+  const [botStatus, setBotStatus] = useState<ChatBotStatus | null>(null)
 
   useEffect(() => {
     if (!getBotStatus) return
     getBotStatus()
-      .then(({ configured }) => setBotConfigured(configured))
-      .catch(() => setBotConfigured(false))
+      .then(setBotStatus)
+      .catch(() => setBotStatus({ configured: false }))
   }, [getBotStatus])
 
   const manifest = buildManifest(host)
-  const envBlock = `SLACK_BOT_TOKEN=xoxb-your-bot-token\nSLACK_SIGNING_SECRET=your-signing-secret`
 
   return (
     <section className="app-frame rounded-lg p-6 space-y-8">
@@ -115,20 +141,13 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
             tasks from Slack, and talk to the agent in each task's thread. A workspace admin sets the bot
             up once; there is nothing to configure per project here.
           </Text>
+          {botStatus?.error && (
+            <Text className="mt-1.5 text-red-700 dark:text-red-400">
+              {botStatus.error}. Check the bot token below and save it again.
+            </Text>
+          )}
         </div>
-        {botConfigured !== null && (
-          botConfigured ? (
-            <Badge color="green" className="shrink-0">
-              <CheckCircledIcon className="mr-1 inline-block h-3 w-3" />
-              Bot active
-            </Badge>
-          ) : (
-            <Badge color="zinc" className="shrink-0">
-              <DotFilledIcon className="mr-1 inline-block h-3 w-3" />
-              Not configured
-            </Badge>
-          )
-        )}
+        {botStatus && <BotStatusBadge status={botStatus} />}
       </div>
 
       {/* Step 1 */}
@@ -192,19 +211,11 @@ export function SlackInstallSection({ getBotStatus }: { getBotStatus?: () => Pro
 
       {/* Step 3 */}
       <div className="space-y-3">
-        <Subheading level={3}>3. Configure the backend</Subheading>
+        <Subheading level={3}>3. Save them below</Subheading>
         <Text className="text-[var(--gray-9)]">
-          Add these two environment variables to the platform backend and restart it:
+          Paste both into the fields below and save. Viberglass keeps them encrypted and starts the bot with them
+          right away. To change one later, enter the new value and save again.
         </Text>
-        <div className="rounded-md bg-[var(--gray-3)] overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--gray-5)]">
-            <span className="text-xs font-medium text-[var(--gray-10)]">.env</span>
-            <CopyButton text={envBlock} />
-          </div>
-          <pre className="p-4 text-xs overflow-x-auto">
-            <code>{envBlock}</code>
-          </pre>
-        </div>
       </div>
 
       {/* Step 4 */}

@@ -23,7 +23,7 @@ import {
 import { getProjects, type Project } from '@/service/api/project-api'
 import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type { Integration, IntegrationManifest } from '@viberglass/types'
+import type { ChatBotStatus, Integration, IntegrationManifest } from '@viberglass/types'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
@@ -38,6 +38,7 @@ import { CreateIntegrationPrompt } from './integration-detail/CreateIntegrationP
 import { RemoveIntegrationSection } from './integration-detail/RemoveIntegrationSection'
 import { TrackerWebhookSection } from './integration-detail/TrackerWebhookSection'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
+import { useStoredSecretFields } from './integration-detail/useStoredSecretFields'
 
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
@@ -54,7 +55,7 @@ export function IntegrationDetailPage() {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [projects, setProjects] = useState<Project[] | null>(null)
-  const [chatBotConfigured, setChatBotConfigured] = useState<boolean | null>(null)
+  const [chatBotRunning, setChatBotRunning] = useState(false)
   const [spaceRules, setSpaceRules] = useState<ConnectionSpaceRule[]>([])
 
   const integrationEntityId = existingIntegration?.id
@@ -64,11 +65,13 @@ export function IntegrationDetailPage() {
   const frontendPlugin = integrationSystem ? integrationFrontendRegistry.get(integrationSystem) : undefined
   const AuthSection = frontendPlugin?.AuthSetupSection
   const trackerWebhook = frontendPlugin?.trackerWebhook
-  // Stable, so the install section doesn't refetch the status on every render.
+  // Stable, so the install section doesn't refetch the status on every render; it's remounted after a save.
   const getBotStatus = useCallback(
-    () => (integrationSystem ? getChatStatus(integrationSystem) : Promise.resolve({ configured: false })),
+    (): Promise<ChatBotStatus> => (integrationSystem ? getChatStatus(integrationSystem) : Promise.resolve({ configured: false })),
     [integrationSystem]
   )
+  const savedAt = existingIntegration?.updatedAt
+  const storedSecrets = useStoredSecretFields(integrationType, existingIntegration)
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -172,9 +175,9 @@ export function IntegrationDetailPage() {
       return
     }
     getBotStatus()
-      .then(({ configured }) => setChatBotConfigured(configured))
-      .catch(() => setChatBotConfigured(false))
-  }, [AuthSection, getBotStatus])
+      .then(({ configured, error }) => setChatBotRunning(configured && !error))
+      .catch(() => setChatBotRunning(false))
+  }, [AuthSection, getBotStatus, savedAt])
 
   useEffect(() => {
     if (!integrationEntityId || !trackerWebhook) {
@@ -202,7 +205,7 @@ export function IntegrationDetailPage() {
     integrationType.status === 'stub'
       ? 'stub'
       : AuthSection
-        ? chatBotConfigured
+        ? chatBotRunning
           ? 'configured'
           : 'not_configured'
         : isConfigured
@@ -363,12 +366,13 @@ export function IntegrationDetailPage() {
         <ConnectionNameSection integration={existingIntegration} onRenamed={setExistingIntegration} />
       )}
 
-      {AuthSection && <AuthSection getBotStatus={getBotStatus} />}
+      {AuthSection && <AuthSection key={savedAt} getBotStatus={getBotStatus} />}
 
       {integrationType.configFields.length > 0 && (
         <IntegrationConfigForm
           integration={integrationType}
           initialValues={initialValues}
+          storedSecrets={storedSecrets}
           onSubmit={handleSubmit}
           onTest={handleTest}
           onCancel={handleCancel}

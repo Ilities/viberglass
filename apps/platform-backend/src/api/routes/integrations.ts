@@ -17,7 +17,7 @@ import {
   type UpsertInboundWebhookConfigInput,
 } from "../services/integrations";
 import { IntegrationCredentialDAO } from "../../persistence/integrations";
-import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
+import { chatBotStatus } from "../../chat";
 import { SecretService } from "../../services/SecretService";
 import { spaceParamGuard } from "../middleware/spaceAccessGuards";
 
@@ -92,11 +92,13 @@ router.post(
   }),
 );
 
-// Whether a chat integration's service is set up on this installation; it's set up outside its connection.
-router.get("/:system/chat-status", (req, res) => {
-  const provider = integrationRegistry.get(req.params.system)?.chat;
-  res.json({ configured: provider?.isConfigured() ?? false });
-});
+// Whether a chat integration's bot runs on its connection, and if the service turns the credentials down, why.
+router.get(
+  "/:system/chat-status",
+  withRouteErrorHandling("Error reading a chat service's status", async (req, res) => {
+    res.json(await chatBotStatus.status(req.params.system));
+  }),
+);
 
 router.get(
   "/:id",

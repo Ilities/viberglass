@@ -82,7 +82,7 @@ The package lists `@viberglass/types` as a peer dependency.
 **Package:** `packages/integrations/integration-slack` — `SlackChatProvider` on the plugin's `chat`, with the Slack handlers under `src/backend/chat/`.
 
 **Generic infrastructure (backend):**
-- `chat/bot.ts` — one adapter per chat service that is set up
+- `chat/ChatBotRuntime.ts` — one adapter per chat service whose connection holds its credentials (passed in through `provider.configure`); rebuilt when a connection changes
 - `chat/index.ts` — builds `ChatHandlerServices` per service and calls `provider.registerHandlers`
 - `chat/TaskChatMirror.ts`, `TaskThreadInbound.ts`, `ticketThreadMap.ts` — work with any `Thread`; nothing names Slack
 - `persistence/user/ChatIdentityDAO.ts` — linked accounts by adapter name

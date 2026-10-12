@@ -41,12 +41,7 @@ To send through a real SMTP server instead, set `SMTP_URL` to it, e.g. `smtp://u
 
 ## Slack
 
-Root `.env`, with the bot token and signing secret of a Slack app created from the manifest under **Settings → Connections → Slack** ([slack-integration.md](./operations/slack-integration.md)):
-
-```bash
-SLACK_BOT_TOKEN=xoxb-…
-SLACK_SIGNING_SECRET=…
-```
+Create a Slack app from the manifest under Settings → Connections → Slack, then enter its bot token and signing secret on the same screen and save ([slack-integration.md](./operations/slack-integration.md)). The running backend picks them up without a restart.
 
 Slack must reach the backend's webhook over HTTPS, so locally you need a tunnel (e.g. `ngrok http 8888`) set as the app's request URL. Once it's running, each person links their account under **Settings → Notifications → Link Slack** to get DMs.
 

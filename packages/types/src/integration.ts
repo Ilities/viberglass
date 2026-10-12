@@ -29,6 +29,12 @@ export interface IntegrationManifest extends PluginManifest {
   defaultInboundEvents?: string[]
 }
 
+/** Whether a chat service's bot runs: its connection holds what it needs, and why the service turned it down if it did. */
+export interface ChatBotStatus {
+  configured: boolean
+  error?: string
+}
+
 // Top-level Integration entity (stored in integrations table)
 export interface Integration {
   id: string
@@ -51,12 +57,18 @@ export interface ProjectIntegrationLink {
   createdAt: string
 }
 
+/**
+ * What a connection's credential is. A `secret_field` holds the value of one of
+ * the manifest's `secret` config fields; its name is the field's key.
+ */
+export type IntegrationCredentialType = 'token' | 'ssh_key' | 'oauth' | 'basic' | 'secret_field'
+
 // SCM credential stored per integration
 export interface IntegrationCredential {
   id: string
   integrationId: string
   name: string
-  credentialType: 'token' | 'ssh_key' | 'oauth' | 'basic'
+  credentialType: IntegrationCredentialType
   secretId: string
   secretLocation: SecretLocation
   isDefault: boolean

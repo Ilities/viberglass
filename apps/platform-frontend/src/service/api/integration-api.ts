@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
+  ChatBotStatus,
   CreateIntegrationCredentialRequest,
   CreateIntegrationRequest,
   Integration,
@@ -745,12 +746,12 @@ export async function deleteIntegrationCredential(integrationId: string, credent
 /**
  * Check whether a chat integration's workspace-level bot is configured on the backend.
  */
-export async function getChatStatus(system: string): Promise<{ configured: boolean }> {
+export async function getChatStatus(system: string): Promise<ChatBotStatus> {
   const response = await apiFetch(`${API_BASE_URL}/api/integrations/${encodeURIComponent(system)}/chat-status`)
   if (!response.ok) {
     return { configured: false }
   }
-  const status: { configured: boolean } = await response.json()
+  const status: ChatBotStatus = await response.json()
   return status
 }
 

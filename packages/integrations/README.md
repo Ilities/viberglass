@@ -54,7 +54,7 @@ The backend entry is the package's main export and the frontend entry is `@viber
 | `label`, `description` | Shown on the connections page. |
 | `category` | The slot a connection fills for a space: `scm` (its code host), `ticketing` (its tracker), `inbound` (receives events) or `chat`. |
 | `status` | `ready`, or `stub` for one listed as coming soon that can't be connected. A stub declares nothing else. |
-| `configFields` | Settings the connection screen edits, as `PluginField`s (`{ key, label, type, required?, description?, options?, placeholder? }`). Empty when there are none. |
+| `configFields` | Settings the connection screen edits, as `PluginField`s (`{ key, label, type, required?, description?, options?, placeholder? }`). Empty when there are none. A `secret` field's value is kept in the secrets system as the connection's credential, not in its config, and is never sent back to the browser; the plugin gets it under the field's key. |
 | `credentialUse` | Set when the connection holds a token: what Viberglass uses it for, shown where the token is entered. |
 | `receivesWebhooks` | Set when the connection receives webhooks. Deliveries arrive at `/api/webhooks/<id>/<webhook config id>`. |
 | `defaultInboundEvents` | Events a new webhook subscribes to; all when unset. |
@@ -69,7 +69,7 @@ The backend entry is the package's main export and the frontend entry is `@viber
 | `createCommenter(config)` | Trackers: posting back to the issues tasks are linked to | `TrackerCommenter` |
 | `webhook` | Integrations that `receivesWebhooks`: verifying a delivery's signature, parsing it, and reading it as an issue, comment or task | `WebhookReceiver` |
 | `repository` | Code hosts: reading and checking a repository, opening pull requests, and reading their outcome and review | `RepositoryHost` |
-| `chat` | Chat services: the bot adapter and handlers, direct messages, finding an account by email | `ChatProvider` |
+| `chat` | Chat services: the bot adapter and handlers, direct messages, finding an account by email. The platform passes it its connection's settings and credentials through `configure`, and rebuilds the bot when the connection changes | `ChatProvider` |
 
 `config` is the connection's credentials plus its `configFields` values. The worker never talks to an integration: it clones and pushes with the username the code host's `RepositoryHost` names, and asks the platform to open the pull request.
 

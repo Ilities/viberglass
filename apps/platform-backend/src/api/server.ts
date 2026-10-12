@@ -31,8 +31,7 @@ import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
-import bot from "../chat";
-import { chatAdapterNames } from "../chat/bot";
+import { chatBot } from "../chat";
 import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 
 // Load environment variables
@@ -120,6 +119,9 @@ function normalizePort(val: string): number | string | false {
 }
 
 // Get port from environment and store in Express
+/** How often each instance checks for chat connections saved through another one. */
+const CHAT_REFRESH_INTERVAL_MS = 60_000;
+
 const port = normalizePort(process.env.PORT || "8888");
 app.set("port", port);
 const host = process.env.HOST?.trim();
@@ -221,15 +223,11 @@ async function startServer(): Promise<void> {
     );
   }
 
-  // Kick off chat SDK initialization in the background so chat webhooks
-  // don't time out waiting for PG state connect and the services' auth checks
-  // on the first request. We don't await it: the server must start listening
-  // immediately. If init fails it will be retried on the first webhook.
-  if (chatAdapterNames.length > 0) {
-    bot.initialize().catch((error) => {
-      logger.warn("Background chat bot initialization failed; will retry on first webhook", { error });
-    });
-  }
+  // Builds the chat bot from the chat connections in the background: the
+  // server must start listening right away, and each chat webhook catches up
+  // first anyway.
+  void chatBot.refresh();
+  chatBot.refreshEvery(CHAT_REFRESH_INTERVAL_MS);
 
   if (port === false) {
     throw new Error("Invalid port configuration");

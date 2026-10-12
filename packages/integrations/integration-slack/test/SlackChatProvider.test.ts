@@ -1,4 +1,6 @@
+import { createSlackAdapter } from '@chat-adapter/slack'
 import { ChatAccountError } from '@viberglass/integration-core'
+import type { AuthCredentials } from '@viberglass/types'
 import { SlackChatProvider } from '../src/backend/SlackChatProvider'
 import { SlackApiError } from '../src/backend/SlackWebApi'
 
@@ -8,16 +10,54 @@ jest.mock('chat', () => ({ Modal: jest.fn(), Select: jest.fn(), SelectOption: je
   virtual: true,
 })
 
-function provider(env: NodeJS.ProcessEnv = { SLACK_BOT_TOKEN: 'xoxb', SLACK_SIGNING_SECRET: 'secret' }) {
+const CONNECTION: AuthCredentials = { type: 'token', botToken: 'xoxb-1', signingSecret: 'secret' }
+
+function provider(connection: AuthCredentials | null = CONNECTION) {
   const api = { postMessage: jest.fn().mockResolvedValue(undefined), lookupUserIdByEmail: jest.fn() }
-  return { api, slack: new SlackChatProvider(api, env) }
+  const createApi = jest.fn(() => api)
+  const slack = new SlackChatProvider(createApi)
+  slack.configure(connection)
+  return { api, createApi, slack }
 }
 
 describe('SlackChatProvider', () => {
-  it('is set up when the Slack app\'s bot token and signing secret both are', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it("is set up when its connection holds both the bot token and the signing secret", () => {
     expect(provider().slack.isConfigured()).toBe(true)
-    expect(provider({ SLACK_BOT_TOKEN: 'xoxb' }).slack.isConfigured()).toBe(false)
-    expect(provider({ SLACK_BOT_TOKEN: 'xoxb', SLACK_SIGNING_SECRET: 'not-configured' }).slack.isConfigured()).toBe(false)
+    expect(provider({ type: 'token', botToken: 'xoxb-1' }).slack.isConfigured()).toBe(false)
+    expect(provider({ type: 'token', botToken: 'xoxb-1', signingSecret: '  ' }).slack.isConfigured()).toBe(false)
+    expect(provider(null).slack.isConfigured()).toBe(false)
+  })
+
+  it('ignores the environment: only the connection sets it up', () => {
+    process.env.SLACK_BOT_TOKEN = 'xoxb-env'
+    process.env.SLACK_SIGNING_SECRET = 'env-secret'
+    try {
+      expect(provider(null).slack.isConfigured()).toBe(false)
+    } finally {
+      delete process.env.SLACK_BOT_TOKEN
+      delete process.env.SLACK_SIGNING_SECRET
+    }
+  })
+
+  it("builds the adapter and calls Slack with the connection's credentials, and follows a change", () => {
+    const { slack, createApi } = provider()
+    slack.createAdapter()
+    expect(createSlackAdapter).toHaveBeenCalledWith({ botToken: 'xoxb-1', signingSecret: 'secret' })
+    expect(createApi).toHaveBeenCalledWith('xoxb-1')
+
+    slack.configure({ type: 'token', botToken: 'xoxb-2', signingSecret: 'other' })
+    slack.createAdapter()
+    expect(createSlackAdapter).toHaveBeenLastCalledWith({ botToken: 'xoxb-2', signingSecret: 'other' })
+    expect(createApi).toHaveBeenLastCalledWith('xoxb-2')
+  })
+
+  it('refuses to build an adapter or message anyone once the connection is gone', async () => {
+    const { slack } = provider()
+    slack.configure(null)
+    expect(() => slack.createAdapter()).toThrow("Slack isn't connected")
+    await expect(slack.sendDirectMessage('U1', 'hi')).rejects.toThrow("Slack isn't connected")
   })
 
   it('reads Slack mentions, with or without the name', () => {

@@ -1,9 +1,9 @@
 import { ConnectionCredentialsResolver } from "../../../../services/trackers/ConnectionCredentialsResolver";
 
-function resolver(options: { credentials?: Array<{ credentialType: string; secretId: string }>; named?: string | null }) {
+function resolver(options: { credentials?: Array<{ credentialType: string; secretId: string; name?: string }>; named?: string | null }) {
   return new ConnectionCredentialsResolver(
     { listByIntegrationId: jest.fn().mockResolvedValue(options.credentials ?? []) },
-    { resolveSecretValue: jest.fn().mockResolvedValue("default-token") },
+    { resolveSecretValue: jest.fn(async (secretId: string) => (secretId === "s-1" ? "default-token" : `value of ${secretId}`)) },
     { resolveSecretValueByName: jest.fn().mockResolvedValue(options.named ?? null) },
   );
 }
@@ -25,5 +25,15 @@ describe("ConnectionCredentialsResolver", () => {
   it("falls back to the secret the settings name, and keeps a known auth type", async () => {
     const credentials = await resolver({ named: "named-token" }).resolve({ id: "conn-1", config: { authType: "basic", secretName: "JIRA_TOKEN" } });
     expect(credentials).toMatchObject({ type: "basic", token: "named-token" });
+  });
+
+  it("fills in the connection's secret fields under their keys", async () => {
+    const credentials = await resolver({
+      credentials: [
+        { credentialType: "secret_field", secretId: "s-bot", name: "botToken" },
+        { credentialType: "secret_field", secretId: "s-signing", name: "signingSecret" },
+      ],
+    }).resolve({ id: "conn-1", config: {} });
+    expect(credentials).toEqual({ type: "token", botToken: "value of s-bot", signingSecret: "value of s-signing" });
   });
 });

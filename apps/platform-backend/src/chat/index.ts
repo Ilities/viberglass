@@ -1,11 +1,18 @@
 /**
- * Chat SDK initialization: registers each chat service's handlers.
- * Import this module once from app.ts to activate chat.
+ * Chat: the bot with each chat service's handlers, rebuilt when a chat
+ * service's connection changes. Import this module once from app.ts.
  */
 import type { ChatHandlerServices } from "@viberglass/integration-core";
-import bot from "./bot";
+import { Chat } from "chat";
+import { createPostgresState } from "@chat-adapter/state-pg";
+import { pool } from "../persistence/config/database";
+import { integrationRegistry } from "../integrations/registerIntegrationPlugins";
+import { registerConnectionChangeListener } from "../api/services/integrations/connectionChangeListeners";
+import { ChatBotRuntime } from "./ChatBotRuntime";
+import { ChatBotStatusReader } from "./ChatBotStatusReader";
+import { ChatConnections } from "./ChatConnections";
 import { chatServicesFrom, type ChatService } from "./chatProviders";
-import { getTicketForThread, linkTicketThread } from "./ticketThreadMap";
+import { forgetCachedThreads, getTicketForThread, linkTicketThread } from "./ticketThreadMap";
 import { ticketUrl } from "./platformLinks";
 import { TaskChatMirror } from "./TaskChatMirror";
 import { TaskThreadInbound } from "./TaskThreadInbound";
@@ -20,9 +27,6 @@ import { TaskParticipantService } from "../services/tasks/TaskParticipantService
 import { SpaceAccessService } from "../services/spaces/SpaceAccessService";
 import { registerActivityListener } from "../services/tasks/activityListeners";
 import { runAsActor } from "../api/auth/requestActor";
-
-// Register as the global singleton so ThreadImpl lazy resolution works.
-bot.registerSingleton();
 
 const taskTurns = new TaskTurnService();
 const answers = new AgentQuestionAnswerService({ asker: taskTurns });
@@ -87,8 +91,22 @@ function handlerServices({ system, label, provider }: ChatService): ChatHandlerS
   };
 }
 
-for (const service of chatServicesFrom()) {
-  if (service.provider.isConfigured()) service.provider.registerHandlers(bot, handlerServices(service));
-}
+const connections = new ChatConnections();
 
-export default bot;
+export const chatBot = new ChatBotRuntime({
+  services: chatServicesFrom,
+  connections,
+  createBot: (adapters) => new Chat({ userName: "viberglass", adapters, state: createPostgresState({ client: pool }) }),
+  registerHandlers: (bot, service) => service.provider.registerHandlers(bot, handlerServices(service)),
+  onRebuilt: forgetCachedThreads,
+});
+
+export const chatBotStatus = new ChatBotStatusReader({
+  refresh: () => chatBot.refresh(),
+  plugins: integrationRegistry,
+  connections,
+});
+
+registerConnectionChangeListener(async (system) => {
+  if (chatServicesFrom().some((service) => service.system === system)) await chatBot.refresh();
+});

@@ -1,11 +1,13 @@
 import { createSlackAdapter } from '@chat-adapter/slack'
 import { ChatAccountError, type ChatHandlerServices, type ChatMention, type ChatProvider } from '@viberglass/integration-core'
+import type { AuthCredentials } from '@viberglass/types'
 import type { Chat } from 'chat'
 import { registerButtonActionHandlers } from './chat/buttonActions'
 import { registerModalSubmitHandler } from './chat/modalSubmit'
 import { registerSlashCommandHandler } from './chat/slashCommand'
 import { registerThreadMessageHandler } from './chat/threadMessage'
 import { SLACK_ADAPTER } from './slackAdapterName'
+import { slackSettingsFrom, type SlackSettings } from './slackSettings'
 import { SlackApiError, SlackWebApi } from './SlackWebApi'
 
 /** A Slack mention: `<@U123>` or `<@U123|name>`. */
@@ -13,23 +15,28 @@ const SLACK_MENTION = /<@([A-Z0-9]+)(?:\|[^>]*)?>/g
 /** How a message to the bot starts: its mention, raw or as the SDK renders it. */
 const LEADING_MENTION = /^\s*(<@[A-Z0-9]+(?:\|[^>]*)?>|@\S+)\s*/
 
-const isSet = (value: string | undefined) => Boolean(value && value !== 'not-configured')
+type SlackApi = Pick<SlackWebApi, 'postMessage' | 'lookupUserIdByEmail'>
 
-/** Slack through the chat SDK, set up by the SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET of the Slack app. */
+/** Slack through the chat SDK, with the bot token and signing secret the Slack connection holds. */
 export class SlackChatProvider implements ChatProvider {
   readonly adapterName = SLACK_ADAPTER
+  private settings: SlackSettings | null = null
+  private api: SlackApi | null = null
 
-  constructor(
-    private readonly api: Pick<SlackWebApi, 'postMessage' | 'lookupUserIdByEmail'> = new SlackWebApi(),
-    private readonly env: NodeJS.ProcessEnv = process.env,
-  ) {}
+  constructor(private readonly createApi: (botToken: string) => SlackApi = (botToken) => new SlackWebApi(botToken)) {}
+
+  configure(connection: AuthCredentials | null): void {
+    this.settings = slackSettingsFrom(connection)
+    this.api = this.settings ? this.createApi(this.settings.botToken) : null
+  }
 
   isConfigured(): boolean {
-    return isSet(this.env.SLACK_BOT_TOKEN) && isSet(this.env.SLACK_SIGNING_SECRET)
+    return this.settings !== null
   }
 
   createAdapter() {
-    return createSlackAdapter()
+    const { botToken, signingSecret } = this.connected().settings
+    return createSlackAdapter({ botToken, signingSecret })
   }
 
   registerHandlers(bot: Chat, services: ChatHandlerServices): void {
@@ -40,13 +47,13 @@ export class SlackChatProvider implements ChatProvider {
   }
 
   async sendDirectMessage(chatUserId: string, text: string, link?: { url: string; label: string }): Promise<void> {
-    await this.api.postMessage(chatUserId, link ? `${text}\n<${link.url}|${link.label}>` : text)
+    await this.connected().api.postMessage(chatUserId, link ? `${text}\n<${link.url}|${link.label}>` : text)
   }
 
   async findUserByEmail(email: string): Promise<string> {
     const notFound = new ChatAccountError(404, `No Slack account uses ${email}.`)
     try {
-      const chatUserId = await this.api.lookupUserIdByEmail(email)
+      const chatUserId = await this.connected().api.lookupUserIdByEmail(email)
       if (!chatUserId) throw notFound
       return chatUserId
     } catch (error) {
@@ -67,5 +74,10 @@ export class SlackChatProvider implements ChatProvider {
 
   withoutBotMention(text: string): string {
     return text.replace(LEADING_MENTION, '')
+  }
+
+  private connected(): { settings: SlackSettings; api: SlackApi } {
+    if (!this.settings || !this.api) throw new Error("Slack isn't connected: its connection needs the bot token and signing secret.")
+    return { settings: this.settings, api: this.api }
   }
 }

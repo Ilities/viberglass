@@ -1,7 +1,7 @@
 const mockIntegrationDAO = { getIntegration: jest.fn(), deleteIntegration: jest.fn() };
 const mockProjectLinkDAO = { deleteAllLinksForIntegration: jest.fn() };
 const mockWebhookConfigDAO = { deleteAllForIntegration: jest.fn() };
-const mockCredentialDAO = { deleteAllForIntegration: jest.fn() };
+const mockCredentialDAO = { deleteAllForIntegration: jest.fn(), listByIntegrationId: jest.fn().mockResolvedValue([]) };
 const mockUsageDAO = { listProjectsUsing: jest.fn() };
 
 jest.mock("../../../../../persistence/integrations", () => ({

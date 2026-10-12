@@ -98,7 +98,6 @@ The backend reads its environment from `docker-compose.yml`; optional settings g
 | `PORT`                                                    | Backend port (default: `8888`)                                  |
 | `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email                 |
 | `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset             |
-| `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`                 | Slack app (commands, threads, DMs)                              |
 | `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`) |
 | `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`) |
 

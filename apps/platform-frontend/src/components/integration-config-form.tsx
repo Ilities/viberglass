@@ -9,9 +9,14 @@ import { useEffect, useState } from 'react'
 
 type FieldValue = string | number | boolean | string[]
 
+// One object, so the effect that takes new initial values doesn't run on every render.
+const NO_VALUES: Record<string, FieldValue> = {}
+
 interface IntegrationConfigFormProps {
   integration: IntegrationManifest
   initialValues?: Record<string, FieldValue>
+  /** Keys of the `secret` fields that have a stored value; it is never sent back, so the field stays empty. */
+  storedSecrets?: string[]
   onSubmit: (values: Record<string, FieldValue>) => void
   onTest?: (values: Record<string, FieldValue>) => Promise<void>
   onCancel: () => void
@@ -22,7 +27,8 @@ interface IntegrationConfigFormProps {
 
 export function IntegrationConfigForm({
   integration,
-  initialValues = {},
+  initialValues = NO_VALUES,
+  storedSecrets = [],
   onSubmit,
   onTest,
   onCancel,
@@ -132,18 +138,20 @@ export function IntegrationConfigForm({
           </div>
         )
 
-      case 'secret':
-        // Secret fields are now managed through the secrets system, not here
+      case 'secret': {
+        const stored = storedSecrets.includes(field.key)
         return (
           <Input
-            type="text"
+            type="password"
+            autoComplete="off"
             name={field.key}
-            value={value as string}
+            value={typeof value === 'string' ? value : ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            placeholder={field.placeholder || 'Secret name (from Secrets settings)'}
-            required={field.required}
+            placeholder={stored ? 'Saved. Enter a new value to replace it.' : field.placeholder}
+            required={field.required && !stored}
           />
         )
+      }
 
       default:
         return null

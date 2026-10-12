@@ -44,7 +44,7 @@ Agents run in worker images pulled from `ghcr.io/ilities`, one per coding agent.
 Optional settings go in a `.env` file in the repository root. Restart the backend after changing it with `docker compose up -d backend`.
 
 - Email: Mailpit catches mail locally. Set `EMAIL_FROM` and `SMTP_URL=smtp://mailpit:1025`, then start it with `docker compose --profile mail up -d`. Its inbox is at http://localhost:8025. For real delivery, point `SMTP_URL` at your SMTP server.
-- Slack: set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET`. Slack needs to reach the backend over HTTPS, so locally you need a tunnel such as ngrok. See [Repositories and integrations](repositories-and-integrations.md#slack).
+- Slack: set it up under Settings → Connections → Slack; it needs no settings here. Slack needs to reach the backend over HTTPS, so locally you need a tunnel such as ngrok. See [Repositories and integrations](repositories-and-integrations.md#slack).
 - Traces: `docker compose --profile langfuse up -d` starts Langfuse for looking at agent traces.
 
 More detail is in [local development](https://github.com/Ilities/viberglass/blob/main/docs/local-development.md).
@@ -92,6 +92,6 @@ What else to know:
 - Agents run as containers on the same server. The backend starts them through the Docker socket, so treat access to the backend container as root access to the server.
 - Agent containers call the backend back on the Docker bridge address, `172.17.0.1:8888`, which isn't reachable from outside the server. If `ip addr show docker0` shows another address, set `VIBERGLASS_WORKER_API_BIND` in `.env`.
 - Task media, saved agent sessions, instruction files and skills are kept in `/var/lib/viberglass` (`VIBERGLASS_DATA_DIR`), and the database in the `viberglass_postgres-data` volume. Back up both, and `.env`.
-- Optional email, Slack and trace settings are in `.env.production.example`.
+- Optional email and trace settings are in `.env.production.example`.
 
 To upgrade, set `VIBERGLASS_VERSION` to the new release in `.env`, then run `docker compose -f docker-compose.prod.yml --profile https pull` and `docker compose -f docker-compose.prod.yml --profile https up -d`. Back up the database first; see [Upgrades and backups](upgrades-and-backups.md).

@@ -94,12 +94,13 @@ Not available yet (stubs). Confirm Connections lists them as not available, with
 
 ## Slack (SLACK)
 
-Follow [../../operations/slack-integration.md](../../operations/slack-integration.md) to create the app. Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` on the backend; the request URL is `<tunnel>/api/webhooks/slack`.
+Follow [../../operations/slack-integration.md](../../operations/slack-integration.md) to create the app. Enter the bot token and signing secret on the Slack connection screen and save; the request URL is `<tunnel>/api/webhooks/slack`.
 
 ### SLACK-01 · Install and status
-1. Workspace settings → Connections → Slack: follow the install instructions.
+1. Workspace settings → Connections → Slack: follow the install instructions, enter the bot token and signing secret, save.
+2. Save a wrong bot token, then the right one again; remove the connection.
 
-Expect: Slack shows as in use; without the signing secret, the webhook answers 503.
+Expect: (1) Slack shows as connected and "Bot active" without a backend restart. (2) "Credentials rejected" with Slack's reason, then active again; after removal Slack shows as not set up and the webhook answers 503.
 
 ### SLACK-02 · Link your account and DMs
 1. Your settings → Notifications → **Link Slack**.

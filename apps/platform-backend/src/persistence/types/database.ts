@@ -1,5 +1,5 @@
 import type { ColumnType } from "kysely";
-import type { TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
+import type { IntegrationCredentialType, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
 import type {
   AgentPendingRequestStatus,
   AgentPendingRequestType,
@@ -136,7 +136,7 @@ export interface IntegrationCredentialsTable {
   id: Generated<string>;
   integration_id: string;
   name: string;
-  credential_type: "token" | "ssh_key" | "oauth" | "basic";
+  credential_type: IntegrationCredentialType;
   secret_id: string;
   is_default: Generated<boolean>;
   description: string | null;

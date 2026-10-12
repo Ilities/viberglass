@@ -38,3 +38,8 @@ export async function getThreadForTicket(ticketId: string): Promise<Thread | und
   threadCache.set(ticketId, thread);
   return thread;
 }
+
+/** Drops the cached thread objects, which hold the adapter of the bot that made them. */
+export function forgetCachedThreads(): void {
+  threadCache.clear();
+}

@@ -4,6 +4,7 @@ import type { ChatProvider } from "@viberglass/integration-core";
 export function fakeChatProvider(options: { configured?: boolean; adapterName?: string } = {}) {
   return {
     adapterName: options.adapterName ?? "slack",
+    configure: jest.fn(),
     isConfigured: jest.fn().mockReturnValue(options.configured ?? true),
     createAdapter: jest.fn(),
     registerHandlers: jest.fn(),

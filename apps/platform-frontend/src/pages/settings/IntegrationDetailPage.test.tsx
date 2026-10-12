@@ -1,15 +1,16 @@
 import { Theme } from '@radix-ui/themes'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { Integration, IntegrationManifest } from '@viberglass/types'
 import { IntegrationFrontendRegistry, type IntegrationFrontendPlugin } from '@viberglass/integration-core/frontend'
-import { getIntegration, getIntegrationManifests, getChatStatus } from '@/service/api/integration-api'
+import { getIntegration, getIntegrationCredentials, getIntegrationManifests, getChatStatus } from '@/service/api/integration-api'
 import { IntegrationDetailPage } from './IntegrationDetailPage'
 
 jest.mock('@/service/api/integration-api', () => ({
   createIntegration: jest.fn(),
   getConnectionIssueRules: jest.fn().mockResolvedValue([]),
   getIntegration: jest.fn(),
+  getIntegrationCredentials: jest.fn(),
   getIntegrationManifests: jest.fn(),
   getChatStatus: jest.fn(),
   testIntegration: jest.fn(),
@@ -27,7 +28,14 @@ jest.mock('./integration-detail/CustomInboundWebhookSection', () => ({
 jest.mock('./integration-detail/IntegrationCredentialSection', () => ({
   IntegrationCredentialSection: ({ credentialUse }: { credentialUse: string }) => <p>token: {credentialUse}</p>,
 }))
-jest.mock('@/components/integration-config-form', () => ({ IntegrationConfigForm: () => <p>config form</p> }))
+jest.mock('@/components/integration-config-form', () => ({
+  IntegrationConfigForm: ({ storedSecrets }: { storedSecrets?: string[] }) => (
+    <>
+      <p>config form</p>
+      {storedSecrets?.length ? <p>stored: {storedSecrets.join(', ')}</p> : null}
+    </>
+  ),
+}))
 
 function manifest(id: string, overrides: Partial<IntegrationManifest> = {}): IntegrationManifest {
   return {
@@ -48,6 +56,13 @@ const TRACKER = manifest('tracker', {
 })
 const JSON_WEBHOOK = manifest('json-webhook', { category: 'inbound', receivesWebhooks: true })
 const INSTALLED_APP = manifest('installed-app', { category: 'chat' })
+const CHAT_APP = manifest('chat-app', {
+  category: 'chat',
+  configFields: [
+    { key: 'botToken', label: 'Bot token', type: 'secret', required: true },
+    { key: 'signingSecret', label: 'Signing secret', type: 'secret', required: true },
+  ],
+})
 
 const mockRegistry = new IntegrationFrontendRegistry()
 const plugin = (m: IntegrationManifest, extra: Partial<IntegrationFrontendPlugin> = {}): IntegrationFrontendPlugin => ({
@@ -71,6 +86,7 @@ mockRegistry
   )
   .register(plugin(JSON_WEBHOOK))
   .register(plugin(INSTALLED_APP, { AuthSetupSection: () => <p>install the app</p> }))
+  .register(plugin(CHAT_APP, { AuthSetupSection: () => <p>install the chat app</p> }))
 
 jest.mock('@/integrations/registerFrontendIntegrationPlugins', () => ({
   get integrationFrontendRegistry() {
@@ -97,7 +113,7 @@ function renderAt(path: string) {
 
 describe('IntegrationDetailPage', () => {
   beforeEach(() => {
-    jest.mocked(getIntegrationManifests).mockResolvedValue([TRACKER, JSON_WEBHOOK, INSTALLED_APP])
+    jest.mocked(getIntegrationManifests).mockResolvedValue([TRACKER, JSON_WEBHOOK, INSTALLED_APP, CHAT_APP])
     jest.mocked(getChatStatus).mockResolvedValue({ configured: true })
   })
 
@@ -129,5 +145,36 @@ describe('IntegrationDetailPage', () => {
     expect(screen.queryByText('create prompt')).not.toBeInTheDocument()
     expect(await screen.findByText('Connected')).toBeInTheDocument()
     expect(getChatStatus).toHaveBeenCalledWith('installed-app')
+  })
+
+  it('offers the credential fields of a new app connection next to its install steps', async () => {
+    jest.mocked(getChatStatus).mockResolvedValue({ configured: false })
+    renderAt('/settings/connections/new/chat-app')
+    expect(await screen.findByText('install the chat app')).toBeInTheDocument()
+    expect(screen.getByText('config form')).toBeInTheDocument()
+    expect(await screen.findByText('Not set up')).toBeInTheDocument()
+    expect(getIntegrationCredentials).not.toHaveBeenCalled()
+  })
+
+  it("tells the form which of a connection's secret fields hold a value, without the values", async () => {
+    jest.mocked(getIntegration).mockResolvedValue(connection('chat-app'))
+    jest.mocked(getIntegrationCredentials).mockResolvedValue([
+      { id: 'c1', integrationId: 'conn-chat-app', name: 'botToken', credentialType: 'secret_field', secretId: 's1', secretLocation: 'database', isDefault: false, createdAt: '', updatedAt: '' },
+      { id: 'c2', integrationId: 'conn-chat-app', name: 'Old token', credentialType: 'token', secretId: 's2', secretLocation: 'database', isDefault: false, createdAt: '', updatedAt: '' },
+    ])
+    renderAt('/settings/connections/conn-chat-app')
+    expect(await screen.findByText('stored: botToken')).toBeInTheDocument()
+    expect(getIntegrationCredentials).toHaveBeenCalledWith('conn-chat-app')
+  })
+
+  it('is not connected while the chat service turns the saved credentials down', async () => {
+    jest.mocked(getIntegration).mockResolvedValue(connection('chat-app'))
+    jest.mocked(getIntegrationCredentials).mockResolvedValue([])
+    jest.mocked(getChatStatus).mockResolvedValue({ configured: true, error: 'invalid_auth' })
+    renderAt('/settings/connections/conn-chat-app')
+    expect(await screen.findByText('install the chat app')).toBeInTheDocument()
+    await waitFor(() => expect(getChatStatus).toHaveBeenCalledWith('chat-app'))
+    expect(screen.getByText('Not set up')).toBeInTheDocument()
+    expect(screen.queryByText('Connected')).not.toBeInTheDocument()
   })
 })

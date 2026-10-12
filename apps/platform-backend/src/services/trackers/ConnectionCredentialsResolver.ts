@@ -1,4 +1,4 @@
-import type { AuthCredentialType, AuthCredentials, Integration } from "@viberglass/types";
+import type { AuthCredentialType, AuthCredentials, Integration, IntegrationCredential } from "@viberglass/types";
 import { IntegrationCredentialDAO } from "../../persistence/integrations/IntegrationCredentialDAO";
 import { SecretResolutionService } from "../SecretResolutionService";
 import { SecretService } from "../SecretService";
@@ -6,7 +6,8 @@ import { SecretService } from "../SecretService";
 /**
  * A connection's settings with its token filled in, as its plugin expects
  * them: the connection's default token credential, else its newest token
- * credential, else the secret its settings name.
+ * credential, else the secret its settings name. Its `secret` fields are
+ * filled in under their keys.
  */
 export class ConnectionCredentialsResolver {
   constructor(
@@ -19,15 +20,23 @@ export class ConnectionCredentialsResolver {
     const config = integration.config;
     const type = typeof config.authType === "string" ? config.authType : "token";
     const resolved: AuthCredentials & Record<string, unknown> = { ...config, type: isAuthType(type) ? type : "token" };
-    const token = (await this.credentialToken(integration.id)) ?? (await this.namedToken(config.secretName));
+    const credentials = await this.credentials.listByIntegrationId(integration.id);
+    const token = (await this.credentialToken(credentials)) ?? (await this.namedToken(config.secretName));
     if (token) resolved.token = token;
+    for (const field of credentials.filter((credential) => credential.credentialType === "secret_field")) {
+      const value = await this.value(field);
+      if (value) resolved[field.name] = value;
+    }
     return resolved;
   }
 
-  private async credentialToken(integrationId: string): Promise<string | null> {
+  private async credentialToken(credentials: IntegrationCredential[]): Promise<string | null> {
     // Listed default first, then newest.
-    const credential = (await this.credentials.listByIntegrationId(integrationId)).find((candidate) => candidate.credentialType === "token");
-    if (!credential) return null;
+    const credential = credentials.find((candidate) => candidate.credentialType === "token");
+    return credential ? this.value(credential) : null;
+  }
+
+  private async value(credential: IntegrationCredential): Promise<string | null> {
     const value = await this.secretValues.resolveSecretValue(credential.secretId);
     return value?.trim() ? value : null;
   }

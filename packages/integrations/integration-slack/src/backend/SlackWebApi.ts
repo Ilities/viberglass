@@ -3,18 +3,19 @@ import { isObjectRecord } from "@viberglass/types";
 type Fetch = typeof fetch;
 
 /**
- * The two Slack Web API calls notifications need, with the bot token the
- * Slack install already uses. `SLACK_API_URL` points tests at a stub.
+ * The Slack Web API calls Viberglass makes itself, with the bot token of the
+ * Slack connection. `SLACK_API_URL` points tests at a stub.
  */
 export class SlackWebApi {
   constructor(
-    private readonly token: string | undefined = process.env.SLACK_BOT_TOKEN,
+    private readonly token: string,
     private readonly baseUrl: string = process.env.SLACK_API_URL || "https://slack.com/api",
     private readonly fetchFn: Fetch = fetch,
   ) {}
 
-  isConfigured(): boolean {
-    return Boolean(this.token && this.token !== "not-configured");
+  /** Answers ok for any working token. */
+  async authTest(): Promise<void> {
+    await this.call("auth.test", {});
   }
 
   /** A DM is a message to the person's user id. */

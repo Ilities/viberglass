@@ -3,7 +3,8 @@ import request from "supertest";
 import logger from "../../config/logger";
 
 jest.mock("../../chat", () => ({
-  default: { webhooks: { slack: jest.fn().mockResolvedValue(new Response("", { status: 200 })) } },
+  chatBot: { refresh: jest.fn().mockResolvedValue(undefined), adapterNames: [], bot: { webhooks: {} } },
+  chatBotStatus: { status: jest.fn().mockResolvedValue({ configured: false }) },
 }));
 
 jest.mock("../../persistence/ticketing/TicketDAO", () => ({

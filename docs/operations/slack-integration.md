@@ -69,26 +69,19 @@ All three Slack features (slash command, interactivity, events) use the same URL
 1. **OAuth & Permissions** > copy the **Bot User OAuth Token** (`xoxb-...`).
 2. **Basic Information** > copy the **Signing Secret**.
 
+Enter both on the Slack connection screen, as described under [Configuration](#configuration).
+
 ## Configuration
 
-Set these on the platform backend:
+Slack is set up entirely on its connection screen, Settings → Connections → Slack. Enter the Bot User OAuth Token and the Signing Secret and save. There are no Slack environment variables.
 
-```bash
-# Bot User OAuth Token (OAuth & Permissions page)
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-
-# Signing Secret (Basic Information page)
-SLACK_SIGNING_SECRET=your-signing-secret
-
-# Used to build task links posted in Slack, e.g. https://viberglass.example.com
-PLATFORM_FRONTEND_URL=https://your-frontend-host
-```
-
-- The Slack adapter is only created when `SLACK_SIGNING_SECRET` is set and not `not-configured`. Without it, `/api/webhooks/slack` answers `503`.
-- `SLACK_BOT_TOKEN` is used by the Chat SDK adapter and by the backend's own Slack calls (account linking and DMs). Slack shows as connected in Viberglass only when both values are set.
-- Without `PLATFORM_FRONTEND_URL`, Slack posts show the task title without a link.
+- The two values are stored as the connection's secrets, encrypted in the database or in AWS SSM (SSM when agents run on ECS), like every other secret. They are never sent back to the browser; the screen only shows that they are saved. To change one, enter the new value and save again.
+- Saving, changing or removing the connection rebuilds the Slack bot in the running backend; no restart is needed. Other backend instances pick the change up on the next Slack request, or within a minute.
+- The screen shows Bot active when both values are saved and Slack accepts the bot token (`auth.test`), Credentials rejected with Slack's reason when it doesn't, and Not configured otherwise. Test Connection runs the same check.
+- Until both values are saved, `/api/webhooks/slack` answers `503`.
+- The bot token is used by the Chat SDK adapter and by the backend's own Slack calls (account linking and DMs); the signing secret verifies that requests come from Slack.
+- Set `PLATFORM_FRONTEND_URL` on the backend so Slack posts link to tasks. Without it, posts show the task title without a link.
 - The Chat SDK keeps its thread subscriptions in the platform's PostgreSQL database, using the same connection as the rest of the backend.
-- On AWS, both Slack values are read from SSM parameters by the backend ECS task (`infra/platform/components/backend-ecs.ts`).
 
 ## Linking Slack Accounts
 
@@ -188,7 +181,8 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 | `packages/integrations/integration-slack/src/backend/chat/threadMessage.ts` | Sends messages in a task's thread to the task |
 | `packages/integrations/integration-slack/src/backend/chat/buttonActions.ts` | Build it and option buttons |
 | `packages/integration-core/src/backend/chat/` | `ChatProvider` and `ChatHandlerServices`, and the button IDs (`task_ask`, `question_answer_0`–`4`) and values |
-| `apps/platform-backend/src/chat/bot.ts` | Chat SDK instance with an adapter for each chat service that is set up, and PostgreSQL state |
+| `apps/platform-backend/src/chat/ChatBotRuntime.ts` | Builds the Chat SDK instance with an adapter for each chat service whose connection holds its credentials, and rebuilds it when a connection changes |
+| `apps/platform-backend/src/chat/ChatConnections.ts` | The connection each chat service runs on, with its credentials filled in |
 | `apps/platform-backend/src/chat/index.ts` | Wires each chat service's handlers to backend services and registers the mirror |
 | `apps/platform-backend/src/chat/TaskThreadInbound.ts` | Does thread messages, asks and answers as the linked user |
 | `apps/platform-backend/src/chat/TaskChatMirror.ts` | Turns task activity into posts in the task's thread |
@@ -204,7 +198,8 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 
 ### Bot doesn't respond to `/viberglass`
 
-- Check that `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set. A `503` from `/api/webhooks/slack` means the signing secret is missing.
+- Check that the Slack connection screen shows Bot active. A `503` from `/api/webhooks/slack` means the bot token or the signing secret isn't saved.
+- If requests are refused with a signature error, the saved signing secret doesn't match the app's; enter it again from Basic Information.
 - Check that the slash command URL matches your backend host and is HTTPS.
 - Check the backend logs for "Slack webhook error".
 

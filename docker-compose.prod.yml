@@ -64,11 +64,9 @@ services:
       CLANKER_INSTRUCTION_FILES_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/instructions
       SKILL_FILES_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/skills
       VIBERATOR_WORKER_REGISTRY: ${VIBERATOR_WORKER_REGISTRY-ghcr.io/ilities}
-      # Optional: email, Slack and traces. Empty means off.
+      # Optional: email and traces. Empty means off.
       EMAIL_FROM: ${EMAIL_FROM:-}
       SMTP_URL: ${SMTP_URL:-}
-      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
-      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
       WORKER_OTEL_EXPORTER_OTLP_ENDPOINT: ${WORKER_OTEL_EXPORTER_OTLP_ENDPOINT:-}

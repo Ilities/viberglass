@@ -3,6 +3,7 @@ import db from "../config/database";
 import { SecretService } from "../../services/SecretService";
 import type {
   IntegrationCredential,
+  IntegrationCredentialType,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
 import type { SecretLocation } from "../secret/SecretDAO";
@@ -10,7 +11,7 @@ import type { SecretLocation } from "../secret/SecretDAO";
 export interface CreateIntegrationCredentialInput {
   integrationId: string;
   name: string;
-  credentialType: 'token' | 'ssh_key' | 'oauth' | 'basic';
+  credentialType: IntegrationCredentialType;
   secretId: string;
   isDefault?: boolean;
   description?: string | null;

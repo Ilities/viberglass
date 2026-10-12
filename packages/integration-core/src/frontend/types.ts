@@ -1,4 +1,4 @@
-import type { IntegrationManifest } from '@viberglass/types'
+import type { ChatBotStatus, IntegrationManifest } from '@viberglass/types'
 import type { ComponentType } from 'react'
 
 /** An event a tracker's webhook can send, as the connection screen offers it. */
@@ -31,7 +31,7 @@ export interface TrackerWebhookDescriptor {
 
 export interface AuthSetupSectionProps {
   /** Whether the integration's workspace-level bot or app is set up, for install-style connections. */
-  getBotStatus?: () => Promise<{ configured: boolean }>
+  getBotStatus?: () => Promise<ChatBotStatus>
 }
 
 export interface IntegrationFrontendPlugin extends IntegrationManifest {

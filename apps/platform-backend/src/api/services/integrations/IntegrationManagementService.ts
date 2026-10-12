@@ -11,6 +11,8 @@ import { manifestOf } from "@viberglass/integration-core";
 import { IntegrationRouteServiceError } from "./errors";
 import type { CreateIntegrationInput, UpdateIntegrationInput } from "./types";
 import { ConnectionCredentialsResolver } from "../../../services/trackers/ConnectionCredentialsResolver";
+import { ConnectionSecretFields } from "./ConnectionSecretFields";
+import { connectionChanged } from "./connectionChangeListeners";
 
 export class IntegrationManagementService {
   constructor(
@@ -20,6 +22,8 @@ export class IntegrationManagementService {
     private readonly credentialDAO = new IntegrationCredentialDAO(),
     private readonly credentials: Pick<ConnectionCredentialsResolver, "resolve"> = new ConnectionCredentialsResolver(),
     private readonly usageDAO = new IntegrationUsageDAO(),
+    private readonly secretFields: Pick<ConnectionSecretFields, "split" | "save" | "removeAll"> = new ConnectionSecretFields(),
+    private readonly onChanged: (system: string) => Promise<void> = connectionChanged,
   ) {}
 
   async listIntegrations(system?: TicketSystem) {
@@ -51,11 +55,11 @@ export class IntegrationManagementService {
       );
     }
 
-    return this.integrationDAO.createIntegration({
-      name,
-      system: system,
-      config: config || {},
-    });
+    const fields = this.secretFields.split(plugin.configFields, config || {});
+    const integration = await this.integrationDAO.createIntegration({ name, system, config: fields.config });
+    await this.secretFields.save(integration, fields.values);
+    await this.onChanged(system);
+    return integration;
   }
 
   async getIntegration(integrationId: string) {
@@ -66,17 +70,22 @@ export class IntegrationManagementService {
     integrationId: string,
     input: UpdateIntegrationInput,
   ) {
-    await this.getIntegrationOrThrow(integrationId);
+    const existing = await this.getIntegrationOrThrow(integrationId);
+    const configFields = integrationRegistry.get(existing.system)?.configFields ?? [];
+    const fields = input.config ? this.secretFields.split(configFields, input.config) : { config: undefined, values: [] };
 
-    return this.integrationDAO.updateIntegration(integrationId, {
+    const integration = await this.integrationDAO.updateIntegration(integrationId, {
       name: input.name,
-      config: input.config,
+      config: fields.config,
       isActive: input.isActive,
     });
+    await this.secretFields.save(integration, fields.values);
+    await this.onChanged(integration.system);
+    return integration;
   }
 
   async deleteIntegration(integrationId: string) {
-    await this.getIntegrationOrThrow(integrationId);
+    const integration = await this.getIntegrationOrThrow(integrationId);
 
     // Deleting cascades to project repository settings, so a project using
     // this integration would silently lose its repository and credential.
@@ -95,6 +104,7 @@ export class IntegrationManagementService {
     await this.webhookConfigDAO.deleteAllForIntegration(integrationId);
 
     // 2. Delete integration credentials (these reference integrations with ON DELETE CASCADE)
+    await this.secretFields.removeAll(integrationId);
     await this.credentialDAO.deleteAllForIntegration(integrationId);
 
     // 3. Delete project integration links (these reference integrations)
@@ -102,6 +112,7 @@ export class IntegrationManagementService {
 
     // 4. Finally delete the integration itself
     await this.integrationDAO.deleteIntegration(integrationId, true);
+    await this.onChanged(integration.system);
   }
 
   async testIntegration(integrationId: string) {

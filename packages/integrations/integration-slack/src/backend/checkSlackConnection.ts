@@ -1,17 +1,18 @@
-import { isObjectRecord, type AuthCredentials } from '@viberglass/types'
+import type { AuthCredentials } from '@viberglass/types'
+import { slackSettingsFrom } from './slackSettings'
+import { SlackApiError, SlackWebApi } from './SlackWebApi'
 
-/** Slack's auth.test: answers ok for any working token. */
-export async function checkSlackConnection(config: AuthCredentials): Promise<void> {
-  const response = await fetch(`${config.baseUrl || 'https://slack.com/api'}/auth.test`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${config.token || config.apiKey || ''}`, 'Content-Type': 'application/json; charset=utf-8' },
-    body: '{}',
-  }).catch((error: unknown) => {
-    throw new Error(`Slack authentication failed: ${error instanceof Error ? error.message : String(error)}`)
-  })
-  const body: unknown = await response.json().catch(() => null)
-  if (!isObjectRecord(body) || body.ok !== true) {
-    const reason = isObjectRecord(body) && typeof body.error === 'string' ? body.error : `HTTP ${response.status}`
-    throw new Error(`Slack authentication failed: ${reason}`)
-  }
+/** Both values are entered and Slack's auth.test takes the bot token. */
+export async function checkSlackConnection(
+  config: AuthCredentials,
+  api: (botToken: string) => Pick<SlackWebApi, 'authTest'> = (botToken) => new SlackWebApi(botToken),
+): Promise<void> {
+  const settings = slackSettingsFrom(config)
+  if (!settings) throw new Error('Enter the Slack app\'s bot token and signing secret.')
+  await api(settings.botToken)
+    .authTest()
+    .catch((error: unknown) => {
+      const reason = error instanceof SlackApiError ? error.slackError : error instanceof Error ? error.message : String(error)
+      throw new Error(`Slack authentication failed: ${reason}`)
+    })
 }

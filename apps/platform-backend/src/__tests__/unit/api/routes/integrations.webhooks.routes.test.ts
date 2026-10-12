@@ -28,6 +28,7 @@ const mockWebhookService = {
   retryDelivery: jest.fn(),
 };
 
+jest.mock("../../../../chat", () => ({ chatBotStatus: { status: jest.fn() } }));
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: (
     _req: express.Request,
