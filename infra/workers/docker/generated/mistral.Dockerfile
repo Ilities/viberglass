@@ -1,5 +1,5 @@
-# Generated Dockerfile for mistral
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for mistral-vibe
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS mistral-worker
@@ -15,19 +15,16 @@ ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Source: https://docs.mistral.ai/mistral-vibe/introduction/install
-RUN uv tool install mistral-vibe || \
+# Pinned Python: uv picks the newest, which some of its dependencies have no wheels for yet.
+RUN uv tool install --python 3.13 mistral-vibe || \
     pip install --user mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
-RUN which mistral-vibe || \
-    ls /home/viberator/.local/bin/mistral-vibe || \
-    echo "Warning: mistral-vibe not found in PATH"
+RUN which vibe || echo "Warning: vibe not found in PATH"
 
-ENV AGENT_TYPE=mistral-vibe
 ENV MISTRAL_CONFIG_DIR=/tmp/mistral-config
 
-LABEL agent.type="mistral-vibe" \
-      agent.provider="mistral" \
-      viberator.worker-type="agent"
+ENV AGENT_TYPE=mistral-vibe
+LABEL agent.type="mistral-vibe" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

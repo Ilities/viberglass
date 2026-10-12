@@ -1,4 +1,5 @@
-import { BaseAgent, currentModelEndpoint, parseClaudeCodeStreamJsonUsage } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
+import { parseClaudeCodeStreamJsonUsage } from "./claudeCodeUsage";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";

@@ -1,4 +1,4 @@
-import { findOpenCodeSessionId, parseOpenCodeSessionExport } from "@viberglass/agent-core";
+import { findOpenCodeSessionId, parseOpenCodeSessionExport } from "./openCodeUsage";
 import type { AgentUsageReport } from "@viberglass/agent-core";
 
 export type OpenCodeCommand = (args: string[]) => Promise<{ stdout: string; stderr: string; exitCode: number }>;

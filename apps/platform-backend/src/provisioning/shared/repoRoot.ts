@@ -2,7 +2,7 @@ import path from "path";
 import { existsSync } from "fs";
 
 const DEFAULT_DOCKERFILE_PATH =
-  "infra/workers/docker/viberator-docker-worker.Dockerfile";
+  "infra/workers/docker/viberator-worker-multi-agent.Dockerfile";
 
 export function resolveRepoRoot(): string {
   const cwd = process.cwd();

@@ -1,0 +1,5 @@
+# Lambda fragment: Kimi Code agent (Amazon Linux, as root)
+ENV PATH="/root/.kimi-code/bin:${PATH}"
+# The installer keeps the older kimi-cli as kimi-legacy, which refuses to run.
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
+    && rm -f /root/.local/bin/kimi-legacy /root/.local/bin/kimi-cli

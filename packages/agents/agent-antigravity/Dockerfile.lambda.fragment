@@ -1,0 +1,4 @@
+# Lambda fragment: Google Antigravity agent (Amazon Linux, as root)
+COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
+RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
+ENV PATH="/opt/agy-acp:${PATH}"

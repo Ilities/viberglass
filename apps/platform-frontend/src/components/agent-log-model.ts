@@ -65,8 +65,6 @@ interface ParsedAgentEnvelope {
 interface ParsedItemPayload {
   type: string | null
   item: Record<string, unknown> | null
-  // Full parsed object — needed for Responses API format where there is no `item` wrapper
-  data: Record<string, unknown>
   raw: string
 }
 
@@ -147,7 +145,6 @@ function parseItemPayload(payload: string): ParsedItemPayload | null {
     return {
       type: readString(data.type),
       item: readObject(data.item),
-      data,
       raw: payload,
     }
   } catch {
@@ -161,11 +158,11 @@ function parseStructuredLog(log: LogEntry): ParsedStructuredLog | null {
 
   if (envelope) {
     const itemPayload = parseItemPayload(envelope.payload)
-    // Non-JSON payload (plain text from agent — e.g. Claude Code default format, Mistral vibe)
+    // Non-JSON payload: plain text from the agent.
     // Still preserve the agent source label and strip the envelope prefix from the text.
     if (!itemPayload) {
       return {
-        itemPayload: { type: null, item: null, data: {}, raw: envelope.payload },
+        itemPayload: { type: null, item: null, raw: envelope.payload },
         sourceLabel: `agent:${envelope.agentName}`,
         agentName: envelope.agentName,
         stream: envelope.stream,
@@ -262,339 +259,6 @@ function buildRawEvent(log: LogEntry, text?: string): RawTimelineEvent {
   }
 }
 
-// Extract content blocks from both flat {"content":[...]} and nested {"message":{"content":[...]}} forms
-function extractContentBlocks(data: Record<string, unknown>): Array<Record<string, unknown>> | null {
-  const isObj = (v: unknown): v is Record<string, unknown> =>
-    v !== null && typeof v === 'object' && !Array.isArray(v)
-
-  if (Array.isArray(data.content)) {
-    return (data.content as unknown[]).filter(isObj)
-  }
-  const msg = data.message
-  if (isObj(msg) && Array.isArray(msg.content)) {
-    return (msg.content as unknown[]).filter(isObj)
-  }
-  return null
-}
-
-// Build a human-readable command string from a tool_use block
-function formatToolCommand(name: string, input: Record<string, unknown>): string {
-  // run_shell_command / bash: show the actual command
-  const cmd = readString(input.command) ?? readString(input.cmd)
-  if (cmd) return cmd
-
-  // File operations: show the path
-  const filePath =
-    readString(input.absolute_path) ??
-    readString(input.path) ??
-    readString(input.file_path) ??
-    readString(input.notebook_path)
-  if (filePath) return `${name} ${filePath}`
-
-  // Search/glob: show the pattern or query
-  const pattern = readString(input.pattern) ?? readString(input.query) ?? readString(input.glob)
-  if (pattern) return `${name} ${pattern}`
-
-  // URL-based tools
-  const url = readString(input.url)
-  if (url) return `${name} ${url}`
-
-  return name
-}
-
-// Pre-scan all logs to collect tool_use definitions (id → name + input) from assistant events.
-// Used so orphaned tool results (sorted before their matching assistant event) still show a command name.
-function collectToolUseDefinitions(
-  logs: LogEntry[],
-): Map<string, { name: string; input: Record<string, unknown> }> {
-  const defs = new Map<string, { name: string; input: Record<string, unknown> }>()
-
-  for (const log of logs) {
-    const envelope = parseAgentEnvelope(log.message)
-    const rawPayload = envelope ? envelope.payload : log.message.trim()
-    let data: Record<string, unknown> | null = null
-    try {
-      const parsed = JSON.parse(rawPayload)
-      data = readObject(parsed)
-    } catch {
-      continue
-    }
-    if (!data || readString(data.type) !== 'assistant') continue
-
-    const blocks = extractContentBlocks(data)
-    if (!blocks) continue
-
-    for (const block of blocks) {
-      if (readString(block.type) !== 'tool_use') continue
-      const id = readString(block.id)
-      const name = readString(block.name) ?? '(unknown tool)'
-      const input = readObject(block.input) ?? {}
-      if (id) defs.set(id, { name, input })
-    }
-  }
-
-  return defs
-}
-
-/**
- * Handle an opencode event (type: text | tool_use | step_start | step_finish).
- * Pushes 0 or more timeline events and updates commandIndexById.
- * Returns true if the event was recognized and handled.
- */
-function handleOpencodeEvent(
-  log: LogEntry,
-  sourceLabel: string,
-  agentName: string,
-  data: Record<string, unknown>,
-  timeline: TimelineEvent[],
-  commandIndexById: Map<string, number>,
-): boolean {
-  const eventType = readString(data.type)
-  if (!eventType) return false
-
-  // step_start / step_finish — silently consume if this looks like opencode format
-  if (eventType === 'step_start' || eventType === 'step_finish') {
-    return readObject(data.part) !== null
-  }
-
-  const part = readObject(data.part)
-  if (!part) return false
-
-  if (eventType === 'text') {
-    const text = readString(part.text)
-    if (text) {
-      timeline.push({
-        kind: 'agent_message',
-        id: `${log.id}-oc-text`,
-        createdAt: log.createdAt,
-        level: log.level,
-        sourceLabel,
-        agentName,
-        text,
-      })
-    }
-    return true
-  }
-
-  if (eventType === 'tool_use') {
-    const toolName = readString(part.tool) ?? '(unknown tool)'
-    const callId = readString(part.callID) ?? `oc-tool-${log.id}`
-    const stateObj = readObject(part.state)
-    const input = stateObj ? readObject(stateObj.input) ?? {} : {}
-    const rawOutput = stateObj ? stateObj.output : null
-    const output = typeof rawOutput === 'string' ? rawOutput : ''
-    const status = stateObj ? readString(stateObj.status) : null
-    const isFailed = status === 'error' || status === 'failed'
-    const isCompleted = status === 'completed'
-    const commandState: CommandState = isFailed ? 'failed' : isCompleted ? 'completed' : 'running'
-    const command = formatToolCommand(toolName, input)
-
-    const existingIndex = commandIndexById.get(callId)
-    if (existingIndex !== undefined) {
-      const existing = timeline[existingIndex]
-      if (existing.kind === 'command_execution') {
-        timeline[existingIndex] = {
-          ...existing,
-          command: command || existing.command,
-          output: output.length >= existing.output.length ? output : existing.output,
-          exitCode: isFailed ? 1 : isCompleted ? 0 : existing.exitCode,
-          status: status ?? existing.status,
-          state:
-            commandStateRank(existing.state) >= commandStateRank(commandState)
-              ? existing.state
-              : commandState,
-          completedAt: isCompleted || isFailed ? log.createdAt : existing.completedAt,
-          level: maxLevel(existing.level, log.level),
-        }
-      }
-    } else {
-      timeline.push({
-        kind: 'command_execution',
-        id: `command-${callId}`,
-        commandId: callId,
-        createdAt: log.createdAt,
-        startedAt: log.createdAt,
-        completedAt: isCompleted || isFailed ? log.createdAt : null,
-        level: log.level,
-        sourceLabel,
-        agentName,
-        stream: 'stdout',
-        command,
-        output,
-        exitCode: isFailed ? 1 : isCompleted ? 0 : null,
-        status,
-        state: commandState,
-      })
-      commandIndexById.set(callId, timeline.length - 1)
-    }
-    return true
-  }
-
-  return false
-}
-
-/**
- * Handle a Responses API event (assistant/user/result/system format used by qwen-cli, kimi, etc.)
- * Pushes 0 or more timeline events and updates commandIndexById.
- * Returns true if the event was recognized and handled (even if nothing was pushed).
- */
-function handleResponsesApiEvent(
-  log: LogEntry,
-  sourceLabel: string,
-  agentName: string,
-  data: Record<string, unknown>,
-  timeline: TimelineEvent[],
-  commandIndexById: Map<string, number>,
-  toolUseDefs: Map<string, { name: string; input: Record<string, unknown> }>,
-): boolean {
-  const eventType = readString(data.type)
-  if (!eventType) return false
-
-  // Initialization event — no user value
-  if (eventType === 'system') return true
-
-  // Final result summary — emit as an agent message if there's meaningful text
-  if (eventType === 'result') {
-    const text = readString(data.result)
-    if (text) {
-      timeline.push({
-        kind: 'agent_message',
-        id: `${log.id}-result`,
-        createdAt: log.createdAt,
-        level: log.level,
-        sourceLabel,
-        agentName,
-        text,
-      })
-    }
-    return true
-  }
-
-  // Assistant turn: text messages, thinking blocks, and tool calls
-  if (eventType === 'assistant') {
-    const blocks = extractContentBlocks(data)
-    if (!blocks) return false
-
-    for (const block of blocks) {
-      const blockType = readString(block.type)
-
-      if (blockType === 'text') {
-        const text = readString(block.text)
-        if (text) {
-          timeline.push({
-            kind: 'agent_message',
-            id: `${log.id}-text`,
-            createdAt: log.createdAt,
-            level: log.level,
-            sourceLabel,
-            agentName,
-            text,
-          })
-        }
-      } else if (blockType === 'thinking') {
-        const text = readString(block.thinking)
-        if (text) {
-          pushOrMergeReasoning(timeline, {
-            kind: 'reasoning',
-            id: `${log.id}-thinking`,
-            createdAt: log.createdAt,
-            level: log.level,
-            sourceLabel,
-            agentName,
-            text,
-          })
-        }
-      } else if (blockType === 'tool_use') {
-        const toolId = readString(block.id)
-        const toolName = readString(block.name) ?? '(unknown tool)'
-        const inputObj = readObject(block.input) ?? {}
-        const command = formatToolCommand(toolName, inputObj)
-        const commandId = toolId ?? `${log.id}-tool`
-
-        if (!commandIndexById.has(commandId)) {
-          timeline.push({
-            kind: 'command_execution',
-            id: `command-${commandId}`,
-            commandId,
-            createdAt: log.createdAt,
-            startedAt: log.createdAt,
-            completedAt: null,
-            level: log.level,
-            sourceLabel,
-            agentName,
-            stream: 'stdout',
-            command,
-            output: '',
-            exitCode: null,
-            status: 'in_progress',
-            state: 'running',
-          })
-          commandIndexById.set(commandId, timeline.length - 1)
-        }
-      }
-    }
-    return true
-  }
-
-  // User turn: tool results — find and complete the matching tool call
-  if (eventType === 'user') {
-    const blocks = extractContentBlocks(data)
-    if (!blocks) return true
-
-    for (const block of blocks) {
-      if (readString(block.type) !== 'tool_result') continue
-
-      const toolUseId = readString(block.tool_use_id)
-      if (!toolUseId) continue
-
-      const output = readText(block.content) ?? ''
-      const isError = Boolean(block.is_error)
-      const state: CommandState = isError ? 'failed' : 'completed'
-
-      const existingIndex = commandIndexById.get(toolUseId)
-      if (existingIndex !== undefined) {
-        const existing = timeline[existingIndex]
-        if (existing.kind === 'command_execution') {
-          timeline[existingIndex] = {
-            ...existing,
-            output,
-            exitCode: isError ? 1 : 0,
-            state,
-            status: state,
-            completedAt: log.createdAt,
-            level: maxLevel(existing.level, log.level),
-          }
-        }
-      } else {
-        // Orphaned result — look up the tool definition to get the real command name
-        const def = toolUseDefs.get(toolUseId)
-        const command = def ? formatToolCommand(def.name, def.input) : '(unknown tool)'
-        timeline.push({
-          kind: 'command_execution',
-          id: `command-${toolUseId}`,
-          commandId: toolUseId,
-          createdAt: log.createdAt,
-          startedAt: null,
-          completedAt: log.createdAt,
-          level: log.level,
-          sourceLabel,
-          agentName,
-          stream: 'stdout',
-          command,
-          output,
-          exitCode: isError ? 1 : 0,
-          status: state,
-          state,
-        })
-        commandIndexById.set(toolUseId, timeline.length - 1)
-      }
-    }
-    return true
-  }
-
-  return false
-}
-
 export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
   if (!logs || logs.length === 0) {
     return []
@@ -614,7 +278,6 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
 
   const timeline: TimelineEvent[] = []
   const commandIndexById = new Map<string, number>()
-  const toolUseDefs = collectToolUseDefinitions(logs)
 
   for (const log of sortedLogs) {
     const structuredLog = parseStructuredLog(log)
@@ -625,24 +288,10 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
 
     const { itemPayload, sourceLabel, agentName, stream, rawFallback } = structuredLog
 
-    // No viberator `item` wrapper — try Responses API format (assistant/user/result/system)
-    // then opencode format (text/tool_use/step_start/step_finish)
+    // The worker writes every harness's output as `item` events; anything else is shown as it is.
     if (!itemPayload.item) {
-      const handled =
-        handleResponsesApiEvent(
-          log,
-          sourceLabel,
-          agentName,
-          itemPayload.data,
-          timeline,
-          commandIndexById,
-          toolUseDefs,
-        ) ||
-        handleOpencodeEvent(log, sourceLabel, agentName, itemPayload.data, timeline, commandIndexById)
-      if (!handled) {
-        // Use sourceLabel from the envelope (e.g. "agent:claude") not log.source ("viberator")
-        timeline.push({ kind: 'raw', id: log.id, createdAt: log.createdAt, level: log.level, sourceLabel, text: rawFallback })
-      }
+      // Use sourceLabel from the envelope (e.g. "agent:claude") not log.source ("viberator")
+      timeline.push({ kind: 'raw', id: log.id, createdAt: log.createdAt, level: log.level, sourceLabel, text: rawFallback })
       continue
     }
 

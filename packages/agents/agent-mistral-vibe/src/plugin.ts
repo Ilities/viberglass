@@ -39,6 +39,16 @@ const mistralVibePlugin: AgentPlugin<MistralVibeConfig> = {
     apiKey: ["MISTRAL_API_KEY"],
   },
 
+  agentEnv: [
+    "MISTRAL_BASE_URL",
+    "VIBE_PROVIDERS",
+    "VIBE_MODELS",
+    "VIBE_ACTIVE_MODEL",
+    "VIBE_ENABLE_TELEMETRY",
+    "VIBE_ENABLE_UPDATE_CHECKS",
+    "VIBE_ENABLE_AUTO_UPDATE",
+  ],
+
   // vibe-acp stores sessions in ~/.vibe/logs/session/ (VIBE_HOME defaults to ~/.vibe/)
   stateDirs: [".vibe/logs/session"],
 

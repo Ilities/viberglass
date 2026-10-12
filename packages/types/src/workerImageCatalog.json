@@ -83,12 +83,12 @@
     "variant": "claude",
     "repositoryName": "viberator-worker",
     "scriptImageName": "worker",
-    "dockerfilePath": "infra/workers/docker/viberator-docker-worker.Dockerfile",
+    "dockerfilePath": "infra/workers/docker/generated/claude.Dockerfile",
     "includeInHarnessSetup": true,
     "includeInInfraProvisioning": true,
     "includeInBuildScript": true,
     "includeInPushScript": true,
-    "isAgentImage": false,
+    "isAgentImage": true,
     "supportedAgents": [
       "claude-code"
     ],

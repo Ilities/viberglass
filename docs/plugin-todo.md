@@ -15,6 +15,7 @@ The target for every step: nothing outside a plugin's package names it, except t
 - Chat is an integration capability: a `ChatProvider` (the chat SDK adapter and its handlers, direct messages, finding an account by email, mention syntax) lives in the integration's package; `chat-slack` merged into `integration-slack`. The bot, the task mirror, thread inbound, account links (`user_chat_identities`), DMs, status and the webhook route work for any chat service.
 - "Test connection" calls the plugin's optional `checkConnection`; the legacy `PMIntegration` classes, the per-space integration config endpoints and their DAO are gone.
 - Harness settings are fields: a plugin declares `settings` (key, label, string or select, the env vars the worker sets, the provider default that fills it) and `harnessConfigEditor`, and the catalog carries them. `AgentType` is an open string checked against the catalog. One backend normalizer, one frontend form, reader and builder, and one worker step replace the per-harness config types, normalizers, form fields and endpoint environments. Configs from before the v1 format are no longer read. Both kinds of plugin share the field type, `PluginField`.
+- Worker internals are in the plugins. Plugins name the env vars their CLI reads (`agentEnv`, besides keys, endpoints and settings), and the agent allowlist is what the registered harnesses name. A harness's output normalizer and usage parsers live in its package (`createOutputNormalizer`); agent-core keeps the stream-json one most harnesses share, and the frontend only reads the normalized `item` events. `npm run generate:dockerfiles` composes the per-harness, multi-agent, ECS and Lambda images from each harness's `Dockerfile.fragment` and `Dockerfile.lambda.fragment`; the local Docker image is the multi-agent one.
 - Both kinds of plugin share `PluginManifest` (id, label, description). Each integration package has a `src/manifest.ts` its backend and frontend entries spread; the API sends it as is. Icons are frontend plugin components. The connection screen goes by the manifest: config form when it has `configFields`, token section when it has `credentialUse`, webhook section when it has `webhookProvider` (the tracker one when the frontend plugin has `trackerWebhook`), install section instead of a name prompt when it has `AuthSetupSection`.
 
 ## Learned so far
@@ -25,11 +26,9 @@ The target for every step: nothing outside a plugin's package names it, except t
 
 ## Harnesses
 
-### H3. Worker internals into the plugins
+### H3 leftovers
 
-- Env passthrough becomes a plugin field. It replaces the per-harness groups in `agent-core/src/agentEnvironment.ts`.
-- The OpenCode usage parsers move from `agent-core` into `agent-opencode`. The frontend log parsers for OpenCode and the Responses format go behind a log format the manifest names.
-- The multi-agent, lambda, docker and ECS worker Dockerfiles are composed from the plugins' `Dockerfile.fragment`s.
+- The run log's agent badge colours (`AGENT_COLOR_MAP` in `log-viewer-utils.ts`) are keyed by harness and class names, some stale; unknown names fall back to a hashed colour.
 
 ### H4. Sign-in as a capability
 

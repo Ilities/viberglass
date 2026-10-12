@@ -37,7 +37,8 @@ import {
   withSpan,
   type Span,
 } from "@viberglass/telemetry";
-import { AgentStreamNormalizer } from "./agentStreamNormalizer";
+import type { AgentOutputNormalizer } from "./agentOutputNormalizer";
+import { StreamJsonNormalizer } from "./StreamJsonNormalizer";
 import { sanitizeAgentEnvironment } from "./agentEnvironment";
 import { withWorkingDirectory } from "./workingDirectoryEnvironment";
 import type { IAgentGitService } from "./git/IAgentGitService";
@@ -310,6 +311,11 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     return this.gitService.cloneRepository(repoUrl, branch, workDir);
   }
 
+  /** How this harness's stdout becomes run log lines; harnesses with their own format override it. */
+  protected createOutputNormalizer(): AgentOutputNormalizer {
+    return new StreamJsonNormalizer();
+  }
+
   protected async executeCommand(
     command: string,
     args: string[],
@@ -323,7 +329,7 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const timeout = options.timeout || this.config.executionTimeLimit * 1000;
-      const normalizer = new AgentStreamNormalizer();
+      const normalizer = this.createOutputNormalizer();
 
       const child = spawn(command, args, {
         cwd: options.cwd,

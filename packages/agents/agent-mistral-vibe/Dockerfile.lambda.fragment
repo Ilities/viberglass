@@ -1,0 +1,8 @@
+# Lambda fragment: Mistral Vibe agent (Amazon Linux, as root)
+# Source: https://docs.mistral.ai/mistral-vibe/introduction/install
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ || true
+# Pinned Python: uv picks the newest, which some of its dependencies have no wheels for yet.
+RUN uv tool install --python 3.13 mistral-vibe || \
+    pip install mistral-vibe || \
+    echo "Warning: Failed to install mistral-vibe"

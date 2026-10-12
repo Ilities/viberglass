@@ -1,0 +1,2 @@
+# Lambda fragment: OpenAI Codex agent (Amazon Linux, as root)
+RUN npm install -g @openai/codex @agentclientprotocol/codex-acp

@@ -66,83 +66,19 @@ const RUNTIME_ALLOWLIST: readonly string[] = [
   "JAVA_HOME",
 ];
 
+/** Set by the worker for a runner's model endpoint, whichever harness runs it. */
+const PLATFORM_ALLOWLIST: readonly string[] = ["MODEL_ENDPOINT_API_KEY"];
+
 /**
- * Model-provider and harness variables. Explicit rather than prefix-matched where a
- * prefix would also cover unrelated cloud credentials (`GOOGLE_`, `AWS_`).
+ * What the registered harnesses read: their keys, endpoints, settings and own
+ * variables. Any harness may see any of them, as none is a platform credential.
  */
-const PROVIDER_ALLOWLIST: readonly string[] = [
-  // Anthropic / Claude Code
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
-  "ANTHROPIC_MODEL",
-  "CLAUDE_CODE_NON_INTERACTIVE",
-  "ANTHROPIC_CUSTOM_HEADERS",
-  "ANTHROPIC_DEFAULT_OPUS_MODEL",
-  "ANTHROPIC_DEFAULT_SONNET_MODEL",
-  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-  "ANTHROPIC_DEFAULT_FABLE_MODEL",
-  "ANTHROPIC_SMALL_FAST_MODEL",
-  "CLAUDE_CODE_SUBAGENT_MODEL",
-  "CLAUDE_CODE_NO_MODEL_FALLBACK",
-  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
-  "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
-  "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
-  "CLAUDE_CONFIG_DIR",
-  // OpenAI / Codex
-  "OPENAI_API_KEY",
-  "MODEL_ENDPOINT_API_KEY",
-  "OPENAI_BASE_URL",
-  "OPENAI_MODEL",
-  "CODEX_AUTH_MODE",
-  "CODEX_CONFIG",
-  "CODEX_CONFIG_DIR",
-  "CODEX_ENDPOINT",
-  "CODEX_HOME",
-  // Google / Antigravity
-  "GEMINI_API_KEY",
-  "AGY_ACP_DEFAULT_MODEL",
-  "AGY_ACP_DISABLE_WORKSPACE_TRUST",
-  // Alibaba / Qwen
-  "DASHSCOPE_API_KEY",
-  "QWEN_API_ENDPOINT",
-  "QWEN_CLI_API_KEY",
-  "QWEN_CLI_ENDPOINT",
-  "QWEN_CODE_SYSTEM_SETTINGS_PATH",
-  "QWEN_PLACEHOLDER_API_KEY",
-  // Moonshot / Kimi
-  "KIMI_API_KEY",
-  "KIMI_BASE_URL",
-  "KIMI_CODE_ENDPOINT",
-  "KIMI_MODEL_NAME",
-  "KIMI_CODE_NO_AUTO_UPDATE",
-  "MOONSHOT_API_KEY",
-  "MOONSHOT_BASE_URL",
-  // Mistral
-  "MISTRAL_API_KEY",
-  "MISTRAL_BASE_URL",
-  "VIBE_PROVIDERS",
-  "VIBE_MODELS",
-  "VIBE_ACTIVE_MODEL",
-  "VIBE_ENABLE_TELEMETRY",
-  "VIBE_ENABLE_UPDATE_CHECKS",
-  "VIBE_ENABLE_AUTO_UPDATE",
-  // OpenCode
-  "OPENCODE_API_KEY",
-  "OPENCODE_BASE_URL",
-  "OPENCODE_CONFIG_DIR",
-  "OPENCODE_ENDPOINT",
-  "OPENCODE_MODEL",
-  // Pi
-  "PI_CODING_AGENT_DIR",
-  "PI_CODING_AGENT_SESSION_DIR",
-  // Further providers that Pi and OpenCode read keys for
-  "DEEPSEEK_API_KEY",
-  "GROQ_API_KEY",
-  "OPENROUTER_API_KEY",
-  "XAI_API_KEY",
-  "ZAI_API_KEY",
-];
+const harnessAllowlist = new Set<string>();
+
+/** Admits a harness's variables; the agent registry calls it for each plugin. */
+export function allowHarnessEnvironment(names: Iterable<string>): void {
+  for (const name of names) harnessAllowlist.add(name);
+}
 
 /**
  * Applied last, over the allowlist and over operator passthrough. A variable matching
@@ -208,8 +144,8 @@ function isDenied(name: string): boolean {
 /**
  * Filter an environment down to what a spawned agent CLI is allowed to see.
  *
- * Deny-by-default: a name must be on the runtime allowlist, the provider allowlist or
- * the operator passthrough list, and must not match the denylist.
+ * Deny-by-default: a name must be on the runtime or platform allowlist, read by a
+ * registered harness, or on the operator passthrough list, and must not match the denylist.
  */
 export function sanitizeAgentEnvironment(
   source: NodeJS.ProcessEnv,
@@ -218,7 +154,8 @@ export function sanitizeAgentEnvironment(
   const passthrough = options.passthrough ?? parsePassthrough(source);
   const allowed = new Set<string>([
     ...RUNTIME_ALLOWLIST,
-    ...PROVIDER_ALLOWLIST,
+    ...PLATFORM_ALLOWLIST,
+    ...harnessAllowlist,
     ...passthrough,
   ]);
 
@@ -238,10 +175,3 @@ export function sanitizeAgentEnvironment(
 
   return { env, removed };
 }
-
-/** Exposed for tests and for documenting the boundary. */
-export const agentEnvironmentAllowlist = {
-  runtime: RUNTIME_ALLOWLIST,
-  provider: PROVIDER_ALLOWLIST,
-  denyPatterns: DENY_PATTERNS,
-};

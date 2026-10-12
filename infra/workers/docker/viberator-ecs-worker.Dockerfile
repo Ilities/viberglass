@@ -1,8 +1,6 @@
-# ECS Worker - Ephemeral CLI-based worker for AWS ECS
-# This container runs a single job and exits
-# Optimized for AWS ECS with Fargate
+# ECS worker image, with the build's default harness
+# Generated: don't edit, run npm run generate:dockerfiles.
 
-# Build stage
 FROM node:24-slim AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -22,14 +20,36 @@ RUN npm run build:worker
 FROM node:24-slim
 WORKDIR /app
 
-# Install git as it's required for the GitService
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Install common system dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    git \
+    curl \
+    wget \
+    ripgrep \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Provide common CLI tools expected by agent tasks.
+RUN npm install -g typescript jest
 
 # Create a non-root user
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
-# Install Claude Code and ACP adapter globally
+# Composed images install their harnesses here, before the app, so a code change doesn't reinstall them.
+USER viberator
+ENV NPM_CONFIG_PREFIX=/home/viberator/.npm-global
+ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
+
+# Fragment: Claude Code agent
+# Source: https://github.com/anthropics/claude-code
+# The ACP adapter moved from @zed-industries (frozen at 0.23.1) to @agentclientprotocol.
 RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
+
+RUN which claude || echo "Warning: claude not found in PATH"
+
+LABEL agent.type="claude-code" viberator.worker-type="agent"
+USER root
 
 # Copy package files and install production dependencies
 COPY package*.json ./
@@ -43,8 +63,10 @@ RUN npm install --omit=dev --workspace=@viberator/orchestrator
 # Copy built app from builder
 COPY --from=builder /app/apps/viberator/dist ./apps/viberator/dist
 
-# Create a work directory for git clones and set ownership
-RUN mkdir -p /tmp/viberator-work && chown -R viberator:viberator /tmp/viberator-work && chmod 777 /tmp/viberator-work
+# Create a work directory for git clones
+RUN mkdir -p /tmp/viberator-work && \
+    chown -R viberator:viberator /tmp/viberator-work && \
+    chmod 777 /tmp/viberator-work
 
 # Set ownership for the app directory
 RUN chown -R viberator:viberator /app
@@ -54,5 +76,6 @@ USER viberator
 ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
-# Default command shows help (ECS overrides this with actual job data)
+# Default command shows help
+# Override this in derived images or at runtime
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

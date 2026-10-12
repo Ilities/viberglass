@@ -37,6 +37,9 @@ RUN npm install -g typescript jest
 # Create a non-root user
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
+# Composed images install their harnesses here, before the app, so a code change doesn't reinstall them.
+# HARNESS INSTALLS
+
 # Copy package files and install production dependencies
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/

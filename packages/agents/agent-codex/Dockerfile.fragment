@@ -5,11 +5,6 @@ RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 
 RUN which codex || echo "Warning: codex not found in PATH"
 
-ENV AGENT_TYPE=codex
 # Under $HOME, so the plugin's stateDirs (.codex) archive its sessions between turns.
 ENV CODEX_HOME=/home/viberator/.codex
 ENV CODEX_CONFIG_DIR=/home/viberator/.codex
-
-LABEL agent.type="codex" \
-      agent.provider="openai" \
-      viberator.worker-type="agent"

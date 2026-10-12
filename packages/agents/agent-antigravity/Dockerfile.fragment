@@ -8,9 +8,3 @@ USER viberator
 ENV PATH="/opt/agy-acp:${PATH}"
 
 RUN which agy_acp_server.par || echo "Warning: agy_acp_server.par not found in PATH"
-
-ENV AGENT_TYPE=antigravity
-
-LABEL agent.type="antigravity" \
-      agent.provider="google" \
-      viberator.worker-type="agent"

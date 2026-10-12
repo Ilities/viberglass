@@ -48,6 +48,23 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
     endpoint: ["ANTHROPIC_BASE_URL"],
   },
 
+  agentEnv: [
+    "ANTHROPIC_MODEL",
+    "ANTHROPIC_CUSTOM_HEADERS",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+    "ANTHROPIC_DEFAULT_FABLE_MODEL",
+    "ANTHROPIC_SMALL_FAST_MODEL",
+    "CLAUDE_CODE_SUBAGENT_MODEL",
+    "CLAUDE_CODE_NO_MODEL_FALLBACK",
+    "CLAUDE_CODE_NON_INTERACTIVE",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
+    "CLAUDE_CONFIG_DIR",
+  ],
+
   stateDirs: [".claude"],
   stateExcludes: [".claude/.credentials.json"],
   skillDirs: [".claude/skills"],
@@ -60,8 +77,6 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
     scriptImageName: "worker",
     supportedAgents: ["claude-code"],
     defaultForAgents: [],
-    isAgentImage: false,
-    dockerfilePath: "infra/workers/docker/viberator-docker-worker.Dockerfile",
   },
 };
 

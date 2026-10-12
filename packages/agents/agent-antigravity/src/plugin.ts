@@ -39,6 +39,8 @@ const antigravityPlugin: AgentPlugin<AntigravityConfig> = {
     apiKey: ["GEMINI_API_KEY"],
   },
 
+  agentEnv: ["AGY_ACP_DISABLE_WORKSPACE_TRUST"],
+
   stateDirs: [ANTIGRAVITY_STATE_DIR],
   stateExcludes: [`${ANTIGRAVITY_STATE_DIR}/acp_token.json`],
   skillDirs: [".gemini/config/skills"],

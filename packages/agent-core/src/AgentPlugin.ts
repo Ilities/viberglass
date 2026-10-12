@@ -71,6 +71,13 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
   };
 
   /**
+   * Other env vars the harness CLI reads, such as its config dir. Agent CLIs
+   * get a deny-by-default environment: a variable reaches them only if a
+   * plugin names it here, in `envAliases`, `providers` or `settings`.
+   */
+  readonly agentEnv?: readonly string[];
+
+  /**
    * $HOME-relative paths holding the harness's sessions, archived after each
    * turn and restored before the next so the session can resume. They must
    * cover everything the harness needs to load a session: check that a second
@@ -143,11 +150,6 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
     scriptImageName: string;
     supportedAgents: string[];
     defaultForAgents: string[];
-    /**
-     * Set to false for agents that share a non-agent-specific image (e.g. claude-code
-     * uses viberator-docker-worker). Defaults to true in the catalog generator.
-     */
-    isAgentImage?: boolean;
     /**
      * Custom Dockerfile path. If absent, the generator computes
      * infra/workers/docker/generated/<variant>.Dockerfile for agent images.

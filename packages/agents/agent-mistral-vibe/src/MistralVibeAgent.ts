@@ -1,9 +1,10 @@
 import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
-import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AgentCLIResult, AgentOutputNormalizer, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { MistralVibeConfig } from "./config";
 import { vibeModelEndpointEnvironment } from "./vibeModelConfig";
+import { MistralOutputNormalizer } from "./MistralOutputNormalizer";
 
 export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
   constructor(config: MistralVibeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -12,6 +13,10 @@ export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
 
   protected requiresApiKey(): boolean {
     return !currentModelEndpoint();
+  }
+
+  protected override createOutputNormalizer(): AgentOutputNormalizer {
+    return new MistralOutputNormalizer();
   }
 
   public getAcpServerCommand(): string[] {

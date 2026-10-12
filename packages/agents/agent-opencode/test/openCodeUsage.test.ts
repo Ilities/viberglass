@@ -1,4 +1,4 @@
-import { findOpenCodeSessionId, parseOpenCodeRunJsonUsage, parseOpenCodeSessionExport } from "../src/usage";
+import { findOpenCodeSessionId, parseOpenCodeRunJsonUsage, parseOpenCodeSessionExport } from "../src/openCodeUsage";
 
 const stepFinish = (part: Record<string, unknown>) =>
   JSON.stringify({ type: "step_finish", timestamp: 1790765724854, sessionID: "ses_1", part: { type: "step-finish", ...part } });

@@ -1,0 +1,2 @@
+# Lambda fragment: Claude Code agent (Amazon Linux, as root)
+RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp

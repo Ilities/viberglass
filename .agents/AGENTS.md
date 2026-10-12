@@ -71,7 +71,7 @@ These are the single source of truth instructions for agent behavior and backend
 **Adding a new agent:** Use `npm run new:agent <name>` to scaffold from the template; it adds the package to `viberglass.plugins.json` and regenerates the registrations. Then:
 1. Implement the agent class in `packages/agents/agent-<name>/src/<Name>Agent.ts` (extend `BaseAgent`).
 2. Fill in `plugin.ts` — `defaultConfig`, `envAliases`, `stateDirs` (and `stateExcludes` for credential files), `settings` for what the runner form should let people set, `docker` metadata.
-3. Write `Dockerfile.fragment` — install command, ENV, LABEL.
+3. Write `Dockerfile.fragment` (Debian, as the viberator user) and `Dockerfile.lambda.fragment` (Amazon Linux, as root) — the install steps and the ENV the CLI needs.
 4. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
 
 The worker and the platform are registry-driven: a harness's name, settings (`settings`, fields the runner form renders and the worker passes on as env vars) and config file editor come from its plugin through the generated catalog. Codex's sign-in is still special-cased until sign-in becomes a harness capability.

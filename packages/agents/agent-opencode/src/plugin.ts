@@ -43,6 +43,8 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
     endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
+  agentEnv: ["OPENCODE_CONFIG_DIR"],
+
   customEndpoints: { apiFormats: ["openai-chat"], environment: (endpoint) => new OpenCodeModelEndpointEnvironment(endpoint), rank: 0 },
 
   stateDirs: [".local/share/opencode"],

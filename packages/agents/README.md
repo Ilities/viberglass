@@ -61,7 +61,8 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
      index.ts           re-exports
    test/
      <Name>Agent.test.ts
-   Dockerfile.fragment  agent-specific install + ENV + LABEL lines
+   Dockerfile.fragment         install steps on the Debian worker image, as the viberator user
+   Dockerfile.lambda.fragment  the same install on the Lambda image (Amazon Linux, as root)
    ```
 
 2. **Implement the agent class** in `src/<Name>Agent.ts`:
@@ -105,7 +106,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
 
 4. **Include it in the build**: add `"@viberglass/agent-aider"` to `agents` in `viberglass.plugins.json` (`npm run new:agent` does this), then run `npm run generate:plugins`. That writes `apps/viberator/src/agents/configuredAgentPlugins.ts` and the dependency in `apps/viberator/package.json`.
 
-5. **Write the Dockerfile fragment** in `Dockerfile.fragment` — agent-specific install, verify, ENV, and LABEL lines. The compose script wraps it with the standard FROM header and CMD footer.
+5. **Write the Dockerfile fragments**: `Dockerfile.fragment` installs the CLI on the Debian worker image, running as the `viberator` user with npm installing under its home; `Dockerfile.lambda.fragment` installs it on the Lambda image, as root on Amazon Linux. Only install steps and the ENV the CLI needs: the generator adds `AGENT_TYPE`, labels and `CMD`.
 
 6. **Build and regenerate**:
 
@@ -141,6 +142,7 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `defaultConfig` | ✅ | Default config values (`Omit<C, "name">`). |
 | `envAliases.apiKey` | — | Env var names the harness reads the API key from. |
 | `envAliases.endpoint` | — | Env var names the harness reads the endpoint from. |
+| `agentEnv` | — | Other env vars the harness CLI reads, such as its config dir. Agent CLIs get a deny-by-default environment: a variable reaches them only if a configured plugin names it here, in `envAliases`, `providers` or `settings`. Platform credentials never do. |
 | `stateDirs` | — | `$HOME`-relative paths holding the agent's sessions (e.g. `[".aider"]`), archived after each turn and restored before the next so the session resumes. Check where the harness really writes: opencode, for one, uses `~/.local/share/opencode`, not `~/.opencode`. |
 | `stateExcludes` | — | Paths inside `stateDirs` left out of the archive, such as credential files the worker injects fresh each run. |
 | `harnessConfigPatterns` | — | Relative file patterns in `.harness-config/` the harness should materialise for this agent. |
@@ -156,7 +158,6 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `docker.scriptImageName` | ✅ | Short name used in build/push scripts (e.g. `"worker-aider"`). |
 | `docker.supportedAgents` | ✅ | Agent IDs this image can run. Usually `[id]`. |
 | `docker.defaultForAgents` | ✅ | Agent IDs this image is the default image for. Usually `[id]`. |
-| `docker.isAgentImage` | — | `false` if the agent reuses a shared image (default: `true`). |
 | `docker.dockerfilePath` | — | Override the Dockerfile path in the catalog (default: `infra/workers/docker/generated/<variant>.Dockerfile`). |
 
 ---
@@ -180,14 +181,17 @@ Commit the updated JSON. CI verifies the committed file matches what the generat
 
 ### Agent Dockerfiles
 
-`infra/workers/docker/generated/<variant>.Dockerfile` files are composed from:
+`npm run generate:dockerfiles` writes, from the harnesses in `viberglass.plugins.json`:
 
-1. Standard header (`ARG BASE_IMAGE`, `FROM`, `ENV PATH`)
-2. `packages/agents/agent-<name>/Dockerfile.fragment` (all agent-specific content)
-3. Standard `CMD` footer
+- `infra/workers/docker/generated/<variant>.Dockerfile`: one per harness, `FROM` the base worker image plus its `Dockerfile.fragment`
+- `viberator-worker-multi-agent.Dockerfile`: `base/base-worker.Dockerfile` with every shipped harness's `Dockerfile.fragment`
+- `viberator-ecs-worker.Dockerfile`: the same with only the build's `defaultAgent`
+- `viberator-lambda.Dockerfile`: `base/lambda-worker.Dockerfile` with every shipped harness's `Dockerfile.lambda.fragment`
+
+Fragments go in at the `# HARNESS INSTALLS` line of the template, before the app, so a code change doesn't reinstall the harnesses.
 
 ```bash
 npm run generate:dockerfiles
 ```
 
-Do **not** edit files in `infra/workers/docker/generated/` by hand — they will be overwritten.
+Do **not** edit the generated files by hand; they will be overwritten. Edit the fragments and templates.

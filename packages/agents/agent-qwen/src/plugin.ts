@@ -35,6 +35,13 @@ const qwenCodePlugin: AgentPlugin<QwenCodeConfig> = {
     endpoint: ["QWEN_API_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
+  agentEnv: [
+    "OPENAI_MODEL",
+    "DASHSCOPE_API_KEY",
+    "QWEN_CODE_SYSTEM_SETTINGS_PATH",
+    "QWEN_PLACEHOLDER_API_KEY",
+  ],
+
   stateDirs: [".qwen"],
   stateExcludes: [".qwen/oauth_creds.json"],
 

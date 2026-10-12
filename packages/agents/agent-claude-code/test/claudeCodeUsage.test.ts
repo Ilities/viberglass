@@ -1,4 +1,4 @@
-import { parseClaudeCodeStreamJsonUsage } from "../src/usage";
+import { parseClaudeCodeStreamJsonUsage } from "../src/claudeCodeUsage";
 
 const resultEvent = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({

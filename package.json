@@ -48,7 +48,7 @@
     "build:worker": "npm run build -w @viberglass/types && npm run build -w @viberglass/telemetry && npm run build -w @viberglass/agent-core && npm run build $(node scripts/plugins/list.mjs agents) && npm run build -w @viberator/orchestrator",
     "generate:plugins": "node scripts/plugins/generate.mjs",
     "generate:catalog": "npm run generate:catalog -w @viberglass/types",
-    "generate:dockerfiles": "bash infra/workers/docker/scripts/generate-all-dockerfiles.sh",
+    "generate:dockerfiles": "node scripts/plugins/generateDockerfiles.mjs",
     "new:agent": "bash scripts/new-agent.sh",
     "new:integration": "bash scripts/new-integration.sh",
     "types:build": "npm run build -w @viberglass/types",

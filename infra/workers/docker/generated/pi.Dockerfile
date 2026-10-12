@@ -1,5 +1,5 @@
-# Generated Dockerfile for pi
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for pi
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS pi-worker
@@ -15,9 +15,6 @@ RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
 RUN which pi || echo "Warning: pi not found in PATH"
 
 ENV AGENT_TYPE=pi
-
-LABEL agent.type="pi" \
-      agent.provider="earendil-works" \
-      viberator.worker-type="agent"
+LABEL agent.type="pi" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

@@ -1,5 +1,5 @@
-# Generated Dockerfile for opencode
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for opencode
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS opencode-worker
@@ -13,11 +13,9 @@ RUN npm install -g opencode-ai@1.18.34
 
 RUN which opencode || echo "Warning: opencode not found in PATH"
 
-ENV AGENT_TYPE=opencode
 ENV OPENCODE_CONFIG_DIR=/tmp/opencode-config
 
-LABEL agent.type="opencode" \
-      agent.provider="opencode" \
-      viberator.worker-type="agent"
+ENV AGENT_TYPE=opencode
+LABEL agent.type="opencode" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

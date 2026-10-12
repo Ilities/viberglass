@@ -1,5 +1,5 @@
-# Generated Dockerfile for kimi
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for kimi-code
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS kimi-worker
@@ -20,9 +20,6 @@ RUN rm -f /home/viberator/.local/bin/kimi-legacy /home/viberator/.local/bin/kimi
 RUN which kimi || echo "Warning: kimi not found in PATH"
 
 ENV AGENT_TYPE=kimi-code
-
-LABEL agent.type="kimi-code" \
-      agent.provider="moonshot" \
-      viberator.worker-type="agent"
+LABEL agent.type="kimi-code" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

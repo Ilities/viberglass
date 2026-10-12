@@ -33,7 +33,6 @@ interface PluginDockerMeta {
   scriptImageName: string;
   supportedAgents: string[];
   defaultForAgents: string[];
-  isAgentImage?: boolean;
   dockerfilePath?: string;
   testOnly?: boolean;
 }
@@ -154,7 +153,6 @@ function checkedHarnessConfigEditor(packageName: string, raw: unknown, patterns:
 }
 
 function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
-  const isAgentImage = docker.isAgentImage !== false;
   const dockerfilePath =
     docker.dockerfilePath ??
     `infra/workers/docker/generated/${docker.variant}.Dockerfile`;
@@ -167,7 +165,8 @@ function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
     includeInInfraProvisioning: !docker.testOnly,
     includeInBuildScript: true,
     includeInPushScript: !docker.testOnly,
-    isAgentImage,
+    // Built FROM the base worker image.
+    isAgentImage: true,
     supportedAgents: docker.supportedAgents,
     defaultForAgents: docker.defaultForAgents,
   };

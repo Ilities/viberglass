@@ -1,0 +1,2 @@
+# Lambda fragment: Qwen Code CLI agent (Amazon Linux, as root)
+RUN npm install -g @qwen-code/qwen-code@latest

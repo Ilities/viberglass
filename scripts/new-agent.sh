@@ -54,7 +54,7 @@ if [[ -f "$TARGET_DIR/test/__PascalName__Agent.test.ts" ]]; then
 fi
 
 # Substitute placeholders in all text files
-find "$TARGET_DIR" -type f \( -name "*.ts" -o -name "*.json" -o -name "*.js" -o -name "Dockerfile.fragment" \) | while read -r file; do
+find "$TARGET_DIR" -type f \( -name "*.ts" -o -name "*.json" -o -name "*.js" -o -name "Dockerfile.fragment" -o -name "Dockerfile.lambda.fragment" \) | while read -r file; do
   sed -i \
     -e "s/__NAME_UPPER__/$NAME_UPPER/g" \
     -e "s/__PascalName__/$PASCAL_NAME/g" \
@@ -73,6 +73,6 @@ echo ""
 echo "Next steps:"
 echo "  1. Implement $TARGET_DIR/src/${PASCAL_NAME}Agent.ts"
 echo "  2. Fill in plugin.ts defaultConfig and envAliases"
-echo "  3. Update Dockerfile.fragment with the real install command"
+echo "  3. Update Dockerfile.fragment and Dockerfile.lambda.fragment with the real install command"
 echo "  4. Run: npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles"
 echo "  5. Add it to the platform lists in packages/agents/README.md so runners can use it"

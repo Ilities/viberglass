@@ -1,5 +1,5 @@
-# Generated Dockerfile for antigravity
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for antigravity
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS antigravity-worker
@@ -19,9 +19,6 @@ ENV PATH="/opt/agy-acp:${PATH}"
 RUN which agy_acp_server.par || echo "Warning: agy_acp_server.par not found in PATH"
 
 ENV AGENT_TYPE=antigravity
-
-LABEL agent.type="antigravity" \
-      agent.provider="google" \
-      viberator.worker-type="agent"
+LABEL agent.type="antigravity" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

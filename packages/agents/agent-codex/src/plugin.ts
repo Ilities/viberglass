@@ -54,6 +54,8 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
     endpoint: ["CODEX_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
+  agentEnv: ["CODEX_AUTH_MODE", "CODEX_CONFIG", "CODEX_CONFIG_DIR", "CODEX_HOME"],
+
   stateDirs: [".codex"],
   // A run on a model endpoint writes config.toml; the next run must not inherit it.
   stateExcludes: [".codex/auth.json", ".codex/config.toml"],

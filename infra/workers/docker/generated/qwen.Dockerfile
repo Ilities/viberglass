@@ -1,5 +1,5 @@
-# Generated Dockerfile for qwen
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for qwen-cli
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS qwen-worker
@@ -14,9 +14,6 @@ RUN npm install -g @qwen-code/qwen-code@latest
 RUN which qwen || echo "Warning: qwen not found in PATH"
 
 ENV AGENT_TYPE=qwen-cli
-
-LABEL agent.type="qwen-cli" \
-      agent.supported-modes="cli" \
-      viberator.worker-type="agent"
+LABEL agent.type="qwen-cli" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

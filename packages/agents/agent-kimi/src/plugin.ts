@@ -42,6 +42,8 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
     endpoint: ["KIMI_BASE_URL", "KIMI_CODE_ENDPOINT", "MOONSHOT_BASE_URL"],
   },
 
+  agentEnv: ["KIMI_CODE_NO_AUTO_UPDATE"],
+
   // Kimi Code CLI keeps everything, its own binary included, in ~/.kimi-code. Resume across
   // containers isn't verified yet: it needs a Kimi key to try.
   stateDirs: [".kimi-code"],

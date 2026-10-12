@@ -1,5 +1,5 @@
-# Generated Dockerfile for codex
-# Do not edit manually — regenerate with: npm run generate:dockerfiles
+# Worker image for codex
+# Generated: don't edit, run npm run generate:dockerfiles.
 
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS codex-worker
@@ -14,13 +14,11 @@ RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 
 RUN which codex || echo "Warning: codex not found in PATH"
 
-ENV AGENT_TYPE=codex
 # Under $HOME, so the plugin's stateDirs (.codex) archive its sessions between turns.
 ENV CODEX_HOME=/home/viberator/.codex
 ENV CODEX_CONFIG_DIR=/home/viberator/.codex
 
-LABEL agent.type="codex" \
-      agent.provider="openai" \
-      viberator.worker-type="agent"
+ENV AGENT_TYPE=codex
+LABEL agent.type="codex" viberator.worker-type="agent"
 
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

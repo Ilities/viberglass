@@ -14,12 +14,7 @@ export { BaseAgent } from "./BaseAgent";
 
 // Usage / cost reporting
 export type { AgentUsageReport } from "./usage";
-export {
-  findOpenCodeSessionId,
-  parseClaudeCodeStreamJsonUsage,
-  parseOpenCodeRunJsonUsage,
-  parseOpenCodeSessionExport,
-} from "./usage";
+export { parseJsonLines } from "./usage";
 
 // Runner model endpoints
 export {
@@ -34,7 +29,7 @@ export { tomlInlineTable, tomlString } from "./toml";
 // Agent environment boundary
 export {
   sanitizeAgentEnvironment,
-  agentEnvironmentAllowlist,
+  allowHarnessEnvironment,
   AGENT_ENV_PASSTHROUGH_VAR,
 } from "./agentEnvironment";
 export type {
@@ -42,11 +37,9 @@ export type {
   SanitizedAgentEnvironment,
 } from "./agentEnvironment";
 
-// Stream normalizer
-export {
-  AgentStreamNormalizer,
-  normalizeAgentStreamLine,
-} from "./agentStreamNormalizer";
+// Harness output normalizers
+export type { AgentOutputNormalizer } from "./agentOutputNormalizer";
+export { StreamJsonNormalizer, normalizeStreamJsonLine } from "./StreamJsonNormalizer";
 
 // ACP layer
 export type { AcpHttpMcpServer, AcpMcpServer, AcpStdioMcpServer, PlatformSessionEvent } from "./acp/types";

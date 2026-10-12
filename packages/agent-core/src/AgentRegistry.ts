@@ -5,7 +5,19 @@ import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
 import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import { defaultAcpEventMapper } from "./acp/acpEventMapper";
+import { allowHarnessEnvironment } from "./agentEnvironment";
 import type { IAgentGitService } from "./git/IAgentGitService";
+
+/** Every env var a plugin says its harness reads. */
+function harnessEnvironmentOf(plugin: AgentPlugin): string[] {
+  return [
+    ...(plugin.envAliases?.apiKey ?? []),
+    ...(plugin.envAliases?.endpoint ?? []),
+    ...(plugin.providers ?? []).map((binding) => binding.envVar),
+    ...(plugin.settings ?? []).flatMap((field) => field.env),
+    ...(plugin.agentEnv ?? []),
+  ];
+}
 
 /** The shared skills folder that most harnesses read. */
 const DEFAULT_SKILL_DIR = ".agents/skills";
@@ -18,6 +30,7 @@ export class AgentRegistry {
       throw new Error(`Duplicate agent plugin: ${plugin.id}`);
     }
     this.plugins.set(plugin.id, plugin);
+    allowHarnessEnvironment(harnessEnvironmentOf(plugin));
     return this;
   }
 

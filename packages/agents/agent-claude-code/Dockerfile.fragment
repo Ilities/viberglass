@@ -1,14 +1,6 @@
 # Fragment: Claude Code agent
-# Note: Claude Code uses viberator-docker-worker.Dockerfile directly, not the
-# compose script. This fragment is included in multi-agent builds only.
 # Source: https://github.com/anthropics/claude-code
 # The ACP adapter moved from @zed-industries (frozen at 0.23.1) to @agentclientprotocol.
 RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
 
 RUN which claude || echo "Warning: claude not found in PATH"
-
-ENV AGENT_TYPE=claude-code
-
-LABEL agent.type="claude-code" \
-      agent.provider="anthropic" \
-      viberator.worker-type="agent"

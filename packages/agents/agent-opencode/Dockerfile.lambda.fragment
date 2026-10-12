@@ -1,0 +1,2 @@
+# Lambda fragment: OpenCode agent (Amazon Linux, as root)
+RUN npm install -g opencode-ai@1.18.34

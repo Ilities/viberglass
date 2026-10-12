@@ -1,4 +1,6 @@
-# Use the official AWS Lambda Node.js base image
+# Lambda worker image with every harness in the build
+# Generated: don't edit, run npm run generate:dockerfiles.
+
 FROM public.ecr.aws/lambda/nodejs:24 AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -24,36 +26,45 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # Provide common CLI build tools expected by agent tasks.
 RUN npm install -g typescript
 
-# Install all supported agent CLIs for Lambda runtime.
-RUN npm install -g \
-    @anthropic-ai/claude-code \
-    @qwen-code/qwen-code@latest \
-    @openai/codex \
-    opencode-ai@latest \
-    @earendil-works/pi-coding-agent@^1.0.0 \
-    pi-acp \
-    @agentclientprotocol/claude-agent-acp \
-    @agentclientprotocol/codex-acp
+# Harnesses install as root; keep user-level install dirs on PATH.
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
 
-# Ensure user-level CLI installs are available during subsequent build steps.
-ENV PATH="/root/.kimi-code/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
+# Harnesses install here, before the app, so a code change doesn't reinstall them.
+# Lambda fragment: Claude Code agent (Amazon Linux, as root)
+RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
 
-# Install Google Antigravity's ACP server.
+# Lambda fragment: Qwen Code CLI agent (Amazon Linux, as root)
+RUN npm install -g @qwen-code/qwen-code@latest
+
+# Lambda fragment: OpenAI Codex agent (Amazon Linux, as root)
+RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
+
+# Lambda fragment: OpenCode agent (Amazon Linux, as root)
+RUN npm install -g opencode-ai@1.18.34
+
+# Lambda fragment: Kimi Code agent (Amazon Linux, as root)
+ENV PATH="/root/.kimi-code/bin:${PATH}"
+# The installer keeps the older kimi-cli as kimi-legacy, which refuses to run.
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
+    && rm -f /root/.local/bin/kimi-legacy /root/.local/bin/kimi-cli
+
+# Lambda fragment: Mistral Vibe agent (Amazon Linux, as root)
+# Source: https://docs.mistral.ai/mistral-vibe/introduction/install
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ || true
+# Pinned Python: uv picks the newest, which some of its dependencies have no wheels for yet.
+RUN uv tool install --python 3.13 mistral-vibe || \
+    pip install mistral-vibe || \
+    echo "Warning: Failed to install mistral-vibe"
+
+# Lambda fragment: Google Antigravity agent (Amazon Linux, as root)
 COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
 RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
 ENV PATH="/opt/agy-acp:${PATH}"
 
-# Install Kimi Code CLI (the older kimi-cli refuses to run; the installer keeps it as kimi-legacy).
-RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
-    && rm -f /root/.local/bin/kimi-legacy /root/.local/bin/kimi-cli
+# Lambda fragment: Pi coding agent (Amazon Linux, as root)
+RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
 
-# Install uv and Mistral Vibe CLI.
-# Source: https://docs.mistral.ai/mistral-vibe/introduction/install
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/ || true
-RUN uv tool install mistral-vibe || \
-    pip install mistral-vibe || \
-    echo "Warning: Failed to install mistral-vibe"
 
 # Copy package files and install production dependencies
 COPY package*.json ${LAMBDA_TASK_ROOT}/
@@ -67,5 +78,4 @@ RUN npm install --omit=dev --workspace=@viberator/orchestrator
 # Copy built app from builder
 COPY --from=builder /app/apps/viberator/dist/lambda-handler.js ${LAMBDA_TASK_ROOT}/
 
-# Set the CMD to your handler (filename.method)
 CMD [ "lambda-handler.handler" ]

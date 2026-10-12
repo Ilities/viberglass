@@ -1,0 +1,3 @@
+# Lambda fragment: __DISPLAY_NAME__ agent (Amazon Linux, as root)
+# TODO: The same install as Dockerfile.fragment, for the Lambda image.
+RUN npm install -g your-agent-cli

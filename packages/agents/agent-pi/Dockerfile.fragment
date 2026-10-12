@@ -4,9 +4,3 @@
 RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
 
 RUN which pi || echo "Warning: pi not found in PATH"
-
-ENV AGENT_TYPE=pi
-
-LABEL agent.type="pi" \
-      agent.provider="earendil-works" \
-      viberator.worker-type="agent"

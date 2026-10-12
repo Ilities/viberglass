@@ -1,0 +1,2 @@
+# Lambda fragment: Pi coding agent (Amazon Linux, as root)
+RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34

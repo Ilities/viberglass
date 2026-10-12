@@ -9,9 +9,3 @@ RUN rm -f /home/viberator/.local/bin/kimi-legacy /home/viberator/.local/bin/kimi
     && (command -v uv >/dev/null && uv tool uninstall kimi-cli >/dev/null 2>&1 || true)
 
 RUN which kimi || echo "Warning: kimi not found in PATH"
-
-ENV AGENT_TYPE=kimi-code
-
-LABEL agent.type="kimi-code" \
-      agent.provider="moonshot" \
-      viberator.worker-type="agent"

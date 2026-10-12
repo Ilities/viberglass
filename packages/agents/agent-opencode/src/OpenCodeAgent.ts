@@ -1,4 +1,6 @@
-import { BaseAgent, parseOpenCodeRunJsonUsage } from "@viberglass/agent-core";
+import { BaseAgent, type AgentOutputNormalizer } from "@viberglass/agent-core";
+import { parseOpenCodeRunJsonUsage } from "./openCodeUsage";
+import { OpenCodeOutputNormalizer } from "./OpenCodeOutputNormalizer";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as fs from "fs";
@@ -7,6 +9,10 @@ import type { OpenCodeConfig } from "./config";
 import { readOpenCodeSessionDetails } from "./readOpenCodeSessionDetails";
 
 export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
+  protected override createOutputNormalizer(): AgentOutputNormalizer {
+    return new OpenCodeOutputNormalizer();
+  }
+
   constructor(config: OpenCodeConfig, logger: Logger, gitService?: IAgentGitService) {
     super(config, logger, gitService);
   }

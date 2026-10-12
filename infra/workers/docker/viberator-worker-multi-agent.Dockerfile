@@ -1,7 +1,6 @@
-# Multi-Agent Worker Image
-# Includes all supported agent CLIs for maximum flexibility
+# Worker image with every harness in the build
+# Generated: don't edit, run npm run generate:dockerfiles.
 
-# Build stage
 FROM node:24-slim AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -21,14 +20,13 @@ RUN npm run build:worker
 FROM node:24-slim
 WORKDIR /app
 
-# Install system dependencies
+# Install common system dependencies
 RUN apt-get update && \
     apt-get install -y \
     git \
     curl \
     wget \
     ripgrep \
-    unzip \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,53 +36,92 @@ RUN npm install -g typescript jest
 # Create a non-root user
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
-# Install ALL agent CLIs globally
-# With its ACP adapter, which the worker starts (it moved from @zed-industries to @agentclientprotocol).
+# Composed images install their harnesses here, before the app, so a code change doesn't reinstall them.
+USER viberator
+ENV NPM_CONFIG_PREFIX=/home/viberator/.npm-global
+ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
+
+# Fragment: Claude Code agent
+# Source: https://github.com/anthropics/claude-code
+# The ACP adapter moved from @zed-industries (frozen at 0.23.1) to @agentclientprotocol.
 RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
 
-# Install Qwen Code CLI
+RUN which claude || echo "Warning: claude not found in PATH"
+
+# Fragment: Qwen Code CLI agent
 # Source: https://qwenlm.github.io/qwen-code-docs/
 RUN npm install -g @qwen-code/qwen-code@latest
 
-# Install Google Antigravity's ACP server
-COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
-RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
-ENV PATH="/opt/agy-acp:${PATH}"
+RUN which qwen || echo "Warning: qwen not found in PATH"
 
-# Install OpenAI Codex CLI
+# Fragment: OpenAI Codex agent
 # Source: https://github.com/openai/codex
+# codex-acp is the ACP server the worker starts (CodexAgent.getAcpServerCommand).
 RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 
-# Install OpenCode CLI
+RUN which codex || echo "Warning: codex not found in PATH"
+
+# Under $HOME, so the plugin's stateDirs (.codex) archive its sessions between turns.
+ENV CODEX_HOME=/home/viberator/.codex
+ENV CODEX_CONFIG_DIR=/home/viberator/.codex
+
+# Fragment: OpenCode agent
 # Source: https://opencode.ai/docs
-RUN npm install -g opencode-ai@latest
+RUN npm install -g opencode-ai@1.18.34
 
-# Install Pi coding agent CLI and ACP bridge
-# Source: https://github.com/earendil-works/pi (pi 1.x needs Node >= 22.19)
-# Source: https://github.com/svkozak/pi-acp
-RUN npm install -g @earendil-works/pi-coding-agent@^1.0.0 pi-acp
+RUN which opencode || echo "Warning: opencode not found in PATH"
 
-# Install Kimi Code CLI for the runtime user to avoid /root permission issues.
-USER viberator
+ENV OPENCODE_CONFIG_DIR=/tmp/opencode-config
+
+# Fragment: Kimi Code agent
+# Override PATH for non-npm user-local install
 ENV PATH="/home/viberator/.kimi-code/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
-# The older kimi-cli is no longer maintained and refuses to run; the installer keeps it as kimi-legacy.
-RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
-    && rm -f /home/viberator/.local/bin/kimi-legacy /home/viberator/.local/bin/kimi-cli
-USER root
 
-# Install uv for Python-based tools
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/ || true
+# Kimi Code CLI. The older kimi-cli (code.kimi.com/install.sh) is no longer maintained and refuses to run.
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
+# The installer keeps an older kimi-cli as kimi-legacy; nothing should run it.
+RUN rm -f /home/viberator/.local/bin/kimi-legacy /home/viberator/.local/bin/kimi-cli \
+    && (command -v uv >/dev/null && uv tool uninstall kimi-cli >/dev/null 2>&1 || true)
 
-# Install Mistral Vibe using uv
+RUN which kimi || echo "Warning: kimi not found in PATH"
+
+# Fragment: Mistral Vibe agent
+# Override PATH for non-npm user-local install
+ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
+
+# Install uv package manager
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Source: https://docs.mistral.ai/mistral-vibe/introduction/install
-# Installed as root, so outside /root: the runtime user can't reach /root/.local.
-RUN UV_TOOL_DIR=/opt/uv/tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_INSTALL_DIR=/opt/uv/python uv tool install mistral-vibe || \
-    pip install mistral-vibe || \
+# Pinned Python: uv picks the newest, which some of its dependencies have no wheels for yet.
+RUN uv tool install --python 3.13 mistral-vibe || \
+    pip install --user mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
-# Keep user-level tool paths first at runtime.
-ENV PATH="/home/viberator/.kimi-code/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
+RUN which vibe || echo "Warning: vibe not found in PATH"
+
+ENV MISTRAL_CONFIG_DIR=/tmp/mistral-config
+
+# Fragment: Google Antigravity agent
+# Google's ACP server for Antigravity; the worker talks to it directly.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
+COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
+RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
+USER viberator
+ENV PATH="/opt/agy-acp:${PATH}"
+
+RUN which agy_acp_server.par || echo "Warning: agy_acp_server.par not found in PATH"
+
+# Fragment: Pi coding agent
+# Source: https://github.com/earendil-works/pi (pi 1.x needs Node >= 22.19)
+# Source: https://github.com/svkozak/pi-acp
+RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
+
+RUN which pi || echo "Warning: pi not found in PATH"
+
+LABEL agent.types="claude-code,qwen-cli,codex,opencode,kimi-code,mistral-vibe,antigravity,pi" viberator.worker-type="multi-agent"
+USER root
 
 # Copy package files and install production dependencies
 COPY package*.json ./
@@ -111,9 +148,6 @@ USER viberator
 ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
-# Multi-agent labels
-LABEL agent.types="claude-code,qwen-cli,antigravity,mistral-vibe,codex,opencode,kimi-code,pi" \
-      viberator.worker-type="multi-agent" \
-      viberator.capabilities="all-agents"
-
+# Default command shows help
+# Override this in derived images or at runtime
 CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

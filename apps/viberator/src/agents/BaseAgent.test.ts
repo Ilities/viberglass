@@ -2,6 +2,7 @@ import { createLogger, transports } from "winston";
 import { BaseAgent } from "@viberglass/agent-core";
 import type { BaseAgentConfig, ExecutionContext, AgentCLIResult } from "@viberglass/agent-core";
 import * as fs from "fs";
+import { buildAgentRegistry } from "./registerPlugins";
 
 class TestBaseAgent extends BaseAgent {
   protected requiresApiKey(): boolean {
@@ -85,6 +86,9 @@ describe("BaseAgent executeCommand environment", () => {
 });
 
 describe("BaseAgent credential boundary", () => {
+  // Registering the plugins admits what their harnesses read, as the worker does at start.
+  beforeAll(() => buildAgentRegistry());
+
   const touched: string[] = [];
 
   function setEnv(name: string, value: string): void {
