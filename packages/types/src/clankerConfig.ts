@@ -98,50 +98,13 @@ export interface CodexAuthConfig {
   loginSecretId?: string;
 }
 
-export interface CodexAgentConfig {
-  type: "codex";
-  codexAuth: CodexAuthConfig;
-  cli?: {
-    baseUrl?: string;
-    model?: string;
-    maxTokens?: number;
-    temperature?: number;
-  };
+/** The harness a runner runs, with its declared settings stored as strings under their keys. */
+export interface ClankerAgentConfig {
+  type: AgentType;
+  /** How Codex signs in; set on Codex runners only. */
+  codexAuth?: CodexAuthConfig;
+  [setting: string]: unknown;
 }
-
-export interface QwenAgentConfig {
-  type: "qwen-cli";
-  endpoint?: string;
-}
-
-export interface OpenCodeAgentConfig {
-  type: "opencode";
-  endpoint?: string;
-  model?: string;
-}
-
-export interface KimiAgentConfig {
-  type: "kimi-code";
-  endpoint?: string;
-  model?: string;
-}
-
-export interface AntigravityAgentConfig {
-  type: "antigravity";
-  model?: string;
-}
-
-export interface GenericAgentConfig {
-  type: Exclude<AgentType, "codex" | "qwen-cli" | "opencode" | "kimi-code" | "antigravity">;
-}
-
-export type ClankerAgentConfig =
-  | CodexAgentConfig
-  | QwenAgentConfig
-  | OpenCodeAgentConfig
-  | KimiAgentConfig
-  | AntigravityAgentConfig
-  | GenericAgentConfig;
 
 export interface ClankerConfigV1 {
   version: 1;

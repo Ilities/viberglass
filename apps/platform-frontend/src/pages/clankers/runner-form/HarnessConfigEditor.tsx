@@ -44,12 +44,12 @@ export function HarnessConfigEditor({
     )
   }
 
-  const { fileType } = config
+  const { envReferences } = config
   const jsonProblem = describeJsonProblem(content)
-  const unbound = findReferencedEnvVars(fileType, content).filter((name) => !boundEnvVars.includes(name))
+  const unbound = findReferencedEnvVars(envReferences, content).filter((name) => !boundEnvVars.includes(name))
 
   function insertReference(name: string) {
-    const reference = formatReference(fileType, name)
+    const reference = formatReference(envReferences, name)
     const textarea = textareaRef.current
     const start = textarea?.selectionStart ?? content.length
     const end = textarea?.selectionEnd ?? content.length

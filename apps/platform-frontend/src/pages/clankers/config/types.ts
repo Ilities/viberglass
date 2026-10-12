@@ -2,7 +2,16 @@ import type { AgentType, Clanker, ClankerConfigV1, CodexAuthMode } from "@viberg
 
 export type ProvisioningMode = 'managed' | 'prebuilt'
 
-export interface ClankerConfigFormState {
+/** The harness settings the runner form edits. */
+export interface AgentSettings {
+  /** Setting values by harness, then by key, so switching harness and back keeps them. */
+  values: Record<AgentType, Record<string, string>>
+  codexAuthMode: CodexAuthMode
+  /** The runner's stored ChatGPT login; set by connecting, kept through edits. */
+  codexLoginSecretId: string
+}
+
+export interface ClankerConfigFormState extends AgentSettings {
   provisioningMode: ProvisioningMode
   containerImage: string
   kubernetesCpu: string
@@ -15,15 +24,6 @@ export interface ClankerConfigFormState {
   lambdaMemorySize: string
   lambdaTimeout: string
   lambdaEphemeralStorage: string
-  codexAuthMode: CodexAuthMode
-  /** The runner's stored ChatGPT login; set by connecting, kept through edits. */
-  codexLoginSecretId: string
-  qwenEndpoint: string
-  opencodeEndpoint: string
-  opencodeModel: string
-  antigravityModel: string
-  kimiEndpoint: string
-  kimiModel: string
 }
 
 export const DEFAULT_CODEX_AUTH_SECRET_NAME = 'CODEX_AUTH_JSON'
@@ -41,14 +41,9 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   lambdaMemorySize: '',
   lambdaTimeout: '',
   lambdaEphemeralStorage: '',
+  values: {},
   codexAuthMode: 'api_key',
   codexLoginSecretId: '',
-  qwenEndpoint: '',
-  opencodeEndpoint: '',
-  opencodeModel: '',
-  antigravityModel: '',
-  kimiEndpoint: '',
-  kimiModel: '',
 }
 
 export type StrategyName = 'docker' | 'ecs' | 'aws-lambda-container' | 'lambda' | 'kubernetes'
@@ -69,5 +64,4 @@ export type DeploymentConfig = ClankerConfigV1 | Record<string, unknown> | null
 
 export interface ClankerConfigReadable {
   deploymentConfig?: Clanker['deploymentConfig']
-  agent?: Clanker['agent']
 }

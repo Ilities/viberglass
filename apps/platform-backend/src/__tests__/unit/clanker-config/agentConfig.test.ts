@@ -35,10 +35,16 @@ describe("Antigravity agent config", () => {
     expect(config.agent).toEqual({ type: "antigravity", model: "gemini-3.1-pro-high" });
   });
 
-  it("keeps it for a legacy config too", () => {
-    const { config } = resolveClankerConfig(clanker("antigravity", { model: "gemini-3.1-pro-high" }));
+  it("drops what the harness doesn't declare", () => {
+    const { config } = resolveClankerConfig(
+      clanker("antigravity", {
+        version: 1,
+        strategy: { type: "docker" },
+        agent: { type: "antigravity", model: "  ", endpoint: "https://example.com", cli: { model: "x" } },
+      }),
+    );
 
-    expect(config.agent).toEqual({ type: "antigravity", model: "gemini-3.1-pro-high" });
+    expect(config.agent).toEqual({ type: "antigravity" });
   });
 });
 
@@ -51,9 +57,41 @@ describe("Pi agent config", () => {
     expect(config.agent).toEqual({ type: "pi" });
   });
 
-  it("stays pi for a legacy config too", () => {
+  it("stays pi for a runner saved without a config", () => {
     const { config } = resolveClankerConfig(clanker("pi", {}));
 
     expect(config.agent).toEqual({ type: "pi" });
+  });
+});
+
+describe("A harness left out of the build", () => {
+  it("keeps its id, so the worker can say it isn't there", () => {
+    const { config } = resolveClankerConfig(
+      clanker("gone-agent", { version: 1, strategy: { type: "docker" }, agent: { type: "gone-agent", model: "m" } }),
+    );
+
+    expect(config.agent).toEqual({ type: "gone-agent" });
+  });
+});
+
+describe("Codex agent config", () => {
+  it("keeps how Codex signs in", () => {
+    const { config } = resolveClankerConfig(
+      clanker("codex", {
+        version: 1,
+        strategy: { type: "docker" },
+        agent: { type: "codex", codexAuth: { mode: "chatgpt_device_stored", loginSecretId: "login-1" } },
+      }),
+    );
+
+    expect(config.agent).toEqual({
+      type: "codex",
+      codexAuth: {
+        mode: "chatgpt_device_stored",
+        secretName: "CODEX_AUTH_JSON",
+        apiKeySecretName: "OPENAI_API_KEY",
+        loginSecretId: "login-1",
+      },
+    });
   });
 });

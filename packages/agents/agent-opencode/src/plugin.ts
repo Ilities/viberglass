@@ -1,58 +1,9 @@
 import { OpenCodeModelEndpointEnvironment } from "./OpenCodeModelEndpointEnvironment";
-import type { AgentPlugin, AgentEndpointEnvironment, IAgentGitService } from "@viberglass/agent-core";
-import { NoopAgentEndpointEnvironment } from "@viberglass/agent-core";
+import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import type { OpenCodeConfig } from "./config";
 import { OpenCodeAgent } from "./OpenCodeAgent";
-import { OpenCodeAgentEndpointEnvironment } from "./OpenCodeAgentEndpointEnvironment";
 import * as fs from "fs";
 import * as path from "path";
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function toNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function resolveDeploymentConfig(
-  clankerConfig?: Record<string, unknown>,
-): Record<string, unknown> | undefined {
-  if (!clankerConfig) return undefined;
-  if (isObjectRecord(clankerConfig.deploymentConfig)) return clankerConfig.deploymentConfig;
-  return clankerConfig;
-}
-
-function resolveOpenCodeSettings(
-  clankerConfig?: Record<string, unknown>,
-): { endpoint?: string; model?: string } {
-  const deploymentConfig = resolveDeploymentConfig(clankerConfig);
-  if (!deploymentConfig) return {};
-
-  const deploymentAgent = isObjectRecord(deploymentConfig.agent)
-    ? deploymentConfig.agent
-    : undefined;
-
-  if (deploymentConfig.version === 1) {
-    if (deploymentAgent?.type !== "opencode") return {};
-    return {
-      endpoint: toNonEmptyString(deploymentAgent.endpoint),
-      model: toNonEmptyString(deploymentAgent.model),
-    };
-  }
-
-  const configuredAgent =
-    toNonEmptyString(clankerConfig?.agent) ||
-    toNonEmptyString(deploymentConfig.agent);
-  if (configuredAgent !== "opencode") return {};
-
-  return {
-    endpoint: toNonEmptyString(deploymentConfig.endpoint),
-    model: toNonEmptyString(deploymentConfig.model),
-  };
-}
 
 const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
   id: "opencode",
@@ -99,6 +50,28 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
 
   harnessConfigPatterns: ["opencode.json"],
 
+  // The template names OPENAI_API_KEY because only model-provider variables reach the agent.
+  harnessConfigEditor: {
+    fileType: "opencode.json",
+    label: "OpenCode Configuration",
+    envReferences: ["{env:NAME}"],
+    template: `{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "my-proxy": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://llm-proxy.example.com/v1",
+        "apiKey": "{env:OPENAI_API_KEY}"
+      },
+      "models": {
+        "my-model": { "name": "My model" }
+      }
+    }
+  }
+}`,
+  },
+
   materializeHarnessConfig: async ({ contents, homeDir }) => {
     const homeOpencodeDir = path.join(homeDir, ".opencode");
     const homeTargetPath = path.join(homeOpencodeDir, "opencode.json");
@@ -106,13 +79,27 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
     await fs.promises.writeFile(homeTargetPath, contents, "utf-8");
   },
 
-  endpointEnvironment(ctx): AgentEndpointEnvironment {
-    const settings = resolveOpenCodeSettings(ctx.clankerConfig);
-    if (!settings.endpoint && !settings.model) {
-      return new NoopAgentEndpointEnvironment();
-    }
-    return new OpenCodeAgentEndpointEnvironment(settings);
-  },
+  settings: [
+    {
+      key: "endpoint",
+      label: "OpenCode Base URL",
+      type: "string",
+      description:
+        "Optional OpenAI-compatible endpoint override. Usually not needed: OpenCode sends requests to the right endpoint for the model.",
+      placeholder: "https://api.openai.com/v1",
+      providerDefault: "endpoint",
+      env: ["OPENCODE_BASE_URL", "OPENAI_BASE_URL"],
+    },
+    {
+      key: "model",
+      label: "OpenCode Model",
+      type: "string",
+      description: "Optional model override, as `provider/model` (e.g. `minimax/minimax-2.7`). `opencode models` lists them.",
+      placeholder: "provider/model-name",
+      providerDefault: "model",
+      env: ["OPENCODE_MODEL"],
+    },
+  ],
 
   // OpenCode reads each provider's key from the env var models.dev names, and
   // needs a `<provider>/<model>` because it serves many providers.

@@ -43,6 +43,18 @@ const antigravityPlugin: AgentPlugin<AntigravityConfig> = {
   stateExcludes: [`${ANTIGRAVITY_STATE_DIR}/acp_token.json`],
   skillDirs: [".gemini/config/skills"],
 
+  settings: [
+    {
+      key: "model",
+      label: "Antigravity Model",
+      type: "string",
+      description: "Optional Antigravity model id. Leave empty for Antigravity's default.",
+      placeholder: "gemini-3.1-pro-high",
+      providerDefault: "model",
+      env: ["AGY_ACP_DEFAULT_MODEL"],
+    },
+  ],
+
   providers: [{ provider: "google", envVar: "GEMINI_API_KEY", default: true }],
 
   docker: {

@@ -3,38 +3,12 @@
  */
 
 import type { TicketSystem } from './common'
-import type { PluginManifest } from './plugin'
+import type { PluginField, PluginManifest } from './plugin'
 import type { AuthCredentialType } from './project'
 import type { SecretLocation } from './secret'
 
 // Integration category - SCM (source control), Ticketing (issue tracking), Inbound (receives events) or Chat
 export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound' | 'chat'
-
-// Integration field types for dynamic forms
-export type IntegrationFieldType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'select'
-  | 'multiselect'
-  | 'secret'
-
-// Option for select/multiselect fields
-export interface IntegrationFieldOption {
-  label: string
-  value: string
-}
-
-// Definition of a configuration field for an integration
-export interface IntegrationFieldDefinition {
-  key: string
-  label: string
-  type: IntegrationFieldType
-  required?: boolean
-  description?: string
-  options?: IntegrationFieldOption[]
-  placeholder?: string
-}
 
 // Features supported by an integration
 export interface IntegrationSupport {
@@ -55,7 +29,7 @@ export interface IntegrationManifest extends PluginManifest {
   status: 'ready' | 'stub'
   authTypes: AuthCredentialType[]
   /** Settings the connection screen edits; empty when the connection has none. */
-  configFields: IntegrationFieldDefinition[]
+  configFields: PluginField[]
   supports: IntegrationSupport
   /** Set when the connection holds a token: what Viberglass uses it for, shown where the token is entered. */
   credentialUse?: string

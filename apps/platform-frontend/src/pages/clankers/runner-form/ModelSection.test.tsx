@@ -43,6 +43,7 @@ test('provider and endpoint groups contain selectable Radix items', async () => 
         onEndpointSaved={jest.fn()}
         onModelKeyChange={jest.fn()}
         onSettingsChange={jest.fn()}
+        onValuesChange={jest.fn()}
         onKeyAdded={jest.fn()}
       />
     </Theme>
@@ -75,6 +76,7 @@ test('a selected endpoint offers its model list and replaces the built-in model 
         onEndpointSaved={jest.fn()}
         onModelKeyChange={jest.fn()}
         onSettingsChange={jest.fn()}
+        onValuesChange={jest.fn()}
         onKeyAdded={jest.fn()}
       />
     </Theme>
@@ -105,6 +107,7 @@ test('an existing endpoint selection survives loading the endpoint list', async 
           onEndpointSaved={jest.fn()}
           onModelKeyChange={jest.fn()}
           onSettingsChange={jest.fn()}
+          onValuesChange={jest.fn()}
           onKeyAdded={jest.fn()}
         />
       </Theme>
@@ -134,6 +137,7 @@ test("explains that an agent without endpoint support can't use one, instead of 
         onEndpointSaved={jest.fn()}
         onModelKeyChange={jest.fn()}
         onSettingsChange={jest.fn()}
+        onValuesChange={jest.fn()}
         onKeyAdded={jest.fn()}
       />
     </Theme>
@@ -160,6 +164,7 @@ test('offers only endpoints that speak an API the agent understands', async () =
         onEndpointSaved={jest.fn()}
         onModelKeyChange={jest.fn()}
         onSettingsChange={jest.fn()}
+        onValuesChange={jest.fn()}
         onKeyAdded={jest.fn()}
       />
     </Theme>

@@ -3,7 +3,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/dialog'
 import { EmptyState } from '@/components/empty-state'
-import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
+import { Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
@@ -23,6 +23,8 @@ import { PauseIcon, Pencil1Icon, PlayIcon, PlusIcon, TrashIcon } from '@radix-ui
 import { parseIntervalExpression, type ClawScheduleSummary, type ClawTaskTemplateSummary } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { CronScheduleField } from './cron-schedule-field'
+import { buildCron, defaultCronBuilder, describeCron, parseCronBuilder, type CronBuilder } from './cronSchedule'
 
 type IntervalUnit = 'minutes' | 'hours' | 'days' | 'weeks'
 const UNIT_SUFFIX: Record<IntervalUnit, string> = { minutes: 'm', hours: 'h', days: 'd', weeks: 'w' }
@@ -35,7 +37,7 @@ type ScheduleForm = {
   scheduleType: 'interval' | 'cron'
   intervalValue: string
   intervalUnit: IntervalUnit
-  cronExpression: string
+  cron: CronBuilder
   timezone: string
 }
 
@@ -47,7 +49,7 @@ const emptyForm: ScheduleForm = {
   scheduleType: 'interval',
   intervalValue: '1',
   intervalUnit: 'hours',
-  cronExpression: '',
+  cron: defaultCronBuilder,
   timezone: 'UTC',
 }
 
@@ -60,7 +62,10 @@ function formatExpression(s: ClawScheduleSummary): string {
     }
     return s.intervalExpression
   }
-  if (s.scheduleType === 'cron' && s.cronExpression) return s.cronExpression
+  if (s.scheduleType === 'cron' && s.cronExpression) {
+    const description = describeCron(s.cronExpression)
+    return description ? `${description} (${s.timezone})` : s.cronExpression
+  }
   return '—'
 }
 
@@ -143,7 +148,7 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
       scheduleType: s.scheduleType,
       intervalValue,
       intervalUnit,
-      cronExpression: s.cronExpression ?? '',
+      cron: parseCronBuilder(s.cronExpression ?? ''),
       timezone: s.timezone,
     })
     setDialogOpen(true)
@@ -169,14 +174,14 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
       toast.error('Task template is required')
       return
     }
-    if (form.scheduleType === 'cron' && !form.cronExpression.trim()) {
-      toast.error('Cron expression is required')
+    const isInterval = form.scheduleType === 'interval'
+    if (!isInterval && !describeCron(buildCron(form.cron))) {
+      toast.error('Enter a valid cron expression')
       return
     }
 
-    const isInterval = form.scheduleType === 'interval'
     const intervalExpression = isInterval ? `${form.intervalValue}${UNIT_SUFFIX[form.intervalUnit]}` : undefined
-    const cronExpression = !isInterval ? form.cronExpression.trim() : undefined
+    const cronExpression = !isInterval ? buildCron(form.cron) : undefined
     setIsSubmitting(true)
     try {
       if (dialogMode === 'create') {
@@ -287,7 +292,10 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
               <TableRow key={s.id}>
                 <TableCell className="font-medium text-zinc-950 dark:text-white">{s.name}</TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400">{templateName(s.taskTemplateId)}</TableCell>
-                <TableCell className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                <TableCell
+                  className="text-zinc-500 dark:text-zinc-400"
+                  title={s.scheduleType === 'cron' ? (s.cronExpression ?? undefined) : undefined}
+                >
                   {formatExpression(s)}
                 </TableCell>
                 <TableCell>
@@ -373,7 +381,7 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
                     onChange={(v) => setForm((p) => ({ ...p, scheduleType: v as 'interval' | 'cron' }))}
                   >
                     <option value="interval">Interval</option>
-                    <option value="cron">Cron expression</option>
+                    <option value="cron">At set times</option>
                   </Select>
                 </Field>
                 {form.scheduleType === 'interval' ? (
@@ -399,16 +407,11 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
                     </div>
                   </Field>
                 ) : (
-                  <Field>
-                    <Label>Cron expression</Label>
-                    <Description>Standard 6-part cron: sec min hour day month dow</Description>
-                    <Input
-                      value={form.cronExpression}
-                      onChange={(e) => setForm((p) => ({ ...p, cronExpression: e.target.value }))}
-                      placeholder="0 0 * * * *"
-                      className="font-mono"
-                    />
-                  </Field>
+                  <CronScheduleField
+                    value={form.cron}
+                    onChange={(cron) => setForm((p) => ({ ...p, cron }))}
+                    timezone={form.timezone}
+                  />
                 )}
                 <Field>
                   <Label>Timezone</Label>

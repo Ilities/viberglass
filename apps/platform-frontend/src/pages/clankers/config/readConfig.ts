@@ -1,151 +1,38 @@
-import { isClankerConfigV1, isObjectRecord, type ClankerConfigV1 } from '@viberglass/types'
+import { getAgentSettingFields, isClankerConfigV1, pickSettingValues, type ClankerConfigV1 } from '@viberglass/types'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE, type ClankerConfigReadable, type ReadConfigOutput } from './types'
-
-function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
-  const config = isObjectRecord(input.deploymentConfig) ? input.deploymentConfig : {}
-
-  const hasResources =
-    typeof config.containerImage === 'string' ||
-    typeof config.clusterArn === 'string' ||
-    typeof config.taskDefinitionArn === 'string' ||
-    typeof config.functionArn === 'string'
-
-  const provisioningMode =
-    config.provisioningMode === 'prebuilt' || config.provisioningMode === 'managed'
-      ? config.provisioningMode
-      : hasResources
-        ? 'prebuilt'
-        : 'managed'
-
-  const codexAuth = isObjectRecord(config.codexAuth) ? config.codexAuth : null
-  const codexAuthMode =
-    codexAuth?.mode === 'chatgpt_device_stored'
-      ? 'chatgpt_device_stored'
-      : codexAuth?.mode === 'chatgpt_device'
-        ? 'chatgpt_device'
-        : 'api_key'
-
-  const legacyQwenEndpoint =
-    typeof config.qwenEndpoint === 'string'
-      ? config.qwenEndpoint
-      : typeof config.endpoint === 'string'
-        ? config.endpoint
-        : ''
-
-  const legacyOpenCodeEndpoint = typeof config.endpoint === 'string' ? config.endpoint : ''
-  const legacyOpenCodeModel = typeof config.model === 'string' ? config.model : ''
-
-  return {
-    form: {
-      ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
-      provisioningMode,
-      containerImage: typeof config.containerImage === 'string' ? config.containerImage : '',
-      clusterArn: typeof config.clusterArn === 'string' ? config.clusterArn : '',
-      taskDefinitionArn: typeof config.taskDefinitionArn === 'string' ? config.taskDefinitionArn : '',
-      functionArn: typeof config.functionArn === 'string' ? config.functionArn : '',
-      lambdaMemorySize: '',
-      lambdaTimeout: '',
-      lambdaEphemeralStorage: '',
-      codexAuthMode,
-      codexLoginSecretId: '',
-      qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
-      opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
-      opencodeModel: input.agent === 'opencode' ? legacyOpenCodeModel : '',
-      antigravityModel: input.agent === 'antigravity' ? legacyOpenCodeModel : '',
-      kimiEndpoint: '',
-      kimiModel: '',
-    },
-  }
-}
 
 function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
   const strategy = config.strategy
   const agent = config.agent
   const provisioningMode: 'managed' | 'prebuilt' = strategy.provisioningMode === 'prebuilt' ? 'prebuilt' : 'managed'
 
-  const strategyForm = {
-    ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
-    kubernetesCpu: strategy.type === 'kubernetes' ? strategy.cpu || '' : '',
-    kubernetesMemory: strategy.type === 'kubernetes' ? strategy.memory || '' : '',
-    kubernetesStorage: strategy.type === 'kubernetes' ? strategy.ephemeralStorage || '' : '',
-    kubernetesDeadline: strategy.type === 'kubernetes' ? String(strategy.activeDeadlineSeconds || '') : '',
-    provisioningMode,
-    containerImage: (strategy.type === 'docker' || strategy.type === 'kubernetes') ? strategy.containerImage || '' : '',
-    clusterArn: strategy.type === 'ecs' ? strategy.clusterArn || '' : '',
-    taskDefinitionArn: strategy.type === 'ecs' ? strategy.taskDefinitionArn || '' : '',
-    functionArn: strategy.type === 'lambda' ? strategy.functionArn || '' : '',
-    lambdaMemorySize: strategy.type === 'lambda' ? String(strategy.memorySize || '') : '',
-    lambdaTimeout: strategy.type === 'lambda' ? String(strategy.timeout || '') : '',
-    lambdaEphemeralStorage: strategy.type === 'lambda' ? String(strategy.ephemeralStorage || '') : '',
-  }
-
-  const codexForm =
-    agent.type === 'codex'
-      ? {
-          codexAuthMode: agent.codexAuth.mode,
-          codexLoginSecretId: agent.codexAuth.loginSecretId ?? '',
-        }
-      : {
-          codexAuthMode: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
-          codexLoginSecretId: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexLoginSecretId,
-        }
-
-  const qwenForm =
-    agent.type === 'qwen-cli'
-      ? {
-          qwenEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
-        }
-      : {
-          qwenEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint,
-        }
-
-  const opencodeForm =
-    agent.type === 'opencode'
-      ? {
-          opencodeEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
-          opencodeModel: typeof agent.model === 'string' ? agent.model : '',
-        }
-      : {
-          opencodeEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeEndpoint,
-          opencodeModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel,
-        }
-
-  const antigravityForm =
-    agent.type === 'antigravity'
-      ? {
-          antigravityModel: typeof agent.model === 'string' ? agent.model : '',
-        }
-      : {
-          antigravityModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.antigravityModel,
-        }
-
-  const kimiForm =
-    agent.type === 'kimi-code'
-      ? {
-          kimiEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
-          kimiModel: typeof agent.model === 'string' ? agent.model : '',
-        }
-      : {
-          kimiEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.kimiEndpoint,
-          kimiModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.kimiModel,
-        }
-
   return {
     form: {
-      ...strategyForm,
-      ...codexForm,
-      ...qwenForm,
-      ...opencodeForm,
-      ...antigravityForm,
-      ...kimiForm,
+      ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
+      kubernetesCpu: strategy.type === 'kubernetes' ? strategy.cpu || '' : '',
+      kubernetesMemory: strategy.type === 'kubernetes' ? strategy.memory || '' : '',
+      kubernetesStorage: strategy.type === 'kubernetes' ? strategy.ephemeralStorage || '' : '',
+      kubernetesDeadline: strategy.type === 'kubernetes' ? String(strategy.activeDeadlineSeconds || '') : '',
+      provisioningMode,
+      containerImage: (strategy.type === 'docker' || strategy.type === 'kubernetes') ? strategy.containerImage || '' : '',
+      clusterArn: strategy.type === 'ecs' ? strategy.clusterArn || '' : '',
+      taskDefinitionArn: strategy.type === 'ecs' ? strategy.taskDefinitionArn || '' : '',
+      functionArn: strategy.type === 'lambda' ? strategy.functionArn || '' : '',
+      lambdaMemorySize: strategy.type === 'lambda' ? String(strategy.memorySize || '') : '',
+      lambdaTimeout: strategy.type === 'lambda' ? String(strategy.timeout || '') : '',
+      lambdaEphemeralStorage: strategy.type === 'lambda' ? String(strategy.ephemeralStorage || '') : '',
+      values: { [agent.type]: pickSettingValues(getAgentSettingFields(agent.type), agent) },
+      codexAuthMode: agent.codexAuth?.mode ?? DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
+      codexLoginSecretId: agent.codexAuth?.loginSecretId ?? '',
     },
   }
 }
 
+/** The form for a runner's stored config; one saved without a config gets the defaults. */
 export function readClankerDeploymentConfig(input: ClankerConfigReadable): ReadConfigOutput {
   if (isClankerConfigV1(input.deploymentConfig)) {
     return readV1Config(input.deploymentConfig)
   }
 
-  return readLegacyConfig(input)
+  return { form: DEFAULT_CLANKER_CONFIG_FORM_STATE }
 }

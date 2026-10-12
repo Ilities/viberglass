@@ -13,6 +13,10 @@ import { ErrorClassification } from "../../../../workers";
 import { JOB_KIND, type Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
+function dockerConfig(strategy: Record<string, unknown>): Record<string, unknown> {
+  return { version: 1, strategy: { type: "docker", ...strategy }, agent: { type: "kimi-code" } };
+}
+
 // Mock dockerode
 const mockCreateContainer = jest.fn();
 const mockPing = jest.fn();
@@ -89,12 +93,12 @@ describe("DockerInvoker", () => {
       skillIds: [],
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
-      deploymentConfig: {
+      deploymentConfig: dockerConfig({
         containerImage: "viberator/worker:latest",
         environmentVariables: {
           NODE_ENV: "production",
         },
-      },
+      }),
     };
 
     // Default successful mock
@@ -368,10 +372,10 @@ describe("DockerInvoker", () => {
 
         const clankerWithNetwork: Clanker = {
           ...mockClanker,
-          deploymentConfig: {
-            ...(mockClanker.deploymentConfig as any),
+          deploymentConfig: dockerConfig({
+            containerImage: "viberator/worker:latest",
             networkMode: "host",
-          },
+          }),
         };
 
         await invoker.invoke(mockJob, clankerWithNetwork);
@@ -390,9 +394,9 @@ describe("DockerInvoker", () => {
 
         const clankerWithoutNetwork: Clanker = {
           ...mockClanker,
-          deploymentConfig: {
+          deploymentConfig: dockerConfig({
             containerImage: "viberator/worker:latest",
-          },
+          }),
         };
 
         await invoker.invoke(mockJob, clankerWithoutNetwork);
@@ -411,9 +415,9 @@ describe("DockerInvoker", () => {
 
         const clankerWithoutEnv: Clanker = {
           ...mockClanker,
-          deploymentConfig: {
+          deploymentConfig: dockerConfig({
             containerImage: "viberator/worker:latest",
-          },
+          }),
         };
 
         await invoker.invoke(mockJob, clankerWithoutEnv);
@@ -426,13 +430,13 @@ describe("DockerInvoker", () => {
 
         const clankerWithEnv: Clanker = {
           ...mockClanker,
-          deploymentConfig: {
+          deploymentConfig: dockerConfig({
             containerImage: "viberator/worker:latest",
             environmentVariables: {
               CUSTOM_VAR: "custom-value",
               ANOTHER_VAR: "another-value",
             },
-          },
+          }),
         };
 
         await invoker.invoke(mockJob, clankerWithEnv);
@@ -626,9 +630,10 @@ describe("DockerInvoker", () => {
 
     it("lets clanker config override the forwarded endpoint", async () => {
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector:4318";
-      mockClanker.deploymentConfig!.environmentVariables = {
-        OTEL_EXPORTER_OTLP_ENDPOINT: "http://per-clanker:4318",
-      };
+      mockClanker.deploymentConfig = dockerConfig({
+        containerImage: "viberator/worker:latest",
+        environmentVariables: { OTEL_EXPORTER_OTLP_ENDPOINT: "http://per-clanker:4318" },
+      });
 
       const env = await readEnv();
 

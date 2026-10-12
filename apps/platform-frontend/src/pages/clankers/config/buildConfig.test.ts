@@ -21,8 +21,7 @@ describe('buildClankerDeploymentConfig', () => {
       form: {
         ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
         provisioningMode: 'managed',
-        opencodeEndpoint: ' https://openrouter.ai/api/v1 ',
-        opencodeModel: ' openai/gpt-5 ',
+        values: { opencode: { endpoint: ' https://openrouter.ai/api/v1 ', model: ' openai/gpt-5 ' } },
       },
     })
 
@@ -47,8 +46,7 @@ describe('buildClankerDeploymentConfig', () => {
       form: {
         ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
         provisioningMode: 'managed',
-        opencodeEndpoint: '  ',
-        opencodeModel: '',
+        values: { opencode: { endpoint: '  ', model: '' } },
       },
     })
 
@@ -68,7 +66,7 @@ describe('buildClankerDeploymentConfig', () => {
       selectedAgent: 'antigravity',
       form: {
         ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
-        antigravityModel: ' gemini-3.1-pro-high ',
+        values: { antigravity: { model: ' gemini-3.1-pro-high ' } },
       },
     })
 
@@ -77,14 +75,37 @@ describe('buildClankerDeploymentConfig', () => {
     })
   })
 
-  test('keeps pi as the agent rather than falling back to claude-code', () => {
+  test('stores the chosen harness rather than falling back to claude-code', () => {
+    for (const agent of ['pi', 'fake']) {
+      const result = buildClankerDeploymentConfig({ strategyName: 'docker', selectedAgent: agent, form: DEFAULT_CLANKER_CONFIG_FORM_STATE })
+      expect(result.agent).toEqual({ type: agent })
+    }
+  })
+
+  test("leaves out another harness's settings and keys this one doesn't declare", () => {
     const result = buildClankerDeploymentConfig({
       strategyName: 'docker',
-      selectedAgent: 'pi',
-      form: DEFAULT_CLANKER_CONFIG_FORM_STATE,
+      selectedAgent: 'antigravity',
+      form: {
+        ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
+        values: { antigravity: { model: 'gemini-3.1-pro-high', endpoint: 'https://x.example.com' }, opencode: { model: 'm' } },
+      },
     })
 
-    expect(result).toMatchObject({ agent: { type: 'pi' } })
+    expect(result.agent).toEqual({ type: 'antigravity', model: 'gemini-3.1-pro-high' })
+  })
+
+  test('keeps how Codex signs in', () => {
+    const result = buildClankerDeploymentConfig({
+      strategyName: 'docker',
+      selectedAgent: 'codex',
+      form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, codexAuthMode: 'chatgpt_device_stored', codexLoginSecretId: 'login-1' },
+    })
+
+    expect(result.agent).toEqual({
+      type: 'codex',
+      codexAuth: { mode: 'chatgpt_device_stored', secretName: 'CODEX_AUTH_JSON', loginSecretId: 'login-1' },
+    })
   })
 
   test('includes lambda memorySize and timeout in managed mode', () => {
@@ -170,7 +191,7 @@ describe('buildClankerDeploymentConfig', () => {
       const result = buildClankerDeploymentConfig({
         strategyName: 'docker',
         selectedAgent: 'kimi-code',
-        form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, kimiEndpoint: 'https://api.moonshot.ai/v1', kimiModel: 'kimi-k3' },
+        form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, values: { 'kimi-code': { endpoint: 'https://api.moonshot.ai/v1', model: 'kimi-k3' } } },
         existing: kimiConfig,
       })
 
@@ -187,7 +208,7 @@ describe('buildClankerDeploymentConfig', () => {
       const result = buildClankerDeploymentConfig({
         strategyName: 'docker',
         selectedAgent: 'opencode',
-        form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, opencodeModel: '' },
+        form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, values: { opencode: { model: '' } } },
         existing: { version: 1, strategy: { type: 'docker' }, agent: { type: 'opencode', model: 'opencode-go/kimi-k3' } },
       })
 

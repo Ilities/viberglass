@@ -11,9 +11,8 @@ import type {
   ClankerStatus,
   DeploymentStrategy,
   ConfigFileInput,
-  AgentType,
 } from "@viberglass/types";
-import { DEFAULT_AGENT_TYPE, SUPPORTED_AGENT_TYPES, parseSecretBindings } from "@viberglass/types";
+import { DEFAULT_AGENT_TYPE, parseSecretBindings } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import {
   InstructionStorageService,
@@ -30,12 +29,6 @@ type ClankersRow = Selectable<Database["clankers"]>;
 type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
 
 const logger = createChildLogger({ dao: "ClankerDAO" });
-const validAgentTypeSet = new Set<string>(SUPPORTED_AGENT_TYPES);
-
-function isValidAgentType(value: unknown): value is AgentType {
-  return typeof value === "string" && validAgentTypeSet.has(value);
-}
-
 // Joined query result type with aliased columns from deployment_strategies
 type ClankerWithStrategyRow = Omit<ClankersRow, "deleted_at"> & {
   strategy_id: string | null;
@@ -500,7 +493,8 @@ export class ClankerDAO {
             : row.deployment_config
           : null,
       configFiles,
-      agent: isValidAgentType(row.agent) ? row.agent : null,
+      // A harness left out of this build stays named, so the runner shows what it ran.
+      agent: row.agent,
       secretBindings: parseSecretBindings(row.secret_bindings),
       mcpServerIds: tools.mcpServerIds,
       skillIds: tools.skillIds,

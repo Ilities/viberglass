@@ -1,5 +1,4 @@
 import type { Secret } from '@/service/api/secret-api'
-import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './types'
 import { keysForProvider, providerOptionsForAgent, settingsForProvider, splitRunnerBindings } from './modelKey'
 
 function secret(id: string, overrides: Partial<Secret> = {}): Secret {
@@ -13,8 +12,6 @@ function secret(id: string, overrides: Partial<Secret> = {}): Secret {
     ...overrides,
   }
 }
-
-const settings = DEFAULT_CLANKER_CONFIG_FORM_STATE
 
 describe('modelKey', () => {
   test('offers the providers an agent can run', () => {
@@ -60,13 +57,13 @@ describe('modelKey', () => {
     }
     const [go, router] = [option('opencode-go'), option('openrouter')]
 
-    const fromDefault = settingsForProvider('opencode', { ...settings, opencodeModel: go.model ?? '' }, go, router)
-    expect(fromDefault).toEqual({ opencodeModel: router.model, opencodeEndpoint: '' })
+    const fromDefault = settingsForProvider('opencode', { model: go.model ?? '' }, go, router)
+    expect(fromDefault).toEqual({ model: router.model, endpoint: '' })
 
-    const typed = settingsForProvider('opencode', { ...settings, opencodeModel: 'mine/model' }, go, router)
-    expect(typed).toEqual({ opencodeEndpoint: '' })
+    const typed = settingsForProvider('opencode', { model: 'mine/model' }, go, router)
+    expect(typed).toEqual({ endpoint: '' })
 
-    const oldProviders = settingsForProvider('opencode', { ...settings, opencodeModel: 'opencode-go/kimi-k3' }, go, router)
-    expect(oldProviders.opencodeModel).toBe(router.model)
+    const oldProviders = settingsForProvider('opencode', { model: 'opencode-go/kimi-k3' }, go, router)
+    expect(oldProviders.model).toBe(router.model)
   })
 })

@@ -13,7 +13,6 @@ import {
   type SecretBinding,
 } from '@viberglass/types'
 import { useEffect, useState } from 'react'
-import type { AgentSettings } from '../config/agents'
 import { describeBindingsProblem } from '../config/agentSecrets'
 import { buildClankerDeploymentConfig } from '../config/buildConfig'
 import { defaultProvisioningMode } from '../config/normalizers'
@@ -22,7 +21,7 @@ import { readClankerDeploymentConfig } from '../config/readConfig'
 import { SecretBindingsField } from '../config/secret-bindings-field'
 import { DeploymentStrategyCards } from '../config/selectionCards'
 import { StrategySpecificFields } from '../config/strategies'
-import { DEFAULT_CLANKER_CONFIG_FORM_STATE, type ProvisioningMode } from '../config/types'
+import { DEFAULT_CLANKER_CONFIG_FORM_STATE, type AgentSettings, type ProvisioningMode } from '../config/types'
 import { AGENTS_FILE_TYPE, getHarnessConfigFile } from '../instructionFiles'
 import { AgentInstructionsField } from './AgentInstructionsField'
 import { AgentSection } from './AgentSection'
@@ -33,15 +32,13 @@ import { ToolsSection } from './ToolsSection'
 import { RunnerFormSection as Section } from './RunnerFormSection'
 import type { RunnerFormProps } from './runnerFormTypes'
 
-function settingsOf(form: AgentSettings): AgentSettings {
-  const { codexAuthMode, codexLoginSecretId, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel } =
-    form
-  return { codexAuthMode, codexLoginSecretId, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel }
+function settingsOf({ values, codexAuthMode, codexLoginSecretId }: AgentSettings): AgentSettings {
+  return { values, codexAuthMode, codexLoginSecretId }
 }
 
 export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel, openAdvanced = false }: RunnerFormProps) {
   const initialForm = initial
-    ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig, agent: initial.agent }).form
+    ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig }).form
     : DEFAULT_CLANKER_CONFIG_FORM_STATE
 
   const endpointState = useModelEndpoints(initial?.modelEndpoint)
@@ -128,11 +125,19 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
     setSettings((previous) => ({ ...previous, ...changes }))
   }
 
+  function changeValues(forAgent: AgentType | '', changes: Record<string, string>) {
+    if (!forAgent) return
+    setSettings((previous) => ({
+      ...previous,
+      values: { ...previous.values, [forAgent]: { ...previous.values[forAgent], ...changes } },
+    }))
+  }
+
   function chooseProvider(next: ModelProviderId | '', forAgent: AgentType | '' = agent) {
     endpointState.setSelection(null)
     const options = providerOptionsForAgent(forAgent)
     const to = options.find((option) => option.provider === next)
-    changeSettings(settingsForProvider(forAgent, settings, currentOption, to))
+    changeValues(forAgent, settingsForProvider(forAgent, settings.values[forAgent] ?? {}, currentOption, to))
     setProvider(next)
     setModelKeyEnvVar('')
     const keys = keysForProvider(secrets, next)
@@ -251,6 +256,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
           onProviderChange={(next) => chooseProvider(next)}
           onModelKeyChange={setModelKeyId}
           onSettingsChange={changeSettings}
+          onValuesChange={(changes) => changeValues(agent, changes)}
           onKeyAdded={(secret) => {
             setSecrets((previous) => [secret, ...previous])
             setModelKeyId(secret.id)

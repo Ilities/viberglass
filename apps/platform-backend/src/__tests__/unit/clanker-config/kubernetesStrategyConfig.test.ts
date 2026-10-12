@@ -44,7 +44,6 @@ describe("Kubernetes Clanker config", () => {
       agent: { type: "opencode" },
     }));
 
-    expect(result.source).toBe("v1");
     expect(result.config.strategy).toEqual({
       type: "kubernetes",
       provisioningMode: "prebuilt",
@@ -57,13 +56,13 @@ describe("Kubernetes Clanker config", () => {
     });
   });
 
-  it("maps a legacy Kubernetes strategy and discards an invalid deadline", () => {
+  it("discards an invalid deadline", () => {
     const result = resolveClankerConfig(clanker({
-      containerImage: "registry.example/worker:2",
-      activeDeadlineSeconds: -1,
+      version: 1,
+      strategy: { type: "kubernetes", containerImage: "registry.example/worker:2", activeDeadlineSeconds: -1 },
+      agent: { type: "opencode" },
     }));
 
-    expect(result.source).toBe("legacy");
     expect(result.config.strategy).toMatchObject({
       type: "kubernetes",
       containerImage: "registry.example/worker:2",

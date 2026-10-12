@@ -2,7 +2,16 @@ import cron, { type ScheduledTask as CronScheduledTask } from "node-cron";
 import logger from "../../config/logger";
 import { ClawScheduleDAO } from "../../persistence/claw/ClawScheduleDAO";
 import { ClawOrchestrationService } from "./ClawOrchestrationService";
-import { ClawSchedule, intervalToCron } from "@viberglass/types";
+import { ClawSchedule, intervalToMilliseconds } from "@viberglass/types";
+import { ClawIntervalGate } from "./ClawIntervalGate";
+
+const EVERY_MINUTE = "0 * * * * *";
+
+interface ScheduleTrigger {
+  cronExpression: string;
+  /** Interval schedules tick every minute and only run when due. */
+  gate: ClawIntervalGate | null;
+}
 
 interface ScheduledTask {
   id: string;
@@ -150,8 +159,8 @@ export class ClawSchedulingEngine {
    */
   private addSchedule(schedule: ClawSchedule): void {
     try {
-      const cronExpression = this.getCronExpression(schedule);
-      if (!cronExpression) {
+      const trigger = this.getTrigger(schedule);
+      if (!trigger) {
         logger.warn("Invalid cron expression for schedule", {
           scheduleId: schedule.id,
           scheduleName: schedule.name,
@@ -162,9 +171,11 @@ export class ClawSchedulingEngine {
         return;
       }
 
+      const { cronExpression, gate } = trigger;
       const cronTask = cron.schedule(
         cronExpression,
         () => {
+          if (gate && !gate.takeDueRun(new Date())) return;
           this.executeScheduledTask(schedule.id).catch((error) => {
             logger.error("Failed to execute scheduled claw task", {
               scheduleId: schedule.id,
@@ -215,17 +226,19 @@ export class ClawSchedulingEngine {
     }
   }
 
-  /**
-   * Get the cron expression for a schedule
-   * Handles both interval and cron types
-   */
-  private getCronExpression(schedule: ClawSchedule): string | null {
+  private getTrigger(schedule: ClawSchedule): ScheduleTrigger | null {
     if (schedule.scheduleType === "cron" && schedule.cronExpression) {
-      return schedule.cronExpression;
+      return { cronExpression: schedule.cronExpression, gate: null };
     }
 
     if (schedule.scheduleType === "interval" && schedule.intervalExpression) {
-      return intervalToCron(schedule.intervalExpression);
+      const intervalMs = intervalToMilliseconds(schedule.intervalExpression);
+      if (!intervalMs) return null;
+      const lastRunAt = new Date(schedule.lastRunAt ?? schedule.createdAt);
+      return {
+        cronExpression: EVERY_MINUTE,
+        gate: new ClawIntervalGate(intervalMs, lastRunAt),
+      };
     }
 
     return null;

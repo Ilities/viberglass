@@ -17,7 +17,9 @@
     "harnessConfigFiles": [],
     "modelApiFormats": [
       "anthropic-messages"
-    ]
+    ],
+    "settings": [],
+    "harnessConfigEditor": null
   },
   {
     "agent": "qwen-cli",
@@ -39,7 +41,45 @@
       "openai-chat",
       "openai-responses",
       "anthropic-messages"
-    ]
+    ],
+    "settings": [
+      {
+        "key": "endpoint",
+        "label": "Qwen API Endpoint",
+        "type": "select",
+        "env": [
+          "QWEN_CLI_ENDPOINT",
+          "QWEN_API_ENDPOINT"
+        ],
+        "description": "The endpoint region for this agent.",
+        "placeholder": "https://your-endpoint.example.com/compatible-mode/v1",
+        "options": [
+          {
+            "value": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "label": "Mainland China"
+          },
+          {
+            "value": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            "label": "International (Singapore)"
+          },
+          {
+            "value": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
+            "label": "US (Virginia)"
+          },
+          {
+            "value": "https://coding.dashscope.aliyuncs.com/v1",
+            "label": "Coding Plan"
+          },
+          {
+            "value": "https://coding-intl.dashscope.aliyuncs.com/v1",
+            "label": "Coding Plan International"
+          }
+        ],
+        "allowCustom": true,
+        "providerDefault": "endpoint"
+      }
+    ],
+    "harnessConfigEditor": null
   },
   {
     "agent": "codex",
@@ -59,7 +99,9 @@
     "harnessConfigFiles": [],
     "modelApiFormats": [
       "openai-responses"
-    ]
+    ],
+    "settings": [],
+    "harnessConfigEditor": null
   },
   {
     "agent": "opencode",
@@ -83,7 +125,40 @@
     ],
     "modelApiFormats": [
       "openai-chat"
-    ]
+    ],
+    "settings": [
+      {
+        "key": "endpoint",
+        "label": "OpenCode Base URL",
+        "type": "string",
+        "env": [
+          "OPENCODE_BASE_URL",
+          "OPENAI_BASE_URL"
+        ],
+        "description": "Optional OpenAI-compatible endpoint override. Usually not needed: OpenCode sends requests to the right endpoint for the model.",
+        "placeholder": "https://api.openai.com/v1",
+        "providerDefault": "endpoint"
+      },
+      {
+        "key": "model",
+        "label": "OpenCode Model",
+        "type": "string",
+        "env": [
+          "OPENCODE_MODEL"
+        ],
+        "description": "Optional model override, as `provider/model` (e.g. `minimax/minimax-2.7`). `opencode models` lists them.",
+        "placeholder": "provider/model-name",
+        "providerDefault": "model"
+      }
+    ],
+    "harnessConfigEditor": {
+      "fileType": "opencode.json",
+      "label": "OpenCode Configuration",
+      "envReferences": [
+        "{env:NAME}"
+      ],
+      "template": "{\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"provider\": {\n    \"my-proxy\": {\n      \"npm\": \"@ai-sdk/openai-compatible\",\n      \"options\": {\n        \"baseURL\": \"https://llm-proxy.example.com/v1\",\n        \"apiKey\": \"{env:OPENAI_API_KEY}\"\n      },\n      \"models\": {\n        \"my-model\": { \"name\": \"My model\" }\n      }\n    }\n  }\n}"
+    }
   },
   {
     "agent": "kimi-code",
@@ -107,7 +182,32 @@
       "openai-chat",
       "openai-responses",
       "anthropic-messages"
-    ]
+    ],
+    "settings": [
+      {
+        "key": "endpoint",
+        "label": "Kimi Endpoint",
+        "type": "string",
+        "env": [
+          "KIMI_BASE_URL"
+        ],
+        "description": "Leave empty for Kimi Code. A Moonshot platform key needs Moonshot's API, e.g. `https://api.moonshot.ai/v1`.",
+        "placeholder": "https://api.moonshot.ai/v1",
+        "providerDefault": "endpoint"
+      },
+      {
+        "key": "model",
+        "label": "Kimi Model",
+        "type": "string",
+        "env": [
+          "KIMI_MODEL_NAME"
+        ],
+        "description": "Optional model id. Leave empty for Kimi Code's default.",
+        "placeholder": "kimi-k3",
+        "providerDefault": "model"
+      }
+    ],
+    "harnessConfigEditor": null
   },
   {
     "agent": "mistral-vibe",
@@ -126,7 +226,9 @@
       "openai-chat",
       "openai-responses",
       "anthropic-messages"
-    ]
+    ],
+    "settings": [],
+    "harnessConfigEditor": null
   },
   {
     "agent": "antigravity",
@@ -141,7 +243,21 @@
     ],
     "endpoint": [],
     "harnessConfigFiles": [],
-    "modelApiFormats": []
+    "modelApiFormats": [],
+    "settings": [
+      {
+        "key": "model",
+        "label": "Antigravity Model",
+        "type": "string",
+        "env": [
+          "AGY_ACP_DEFAULT_MODEL"
+        ],
+        "description": "Optional Antigravity model id. Leave empty for Antigravity's default.",
+        "placeholder": "gemini-3.1-pro-high",
+        "providerDefault": "model"
+      }
+    ],
+    "harnessConfigEditor": null
   },
   {
     "agent": "pi",
@@ -162,7 +278,17 @@
       "openai-chat",
       "openai-responses",
       "anthropic-messages"
-    ]
+    ],
+    "settings": [],
+    "harnessConfigEditor": {
+      "fileType": "pi/models.json",
+      "label": "Pi Models (models.json)",
+      "envReferences": [
+        "$NAME",
+        "${NAME}"
+      ],
+      "template": "{\n  \"providers\": {\n    \"my-proxy\": {\n      \"baseUrl\": \"https://llm-proxy.example.com/v1\",\n      \"api\": \"openai-completions\",\n      \"apiKey\": \"$OPENAI_API_KEY\",\n      \"models\": [{ \"id\": \"my-model\" }]\n    }\n  }\n}"
+    }
   },
   {
     "agent": "fake",
@@ -175,6 +301,8 @@
     "apiKey": [],
     "endpoint": [],
     "harnessConfigFiles": [],
-    "modelApiFormats": []
+    "modelApiFormats": [],
+    "settings": [],
+    "harnessConfigEditor": null
   }
 ]

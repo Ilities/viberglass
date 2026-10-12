@@ -1,16 +1,20 @@
 import { createLogger, transports } from "winston";
 import { ClankerAgentEndpointEnvironmentFactory } from "./ClankerAgentEndpointEnvironmentFactory";
 import { NoopAgentEndpointEnvironment, sanitizeAgentEnvironment } from "@viberglass/agent-core";
-import { OpenCodeAgentEndpointEnvironment } from "@viberglass/agent-opencode";
-import { QwenAgentEndpointEnvironment } from "@viberglass/agent-qwen";
+import { agentRegistry } from "../../agents/registerPlugins";
 
 const logger = createLogger({
   silent: true,
   transports: [new transports.Console({ silent: true })],
 });
 
+function resolveFor(agent: Record<string, unknown>, requestedAgent?: string): Record<string, string> {
+  const factory = new ClankerAgentEndpointEnvironmentFactory();
+  return factory.create({ logger, requestedAgent, clankerConfig: { version: 1, strategy: { type: "docker" }, agent } }).resolve();
+}
+
 describe("ClankerAgentEndpointEnvironmentFactory", () => {
-  test("returns noop environment for non-qwen agents", () => {
+  test("returns noop environment for an agent without settings", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
       requestedAgent: "claude-code",
@@ -21,102 +25,41 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
     expect(environment.resolve()).toEqual({});
   });
 
-  test("returns qwen endpoint environment from v1 deployment config", () => {
-    const factory = new ClankerAgentEndpointEnvironmentFactory();
-    const environment = factory.create({
-      logger,
-      clankerConfig: {
-        version: 1,
-        strategy: { type: "ecs" },
-        agent: {
-          type: "qwen-cli",
-          endpoint: "https://qwen.example.com/v1",
-        },
-      },
-    });
-
-    expect(environment).toBeInstanceOf(QwenAgentEndpointEnvironment);
-    expect(environment.resolve()).toEqual({
+  test("sets each declared setting's env vars to the runner's value", () => {
+    expect(resolveFor({ type: "qwen-cli", endpoint: "https://qwen.example.com/v1" })).toEqual({
       QWEN_CLI_ENDPOINT: "https://qwen.example.com/v1",
       QWEN_API_ENDPOINT: "https://qwen.example.com/v1",
     });
-  });
-
-  test("returns qwen endpoint environment from legacy config", () => {
-    const factory = new ClankerAgentEndpointEnvironmentFactory();
-    const environment = factory.create({
-      logger,
-      clankerConfig: {
-        agent: "qwen-cli",
-        qwenEndpoint: "https://qwen.legacy.example.com/v1",
-      },
-    });
-
-    expect(environment).toBeInstanceOf(QwenAgentEndpointEnvironment);
-    expect(environment.resolve()).toEqual({
-      QWEN_CLI_ENDPOINT: "https://qwen.legacy.example.com/v1",
-      QWEN_API_ENDPOINT: "https://qwen.legacy.example.com/v1",
-    });
-  });
-
-  test("returns noop when qwen endpoint is missing", () => {
-    const factory = new ClankerAgentEndpointEnvironmentFactory();
-    const environment = factory.create({
-      logger,
-      requestedAgent: "qwen-cli",
-      clankerConfig: {
-        version: 1,
-        agent: {
-          type: "qwen-cli",
-        },
-      },
-    });
-
-    expect(environment).toBeInstanceOf(NoopAgentEndpointEnvironment);
-    expect(environment.resolve()).toEqual({});
-  });
-
-  test("returns opencode environment from v1 deployment config", () => {
-    const factory = new ClankerAgentEndpointEnvironmentFactory();
-    const environment = factory.create({
-      logger,
-      clankerConfig: {
-        version: 1,
-        strategy: { type: "docker" },
-        agent: {
-          type: "opencode",
-          endpoint: "https://openrouter.ai/api/v1",
-          model: "openai/gpt-5",
-        },
-      },
-    });
-
-    expect(environment).toBeInstanceOf(OpenCodeAgentEndpointEnvironment);
-    expect(environment.resolve()).toEqual({
+    expect(resolveFor({ type: "opencode", endpoint: "https://openrouter.ai/api/v1", model: "openai/gpt-5" })).toEqual({
       OPENCODE_BASE_URL: "https://openrouter.ai/api/v1",
       OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
       OPENCODE_MODEL: "openai/gpt-5",
     });
+    expect(resolveFor({ type: "kimi-code", endpoint: "https://api.moonshot.ai/v1", model: "kimi-k3" })).toEqual({
+      KIMI_BASE_URL: "https://api.moonshot.ai/v1",
+      KIMI_MODEL_NAME: "kimi-k3",
+    });
+    expect(resolveFor({ type: "antigravity", model: "gemini-3.1-pro-high" })).toEqual({
+      AGY_ACP_DEFAULT_MODEL: "gemini-3.1-pro-high",
+    });
   });
 
-  test("returns opencode environment from legacy config", () => {
-    const factory = new ClankerAgentEndpointEnvironmentFactory();
-    const environment = factory.create({
-      logger,
-      clankerConfig: {
-        agent: "opencode",
-        endpoint: "https://api.openai.com/v1",
-      },
-    });
+  test("leaves the harness defaults alone when the runner sets nothing", () => {
+    expect(resolveFor({ type: "qwen-cli", endpoint: "  " })).toEqual({});
+    expect(resolveFor({ type: "kimi-code" })).toEqual({});
+  });
 
-    expect(environment).toBeInstanceOf(OpenCodeAgentEndpointEnvironment);
-    expect(environment.resolve()).toEqual({
-      OPENCODE_BASE_URL: "https://api.openai.com/v1",
-      OPENAI_BASE_URL: "https://api.openai.com/v1",
-    });
+  test("ignores settings and keys the harness doesn't declare", () => {
+    expect(resolveFor({ type: "opencode", model: "x" }, "kimi-code")).toEqual({});
+    expect(resolveFor({ type: "claude-code", model: "x" })).toEqual({});
+  });
+
+  test("every env var a harness setting declares reaches the harness", () => {
+    const names = agentRegistry().list().flatMap((plugin) => (plugin.settings ?? []).flatMap((field) => field.env));
+    const env = Object.fromEntries(names.map((name) => [name, "value"]));
+    expect(sanitizeAgentEnvironment(env, { passthrough: [] }).env).toEqual(env);
   });
 });
-
 
 test("routes a resolved custom endpoint through the plugin's declared capability", () => {
   const factory = new ClankerAgentEndpointEnvironmentFactory();

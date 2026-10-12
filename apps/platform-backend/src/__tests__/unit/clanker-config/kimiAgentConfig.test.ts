@@ -38,10 +38,4 @@ describe("Kimi agent config", () => {
       model: "kimi-k3",
     });
   });
-
-  it("keeps them for a legacy config too", () => {
-    const { config } = resolveClankerConfig(kimiClanker({ endpoint: "https://api.moonshot.ai/v1" }));
-
-    expect(config.agent).toEqual({ type: "kimi-code", endpoint: "https://api.moonshot.ai/v1" });
-  });
 });

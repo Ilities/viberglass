@@ -10,30 +10,8 @@ import type { SecretBinding } from './secret'
 // Status of a clanker
 export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
 
-// Agent types supported by the system
-export type AgentType =
-  | 'claude-code'
-  | 'qwen-cli'
-  | 'codex'
-  | 'opencode'
-  | 'kimi-code'
-  | 'antigravity'
-  | 'mistral-vibe'
-  | 'pi'
-  | 'fake'
-
-export const SUPPORTED_AGENT_TYPES: AgentType[] = [
-  'claude-code',
-  'qwen-cli',
-  'codex',
-  'opencode',
-  'kimi-code',
-  'antigravity',
-  'mistral-vibe',
-  'pi',
-  // Deterministic e2e test agent. Accepted by the API; its plugin is test only, so it isn't offered.
-  'fake',
-]
+/** A harness plugin's id. A runner can name a harness this build left out, so check it against the agent catalog. */
+export type AgentType = string
 
 // Deployment strategy entity
 export interface DeploymentStrategy {

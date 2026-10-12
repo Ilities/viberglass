@@ -122,7 +122,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    npm test -w @viberglass/agent-aider
    ```
 
-The worker build, the catalogs and the worker Dockerfiles all follow `viberglass.plugins.json`, and the runner form takes each harness's name, description and logo from the catalog. The platform still has its own lists, which need the new agent too so runners can use it: `AgentType` and `SUPPORTED_AGENT_TYPES` in `packages/types/src/clanker.ts`, and the `normalizeAgent` switch in `apps/platform-backend/src/clanker-config/index.ts` and `normalizeGenericAgent` in `legacyMapper.ts` (unknown agents silently become `claude-code`). A harness on those lists but left out of the build config isn't offered for new runners. `defaultAgent` in the build config names the harness new runners get.
+The worker build, the catalogs and the worker Dockerfiles all follow `viberglass.plugins.json`, and the runner form takes each harness's name, description, logo, settings and config file editor from the catalog. A harness left out of the build config isn't offered for new runners; runners that already use it keep its id and fail at the worker. `defaultAgent` in the build config names the harness new runners get. Codex's sign-in is still special-cased in the platform until sign-in becomes a harness capability.
 
 Set `docker.testOnly: true` for agents that must never be provisioned in infrastructure or pushed to a registry (see `agent-fake`).
 
@@ -144,10 +144,11 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `stateDirs` | — | `$HOME`-relative paths holding the agent's sessions (e.g. `[".aider"]`), archived after each turn and restored before the next so the session resumes. Check where the harness really writes: opencode, for one, uses `~/.local/share/opencode`, not `~/.opencode`. |
 | `stateExcludes` | — | Paths inside `stateDirs` left out of the archive, such as credential files the worker injects fresh each run. |
 | `harnessConfigPatterns` | — | Relative file patterns in `.harness-config/` the harness should materialise for this agent. |
+| `harnessConfigEditor` | — | `{ fileType, label, envReferences, template }`: the config file the runner form edits. `fileType` is one of `harnessConfigPatterns`; `envReferences` are how the file refers to an env var, with `NAME` in its place (the editor writes the first); `template` fills an empty editor. |
+| `settings` | — | Settings the runner form shows, stored on the runner's agent config under each `key`: `{ key, label, type: "string" \| "select", description?, placeholder?, options?, allowCustom?, providerDefault?, env }`. The worker sets each `env` var to the runner's value, so it must be on the agent env allowlist. `providerDefault` (`"model"` or `"endpoint"`) fills the setting from the chosen provider's default. Backticks in `description` show as code. |
 | `materializeHarnessConfig` | — | Called after each matching harness-config file is written; use for side-effects like writing `$HOME/.aider/config`. |
 | `acpEventMapper` | — | Custom ACP event mapper. Falls back to the generic mapper if absent. |
 | `authLifecycle(ctx)` | — | Returns an `AgentAuthLifecycle` for agents that require device auth (e.g. Codex). |
-| `endpointEnvironment(ctx)` | — | Returns an `AgentEndpointEnvironment` for agents whose API endpoint is resolved at runtime. |
 | `customEndpoints` | — | `{ apiFormats, environment, rank? }`: the model API formats the harness runs a workspace's custom endpoint with. A custom endpoint runs on the lowest-`rank` harness that speaks its format; unranked harnesses come last. |
 | `providers` | — | Model providers this harness can run: `{ provider, envVar, default?, model?, endpoint? }`. `provider` is an id from `MODEL_PROVIDERS` (`packages/types/src/modelProviders.ts`); `envVar` is where the harness reads the key, and setup stores the key as a secret with that name. Exactly one harness is `default` per provider; setup uses it for pasted keys. `model`/`endpoint` go into the runner config when the harness can't infer them. Feeds `agentProviderCatalog.json`. |
 | `docker.variant` | ✅ | Docker image variant name (e.g. `"aider"`). Used as filename: `generated/aider.Dockerfile`. |

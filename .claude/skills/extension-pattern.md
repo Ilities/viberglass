@@ -104,19 +104,9 @@ The package lists `@viberglass/types` as a peer dependency.
 
 ### Agents (claude-code, qwen-cli, codex…)
 
-Agents are config-driven rather than code-driven. A registry object is more appropriate than full packages.
+Agents are plugin packages under `packages/agents/`, listed in `viberglass.plugins.json`. An agent id is an open string checked against the generated agent catalog. A harness's settings are declared as fields on its plugin (`settings`), and the runner form, the backend normalizer and the worker handle them generically.
 
-**Build:**
-- `clanker-config/AgentConfigRegistry.ts` — maps `AgentType → { normalizer, credentialChecker? }`
-- Move `AgentSessionMode`, `AgentType`, `SUPPORTED_AGENT_TYPES` into `@viberglass/types` if not already there
-
-**Remove:** The `if (agent.type === "codex") … if (agent.type === "qwen-cli") …` chain in `clanker-config/index.ts`. Replace with `agentConfigRegistry.normalize(agent.type, agent)`.
-
-**Adding Agent-X:**
-1. Add `"agent-x"` to `SUPPORTED_AGENT_TYPES` in `@viberglass/types`
-2. Optionally add a normalizer in `clanker-config/agents/agentX.ts` and register it
-3. Add worker image catalog entry in `workerImageCatalog.json`
-4. Write a DB migration updating the agent CHECK constraint
+**Adding Agent-X:** run `npm run new:agent agent-x`; see `packages/agents/README.md`.
 
 ### Secret Management
 

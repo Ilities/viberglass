@@ -1,14 +1,16 @@
 import { Select as RadixSelect } from '@radix-ui/themes'
 import { EndpointModelField } from './EndpointModelField'
 import { ModelEndpointDialog } from '@/pages/models/ModelEndpointDialog'
-import { getAgentModelApiFormats, type ModelEndpoint, type ModelEndpointSelection } from '@viberglass/types'
+import { getAgentModelApiFormats, getAgentSettingFields, type ModelEndpoint, type ModelEndpointSelection } from '@viberglass/types'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
 import { Select } from '@/components/select'
 import type { Secret } from '@/service/api/secret-api'
 import { AGENT_LABELS, type AgentType, type ModelProviderId } from '@viberglass/types'
 import { useState } from 'react'
-import { AgentSpecificFields, type AgentSettings } from '../config/agents'
+import { AgentSettingFields } from '../config/agentSettingFields'
+import { CodexAgentFields } from '../config/codexFields'
+import type { AgentSettings } from '../config/types'
 import { keysForProvider, providerOptionsForAgent } from '../config/modelKey'
 import { AddModelKeyDialog } from './AddModelKeyDialog'
 
@@ -29,6 +31,8 @@ interface ModelSectionProps {
   onProviderChange: (provider: ModelProviderId | '') => void
   onModelKeyChange: (secretId: string) => void
   onSettingsChange: (changes: Partial<AgentSettings>) => void
+  /** Changes to the chosen harness's declared settings. */
+  onValuesChange: (changes: Record<string, string>) => void
   onKeyAdded: (secret: Secret) => void
 }
 
@@ -43,6 +47,7 @@ export function ModelSection({
   onProviderChange,
   onModelKeyChange,
   onSettingsChange,
+  onValuesChange,
   onKeyAdded,
 }: ModelSectionProps) {
   const [addingKey, setAddingKey] = useState(false)
@@ -63,7 +68,10 @@ export function ModelSection({
   return (
     <FieldGroup>
       {agent === 'codex' && (
-        <AgentSpecificFields selectedAgent={agent} settings={settings} onChange={onSettingsChange} />
+        <CodexAgentFields
+          codexAuthMode={settings.codexAuthMode}
+          onCodexAuthModeChange={(codexAuthMode) => onSettingsChange({ codexAuthMode })}
+        />
       )}
 
       {!usesChatGptLogin && (
@@ -140,8 +148,8 @@ export function ModelSection({
         </>
       )}
 
-      {agent !== 'codex' && !endpointSelection && (
-        <AgentSpecificFields selectedAgent={agent} settings={settings} onChange={onSettingsChange} />
+      {!endpointSelection && (
+        <AgentSettingFields fields={getAgentSettingFields(agent)} values={settings.values[agent] ?? {}} onChange={onValuesChange} />
       )}
     </FieldGroup>
   )

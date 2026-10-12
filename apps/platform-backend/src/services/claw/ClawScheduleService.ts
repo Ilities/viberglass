@@ -10,7 +10,7 @@ import type {
 } from "@viberglass/types";
 import {
   ClawSchedule,
-  intervalToCron,
+  intervalToMilliseconds,
   isValidCronExpression,
 } from "@viberglass/types";
 import {
@@ -51,15 +51,11 @@ export class ClawScheduleService {
           "Interval expression is required for interval schedules",
         );
       }
-      const cronExpr = intervalToCron(request.intervalExpression);
-      if (!cronExpr) {
+      if (!intervalToMilliseconds(request.intervalExpression)) {
         throw new ClawServiceError(
           CLAW_SERVICE_ERROR_CODE.INVALID_INTERVAL_EXPRESSION,
           "Invalid interval expression. Use format like '5m', '1h', '1d', '1w'",
         );
-      }
-      if (!request.cronExpression) {
-        request.cronExpression = cronExpr;
       }
     } else if (request.scheduleType === "cron") {
       if (!request.cronExpression) {
@@ -195,8 +191,7 @@ export class ClawScheduleService {
             "Interval expression is required for interval schedules",
           );
         }
-        const cronExpr = intervalToCron(intervalExpr);
-        if (!cronExpr) {
+        if (!intervalToMilliseconds(intervalExpr)) {
           throw new ClawServiceError(
             CLAW_SERVICE_ERROR_CODE.INVALID_INTERVAL_EXPRESSION,
             "Invalid interval expression. Use format like '5m', '1h', '1d', '1w'",

@@ -76,7 +76,7 @@ export class KubernetesInvoker implements WorkerInvoker {
           scm: job.scm,
           overrides: job.overrides,
         };
-    const codex = config.agent.type === "codex" ? config.agent.codexAuth : undefined;
+    const codex = config.agent.codexAuth;
     payload.requiredCredentials ??= await this.credentials.getRequiredCredentialsForClanker(clanker);
     payload.credentialBindings = [...(clanker.secretBindings ?? []), ...this.codexLogins.workerBindings(clanker)];
     payload.optionalCredentials = codex && codex.mode !== "api_key" && !codex.loginSecretId ? [codex.secretName] : [];

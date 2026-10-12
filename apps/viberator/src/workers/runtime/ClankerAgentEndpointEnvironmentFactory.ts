@@ -1,14 +1,10 @@
-import { readWorkerModelEndpoint } from "@viberglass/types";
+import { isObjectRecord, pickSettingValues, readWorkerModelEndpoint, type AgentSettingField } from "@viberglass/types";
 import type {
   AgentEndpointEnvironmentFactory,
   AgentEndpointEnvironmentFactoryInput,
 } from "../core/agentEndpointEnvironmentFactory";
 import { NoopAgentEndpointEnvironment } from "@viberglass/agent-core";
 import { agentRegistry } from "../../agents/registerPlugins";
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function normalizeAgentName(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -55,6 +51,23 @@ function resolveAgentFromConfig(value: unknown): string | undefined {
   return undefined;
 }
 
+/** The env vars the runner's settings for this harness set. */
+function settingsEnvironment(
+  agent: string,
+  fields: readonly AgentSettingField[],
+  config: Record<string, unknown> | undefined,
+): Record<string, string> {
+  const agentConfig = config?.version === 1 && isObjectRecord(config.agent) ? config.agent : undefined;
+  if (agentConfig?.type !== agent) return {};
+  const values = pickSettingValues(fields, agentConfig);
+  const env: Record<string, string> = {};
+  for (const field of fields) {
+    const value = values[field.key];
+    if (value) for (const name of field.env) env[name] = value;
+  }
+  return env;
+}
+
 export class ClankerAgentEndpointEnvironmentFactory implements AgentEndpointEnvironmentFactory {
   create(input: AgentEndpointEnvironmentFactoryInput) {
     const requestedAgent = normalizeAgentName(input.requestedAgent);
@@ -75,16 +88,7 @@ export class ClankerAgentEndpointEnvironmentFactory implements AgentEndpointEnvi
       }
       return plugin.customEndpoints.environment(endpoint);
     }
-    if (plugin?.endpointEnvironment) {
-      return plugin.endpointEnvironment({
-        logger: input.logger,
-        workDir: "",
-        clankerConfig: input.clankerConfig,
-        callbackClient: undefined,
-        sendProgress: async () => {},
-      });
-    }
-
-    return new NoopAgentEndpointEnvironment();
+    const env = settingsEnvironment(effectiveAgent, plugin?.settings ?? [], config);
+    return Object.keys(env).length > 0 ? { resolve: () => env } : new NoopAgentEndpointEnvironment();
   }
 }

@@ -32,12 +32,12 @@ type RunnerShape = Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings'
 /** Whether the runner's Codex signs in with a ChatGPT login rather than an API key. */
 export function runnerUsesChatGptLogin(clanker: Pick<Clanker, 'deploymentConfig'>): boolean {
   const agent = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig.agent : null
-  return agent?.type === 'codex' && agent.codexAuth.mode !== 'api_key'
+  return agent?.codexAuth !== undefined && agent.codexAuth.mode !== 'api_key'
 }
 
 function chatGptLoginSecretId(clanker: Pick<Clanker, 'deploymentConfig'>): string | null {
   const agent = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig.agent : null
-  return (agent?.type === 'codex' && agent.codexAuth.loginSecretId) || null
+  return agent?.codexAuth?.loginSecretId || null
 }
 
 /** What stops the runner's agent from authenticating as configured, or null. */

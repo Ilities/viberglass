@@ -16,6 +16,12 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { MODEL_PROVIDERS } from "../src/modelProviders";
+import {
+  readHarnessConfigEditor,
+  readSettingFields,
+  type AgentSettingField,
+  type HarnessConfigEditor,
+} from "../src/agentSettings";
 import { readDefaultAgent, readPlugins, WORKSPACE_ROOT } from "../../../scripts/plugins/pluginConfig.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -59,6 +65,8 @@ interface LoadedPlugin {
   envAliases: PluginEnvAliases;
   harnessConfigPatterns: string[];
   modelApiFormats: string[];
+  settings: AgentSettingField[];
+  harnessConfigEditor: HarnessConfigEditor | null;
 }
 
 interface CatalogEntry {
@@ -95,6 +103,7 @@ function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
       throw new Error(`Plugin ${packageName} needs a ${field}.`);
     }
   }
+  const harnessConfigPatterns = (plugin.harnessConfigPatterns ?? []) as string[];
   return {
     packageName,
     packageDir,
@@ -107,9 +116,41 @@ function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
     docker: plugin.docker as PluginDockerMeta,
     providers: (plugin.providers ?? []) as PluginProviderBinding[],
     envAliases: (plugin.envAliases ?? {}) as PluginEnvAliases,
-    harnessConfigPatterns: (plugin.harnessConfigPatterns ?? []) as string[],
+    harnessConfigPatterns,
     modelApiFormats: (plugin.customEndpoints?.apiFormats ?? []).filter((value: unknown): value is string => typeof value === "string"),
+    settings: checkedSettings(packageName, plugin.settings),
+    harnessConfigEditor: checkedHarnessConfigEditor(packageName, plugin.harnessConfigEditor, harnessConfigPatterns),
   };
+}
+
+// Keys the agent config already uses for something else.
+const RESERVED_SETTING_KEYS = new Set(["type", "codexAuth"]);
+
+function checkedSettings(packageName: string, raw: unknown): AgentSettingField[] {
+  if (raw === undefined) return [];
+  const settings = readSettingFields(raw);
+  if (!Array.isArray(raw) || settings.length !== raw.length) {
+    throw new Error(`Plugin ${packageName} has a malformed setting: each needs a key, a label, a type of string or select, and env.`);
+  }
+  const keys = new Set<string>();
+  for (const setting of settings) {
+    if (RESERVED_SETTING_KEYS.has(setting.key) || keys.has(setting.key)) {
+      throw new Error(`Plugin ${packageName} can't use the setting key '${setting.key}': it's reserved or used twice.`);
+    }
+    keys.add(setting.key);
+  }
+  return settings;
+}
+
+function checkedHarnessConfigEditor(packageName: string, raw: unknown, patterns: string[]): HarnessConfigEditor | null {
+  if (raw === undefined) return null;
+  const editor = readHarnessConfigEditor(raw);
+  if (!editor || !patterns.includes(editor.fileType) || editor.envReferences.some((reference) => !reference.includes("NAME"))) {
+    throw new Error(
+      `Plugin ${packageName} has a malformed harnessConfigEditor: its fileType must be one of its harnessConfigPatterns, and each envReference must contain NAME.`,
+    );
+  }
+  return editor;
 }
 
 function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
@@ -276,7 +317,7 @@ function publishLogo(p: LoadedPlugin): string | null {
 }
 
 // Per harness, in config order (the order the runner form offers them): what the platform
-// shows, the env var names it reads its key and endpoint from, and the config files it accepts.
+// shows, the env var names it reads its key and endpoint from, the config files it accepts, and its settings.
 const agentPlugins = loadedPlugins.map((p) => ({
   agent: p.id,
   label: p.label,
@@ -289,6 +330,8 @@ const agentPlugins = loadedPlugins.map((p) => ({
   endpoint: p.envAliases.endpoint ?? [],
   harnessConfigFiles: p.harnessConfigPatterns,
   modelApiFormats: p.modelApiFormats,
+  settings: p.settings,
+  harnessConfigEditor: p.harnessConfigEditor,
 }));
 
 fs.writeFileSync(

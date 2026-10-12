@@ -274,32 +274,21 @@ export function parseIntervalExpression(expression: string): ClawIntervalExpress
   return null
 }
 
-/**
- * Convert an interval expression to a cron expression
- * For example: "5m" becomes "0 asterisk-slash-5 asterisk asterisk asterisk asterisk" (cron format)
- */
-export function intervalToCron(expression: string): string | null {
-  const parsed = parseIntervalExpression(expression)
-  if (!parsed) {
-    return null
-  }
+const INTERVAL_UNIT_MS: Record<ClawIntervalExpression['unit'], number> = {
+  minutes: 60_000,
+  hours: 3_600_000,
+  days: 86_400_000,
+  weeks: 604_800_000,
+}
 
-  switch (parsed.unit) {
-    case 'minutes':
-      // "5m" -> "0 */5 * * * *" (every 5 minutes)
-      return `0 */${parsed.value} * * * *`
-    case 'hours':
-      // "1h" -> "0 0 */1 * * *" (every hour)
-      return `0 0 */${parsed.value} * * *`
-    case 'days':
-      // "1d" -> "0 0 1 * * *" (daily at 1am)
-      return `0 0 ${parsed.value === 1 ? 1 : `*/${parsed.value}`} * * *`
-    case 'weeks':
-      // "1w" -> "0 0 1 * * 0" (weekly on Sunday at 1am)
-      return `0 0 1 * * ${parsed.value === 1 ? 0 : `*/${parsed.value}`}`
-    default:
-      return null
-  }
+/**
+ * Length of an interval expression like "5m" or "2d" in milliseconds, or null if invalid.
+ * Intervals are measured from the previous run; cron can't express most of them exactly.
+ */
+export function intervalToMilliseconds(expression: string): number | null {
+  const parsed = parseIntervalExpression(expression)
+  if (!parsed || parsed.value < 1) return null
+  return parsed.value * INTERVAL_UNIT_MS[parsed.unit]
 }
 
 /**

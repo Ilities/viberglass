@@ -79,34 +79,6 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
     expect(settings?.maxChanges).toBe(25);
   });
 
-  it("preserves codex chatgpt device auth when source config is legacy", () => {
-    const clanker = buildBaseClanker({
-      deploymentConfig: {
-        containerImage: "old-image",
-        codexAuth: {
-          mode: "chatgpt_device",
-          secretName: "CODEX_AUTH_JSON",
-        },
-      },
-    });
-
-    const merged = mergeProvisionedStrategyIntoConfig(clanker, {
-      type: "docker",
-      provisioningMode: "prebuilt",
-      containerImage: "new-image",
-    });
-
-    expect(merged.version).toBe(1);
-    const strategy = cloneObjectRecord(merged.strategy);
-    const agent = cloneObjectRecord(merged.agent);
-    const codexAuth = cloneObjectRecord(agent?.codexAuth);
-
-    expect(agent?.type).toBe("codex");
-    expect(codexAuth?.mode).toBe("chatgpt_device");
-    expect(strategy?.type).toBe("docker");
-    expect(strategy?.containerImage).toBe("new-image");
-  });
-
   it("preserves qwen endpoint settings in v1 config", () => {
     const clanker = buildBaseClanker({
       agent: "qwen-cli",

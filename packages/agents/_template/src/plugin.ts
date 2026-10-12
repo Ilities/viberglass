@@ -41,6 +41,11 @@ const __name__Plugin: AgentPlugin<__PascalName__Config> = {
 
   // harnessConfigPatterns: ["__NAME__/config.json"],
 
+  // Settings the runner form shows; the worker sets each one's env vars to the runner's value.
+  // settings: [
+  //   { key: "model", label: "Model", type: "string", providerDefault: "model", env: ["__NAME_UPPER___MODEL"] },
+  // ],
+
   docker: {
     variant: "__NAME__",
     repositoryName: "viberator-worker-__NAME__",

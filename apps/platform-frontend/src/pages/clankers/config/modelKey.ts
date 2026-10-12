@@ -2,13 +2,13 @@ import type { Secret } from '@/service/api/secret-api'
 import {
   AGENT_PROVIDER_BINDINGS,
   getAgentEnvVarNames,
+  getAgentSettingFields,
   getModelProvider,
   isTestOnlyAgent,
   type AgentType,
   type ModelProviderId,
   type SecretBinding,
 } from '@viberglass/types'
-import type { AgentSettings } from './agents'
 
 /** A provider this agent can run, with the env var it reads the key from and the provider's defaults. */
 export interface ProviderOption {
@@ -67,40 +67,25 @@ export function keysForProvider(secrets: Secret[], provider: ModelProviderId | '
   return secrets.filter((secret) => secret.provider === provider || secret.id === selectedId)
 }
 
-type ProviderDefaultField = 'model' | 'endpoint'
-type ModelSetting = Exclude<keyof AgentSettings, 'codexAuthMode' | 'codexLoginSecretId'>
-
-/** Which agent setting holds a provider's default model or endpoint. */
-const PROVIDER_DEFAULT_FIELDS: Partial<Record<AgentType, Array<[ProviderDefaultField, ModelSetting]>>> = {
-  opencode: [
-    ['model', 'opencodeModel'],
-    ['endpoint', 'opencodeEndpoint'],
-  ],
-  'qwen-cli': [['endpoint', 'qwenEndpoint']],
-  antigravity: [['model', 'antigravityModel']],
-  'kimi-code': [
-    ['model', 'kimiModel'],
-    ['endpoint', 'kimiEndpoint'],
-  ],
-}
-
 /**
- * Settings after switching provider: a setting still at the old provider's default, empty,
- * or a model named under the old provider (`<provider>/<model>`) takes the new one's; any
+ * A harness's settings after switching provider: a setting still at the old provider's default,
+ * empty, or a model named under the old provider (`<provider>/<model>`) takes the new one's; any
  * other value was typed by hand for this provider-neutral setting and survives the switch.
  */
 export function settingsForProvider(
   agent: AgentType | '',
-  settings: AgentSettings,
+  values: Record<string, string>,
   from: ProviderOption | undefined,
   to: ProviderOption | undefined,
-): Partial<AgentSettings> {
-  const changes: Partial<AgentSettings> = {}
-  for (const [defaultField, setting] of (agent && PROVIDER_DEFAULT_FIELDS[agent]) || []) {
-    const current = settings[setting]
+): Record<string, string> {
+  const changes: Record<string, string> = {}
+  for (const field of agent ? getAgentSettingFields(agent) : []) {
+    const defaultField = field.providerDefault
+    if (!defaultField) continue
+    const current = values[field.key] ?? ''
     const namedUnderOldProvider = defaultField === 'model' && from !== undefined && current.startsWith(`${from.provider}/`)
     if (current === '' || current === (from?.[defaultField] ?? '') || namedUnderOldProvider) {
-      changes[setting] = to?.[defaultField] ?? ''
+      changes[field.key] = to?.[defaultField] ?? ''
     }
   }
   return changes

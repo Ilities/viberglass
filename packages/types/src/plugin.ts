@@ -10,3 +10,22 @@ export interface PluginManifest {
   /** One sentence shown under the name. */
   description: string
 }
+
+export type PluginFieldType = 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'secret'
+
+export interface PluginFieldOption {
+  label: string
+  value: string
+}
+
+/** A setting a plugin takes, rendered as one input of a generic form. */
+export interface PluginField {
+  /** Where the value is stored. */
+  key: string
+  label: string
+  type: PluginFieldType
+  required?: boolean
+  description?: string
+  options?: PluginFieldOption[]
+  placeholder?: string
+}

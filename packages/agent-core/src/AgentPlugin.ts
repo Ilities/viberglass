@@ -1,4 +1,10 @@
-import type { ModelApiFormat, PluginManifest, WorkerModelEndpoint } from "@viberglass/types";
+import type {
+  AgentSettingField,
+  HarnessConfigEditor,
+  ModelApiFormat,
+  PluginManifest,
+  WorkerModelEndpoint,
+} from "@viberglass/types";
 import { Logger } from "winston";
 import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
@@ -88,6 +94,16 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
   /** Relative file patterns that belong in .harness-config/ */
   readonly harnessConfigPatterns?: string[];
 
+  /** The config file the runner form offers an editor for; its `fileType` is one of `harnessConfigPatterns`. */
+  readonly harnessConfigEditor?: HarnessConfigEditor;
+
+  /**
+   * Settings the runner form shows, such as a model or an endpoint. The worker
+   * sets each one's `env` vars to the runner's value; a runner on a workspace
+   * model endpoint gets `customEndpoints` instead.
+   */
+  readonly settings?: readonly AgentSettingField[];
+
   /**
    * Optional side-effectful file materialization hook.
    * Called after each matching harness config file is written.
@@ -104,9 +120,6 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
 
   /** Optional per-agent auth lifecycle (e.g. Codex device auth) */
   readonly authLifecycle?: (ctx: AgentRuntimeContext) => AgentAuthLifecycle;
-
-  /** Optional per-agent endpoint environment (e.g. OpenCode, Qwen) */
-  readonly endpointEnvironment?: (ctx: AgentRuntimeContext) => AgentEndpointEnvironment;
 
   readonly customEndpoints?: {
     apiFormats: readonly ModelApiFormat[];

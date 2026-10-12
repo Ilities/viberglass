@@ -4,7 +4,7 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Text } from '@/components/text'
-import type { IntegrationFieldDefinition, IntegrationManifest } from '@viberglass/types'
+import type { IntegrationManifest, PluginField } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 type FieldValue = string | number | boolean | string[]
@@ -51,7 +51,7 @@ export function IntegrationConfigForm({
     }
   }
 
-  const renderField = (field: IntegrationFieldDefinition) => {
+  const renderField = (field: PluginField) => {
     const value = values[field.key] ?? ''
 
     switch (field.type) {

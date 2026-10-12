@@ -18,7 +18,9 @@ function buildClanker(
       configSchema: null,
       createdAt: "2026-02-17T00:00:00.000Z",
     },
-    deploymentConfig: deploymentConfig ?? null,
+    deploymentConfig: deploymentConfig
+      ? { version: 1, strategy: { type: strategyName, ...deploymentConfig }, agent: { type: "claude-code" } }
+      : null,
     configFiles: [],
     agent: "claude-code",
     secretBindings: [],

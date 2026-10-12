@@ -24,6 +24,7 @@ export * from './trackerInbound'
 // Clanker types
 export * from './clanker'
 export * from './agentCatalog'
+export * from './agentSettings'
 export * from './clankerConfig'
 export * from './runnerReadiness'
 export * from './job'

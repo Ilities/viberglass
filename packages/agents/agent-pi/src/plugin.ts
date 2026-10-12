@@ -47,6 +47,23 @@ const piPlugin: AgentPlugin<PiConfig> = {
 
   harnessConfigPatterns: ["pi/models.json"],
 
+  // The template names OPENAI_API_KEY because only model-provider variables reach the agent.
+  harnessConfigEditor: {
+    fileType: "pi/models.json",
+    label: "Pi Models (models.json)",
+    envReferences: ["$NAME", "${NAME}"],
+    template: `{
+  "providers": {
+    "my-proxy": {
+      "baseUrl": "https://llm-proxy.example.com/v1",
+      "api": "openai-completions",
+      "apiKey": "$OPENAI_API_KEY",
+      "models": [{ "id": "my-model" }]
+    }
+  }
+}`,
+  },
+
   providers: [{ provider: "anthropic", envVar: "ANTHROPIC_API_KEY" }],
 
   docker: {

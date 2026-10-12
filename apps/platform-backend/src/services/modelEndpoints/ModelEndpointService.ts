@@ -1,7 +1,7 @@
 import {
   DEFAULT_AGENT_TYPE,
   getAgentModelApiFormats,
-  isSupportedAgentType,
+  isAvailableAgentType,
   normalizeModelEndpointBaseUrl,
   type AgentType,
   type ModelEndpoint,
@@ -88,7 +88,7 @@ export class ModelEndpointService {
         (runner) =>
           !input.models.includes(runner.model) ||
           runner.agent === null ||
-          !isSupportedAgentType(runner.agent) ||
+          !isAvailableAgentType(runner.agent) ||
           !getAgentModelApiFormats(runner.agent).includes(input.apiFormat),
       )
     ) {

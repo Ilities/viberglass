@@ -1,5 +1,8 @@
 import {
+  DEFAULT_AGENT_TYPE,
+  getAgentSettingFields,
   isObjectRecord,
+  pickSettingValues,
   type AgentType,
   type ClankerAgentConfig,
   type ClankerStrategyConfig,
@@ -52,80 +55,35 @@ function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
   }
 }
 
-function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: BuildConfigInput): ClankerAgentConfig {
-  if (selectedAgent === 'codex') {
-    return {
-      type: 'codex',
-      codexAuth: {
-        mode: input.form.codexAuthMode,
-        secretName: DEFAULT_CODEX_AUTH_SECRET_NAME,
-        ...(input.form.codexLoginSecretId ? { loginSecretId: input.form.codexLoginSecretId } : {}),
-      },
-    }
-  }
-
-  if (selectedAgent === 'qwen-cli') {
-    const endpoint = input.form.qwenEndpoint.trim()
-    return {
-      type: 'qwen-cli',
-      ...(endpoint ? { endpoint } : {}),
-    }
-  }
-
-  if (selectedAgent === 'opencode') {
-    const endpoint = input.form.opencodeEndpoint.trim()
-    const model = input.form.opencodeModel.trim()
-    return {
-      type: 'opencode',
-      ...(endpoint ? { endpoint } : {}),
-      ...(model ? { model } : {}),
-    }
-  }
-
-  if (selectedAgent === 'antigravity') {
-    const model = input.form.antigravityModel.trim()
-    return {
-      type: 'antigravity',
-      ...(model ? { model } : {}),
-    }
-  }
-
-  if (selectedAgent === 'kimi-code') {
-    const endpoint = input.form.kimiEndpoint.trim()
-    const model = input.form.kimiModel.trim()
-    return {
-      type: 'kimi-code',
-      ...(endpoint ? { endpoint } : {}),
-      ...(model ? { model } : {}),
-    }
-  }
-
-  const fallback =
-    selectedAgent === 'claude-code' ||
-    selectedAgent === 'mistral-vibe' ||
-    selectedAgent === 'pi'
-      ? selectedAgent
-      : 'claude-code'
+function buildAgent(selectedAgent: AgentType, input: BuildConfigInput): ClankerAgentConfig {
   return {
-    type: fallback,
+    type: selectedAgent,
+    ...pickSettingValues(getAgentSettingFields(selectedAgent), input.form.values[selectedAgent]),
+    // Signing in isn't a declared setting yet, so Codex keeps its own.
+    ...(selectedAgent === 'codex'
+      ? {
+          codexAuth: {
+            mode: input.form.codexAuthMode,
+            secretName: DEFAULT_CODEX_AUTH_SECRET_NAME,
+            ...(input.form.codexLoginSecretId ? { loginSecretId: input.form.codexLoginSecretId } : {}),
+          },
+        }
+      : {}),
   }
 }
 
 /** Agent settings this form has inputs for; blanking one of these clears it. */
-const FORM_AGENT_FIELDS: Partial<Record<AgentType, string[]>> = {
-  codex: ['codexAuth'],
-  'qwen-cli': ['endpoint'],
-  opencode: ['endpoint', 'model'],
-  antigravity: ['model'],
-  'kimi-code': ['endpoint', 'model'],
+function shownAgentSettings(agent: AgentType): Set<string> {
+  const keys = getAgentSettingFields(agent).map((field) => field.key)
+  return new Set(agent === 'codex' ? [...keys, 'codexAuth'] : keys)
 }
 
-/** Keeps the stored agent's settings the form doesn't show, such as a Kimi endpoint and model set by setup. */
+/** Keeps the stored agent's settings the form doesn't show. */
 function keepUnshownAgentSettings(built: ClankerAgentConfig, existing: unknown): Record<string, unknown> {
   if (!isObjectRecord(existing) || existing.type !== built.type) {
     return { ...built }
   }
-  const shown = new Set(FORM_AGENT_FIELDS[built.type] ?? [])
+  const shown = shownAgentSettings(built.type)
   const unshown = Object.fromEntries(Object.entries(existing).filter(([key]) => !shown.has(key)))
   return { ...unshown, ...built }
 }
@@ -135,7 +93,7 @@ export function buildClankerDeploymentConfig(input: BuildConfigInput): Record<st
   return {
     version: 1,
     strategy: buildStrategy(input),
-    agent: keepUnshownAgentSettings(buildAgent(input.selectedAgent, input), existing?.agent),
+    agent: keepUnshownAgentSettings(buildAgent(input.selectedAgent || DEFAULT_AGENT_TYPE, input), existing?.agent),
     ...(existing && isObjectRecord(existing.runtime) ? { runtime: existing.runtime } : {}),
   }
 }

@@ -1,14 +1,23 @@
 import type { Secret } from '@/service/api/secret-api'
 import {
   getAgentEnvVarNames,
+  getAgentSettingFields,
   getModelProvider,
   isClankerConfigV1,
+  pickSettingValues,
   runnerCredentialProblem,
   type Clanker,
   type ModelEndpoint,
   type SecretBinding,
 } from '@viberglass/types'
 import { providerOptionsForAgent, splitRunnerBindings } from './modelKey'
+
+/** The runner's value for the setting that takes a provider's default model or endpoint. */
+function providerDefaultSetting(agent: string, agentConfig: unknown, kind: 'model' | 'endpoint'): string | null {
+  const fields = getAgentSettingFields(agent)
+  const field = fields.find((candidate) => candidate.providerDefault === kind)
+  return field ? (pickSettingValues(fields, agentConfig)[field.key] ?? null) : null
+}
 
 export interface RunnerSummary {
   providerLabel: string | null
@@ -48,21 +57,16 @@ export function summarizeRunner(
   const agent = clanker.agent ?? ''
   const config = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const agentConfig = config?.agent
-  const model = clanker.modelEndpoint?.model ?? (agentConfig && 'model' in agentConfig && typeof agentConfig.model === 'string' ? agentConfig.model : null)
-  const usesChatGptLogin = agentConfig?.type === 'codex' && agentConfig.codexAuth.mode !== 'api_key'
-  const loginSecretId = (agentConfig?.type === 'codex' && agentConfig.codexAuth.loginSecretId) || null
+  const model = clanker.modelEndpoint?.model ?? providerDefaultSetting(agent, agentConfig, 'model')
+  const usesChatGptLogin = agentConfig?.codexAuth !== undefined && agentConfig.codexAuth.mode !== 'api_key'
+  const loginSecretId = agentConfig?.codexAuth?.loginSecretId || null
 
   const { provider, modelKey, extras } = splitRunnerBindings(clanker.secretBindings, secrets, agent)
   const keySecret = modelKey ? secrets.find((secret) => secret.id === modelKey.secretId) : undefined
   const key = !clanker.modelEndpoint && modelKey ? { label: keySecret?.name ?? 'Deleted secret', envVar: modelKey.envVar } : null
 
   const providerEndpoint = providerOptionsForAgent(agent).find((option) => option.provider === provider)?.endpoint ?? null
-  const configuredUrl =
-    agentConfig && 'endpoint' in agentConfig && typeof agentConfig.endpoint === 'string' && agentConfig.endpoint
-      ? agentConfig.endpoint
-      : agentConfig?.type === 'codex'
-        ? (agentConfig.cli?.baseUrl ?? null)
-        : null
+  const configuredUrl = providerDefaultSetting(agent, agentConfig, 'endpoint')
   const endpointVars = new Set(agent ? getAgentEnvVarNames(agent).endpoint : [])
   const endpointVar = extras.find((binding) => endpointVars.has(binding.envVar))?.envVar ?? null
   const customUrl = configuredUrl && configuredUrl !== providerEndpoint ? configuredUrl : null

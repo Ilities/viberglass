@@ -1,8 +1,10 @@
 import {
   AGENT_LABELS,
   agentForModelApiFormat,
+  getAgentSettingFields,
   getDefaultAgentBindingForProvider,
   getModelProvider,
+  providerDefaultValues,
   type AgentProviderBinding,
   type Clanker,
   type ClankerStrategyConfig,
@@ -59,11 +61,7 @@ interface Starter {
 }
 
 function bindingConfig(binding: AgentProviderBinding): Record<string, unknown> {
-  return {
-    type: binding.agent,
-    ...(binding.model ? { model: binding.model } : {}),
-    ...(binding.endpoint ? { endpoint: binding.endpoint } : {}),
-  };
+  return { type: binding.agent, ...providerDefaultValues(getAgentSettingFields(binding.agent), binding) };
 }
 
 /** Same agent, key and settings: nothing to redo. */

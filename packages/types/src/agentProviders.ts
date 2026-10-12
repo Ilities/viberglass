@@ -1,4 +1,4 @@
-import { isSupportedAgentType } from './workerImages'
+import { isAvailableAgentType } from './agentCatalog'
 import type { AgentType } from './clanker'
 import { isModelProviderId, type ModelProviderId } from './modelProviders'
 import agentProviderCatalogData from './agentProviderCatalog.json'
@@ -20,8 +20,7 @@ export interface AgentProviderBinding {
 }
 
 function toBinding(entry: (typeof agentProviderCatalogData)[number]): AgentProviderBinding | null {
-  // Agents the platform can't select stay out until they can.
-  if (!isSupportedAgentType(entry.agent) || !isModelProviderId(entry.provider)) return null
+  if (!isAvailableAgentType(entry.agent) || !isModelProviderId(entry.provider)) return null
   const { agent, provider, ...rest } = entry
   return { agent, provider, ...rest }
 }

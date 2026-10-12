@@ -3,24 +3,25 @@ import type {
   Clanker,
   ClankerAgentConfig,
   ClankerConfigV1,
+  ClankerStrategyConfig,
   ClankerStrategyType,
-  CodexAgentConfig,
+  CodexAuthConfig,
 } from "@viberglass/types";
-import { isClankerConfigV1 } from "@viberglass/types";
-import { normalizeCodexAgentConfig } from "./agents/codex";
-import { normalizeAntigravityAgentConfig } from "./agents/antigravity";
-import { normalizeKimiAgentConfig } from "./agents/kimi";
-import { normalizeOpenCodeAgentConfig } from "./agents/opencode";
-import { normalizeQwenAgentConfig } from "./agents/qwen";
+import {
+  DEFAULT_AGENT_TYPE,
+  getAgentSettingFields,
+  isClankerConfigV1,
+  pickSettingValues,
+} from "@viberglass/types";
+import { normalizeCodexAuthConfig } from "./codexAuth";
+import { toNonEmptyString, toObjectRecord } from "./parsers";
 import { normalizeDockerStrategyConfig } from "./strategies/docker";
 import { normalizeEcsStrategyConfig } from "./strategies/ecs";
 import { normalizeLambdaStrategyConfig } from "./strategies/lambda";
 import { normalizeKubernetesStrategyConfig } from "./strategies/kubernetes";
-import { mapLegacyClankerConfig } from "./legacyMapper";
 
 export interface ResolvedClankerConfig {
   config: ClankerConfigV1;
-  source: "v1" | "legacy";
 }
 
 function normalizeStrategyName(name: string | undefined): ClankerStrategyType {
@@ -37,102 +38,47 @@ function normalizeStrategyName(name: string | undefined): ClankerStrategyType {
   return "docker";
 }
 
-function normalizeAgent(
-  agent: ClankerConfigV1["agent"],
-  fallbackAgent: AgentType | null | undefined,
-): ClankerAgentConfig {
-  if (agent.type === "codex") {
-    return normalizeCodexAgentConfig(agent);
+function normalizeStrategy(strategyType: ClankerStrategyType, strategy: unknown): ClankerStrategyConfig {
+  if (strategyType === "ecs") {
+    return normalizeEcsStrategyConfig(strategy);
   }
-
-  if (agent.type === "qwen-cli") {
-    return normalizeQwenAgentConfig(agent);
+  if (strategyType === "lambda") {
+    return normalizeLambdaStrategyConfig(strategy);
   }
-
-  if (agent.type === "opencode") {
-    return normalizeOpenCodeAgentConfig(agent);
+  if (strategyType === "kubernetes") {
+    return normalizeKubernetesStrategyConfig(strategy);
   }
-
-  if (agent.type === "antigravity") {
-    return normalizeAntigravityAgentConfig(agent);
-  }
-
-  if (agent.type === "kimi-code" || (!agent.type && fallbackAgent === "kimi-code")) {
-    return normalizeKimiAgentConfig(agent);
-  }
-
-  if (!agent.type && fallbackAgent === "codex") {
-    return normalizeCodexAgentConfig(agent);
-  }
-
-  if (!agent.type && fallbackAgent === "qwen-cli") {
-    return normalizeQwenAgentConfig(agent);
-  }
-
-  if (!agent.type && fallbackAgent === "opencode") {
-    return normalizeOpenCodeAgentConfig(agent);
-  }
-
-  if (!agent.type && fallbackAgent === "antigravity") {
-    return normalizeAntigravityAgentConfig(agent);
-  }
-
-  const candidate = agent.type || fallbackAgent;
-
-  switch (candidate) {
-    case "mistral-vibe":
-    case "claude-code":
-    case "pi":
-    case "fake":
-      return { type: candidate };
-    default:
-      return { type: "claude-code" };
-  }
+  return normalizeDockerStrategyConfig(strategy);
 }
 
-function normalizeV1Config(clanker: Clanker, config: ClankerConfigV1): ClankerConfigV1 {
-  const strategyType = config.strategy?.type || normalizeStrategyName(clanker.deploymentStrategy?.name);
-
-  const strategy =
-    strategyType === "ecs"
-      ? normalizeEcsStrategyConfig(config.strategy)
-      : strategyType === "lambda"
-        ? normalizeLambdaStrategyConfig(config.strategy)
-        : strategyType === "kubernetes"
-          ? normalizeKubernetesStrategyConfig(config.strategy)
-        : normalizeDockerStrategyConfig(config.strategy);
-
-  const agent = normalizeAgent(config.agent, clanker.agent);
-
+/** The harness and the settings it declares; anything else on the stored agent is dropped. */
+function normalizeAgent(agent: unknown, fallbackAgent: AgentType | null | undefined): ClankerAgentConfig {
+  const source = toObjectRecord(agent) || {};
+  const type = toNonEmptyString(source.type) || fallbackAgent || DEFAULT_AGENT_TYPE;
   return {
-    version: 1,
-    strategy,
-    agent,
-    ...(config.runtime ? { runtime: config.runtime } : {}),
+    type,
+    ...pickSettingValues(getAgentSettingFields(type), source),
+    // Signing in isn't a declared setting yet, so Codex keeps its own.
+    ...(type === "codex" ? { codexAuth: normalizeCodexAuthConfig(source.codexAuth) } : {}),
   };
 }
 
+/** The runner's config, with defaults for a runner saved without one. */
 export function resolveClankerConfig(clanker: Clanker): ResolvedClankerConfig {
-  if (isClankerConfigV1(clanker.deploymentConfig)) {
-    return {
-      source: "v1",
-      config: normalizeV1Config(clanker, clanker.deploymentConfig),
-    };
-  }
-
+  const stored = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig : null;
+  const strategyType = stored?.strategy.type || normalizeStrategyName(clanker.deploymentStrategy?.name);
   return {
-    source: "legacy",
-    config: mapLegacyClankerConfig(clanker),
+    config: {
+      version: 1,
+      strategy: normalizeStrategy(strategyType, stored?.strategy),
+      agent: normalizeAgent(stored?.agent, clanker.agent),
+      ...(stored?.runtime ? { runtime: stored.runtime } : {}),
+    },
   };
 }
 
-export function getCodexAgentConfig(clanker: Clanker): CodexAgentConfig | null {
-  const resolved = resolveClankerConfig(clanker);
-  if (resolved.config.agent.type !== "codex") {
-    return null;
-  }
-
-  return resolved.config.agent;
+export function getCodexAuthConfig(clanker: Clanker): CodexAuthConfig | null {
+  return resolveClankerConfig(clanker).config.agent.codexAuth ?? null;
 }
 
 export function getStrategyType(clanker: Clanker): ClankerStrategyType {

@@ -14,6 +14,7 @@ The target for every step: nothing outside a plugin's package names it, except t
 - Repositories are an integration capability: a code host's `RepositoryHost` (git username, parsing and checking a repository, opening a pull request, reading its outcome and review) lives in its package. The worker only clones and pushes, with the username the job names, and asks the platform to open the pull request (`POST /api/jobs/:jobId/pull-request`). The platform picks the host by the space's code-host connection, not the URL. Setup connects the build's code host.
 - Chat is an integration capability: a `ChatProvider` (the chat SDK adapter and its handlers, direct messages, finding an account by email, mention syntax) lives in the integration's package; `chat-slack` merged into `integration-slack`. The bot, the task mirror, thread inbound, account links (`user_chat_identities`), DMs, status and the webhook route work for any chat service.
 - "Test connection" calls the plugin's optional `checkConnection`; the legacy `PMIntegration` classes, the per-space integration config endpoints and their DAO are gone.
+- Harness settings are fields: a plugin declares `settings` (key, label, string or select, the env vars the worker sets, the provider default that fills it) and `harnessConfigEditor`, and the catalog carries them. `AgentType` is an open string checked against the catalog. One backend normalizer, one frontend form, reader and builder, and one worker step replace the per-harness config types, normalizers, form fields and endpoint environments. Configs from before the v1 format are no longer read. Both kinds of plugin share the field type, `PluginField`.
 - Both kinds of plugin share `PluginManifest` (id, label, description). Each integration package has a `src/manifest.ts` its backend and frontend entries spread; the API sends it as is. Icons are frontend plugin components. The connection screen goes by the manifest: config form when it has `configFields`, token section when it has `credentialUse`, webhook section when it has `webhookProvider` (the tracker one when the frontend plugin has `trackerWebhook`), install section instead of a name prompt when it has `AuthSetupSection`.
 
 ## Learned so far
@@ -23,16 +24,6 @@ The target for every step: nothing outside a plugin's package names it, except t
 - `category` names the slot a connection fills for a space (primary code host, primary tracker); that is a real concept and stays. Capabilities sit beside it.
 
 ## Harnesses
-
-### H2. Settings as fields
-
-- `AgentType` becomes an open string checked against the catalog, and `SUPPORTED_AGENT_TYPES` goes away. It can't before this step: the per-harness config types tell harnesses apart by `type`.
-- Each harness declares its settings (model, endpoint and so on) as fields.
-- One generic form, reader, builder and normalizer replace:
-  - the per-agent config types in `clankerConfig.ts`
-  - the backend's `clanker-config/agents/*`, the `normalizeAgent` chain in `clanker-config/index.ts` and `legacyMapper.ts`
-  - the frontend's `config/types.ts` per-agent fields, `buildConfig.ts`, `readConfig.ts`, `normalizers.ts`, `modelKey.ts` and `agents/*Fields.tsx`
-- Harness config file references and templates (`harnessReferences.ts`, `instructionFiles.ts`) move next to `harnessConfigPatterns` in the plugin.
 
 ### H3. Worker internals into the plugins
 
@@ -51,7 +42,8 @@ The target for every step: nothing outside a plugin's package names it, except t
   - `codexAuthCacheRoute` with one credential cache route, keyed by harness
   - the Codex credential bindings in the invokers (`KubernetesInvoker`, `DockerInvoker`, `WorkerInvokerFactory`, `CredentialRequirementsService`) with generic ones
   - `CallbackClient.sendCodexAuthCache` in the worker with a generic call
-  - the codex `if` branches in `runnerReadiness.ts`, `runnerSummary.ts`, `ModelSection.tsx` and `RunnerForm.tsx`, now driven by the declared methods
+  - the codex `if` branches in `ModelSection.tsx` and `RunnerForm.tsx`, and the `codexAuth` reads in `runnerReadiness.ts` and `runnerSummary.ts`, now driven by the declared methods
+  - the `codexAuth` branch in the backend's `clanker-config/index.ts` (with `codexAuth.ts`) and the frontend's `buildConfig.ts`, `readConfig.ts` and `codexFields.tsx`, and `codexAuth` on `ClankerAgentConfig`
   - `codex-device-auth-card.tsx`, `chatgpt-login-card.tsx` and the Codex parts of `SecretsPage.tsx` with a generic device-code or OAuth card; a plugin slot only if a harness really needs its own
 - The Codex config re-exports in `apps/viberator/src/config/clankerConfig.ts` are removed.
 

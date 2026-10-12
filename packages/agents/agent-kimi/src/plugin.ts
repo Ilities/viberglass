@@ -1,34 +1,6 @@
-import {
-  ModelEndpointConfigEnvironment,
-  NoopAgentEndpointEnvironment,
-  type AgentEndpointEnvironment,
-  type AgentPlugin,
-  type IAgentGitService,
-} from "@viberglass/agent-core";
+import { ModelEndpointConfigEnvironment, type AgentPlugin, type IAgentGitService } from "@viberglass/agent-core";
 import type { KimiCodeConfig } from "./config";
-import { KimiAgentEndpointEnvironment } from "./KimiAgentEndpointEnvironment";
 import { KimiCodeAgent } from "./KimiCodeAgent";
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function toNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-/** The runner's `agent.endpoint` / `agent.model` (v1 config), e.g. Moonshot's platform API instead of Kimi Code. */
-function resolveKimiSettings(clankerConfig?: Record<string, unknown>): { endpoint?: string; model?: string } {
-  if (!clankerConfig) return {};
-  const deploymentConfig = isObjectRecord(clankerConfig.deploymentConfig)
-    ? clankerConfig.deploymentConfig
-    : clankerConfig;
-  const agent = isObjectRecord(deploymentConfig.agent) ? deploymentConfig.agent : undefined;
-  if (deploymentConfig.version !== 1 || agent?.type !== "kimi-code") return {};
-  return { endpoint: toNonEmptyString(agent.endpoint), model: toNonEmptyString(agent.model) };
-}
 
 const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
   id: "kimi-code",
@@ -81,13 +53,26 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
     environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
   },
 
-  endpointEnvironment(ctx): AgentEndpointEnvironment {
-    const settings = resolveKimiSettings(ctx.clankerConfig);
-    if (!settings.endpoint && !settings.model) {
-      return new NoopAgentEndpointEnvironment();
-    }
-    return new KimiAgentEndpointEnvironment(settings);
-  },
+  settings: [
+    {
+      key: "endpoint",
+      label: "Kimi Endpoint",
+      type: "string",
+      description: "Leave empty for Kimi Code. A Moonshot platform key needs Moonshot's API, e.g. `https://api.moonshot.ai/v1`.",
+      placeholder: "https://api.moonshot.ai/v1",
+      providerDefault: "endpoint",
+      env: ["KIMI_BASE_URL"],
+    },
+    {
+      key: "model",
+      label: "Kimi Model",
+      type: "string",
+      description: "Optional model id. Leave empty for Kimi Code's default.",
+      placeholder: "kimi-k3",
+      providerDefault: "model",
+      env: ["KIMI_MODEL_NAME"],
+    },
+  ],
 
   providers: [
     { provider: "kimi-code", envVar: "KIMI_API_KEY", default: true },

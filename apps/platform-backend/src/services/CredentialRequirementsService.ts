@@ -1,5 +1,5 @@
 import type { Clanker, CredentialRequest } from "@viberglass/types";
-import { getCodexAgentConfig } from "../clanker-config";
+import { getCodexAuthConfig } from "../clanker-config";
 import { SecretResolutionService } from "./SecretResolutionService";
 import { CodexLoginService, usesChatGptLogin } from "./codexLogin/CodexLoginService";
 import { secretsSsmPrefix } from "./secretStorageDefaults";
@@ -14,7 +14,7 @@ export class CredentialRequirementsService {
     const requests = await this.secretResolutionService.getCredentialRequests(clanker.secretBindings || []);
     if (!usesChatGptLogin(clanker)) return requests;
 
-    const secretName = getCodexAgentConfig(clanker)?.codexAuth.secretName;
+    const secretName = getCodexAuthConfig(clanker)?.secretName;
     const loginBindings = this.codexLogins.workerBindings(clanker);
     if (loginBindings.length > 0) {
       const loginRequests = (await this.secretResolutionService.getCredentialRequests(loginBindings)).map(

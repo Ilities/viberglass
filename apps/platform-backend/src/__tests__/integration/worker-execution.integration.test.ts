@@ -108,6 +108,12 @@ describe("Worker Execution Integration Tests", () => {
     ...overrides,
   });
 
+  const v1Config = (type: string, strategy: Record<string, unknown>): Record<string, unknown> => ({
+    version: 1,
+    strategy: { type, ...strategy },
+    agent: { type: "claude-code" },
+  });
+
   const createMockClanker = (overrides?: Partial<Clanker>): Clanker => ({
     id: "test-clanker-id",
     name: "Test Clanker",
@@ -121,9 +127,7 @@ describe("Worker Execution Integration Tests", () => {
       description: "Lambda deployment",
       createdAt: "2024-01-01T00:00:00Z",
     },
-    deploymentConfig: {
-      functionName: "test-lambda-function",
-    },
+    deploymentConfig: v1Config("lambda", { functionName: "test-lambda-function" }),
     configFiles: [],
     secretBindings: [],
     mcpServerIds: [],
@@ -244,13 +248,13 @@ describe("Worker Execution Integration Tests", () => {
           description: "ECS",
           createdAt: "2024-01-01T00:00:00Z",
         },
-        deploymentConfig: {
+        deploymentConfig: v1Config("ecs", {
           clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/test-cluster",
           taskDefinitionArn:
             "arn:aws:ecs:eu-west-1:123456789:task-definition/test-task",
           subnetIds: ["subnet-1"],
           securityGroupIds: ["sg-1"],
-        },
+        }),
       });
       const dockerClanker = createMockClanker({
         id: "docker-clanker",
@@ -260,9 +264,7 @@ describe("Worker Execution Integration Tests", () => {
           description: "Docker",
           createdAt: "2024-01-01T00:00:00Z",
         },
-        deploymentConfig: {
-          containerImage: "viberator/worker:latest",
-        },
+        deploymentConfig: v1Config("docker", { containerImage: "viberator/worker:latest" }),
       });
 
       // Execute Lambda job

@@ -1,5 +1,5 @@
-import { SUPPORTED_AGENT_TYPES, type AgentType } from './clanker'
-import { DEFAULT_AGENT_TYPE } from './agentCatalog'
+import type { AgentType } from './clanker'
+import { DEFAULT_AGENT_TYPE, isAvailableAgentType } from './agentCatalog'
 import workerImageCatalogData from './workerImageCatalog.json'
 
 export interface WorkerImageCatalogEntry {
@@ -20,7 +20,6 @@ export const DEFAULT_WORKER_IMAGE_VARIANT = 'multi-agent'
 
 export const WORKER_IMAGE_CATALOG: WorkerImageCatalogEntry[] = workerImageCatalogData
 
-const supportedAgentTypeSet = new Set<string>(SUPPORTED_AGENT_TYPES)
 const workerImageByVariant = new Map<string, WorkerImageCatalogEntry>()
 const defaultWorkerImageVariantByAgent = new Map<AgentType, string>()
 
@@ -28,20 +27,16 @@ for (const entry of WORKER_IMAGE_CATALOG) {
   workerImageByVariant.set(entry.variant, entry)
 
   for (const agentName of entry.defaultForAgents) {
-    if (isSupportedAgentType(agentName)) {
+    if (isAvailableAgentType(agentName)) {
       defaultWorkerImageVariantByAgent.set(agentName, entry.variant)
     }
   }
 }
 
-export function isSupportedAgentType(value: string): value is AgentType {
-  return supportedAgentTypeSet.has(value)
-}
-
 export function resolveWorkerImageVariantForAgent(
   agent?: string | null,
 ): string {
-  if (!agent || !isSupportedAgentType(agent)) {
+  if (!agent || !isAvailableAgentType(agent)) {
     return DEFAULT_WORKER_IMAGE_VARIANT
   }
 
