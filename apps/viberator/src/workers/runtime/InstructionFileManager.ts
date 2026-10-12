@@ -12,6 +12,38 @@ import {
 } from "../core/types";
 import { agentRegistry } from "../../agents/registerPlugins";
 
+/** An instruction file written into the working directory, and what was there before: null when nothing was. */
+export interface MaterializedFile {
+  path: string;
+  previous: string | null;
+  /** Directories made to hold it, deepest first. */
+  createdDirectories: string[];
+}
+
+/** Puts the working directory's files back as they were before the instruction files were written. */
+export async function unmaterialize(files: MaterializedFile[]): Promise<void> {
+  for (const file of [...files].reverse()) {
+    if (file.previous !== null) {
+      await fs.promises.writeFile(file.path, file.previous, "utf-8");
+      continue;
+    }
+    await fs.promises.rm(file.path, { force: true });
+    for (const directory of file.createdDirectories) {
+      // Left alone if the agent put its own files there.
+      await fs.promises.rmdir(directory).catch(() => undefined);
+    }
+  }
+}
+
+/** The directories above `filePath`, up to `root`, that don't exist yet; deepest first. */
+function missingDirectories(root: string, filePath: string): string[] {
+  const missing: string[] = [];
+  for (let dir = path.dirname(filePath); dir.startsWith(`${root}${path.sep}`) && !fs.existsSync(dir); dir = path.dirname(dir)) {
+    missing.push(dir);
+  }
+  return missing;
+}
+
 export class InstructionFileManager {
   private static readonly CLANKER_AGENTS_FILE = "AGENTS.md";
   private static readonly CLANKER_AGENTS_TARGET_PATH = "agents/AGENTS.md";
@@ -96,12 +128,19 @@ export class InstructionFileManager {
     return "/tmp";
   }
 
+  /**
+   * Writes the instruction files into the working directory and the harness
+   * config beside it. Returns the files written into the working directory
+   * with what they held before, so a Files run can put them back before
+   * saving the space's files.
+   */
   async materialize(
     repoDir: string,
     instructionFiles: Map<string, string>,
-  ): Promise<void> {
+  ): Promise<MaterializedFile[]> {
+    const written: MaterializedFile[] = [];
     if (instructionFiles.size === 0) {
-      return;
+      return written;
     }
 
     const gitExcludePath = path.join(repoDir, ".git", "info", "exclude");
@@ -179,6 +218,10 @@ export class InstructionFileManager {
         continue;
       }
 
+      const previous = await fs.promises.readFile(targetPath, "utf-8").catch(() => null);
+      if (!written.some((file) => file.path === targetPath)) {
+        written.push({ path: targetPath, previous, createdDirectories: missingDirectories(path.resolve(repoDir), targetPath) });
+      }
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.promises.writeFile(targetPath, content, "utf-8");
 
@@ -193,9 +236,11 @@ export class InstructionFileManager {
       excludeAppend += `\n${relativePath}`;
     }
 
-    if (excludeAppend) {
+    // A Files workspace has no repository to keep them out of.
+    if (excludeAppend && fs.existsSync(path.dirname(gitExcludePath))) {
       await fs.promises.appendFile(gitExcludePath, excludeAppend, "utf-8");
     }
+    return written;
   }
 
   private async loadRemoteInstructionFiles(

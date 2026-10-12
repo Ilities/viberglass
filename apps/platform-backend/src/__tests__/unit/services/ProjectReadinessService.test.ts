@@ -54,14 +54,12 @@ describe("ProjectReadinessService", () => {
     [{ S3_BUCKET: "files" }, "ready"],
     [{ S3_BUCKET: "files", S3_ENDPOINT: "invalid" }, "invalid"],
   ])("reports Files storage readiness and never requires SCM (%j)", async (env, state) => {
+    // With a running agent, storage is all a Files space needs to run.
     mockProjectDAO.getProject.mockResolvedValue({ id: "project-1", slug: "slides", backingKind: "files" });
     const service = new ProjectReadinessService(undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => env);
     const readiness = await service.getReadiness("project-1");
-    expect(readiness?.automationAvailable).toBe(false);
-    expect(readiness?.checks).toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: "storage", state }),
-      expect.objectContaining({ key: "filesExecution", state: "unavailable" }),
-    ]));
+    expect(readiness?.automationAvailable).toBe(state === "ready");
+    expect(readiness?.checks).toEqual(expect.arrayContaining([expect.objectContaining({ key: "storage", state })]));
     expect(readiness?.checks.some((c) => c.key === "repository" || c.key === "scmCredential")).toBe(false);
     expect(mockScmConfigDAO.getByProjectId).not.toHaveBeenCalled();
     expect(mockCredentialDAO.getById).not.toHaveBeenCalled();

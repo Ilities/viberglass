@@ -31,8 +31,10 @@ export async function deliverPullRequest(
   input: DeliveryInput,
 ): Promise<Pick<JobResult, "branch" | "pullRequestUrl" | "commitHash" | "changedFiles">> {
   const { data, gitService, sendProgress } = params;
-  const { repository, task, context, scm } = data;
+  const { task, context, scm } = data;
   const { repoDir, changedFiles } = input;
+  if (!data.repository) throw new Error("A pull request needs the run's repository");
+  const repository = data.repository;
 
   const pullRequestBaseBranch = scm?.pullRequestBaseBranch?.trim() || input.checkoutBaseBranch;
   const pullRequestRepository = scm?.pullRequestRepository?.trim() || scm?.sourceRepository?.trim() || repository;

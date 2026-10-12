@@ -3,7 +3,7 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Text } from '@/components/text'
 import { createSpace, prepareDefaultAgent } from '@/service/api/setup-api'
-import { FILES_RUNS_UNAVAILABLE, type CreatedSpace, type DefaultAgent, type RepositoryAccess, type SetupModelChoice } from '@viberglass/types'
+import type { CreatedSpace, DefaultAgent, RepositoryAccess, SetupModelChoice } from '@viberglass/types'
 import { CheckIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { SetupError, SetupFrame } from './SetupFrame'
@@ -16,7 +16,7 @@ export function SpaceStep({
 }: {
   repository: RepositoryAccess | null
   model: SetupModelChoice
-  onDone: (space: CreatedSpace, agent: DefaultAgent | null) => void
+  onDone: (space: CreatedSpace, agent: DefaultAgent) => void
   onChangeRepository: () => void
 }) {
   const [name, setName] = useState(repository?.fullName.split('/').pop() ?? '')
@@ -32,7 +32,7 @@ export function SpaceStep({
       const space = await createSpace(repository
         ? { name, backingKind: 'git', repository: repository.url, baseBranch: repository.defaultBranch }
         : { name, backingKind: 'files' })
-      const agent = repository ? await prepareDefaultAgent(model) : null
+      const agent = await prepareDefaultAgent(model)
       onDone(space, agent)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the space.")
@@ -43,7 +43,6 @@ export function SpaceStep({
 
   return (
     <SetupFrame
-      files={repository === null}
       step={3}
       title="Name your first space"
       intro="A space holds the tasks for one product or repository. Everything else starts with sensible defaults."
@@ -57,7 +56,7 @@ export function SpaceStep({
               Use another repository
             </button>
           </span>
-        </div> : <Text>Files space · no repository needed. {FILES_RUNS_UNAVAILABLE}</Text>}
+        </div> : <Text>Files space · no repository needed. Its files are kept between runs and shared by all of its tasks.</Text>}
         <SetupError message={error} />
         <Field>
           <Label>Space name</Label>

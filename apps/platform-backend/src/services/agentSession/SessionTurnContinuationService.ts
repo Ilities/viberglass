@@ -1,3 +1,4 @@
+import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import logger from "../../config/logger";
 import type { AgentSession, AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import type { AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
@@ -30,6 +31,7 @@ interface Collaborators {
   context: Pick<TaskTurnContextLoader, "load">;
   prompts: Pick<TaskTurnPromptBuilder, "build">;
   dispatcher: Pick<TaskTurnJobDispatcher, "dispatch">;
+  projects: Pick<ProjectDAO, "getProject">;
 }
 
 /**
@@ -55,6 +57,7 @@ export class SessionTurnContinuationService {
       context: deps.context ?? new TaskTurnContextLoader(),
       prompts: new TaskTurnPromptBuilder(),
       dispatcher: deps.dispatcher ?? new TaskTurnJobDispatcher(),
+      projects: new ProjectDAO(),
       ...deps,
     };
   }
@@ -94,7 +97,8 @@ export class SessionTurnContinuationService {
         buildParts,
         sessionMessages: pending.filter((entry) => !entry.taskMessageId),
       });
-      const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode);
+      const filesSpace = (await this.deps.projects.getProject(ticket.projectId))?.backingKind === "files";
+      const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode, filesSpace);
       const job = await this.deps.dispatcher.dispatch(
         {
           session,

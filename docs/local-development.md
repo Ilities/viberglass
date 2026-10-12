@@ -1,6 +1,6 @@
 # Local development
 
-`docker compose up` runs everything you need: Postgres (5432), the backend (8888, hot reload, runs migrations on start) and the frontend (http://localhost:3000, Vite HMR). Task media and saved agent conversations are kept in `~/.viberglass` (or `VIBERGLASS_DATA_DIR` from the root `.env`), so they survive restarts. Opening the app against an empty database walks you through creating the first admin and then setup (model key, repository, space).
+`docker compose up` runs everything you need: Postgres (5432), MinIO object storage (9000, console on http://localhost:9001, sign in as `viberglass` / `viberglass-dev-storage`), the backend (8888, hot reload, runs migrations on start) and the frontend (http://localhost:3000, Vite HMR). Files spaces, ticket media and plan documents are stored in MinIO's `viberglass-dev` bucket. Docker workers reach it through `host.docker.internal:9000`. Saved agent conversations are kept in `~/.viberglass` (or `VIBERGLASS_DATA_DIR` from the root `.env`), so they survive restarts. Opening the app against an empty database walks you through creating the first admin and then setup (model key, repository, space).
 
 Optional services sit behind compose profiles, so a plain `docker compose up` never starts them:
 

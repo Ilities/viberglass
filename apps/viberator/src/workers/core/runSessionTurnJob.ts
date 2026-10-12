@@ -2,7 +2,9 @@ import * as os from "os";
 import * as path from "path";
 import { ExecutionContext } from "../../types";
 import { JobResult } from "./types";
-import { JobRunnerParams, setupJob } from "./jobPipeline";
+import { JobRunnerParams, filesRunOf, setupJob } from "./jobPipeline";
+import { saveFilesWorkspace, type FilesRun } from "../files/filesWorkspace";
+import { unmaterialize, type MaterializedFile } from "../runtime/InstructionFileManager";
 import { executeAgentWithRetry } from "./agentExecution";
 import { withJobLifecycle } from "./jobLifecycle";
 import { captureAndStore, retrieveAndRestore } from "../runtime/SessionStateManager";
@@ -20,7 +22,8 @@ import { onStop } from "../runtime/stopSignal";
  * the task's documents as files to revise, and its earlier session when the
  * harness can continue one. Afterwards the turn reports what it produced: the
  * documents it wrote, and its code changes as a commit on the task's pull
- * request when it was allowed to write code, else thrown away.
+ * request when it was allowed to write code, else thrown away. In a Files
+ * space it saves the space's files instead, whatever the turn was asked for.
  */
 export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobResult> {
   return withJobLifecycle(params, "Session turn", async () => {
@@ -30,6 +33,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const setup = await setupJob(params, "session-turn");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
     await restoreConversationState(params);
+    const files = data.files ? filesRunOf(params, data.files) : null;
     const pushed = setup.taskBranch?.continued
       ? await peoplesChanges(repoDir, params.lastAgentCommit ?? `origin/${checkoutBaseBranch}`)
       : null;
@@ -40,7 +44,8 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     });
 
     const executionContext: ExecutionContext = {
-      repoUrl: data.repository,
+      // A Files run has no repository; its prompt comes from the platform and doesn't name one.
+      repoUrl: data.repository ?? "",
       branch: checkoutBaseBranch,
       baseBranch: checkoutBaseBranch,
       repoDir,
@@ -84,14 +89,35 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       askHumanServerScript(),
     );
     executionContext.mcpServers = [await relay.start(), ...httpMcpServersOf(params.mcpServers, params.fetchedCredentials, logger)];
-    const result = await executeAgentWithRetry(params, executionContext).finally(() => {
-      stopped();
-      return relay.close();
-    });
+    const result = await executeAgentWithRetry(params, executionContext)
+      .catch(async (error: unknown) => {
+        // A failed agent may still have done work worth keeping; the run fails either way.
+        if (files) await savePartialFiles(files, repoDir, setup.materializedFiles, logger);
+        throw error;
+      })
+      .finally(() => {
+        stopped();
+        return relay.close();
+      });
     await params.sessionEventForwarder?.flush();
     const conversationStateUrl = await saveConversationState(params, result.newAcpSessionId, executionContext.agent);
 
     const documents = collectArtifacts(repoDir, snapshot);
+    if (files) {
+      await unmaterialize(setup.materializedFiles);
+      const filesSnapshot = await saveFilesWorkspace(files, repoDir, { partial: false });
+      return {
+        success: true,
+        changedFiles: [],
+        executionTime: 0,
+        documents,
+        conversationStateUrl,
+        sessionStart: result.acpSessionStart,
+        contextUsage: result.acpContextUsage,
+        compacted: result.acpCompacted,
+        filesSnapshot,
+      };
+    }
     await restoreArtifactFiles(repoDir);
     const changedFiles = await listCodeChanges(repoDir);
     const turn: JobResult = {
@@ -121,6 +147,21 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     });
     return { ...turn, ...delivered };
   });
+}
+
+/** Saves what a failed agent left in a Files space, marked partial; failing to is only logged. */
+async function savePartialFiles(
+  files: FilesRun,
+  repoDir: string,
+  materialized: MaterializedFile[],
+  logger: JobRunnerParams["logger"],
+): Promise<void> {
+  try {
+    await unmaterialize(materialized);
+    await saveFilesWorkspace(files, repoDir, { partial: true });
+  } catch (error) {
+    logger.warn("Couldn't save the failed run's files", { error: error instanceof Error ? error.message : String(error) });
+  }
 }
 
 /** The worker's bundle puts the MCP server next to its entry point. */

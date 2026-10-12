@@ -24,7 +24,14 @@ const flag = (on: boolean): string | undefined => (on ? "yes" : undefined);
 export class TaskTurnPromptBuilder {
   constructor(private readonly renderer: PromptRenderer = new PromptTemplateService(new PromptTemplateDAO())) {}
 
-  async build(projectId: string, context: TaskTurnContext, action: TaskTurnAction, allowCode: boolean): Promise<TurnPrompts> {
+  /** `filesSpace`: the agent works in a Files space's shared files rather than a repository. */
+  async build(
+    projectId: string,
+    context: TaskTurnContext,
+    action: TaskTurnAction,
+    allowCode: boolean,
+    filesSpace = false,
+  ): Promise<TurnPrompts> {
     const { documents, fresh, earlier, ticket } = context;
     const [prompt, preamble] = await Promise.all([
       this.renderer.render(PROMPT_TYPE.task_turn, projectId, {
@@ -45,6 +52,9 @@ export class TaskTurnPromptBuilder {
         reply: flag(action === "reply"),
         summarise: flag(action === "summarise"),
         allowCode: flag(allowCode),
+        // Changes outside a build are thrown away in a repository; a Files space keeps them.
+        discardCode: flag(!allowCode && !filesSpace),
+        filesSpace: flag(filesSpace),
       }),
       this.renderer.render(PROMPT_TYPE.task_turn_cold_start, projectId, {
         ticketTitle: ticket.title,

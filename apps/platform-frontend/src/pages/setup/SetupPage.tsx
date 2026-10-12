@@ -12,7 +12,6 @@ import { RepositoryStep } from './RepositoryStep'
 import { SetupError } from './SetupFrame'
 import { markSetupSkipped, readStoredRepository, resumeSetup, storeRepository, type SetupStep } from './setupResume'
 import { SpaceStep } from './SpaceStep'
-import { FilesSetupComplete } from './FilesSetupComplete'
 
 interface Loaded {
   status: SetupStatus
@@ -89,7 +88,7 @@ export function SetupPage() {
             initialProvider={model && 'provider' in model ? model.provider : null}
             onDone={(chosen) => {
               setModel(chosen)
-              setStep(space?.backingKind === 'files' ? 'filesReady' : space ? 'agent' : repository && loaded.status.repositoryConnected ? 'space' : 'repository')
+              setStep(space ? 'agent' : repository && loaded.status.repositoryConnected ? 'space' : 'repository')
             }}
           />
         )}
@@ -131,14 +130,13 @@ export function SetupPage() {
             onDone={(created, started) => {
               setSpace(created)
               setAgent(started)
-              setStep(created.backingKind === 'files' ? 'filesReady' : 'agent')
+              setStep('agent')
             }}
           />
         )}
         {step === 'agent' && model && <AgentStep model={model} agent={agent} onReady={handleAgentReady} />}
         {step === 'task' && space && clankerId && <FirstTaskStep space={space} clankerId={clankerId} />}
-        {step === 'filesReady' && space && <FilesSetupComplete slug={space.slug} />}
-        {step !== 'task' && step !== 'filesReady' && (
+        {step !== 'task' && (
           <Text className="text-xs">
             Setting things up yourself?{' '}
             <button

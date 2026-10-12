@@ -42,3 +42,8 @@ export function objectStorageBucket(env: StorageEnvironment): string {
 export function objectStoragePublicClientConfig(env: StorageEnvironment): ObjectStorageClientConfig {
   return objectStorageClientConfig({ ...env, S3_ENDPOINT: env.S3_PUBLIC_ENDPOINT || env.S3_ENDPOINT });
 }
+
+/** For URLs a worker fetches: workers may reach storage by another address than the backend does. */
+export function objectStorageWorkerClientConfig(env: StorageEnvironment): ObjectStorageClientConfig {
+  return objectStorageClientConfig({ ...env, S3_ENDPOINT: env.S3_WORKER_ENDPOINT || env.S3_ENDPOINT });
+}

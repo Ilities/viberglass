@@ -18,7 +18,7 @@ export function SpaceBackingField({ value, onChange, disabled }: {
       </Select>
       <Description>
         {value === 'files'
-          ? 'A shared place for documents, presentations and other artifacts. Agent runs and persistent files are coming soon.'
+          ? 'A shared place for documents, presentations and other artifacts. Its files persist between runs and are shared by all of its tasks.'
           : 'Agents work in a repository and deliver changes through pull requests.'}
         {' '}Backing is fixed when the space is created.
       </Description>

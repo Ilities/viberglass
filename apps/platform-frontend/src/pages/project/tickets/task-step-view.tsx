@@ -13,7 +13,6 @@ import type { TaskPageData } from './use-task-page'
 export type StepView = 'document' | 'comments'
 
 interface TaskStepViewProps {
-  agentRunsAvailable?: boolean
   step: TaskStep
   view: StepView
   /** An earlier version of the document to show read-only, instead of the current one. */
@@ -76,7 +75,6 @@ function BuildStep({ data }: { data: TaskPageData }) {
 
 /** The artifact, with its comments available below it. */
 export function TaskStepView({
-  agentRunsAvailable = true,
   step,
   view,
   version = null,
@@ -117,7 +115,6 @@ export function TaskStepView({
         />
       ) : isPlan ? (
         <DocumentStep
-          agentRunsAvailable={agentRunsAvailable}
           data={data}
           move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
           comments={comments}

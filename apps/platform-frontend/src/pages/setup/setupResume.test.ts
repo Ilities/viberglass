@@ -15,9 +15,13 @@ const REPOSITORY = { fullName: 'Acme/web', url: 'https://github.com/Acme/web', d
 const SPACE: NonNullable<SetupStatus['space']> = { backingKind: 'git', projectId: 'p1', name: 'web', slug: 'web', repositoryUrl: 'https://github.com/Acme/web' }
 
 describe('resumeSetup', () => {
-  it('finishes Files setup without asking for a repository or agent', () => {
-    expect(resumeSetup({ ...FRESH, space: { ...SPACE, backingKind: 'files', repositoryUrl: null } }, REPOSITORY)).toEqual({ step: 'filesReady', model: null })
-  });
+  it('starts the agent for a Files space, as for a repository', () => {
+    const files = { ...SPACE, backingKind: 'files' as const, repositoryUrl: null }
+    expect(resumeSetup({ ...FRESH, connectedProviders: ['opencode-go'], space: files }, null)).toEqual({
+      step: 'agent',
+      model: { provider: 'opencode-go' },
+    })
+  })
   it('starts with the model key on a fresh workspace', () => {
     expect(resumeSetup(FRESH, null)).toEqual({ step: 'model', model: null })
   })

@@ -11,6 +11,7 @@ function setup(streamed: string[] = ["Writing the plan: checking the theme store
     workerEvents: { batchIngest: jest.fn() },
     mentions: { createForTurn: jest.fn() },
     summaries: { create: jest.fn() },
+    files: { summaryForJob: jest.fn().mockResolvedValue(null) },
     participants: {
       list: jest.fn().mockResolvedValue([
         { userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" },
@@ -22,6 +23,17 @@ function setup(streamed: string[] = ["Writing the plan: checking the theme store
 }
 
 describe("TaskTurnOutcomeService", () => {
+  it("records the files a Files turn saved", async () => {
+    const { deps, service } = setup(["Drafting the brief.", "Done."]);
+    const files = { id: "snap-2", parentId: "snap-1", fileCount: 3, totalBytes: 120, partial: false, changes: { added: 1, changed: 1, removed: 0 }, createdAt: "2026-10-12T10:00:00.000Z" };
+    deps.files.summaryForJob.mockResolvedValue(files);
+
+    await service.record("job-1", SESSION, { id: "turn-1", action: "reply" }, { success: true });
+
+    expect(deps.files.summaryForJob).toHaveBeenCalledWith("job-1");
+    expect(deps.turns.update).toHaveBeenCalledWith("turn-1", expect.objectContaining({ contentJson: expect.objectContaining({ files }) }));
+  });
+
   it("saves the plan a reply rewrote as a new version, and records the reply", async () => {
     const { deps, service } = setup();
 

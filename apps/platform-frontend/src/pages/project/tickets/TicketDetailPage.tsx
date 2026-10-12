@@ -80,6 +80,7 @@ export function TicketDetailPage() {
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams])
 
+  const filesSpace = space?.backingKind === 'files'
   const setDone = useCallback(
     async (done: boolean) => {
       if (!data) return
@@ -90,12 +91,12 @@ export function TicketDetailPage() {
         setTicket(updated)
         // Finishing or reopening changes the task's situation, which only a load brings back.
         changed()
-        toast.success(done ? (space?.backingKind === 'files' ? 'Task marked done' : 'Task finished. Its history stays; finishing merges nothing.') : 'Task reopened')
+        toast.success(done ? (filesSpace ? 'Task marked done' : 'Task finished. Its history stays; finishing merges nothing.') : 'Task reopened')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update the task')
       }
     },
-    [data, setTicket, changed, space?.backingKind]
+    [data, setTicket, changed, filesSpace]
   )
 
   if (isLoading) {
@@ -116,8 +117,8 @@ export function TicketDetailPage() {
     )
   }
 
-  const files = space?.backingKind === 'files'
-  const capabilities = files && data.capabilities ? { ...data.capabilities, canAsk: false, canAskForCode: false, canSteer: false } : data.capabilities
+  // A Files space's agent saves files rather than opening a pull request, so there is nothing to build.
+  const capabilities = filesSpace && data.capabilities ? { ...data.capabilities, canAskForCode: false } : data.capabilities
   const taskData = { ...data, capabilities }
   const { ticket } = data
   const currentStep = ticket.workflowPhase
@@ -133,7 +134,7 @@ export function TicketDetailPage() {
 
   const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
   const requestedStep = searchParams.get('step')
-  const shownStep: TaskStep = files ? 'planning' : isTaskStep(requestedStep) ? requestedStep : currentStep
+  const shownStep: TaskStep = filesSpace ? 'planning' : isTaskStep(requestedStep) ? requestedStep : currentStep
   const requestedView = searchParams.get('view')
   const shownView: StepView = isStepView(requestedView) ? requestedView : 'document'
 
@@ -216,7 +217,7 @@ export function TicketDetailPage() {
             className="min-w-0 overflow-hidden rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
           >
             <div className="border-b border-[var(--gray-5)] bg-[var(--gray-2)] px-5 pt-4 pb-3">
-              {files ? <h2 className="text-sm font-semibold">Plan</h2> : <TaskStepper
+              {filesSpace ? <h2 className="text-sm font-semibold">Plan</h2> : <TaskStepper
                 currentStep={currentStep}
                 move={move}
                 shownStep={shownStep}
@@ -230,7 +231,6 @@ export function TicketDetailPage() {
             </div>
             <div className="px-6 py-5 max-sm:px-4">
               <TaskStepView
-                agentRunsAvailable={!files}
                 step={shownStep}
                 view={shownView}
                 version={shownVersion}
@@ -252,6 +252,7 @@ export function TicketDetailPage() {
               taskId={ticket.id}
               refreshKey={threadRefreshKey}
               runs={data.runs}
+              filesSpace={filesSpace}
               onOpenComments={() => {
                 setNarrowView('artifact')
                 setSearchParams({ ...(currentStep === 'planning' ? {} : { step: 'planning' }), view: 'comments' })

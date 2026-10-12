@@ -13,7 +13,6 @@ import type { TaskPageData } from './use-task-page'
 
 /** The plan: the current version to read, comment on and edit, or what to do while there's none yet. */
 export function DocumentStep({
-  agentRunsAvailable = true,
   data,
   move,
   comments,
@@ -22,7 +21,6 @@ export function DocumentStep({
   onCompare,
   onAsked,
 }: {
-  agentRunsAvailable?: boolean
   data: TaskPageData
   move: TaskNextMove
   comments: DocumentComments
@@ -89,9 +87,7 @@ export function DocumentStep({
     // Read-only people are told who can make it and where to follow it, never to do what they can't.
     const canAsk = Boolean(data.capabilities?.canAsk)
     const empty =
-      !agentRunsAvailable
-        ? (canEdit ? 'No plan yet. You can write it yourself; agent runs in Files spaces are coming soon.' : 'No plan yet. People on this task can write it; agent runs in Files spaces are coming soon.')
-        : move.kind === 'working'
+      move.kind === 'working'
         ? `The agent is writing the ${noun}. It appears here when it's done.`
         : move.kind === 'failed'
           ? `No ${noun} yet: the last run failed before writing it.`

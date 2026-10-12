@@ -1,6 +1,6 @@
 # Artifact spaces: persistent files, previews and publishing
 
-- **Status:** Product decisions accepted; phase 1 implemented and verified on 2026-10-12. Phases 2–5 remain planned.
+- **Status:** Product decisions accepted; phases 1 and 2 implemented and verified on 2026-10-12. Phases 3–5 remain planned.
 - **Date:** 2026-10-12.
 - **Baseline:** `main` at `6f05b6f9`, branch `feat/artifact-spaces-plan`.
 - **Requested outcome:** create a space without Git, retain its files across harness runs, save final artifacts in S3, preview web-compatible output, and publish a selected version to an external destination.
@@ -16,6 +16,7 @@
 - [Publishing contract](#publishing-contract)
 - [Implementation stages](#implementation-stages)
 - [Phase 1 implementation and verification](#phase-1-implementation-and-verification)
+- [Phase 2 implementation and verification](#phase-2-implementation-and-verification)
 - [Accepted decisions and remaining details](#accepted-decisions-and-remaining-details)
 
 ## Direction and boundaries
@@ -270,6 +271,24 @@ Validation on the worktree: **1,465 backend unit tests**, **435 frontend unit te
 Real API verification covered creation, first-space setup, readiness, immutable backing, SCM rejection, task completion/reopening and the execution refusal. Authenticated agent-browser walkthroughs and reviewed screenshots covered both creation flows, Files settings and task completion/reopening. A dedicated browser session was used after the shared verification session changed pages.
 
 Phase 1 supplies the product and backing foundation. Space-file upload/editing, S3 snapshots, artifact versions, interactive previews, retention purging and publishing remain in their planned stages; no Files run is advertised as usable yet.
+
+## Phase 2 implementation and verification
+
+Files spaces now run agents. Every turn in a Files space restores the space's latest files on fresh compute, runs the harness in a directory without Git, and saves the result as a new snapshot before the run reports.
+
+- Migration `119_space_files` adds `space_file_snapshots` (immutable versions with digest, size, manifest and change counts), `space_file_state` (current snapshot pointer and the writer lease with its fencing token) and `space_file_runs` (each Files job's place in the queue, pinned base snapshot and pre-assigned checkpoint id).
+- One run changes a space's files at a time. A run that finds the space busy stays `queued` with "Waiting for another run to save this space" and starts, oldest first, when the holder saves or ends. The lease is released at checkpoint, so the next turn doesn't wait for the previous job's result callback. Heartbeats renew the lease; a lost worker's lease expires after ten minutes. A sweeper starts waiting runs after restarts and releases runs of jobs that ended without releasing.
+- Workers get presigned URLs for exactly two objects: the pinned base archive (read) and their own checkpoint (write). This works for every worker type, not only Kubernetes. `S3_WORKER_ENDPOINT` signs URLs for an address workers can reach when it differs from the backend's.
+- The checkpoint callback streams the uploaded archive, rejects unsafe paths, links, special files, duplicates and oversize content, checks the reported digest, and commits only while the run holds the lease and the space is still on the run's base snapshot. A repeated checkpoint returns the first result; a refused one stays in storage for diagnosis.
+- A failed agent run saves a partial snapshot, then fails. A save or restore failure fails the run with `FILES_SAVE_FAILED` or `FILES_RESTORE_FAILED`, and the space keeps its earlier files. Cancelling a run saves nothing and frees the space at once.
+- Platform files (plan, summary, PR metadata, materialized instruction files) and dependency caches are never saved. Instruction files the space already had are restored to their own content before saving.
+- Task turns ask, plan, reply and summarise in Files spaces; building a pull request is refused. Schedules and Lambda runners are refused in Files spaces. Migration `120_files_turn_prompt` tells the agent that its working directory is the space's shared files and that changes are kept.
+- The thread shows each turn's saved files ("Saved files · 1 added, 1 removed · 1 file"), partial saves and the waiting state. First-run setup for a Files space now prepares an agent, as Git setup does.
+- The dev stack runs MinIO as the `storage` service, and the backend uses it for Files snapshots, ticket media and plan documents.
+
+Validation: 1,535 backend unit tests, 248 worker tests, 476 frontend tests and six PostgreSQL integration tests for leasing, fencing, stale bases, idempotent saves and release passed. On the dev stack with Docker workers, a fake agent proved restore and append across fresh containers, queuing of two tasks in one space with the correct snapshot chain, partial saves on failure, and release on cancel. The real OpenCode harness created and deleted files in a directory without Git, then edited the restored file on a fresh worker.
+
+Not yet verified: Kubernetes and ECS workers running Files runs, and a cooperative checkpoint when a run is cancelled. Retention of old snapshots ships with stage 3, so snapshots accumulate until then.
 
 ## Accepted decisions and remaining details
 

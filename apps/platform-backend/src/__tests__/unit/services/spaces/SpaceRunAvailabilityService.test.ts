@@ -8,18 +8,23 @@ function space(backingKind: SpaceBackingKind): Project {
 }
 
 describe("SpaceRunAvailabilityService", () => {
-  it("refuses Files runs with a readable conflict", async () => {
+  it("refuses builds in Files spaces with a readable conflict", async () => {
     const service = new SpaceRunAvailabilityService({ getProject: async () => space("files") });
-    await expect(service.assertAvailable("space")).rejects.toMatchObject({ code: "FILES_EXECUTION_UNAVAILABLE", statusCode: 409, message: expect.stringContaining("not available yet") });
+    await expect(service.assertAvailable("space", "code")).rejects.toMatchObject({ code: "FILES_BUILD_UNAVAILABLE", statusCode: 409, message: expect.stringContaining("instead of opening pull requests") });
+  });
+
+  it.each(["plan", "reply", "summarise"] as const)("lets a Files space ask for a %s turn", async (action) => {
+    const service = new SpaceRunAvailabilityService({ getProject: async () => space("files") });
+    await expect(service.assertAvailable("space", action)).resolves.toBeUndefined();
   });
 
   it("reports a missing space as not found", async () => {
     const service = new SpaceRunAvailabilityService({ getProject: async () => null });
-    await expect(service.assertAvailable("space")).rejects.toMatchObject({ code: "SPACE_NOT_FOUND", statusCode: 404 });
+    await expect(service.assertAvailable("space", "reply")).rejects.toMatchObject({ code: "SPACE_NOT_FOUND", statusCode: 404 });
   });
 
   it("allows existing Git execution", async () => {
     const service = new SpaceRunAvailabilityService({ getProject: async () => space("git") });
-    await expect(service.assertAvailable("space")).resolves.toBeUndefined();
+    await expect(service.assertAvailable("space", "code")).resolves.toBeUndefined();
   });
 });

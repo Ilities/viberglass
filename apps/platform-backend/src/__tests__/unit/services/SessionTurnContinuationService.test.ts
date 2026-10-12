@@ -81,16 +81,19 @@ describe("SessionTurnContinuationService", () => {
   const loader = { load: jest.fn() };
   const prompts = { build: jest.fn() };
   const dispatcher = { dispatch: jest.fn() };
+  const projects = { getProject: jest.fn() };
   const service = new SessionTurnContinuationService(sessions, turns, events, {
     tickets,
     context: loader,
     prompts,
     dispatcher,
+    projects,
   });
 
   beforeEach(() => {
     jest.resetAllMocks();
     tickets.getTicket.mockResolvedValue({ id: "ticket-1", projectId: "proj-1", title: "Dark mode" });
+    projects.getProject.mockResolvedValue({ id: "proj-1", backingKind: "git" });
     turns.nextSequence.mockResolvedValue(7);
     turns.create.mockResolvedValue({ id: "a1" });
     events.getMaxSequence.mockResolvedValue(10);
@@ -127,12 +130,21 @@ describe("SessionTurnContinuationService", () => {
     expect(loader.load).toHaveBeenCalledWith(
       expect.objectContaining({ sessionId: "sess-1", turnId: "a1", action: "plan", sessionMessages: [expect.objectContaining({ id: "u3" })] }),
     );
-    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "plan", false);
+    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "plan", false, false);
     expect(dispatcher.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ turnId: "a1", action: "plan", allowCode: false, prompts: { prompt: "delta", coldStartPrompt: "preamble\n\ndelta" } }),
       expect.any(Function),
     );
     expect(result).toEqual({ currentTurn: { id: "a1" }, job: { id: "job-1", status: "pending" } });
+  });
+
+  it("tells the prompt when the agent works in a Files space's files", async () => {
+    projects.getProject.mockResolvedValue({ id: "proj-1", backingKind: "files" });
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn({ id: "u1", action: "reply" })]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "reply", false, true);
   });
 
   it("knows its job and shows the prompt before the worker starts", async () => {

@@ -1,6 +1,6 @@
 import type { RepositoryAccess, SetupModelChoice, SetupStatus } from '@viberglass/types'
 
-export type SetupStep = 'model' | 'repository' | 'space' | 'agent' | 'task' | 'filesReady'
+export type SetupStep = 'model' | 'repository' | 'space' | 'agent' | 'task'
 
 const STORED_REPOSITORY_KEY = 'viberglass.setup.repository'
 const SKIPPED_KEY = 'viberglass.setup.skipped'
@@ -47,7 +47,6 @@ export function resumeSetup(
   storedRepository: RepositoryAccess | null,
 ): { step: SetupStep; model: SetupModelChoice | null } {
   const model = modelOf(status)
-  if (status.space?.backingKind === 'files') return { step: 'filesReady', model }
   if (!model) return { step: 'model', model }
   if (!status.space) {
     return { step: status.repositoryConnected && storedRepository ? 'space' : 'repository', model }

@@ -41,6 +41,32 @@ describe('ProjectReadinessBanner', () => {
     expect(screen.getByRole('link', { name: 'Choose repository' })).toHaveAttribute('href', '/spaces/shop/settings')
   })
 
+  it('lists every unfinished check for a Files space, including its agent', async () => {
+    mockedGetProjectReadiness.mockResolvedValue({
+      projectId: 'project-1',
+      automationAvailable: false,
+      hasRuns: false,
+      checks: [
+        { key: 'agentCredentials', label: 'Model key', state: 'ready', summary: 'An agent has a model key.' },
+        { key: 'storage', label: 'File storage', state: 'missing', code: 'configure_storage', summary: 'File storage is not configured. Ask an administrator to configure it.' },
+        { key: 'agentRunner', label: 'Agent', state: 'missing', code: 'start_agent_runner', summary: 'Set up an agent to run tasks.', remediationUrl: '/setup' },
+      ],
+    })
+
+    render(
+      <Theme>
+        <MemoryRouter>
+          <ProjectReadinessBanner projectId="project-1" />
+        </MemoryRouter>
+      </Theme>,
+    )
+
+    const banner = await screen.findByRole('region', { name: 'Setup needed' })
+    expect(banner).toHaveTextContent('File storage is not configured.')
+    expect(banner).toHaveTextContent('Set up an agent to run tasks.')
+    expect(banner).not.toHaveTextContent('An agent has a model key.')
+  })
+
   it('stays out of the way when automation is ready', async () => {
     mockedGetProjectReadiness.mockResolvedValue({
       projectId: 'project-1',

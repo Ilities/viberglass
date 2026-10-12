@@ -10,13 +10,14 @@ import {
   type CostProvenance,
   type TokenUsage,
 } from "@viberglass/telemetry";
-import { JOB_FAILURE_CODE, type TaskTurnAction, type WorkerMcpServer, type WorkerSkill } from "@viberglass/types";
+import { JOB_FAILURE_CODE, type FilesWorkspacePayload, type TaskTurnAction, type WorkerMcpServer, type WorkerSkill } from "@viberglass/types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import { CodingJobData, JobOverrides, ProjectConfigPayload } from "./types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
 import type { GitAuth } from "../../services/gitAuth";
-import { InstructionFileManager } from "../runtime/InstructionFileManager";
+import { InstructionFileManager, type MaterializedFile } from "../runtime/InstructionFileManager";
+import { prepareFilesWorkspace, type FilesRun } from "../files/filesWorkspace";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
 import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
@@ -127,11 +128,13 @@ export interface JobSetupResult {
   mergedSettings: MergedSettings;
   /** Task turns only: the branch the turn commits to, checked out if it already existed. */
   taskBranch?: TaskBranch;
+  /** Instruction files written into the working directory, to put back before a Files run saves it. */
+  materializedFiles: MaterializedFile[];
 }
 
 /**
- * Shared setup: initialize logging/env, create workspace, clone repo,
- * apply instruction files, and merge settings.
+ * Shared setup: initialize logging/env, create workspace, clone the repo
+ * or restore the space's files, apply instruction files, and merge settings.
  */
 export async function setupJob(
   params: JobRunnerParams,
@@ -152,7 +155,6 @@ export async function setupJob(
     logForwarder,
     defaultTimeout,
     sendProgress,
-    cloneRepositoryToWorkspace,
   } = params;
 
   const { id, repository, baseBranch } = data;
@@ -169,42 +171,17 @@ export async function setupJob(
     fs.mkdirSync(jobWorkDir, { recursive: true });
   }
 
-  await sendProgress("clone", "Cloning repository", { repository });
-  // Cloning is a common and slow failure point (auth, large repos, network
-  // policy), and it is worth being able to separate it from agent time when
-  // reading job latency.
-  const repoDir = await withSpan(
-    "git.clone",
-    {
-      attributes: definedAttributes({
-        [ATTR_VG_REPOSITORY]: repository,
-        [ATTR_VG_BASE_BRANCH]: checkoutBaseBranch,
-      }),
-    },
-    async () =>
-      failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
-        cloneRepositoryToWorkspace(repository, checkoutBaseBranch, jobWorkDir),
-      ),
-  );
+  const workspace = data.files
+    ? { repoDir: await prepareFilesWorkspace(filesRunOf(params, data.files), jobWorkDir), taskBranch: undefined }
+    : await prepareGitWorkspace(params, requireRepository(repository), checkoutBaseBranch, jobWorkDir);
+  const { repoDir, taskBranch } = workspace;
 
-  // A turn on a task that already has a branch starts from it, so the agent
-  // works on top of the earlier builds, and of what people pushed there, and
-  // a build's pull request gains commits.
-  const taskBranch = params.taskBranch ? await prepareTaskBranch(params, params.taskBranch, repoDir) : undefined;
-
-  // The exact commit the run starts from, captured before instruction files
-  // are written and before the agent touches anything. "base branch was main"
-  // is not reproducible; a SHA is.
-  const baseSha = await params.gitService.getHeadSha(repoDir);
-  if (params.manifest) {
-    params.manifest.baseSha = baseSha;
-  }
-
+  let materializedFiles: MaterializedFile[] = [];
   if (instructionFiles.size > 0) {
     await sendProgress("instructions", "Applying instruction files", {
       count: instructionFiles.size,
     });
-    await withSpan(
+    materializedFiles = await withSpan(
       "instructions.materialize",
       { attributes: { "vg.instructions.count": instructionFiles.size } },
       async () => instructionFileManager.materialize(repoDir, instructionFiles),
@@ -221,5 +198,63 @@ export async function setupJob(
     overrides,
   });
 
-  return { jobWorkDir, repoDir, checkoutBaseBranch, mergedSettings, taskBranch };
+  return { jobWorkDir, repoDir, checkoutBaseBranch, mergedSettings, taskBranch, materializedFiles };
+}
+
+/** Clones the repository and checks out the task's branch, recording the commit the run starts from. */
+async function prepareGitWorkspace(
+  params: JobRunnerParams,
+  repository: string,
+  checkoutBaseBranch: string,
+  jobWorkDir: string,
+): Promise<{ repoDir: string; taskBranch?: TaskBranch }> {
+  await params.sendProgress("clone", "Cloning repository", { repository });
+  // Cloning is a common and slow failure point (auth, large repos, network
+  // policy), and it is worth being able to separate it from agent time when
+  // reading job latency.
+  const repoDir = await withSpan(
+    "git.clone",
+    {
+      attributes: definedAttributes({
+        [ATTR_VG_REPOSITORY]: repository,
+        [ATTR_VG_BASE_BRANCH]: checkoutBaseBranch,
+      }),
+    },
+    async () =>
+      failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
+        params.cloneRepositoryToWorkspace(repository, checkoutBaseBranch, jobWorkDir),
+      ),
+  );
+
+  // A turn on a task that already has a branch starts from it, so the agent
+  // works on top of the earlier builds, and of what people pushed there, and
+  // a build's pull request gains commits.
+  const taskBranch = params.taskBranch ? await prepareTaskBranch(params, params.taskBranch, repoDir) : undefined;
+
+  // The exact commit the run starts from, captured before instruction files
+  // are written and before the agent touches anything. "base branch was main"
+  // is not reproducible; a SHA is.
+  const baseSha = await params.gitService.getHeadSha(repoDir);
+  if (params.manifest) {
+    params.manifest.baseSha = baseSha;
+  }
+
+  return { repoDir, taskBranch };
+}
+
+function requireRepository(repository: string | undefined): string {
+  if (!repository) throw new Error("The run has neither a repository nor a Files space to work in");
+  return repository;
+}
+
+/** What restoring and saving a Files run's space files needs from the run. */
+export function filesRunOf(params: JobRunnerParams, files: FilesWorkspacePayload): FilesRun {
+  return {
+    jobId: params.data.id,
+    tenantId: params.data.tenantId,
+    files,
+    client: params.callbackClient.files,
+    logger: params.logger,
+    sendProgress: params.sendProgress,
+  };
 }

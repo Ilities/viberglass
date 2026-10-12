@@ -93,8 +93,7 @@ export function ProjectReadinessBanner({
     )
   }
 
-  const filesUnavailable = readiness.checks.some((check) => check.key === 'filesExecution' && check.state === 'unavailable')
-  const incomplete = readiness.checks.filter((check) => check.state !== 'ready' && (!filesUnavailable || check.key === 'storage' || check.key === 'filesExecution'))
+  const incomplete = readiness.checks.filter((check) => check.state !== 'ready')
   return (
     <section
       aria-label="Setup needed"

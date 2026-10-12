@@ -1,5 +1,5 @@
 import { getStrategyType } from "../clanker-config";
-import { FILES_RUNS_UNAVAILABLE, SCM_TOKEN_ENV_VAR } from "@viberglass/types";
+import { objectStorageBucket, SCM_TOKEN_ENV_VAR } from "@viberglass/types";
 import type {
   Clanker,
   ClankerStrategyType,
@@ -70,6 +70,8 @@ export interface TicketRunOrchestrationDependencies {
     "uploadJobInstructionFiles"
   >;
   runnerTools: Pick<RunnerToolResolver, "resolve">;
+  /** Where to look for object storage settings; the process's environment by default. */
+  storageEnvironment?: () => Record<string, string | undefined>;
 }
 
 export interface PrepareTicketRunContextInput {
@@ -78,6 +80,8 @@ export interface PrepareTicketRunContextInput {
   jobId: string;
   instructionFiles?: Array<Partial<InlineInstructionFile>>;
   additionalSecretBindings?: SecretBinding[];
+  /** Task turns run in Files spaces; schedules don't yet. */
+  allowFiles?: boolean;
 }
 
 export interface PreparedTicketRunContext {
@@ -186,16 +190,26 @@ export async function prepareTicketRunContext(
   if (!project) {
     throw new Error("Associated project not found");
   }
-  if (project.backingKind === "files") {
-    throw new TicketServiceError(TICKET_SERVICE_ERROR_CODE.FILES_EXECUTION_UNAVAILABLE, FILES_RUNS_UNAVAILABLE);
+  const files = project.backingKind === "files";
+  if (files && !input.allowFiles) {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.FILES_EXECUTION_UNAVAILABLE,
+      "Schedules don't run in Files spaces yet.",
+    );
+  }
+  if (files && !objectStorageBucket(deps.storageEnvironment?.() ?? process.env)) {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.FILES_STORAGE_UNAVAILABLE,
+      "File storage isn't configured, so this space can't save the agent's files. Ask an administrator to configure it.",
+    );
   }
 
-  const scmConfig = (await deps.projectScmConfigDAO.getByProjectId(
-    project.id,
-  )) as ProjectScmConfigWithLegacySecret | null;
+  const scmConfig = files
+    ? null
+    : ((await deps.projectScmConfigDAO.getByProjectId(project.id)) as ProjectScmConfigWithLegacySecret | null);
   const sourceRepository = scmConfig?.sourceRepository.trim() ?? "";
-  const baseBranch = scmConfig?.baseBranch.trim() || "main";
-  if (!sourceRepository) {
+  const baseBranch = files ? "" : scmConfig?.baseBranch.trim() || "main";
+  if (!files && !sourceRepository) {
     throw new TicketServiceError(
       TICKET_SERVICE_ERROR_CODE.PROJECT_REPOSITORY_NOT_CONFIGURED,
       "Project has no repository configured",
@@ -256,6 +270,12 @@ export async function prepareTicketRunContext(
     ]),
   };
   const workerType = getStrategyType(executionClanker);
+  if (files && workerType === "lambda") {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.FILES_RUNNER_UNSUPPORTED,
+      `${clanker.name} runs on AWS Lambda, which can't work in Files spaces yet. Choose an agent that runs on Docker, ECS or Kubernetes.`,
+    );
+  }
   const mergedInstructionFiles = mergeInstructionFiles(
     project,
     executionClanker,

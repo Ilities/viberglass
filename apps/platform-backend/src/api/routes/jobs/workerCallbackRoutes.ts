@@ -15,6 +15,7 @@ import { JobQueryService } from "../../../services/job/JobQueryService";
 import { recordLog, recordLogBatch, recordProgress, touchHeartbeat } from "../../../services/job/JobProgressService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
+import { spaceFilesRuns } from "../../../services/spaceFiles/SpaceFilesRunService";
 import {
   validateLogBatch,
   validateLogEntry,
@@ -52,6 +53,8 @@ export function registerJobWorkerCallbackRoutes(router: Router, storage: WorkerS
         return res.status(403).json({ error: "Heartbeat requires this active run" });
       }
       await touchHeartbeat(req.params.jobId, new Date());
+      // A live Files run keeps its space while it works.
+      await spaceFilesRuns.renew(req.params.jobId);
       return res.json({ success: true });
     } catch {
       return res.status(500).json({ error: "Could not record worker heartbeat" });

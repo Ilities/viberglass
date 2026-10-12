@@ -63,7 +63,7 @@ const isLambdaPayload = (value: unknown): value is LambdaPayload => {
     typeof value["tenantId"] === "string" &&
     typeof value["jobId"] === "string" &&
     typeof value["clankerId"] === "string" &&
-    typeof value["repository"] === "string" &&
+    (typeof value["repository"] === "string" || isRecord(value["files"])) &&
     typeof value["task"] === "string" &&
     Array.isArray(value["instructionFiles"]) &&
     value["instructionFiles"].every(isInstructionFile) &&
@@ -128,6 +128,10 @@ export const handler = async (
       }
       if (!payload.jobId) {
         throw new Error("Missing jobId in payload");
+      }
+      // Lambda workers don't save a Files space's files yet; those runs go to Docker, ECS or Kubernetes.
+      if (payload.files) {
+        throw new Error("Files spaces can't run on Lambda workers");
       }
       if (!payload.repository) {
         throw new Error("Missing repository in payload");

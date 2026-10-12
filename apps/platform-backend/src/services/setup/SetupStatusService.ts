@@ -84,7 +84,7 @@ export class SetupStatusService {
       repositoryConnected,
       space,
       agent,
-      complete: space !== null && (space.backingKind === "files" || hasActiveRunner),
+      complete: space !== null && hasActiveRunner,
       demo,
     };
   }

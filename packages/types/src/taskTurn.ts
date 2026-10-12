@@ -1,3 +1,5 @@
+import type { SpaceFilesSnapshotSummary } from './spaceBacking'
+
 /**
  * What a person asks the agent for in a turn. `reply` leaves it to
  * the agent: it answers, and rewrites the plan if that's what was asked.
@@ -20,6 +22,8 @@ export interface TaskTurnOutcome {
   /** Everything the agent said in the turn. */
   reply: string
   produced: TaskTurnProduct[]
+  /** In a Files space: the files the turn saved, when it saved any. */
+  files?: SpaceFilesSnapshotSummary | null
   /** The agent changed code in a turn that wasn't allowed to, so the changes were thrown away. */
   codeDiscarded: boolean
   /** Whether the turn continued the agent's earlier session; null when the worker didn't say. */

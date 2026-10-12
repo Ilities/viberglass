@@ -72,6 +72,17 @@ describe("lambda-handler", () => {
     expect(executeTaskSpy).toHaveBeenCalledTimes(1);
   });
 
+  test("refuses a Files space's run clearly instead of losing its files", async () => {
+    const { repository: _repository, ...withoutRepository } = lambdaPayload;
+    const filesPayload = {
+      ...withoutRepository,
+      files: { spaceId: "space-1", baseSnapshotId: null, checkpointSnapshotId: "snapshot-1" },
+    };
+
+    await expect(handler(filesPayload)).rejects.toThrow("Files spaces can't run on Lambda workers");
+    expect(executeTaskSpy).not.toHaveBeenCalled();
+  });
+
   test("throws on invalid payload shape", async () => {
     await expect(handler({ Records: {} })).rejects.toThrow(
       "Invalid Lambda payload in event",

@@ -83,7 +83,10 @@ export interface BaseWorkerPayload {
   /** Platform API base URL used for callbacks/bootstrap requests */
   platformApiUrl?: string;
   agent?: string;
-  repository: string;
+  /** The repository a Git run clones; absent on a Files run. */
+  repository?: string;
+  /** A Files run: the space's saved files to start from and where its own go. Absent on a Git run. */
+  files?: FilesWorkspacePayload;
   task: string;
   branch?: string;
   baseBranch?: string;
@@ -242,7 +245,10 @@ export interface CodingJobData {
   id: string;
   jobKind: JobKind;
   tenantId: string;
-  repository: string;
+  /** The repository a Git run clones; absent on a Files run. */
+  repository?: string;
+  /** A Files run's space files; absent on a Git run. */
+  files?: FilesWorkspacePayload;
   task: string;
   branch?: string;
   baseBranch?: string;
@@ -296,6 +302,8 @@ export interface JobResult {
   commitHash?: string;
   /** S3 URL of the uploaded conversation state archive (for session turns) */
   conversationStateUrl?: string;
+  /** A Files run's saved files, as the platform accepted them. */
+  filesSnapshot?: FilesCheckpointResult;
   /**
    * Execution half of the run manifest, sent with the result callback.
    *
@@ -305,7 +313,7 @@ export interface JobResult {
    */
   runManifest?: ExecutionManifest;
 }
-import type { CredentialRequest, JobKind, TaskTurnAction, WorkerMcpServer, WorkerSkill } from "@viberglass/types";
+import type { CredentialRequest, FilesCheckpointResult, FilesWorkspacePayload, JobKind, TaskTurnAction, WorkerMcpServer, WorkerSkill } from "@viberglass/types";
 import type { AcpContextUsage, AcpSessionStart } from "@viberglass/agent-core";
 import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";

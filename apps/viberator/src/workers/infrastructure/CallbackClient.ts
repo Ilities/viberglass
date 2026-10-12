@@ -1,8 +1,9 @@
 import { Logger } from "winston";
 import { TurnCallbackClient } from "./TurnCallbackClient";
 import { RepositoryCallbackClient } from "./RepositoryCallbackClient";
+import { FilesCallbackClient } from "./FilesCallbackClient";
 import type { ExecutionManifest } from "@viberglass/telemetry";
-import type { SkillFile } from "@viberglass/types";
+import type { FilesCheckpointResult, SkillFile } from "@viberglass/types";
 import {
   FetchRetryConfig,
   fetchWithRetry,
@@ -29,6 +30,8 @@ export interface CallbackResult {
   changedFiles: string[];
   executionTime: number;
   branch?: string;
+  /** A Files run's saved files. */
+  filesSnapshot?: FilesCheckpointResult;
   /**
    * Execution half of the run manifest.
    *
@@ -40,10 +43,11 @@ export interface CallbackResult {
   runManifest?: ExecutionManifest;
 }
 
-/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`, a repository's on `repository`. */
+/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`, a repository's on `repository`, a Files space's on `files`. */
 export class CallbackClient {
   readonly turn: TurnCallbackClient;
   readonly repository: RepositoryCallbackClient;
+  readonly files: FilesCallbackClient;
   private apiUrl: string;
   private maxRetries: number;
   private retryDelay: number;
@@ -73,6 +77,7 @@ export class CallbackClient {
     };
     this.turn = new TurnCallbackClient(logger, target);
     this.repository = new RepositoryCallbackClient(target);
+    this.files = new FilesCallbackClient(target);
   }
 
   async sendResult(

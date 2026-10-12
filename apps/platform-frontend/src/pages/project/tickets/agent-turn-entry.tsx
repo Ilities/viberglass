@@ -7,7 +7,7 @@ import { cancelJob, type JobListItem } from '@/service/api/job-api'
 import { formatJobStatus } from '@/data'
 import { formatRunDuration } from '../jobs/run-facts'
 import { CheckCircledIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
-import type { TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
+import type { SpaceFilesSnapshotSummary, TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -63,6 +63,16 @@ export function resultLine(produced: TaskTurnProduct[]): string | null {
   return `${[first, ...more.map((line) => line.replace(/^Wrote /, '').replace(/^Pushed /, 'pushed '))].join(', ')}.`
 }
 
+const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
+
+/** What a Files turn saved: "Saved files · 2 added, 1 changed · 14 files", or that it changed nothing. */
+export function filesLine(files: SpaceFilesSnapshotSummary): string {
+  const { added, changed, removed } = files.changes
+  const counts = [added && `${added} added`, changed && `${changed} changed`, removed && `${removed} removed`].filter(Boolean)
+  const lead = files.partial ? 'Saved partial files after the run failed' : 'Saved files'
+  return [lead, counts.length > 0 ? counts.join(', ') : 'no changes', plural(files.fileCount, 'file')].join(' · ')
+}
+
 /** What a stopped turn kept, in a sentence. */
 function keptWork(produced: TaskTurnProduct[]): string {
   return joinNames(produced.map((product) => KEPT[product]))
@@ -97,10 +107,12 @@ interface AgentTurnEntryProps {
   summaryVersion?: number
   /** Trying a failed turn again, shown with its failure. */
   retry?: React.ReactNode
+  /** In a Files space a run can wait for another to save the space's files before it starts. */
+  filesSpace?: boolean
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnEntryProps) {
+export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace = false }: AgentTurnEntryProps) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
@@ -142,7 +154,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnE
       {working && (
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-[var(--gray-11)]">
-            Working on it…{' '}
+            {filesSpace && run?.status === 'queued' ? 'Waiting for another run to save this space’s files…' : 'Working on it…'}{' '}
             {runLink && (
               <Link href={runLink} className="underline">
                 Live log
@@ -180,6 +192,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry }: AgentTurnE
           {expanded ? 'Show less' : result ? 'Show what it said' : 'Show the whole reply'}
         </button>
       )}
+      {outcome?.files && <p className="text-xs text-[var(--gray-10)]">{filesLine(outcome.files)}</p>}
       {outcome?.mentioned && outcome.mentioned.length > 0 && (
         <p className="text-xs text-[var(--gray-10)]">
           Asked{' '}

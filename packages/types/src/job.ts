@@ -40,6 +40,10 @@ export const JOB_FAILURE_CODE = {
   AGENT_NO_DOCUMENT: 'AGENT_NO_DOCUMENT',
   /** The agent finished execution without changing any code. */
   AGENT_NO_CHANGES: 'AGENT_NO_CHANGES',
+  /** A Files run couldn't restore the space's saved files, so the agent didn't start. */
+  FILES_RESTORE_FAILED: 'FILES_RESTORE_FAILED',
+  /** A Files run couldn't save the agent's files, so they weren't kept. */
+  FILES_SAVE_FAILED: 'FILES_SAVE_FAILED',
   /** No worker could be started for the run. */
   RUNNER_UNAVAILABLE: 'RUNNER_UNAVAILABLE',
   /** The worker stopped reporting and was given up on. */

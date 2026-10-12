@@ -76,7 +76,7 @@ export interface SetupStatus {
   repositoryConnected: boolean
   space: Pick<CreatedSpace, 'projectId' | 'name' | 'slug' | 'backingKind' | 'repositoryUrl'> | null
   agent: { clankerId: string; agentName: string; status: ClankerStatus; statusMessage: string | null } | null
-  /** Space setup is complete; Files execution can remain unavailable. */
+  /** A space exists and a runner can work on it; setup has nothing left to ask. */
   complete: boolean
   /** Set while the demo workspace is loaded. */
   demo: DemoWorkspace | null

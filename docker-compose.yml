@@ -33,8 +33,36 @@ volumes:
     name: viberglass-langfuse-clickhouse-logs
   langfuse-minio-data:
     name: viberglass-langfuse-minio-data
+  storage-data:
+    name: viberglass-storage-data
 
 services:
+  # S3-compatible storage for Files spaces, ticket media and plan documents.
+  storage:
+    # Not docker.io/minio/minio — that repo 404s.
+    image: cgr.dev/chainguard/minio
+    container_name: viberglass-dev-storage
+    entrypoint: sh
+    # Creates the bucket on first boot.
+    command: -c 'mkdir -p /data/viberglass-dev && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: viberglass
+      MINIO_ROOT_PASSWORD: viberglass-dev-storage
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    volumes:
+      - storage-data:/data
+    networks:
+      - viberglass-dev-network
+    restart: unless-stopped
+
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
@@ -86,6 +114,16 @@ services:
       WEBHOOK_SECRET_ENCRYPTION_KEY: 'very-berry-webhook-key'
       SESSION_STATE_ROOT: ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}/session-state
       PLATFORM_FRONTEND_URL: http://localhost:3000
+      # Object storage (the `storage` service). Browsers reach it on localhost; Docker
+      # workers run on a bridge network, so they reach it through the host.
+      S3_BUCKET: viberglass-dev
+      S3_ENDPOINT: http://storage:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      S3_WORKER_ENDPOINT: http://host.docker.internal:9000
+      S3_FORCE_PATH_STYLE: "true"
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: viberglass
+      S3_SECRET_ACCESS_KEY: viberglass-dev-storage
       # Email (invite links, notifications). Empty means unset: nothing is emailed.
       # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
       EMAIL_FROM: ${EMAIL_FROM:-}
@@ -141,6 +179,8 @@ services:
       - ./package-lock.json:/app/package-lock.json:cached
     depends_on:
       postgres:
+        condition: service_healthy
+      storage:
         condition: service_healthy
     networks:
       - viberglass-dev-network

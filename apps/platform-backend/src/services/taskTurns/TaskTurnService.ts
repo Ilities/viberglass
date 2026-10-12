@@ -90,7 +90,7 @@ export class TaskTurnService {
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
     await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
-    await this.deps.execution.assertAvailable(ticket.projectId);
+    await this.deps.execution.assertAvailable(ticket.projectId, action);
     const adding = action === "code" && Boolean(input.add);
     const buildParts = action === "code" ? await this.deps.parts.resolveBuild(ticket, input.parts ?? null, { add: adding }) : null;
     const text =

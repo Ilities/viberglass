@@ -131,7 +131,7 @@ export type ProjectReadinessCode =
 
 export interface ProjectReadinessCheck {
   /** `demo`: the demo workspace's space, which is sample data and never runs. */
-  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials' | 'demo' | 'storage' | 'filesExecution'
+  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials' | 'demo' | 'storage'
   label: string
   state: ProjectReadinessState
   code?: ProjectReadinessCode

@@ -20,6 +20,11 @@ import { TicketMediaExecutionService } from "../TicketMediaExecutionService";
 import { buildBootstrapPayload, buildScmPayloadFromContext, prepareTicketRunContext } from "../ticketRunOrchestration";
 import type { TurnPrompts } from "./TaskTurnPromptBuilder";
 import { TURN_JOB_KIND } from "./turnActions";
+import { JOB_FAILURE_CODE, type Clanker, type Project } from "@viberglass/types";
+import { JobLaunchDAO, type QueuedJobRecord } from "../../persistence/job/JobLaunchDAO";
+import type { SpaceFileRun } from "../../persistence/spaceFiles/SpaceFilesDAO";
+import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
 
 export interface DispatchTurnInput {
   session: AgentSession;
@@ -62,6 +67,11 @@ function jobDataFor(action: TaskTurnAction, base: Omit<BaseJobData, "jobKind">, 
   }
 }
 
+/** A Files run gets no repository, branch or SCM credential: its files come from the space. */
+function withoutRepository(bootstrap: Record<string, unknown>): void {
+  for (const key of ["repository", "branch", "baseBranch", "scm", "taskBranch", "lastAgentCommit"]) delete bootstrap[key];
+}
+
 /** Submits a turn's job and starts its worker. The worker clones the repository and runs one ACP turn. */
 export class TaskTurnJobDispatcher {
   private readonly runContextDeps = {
@@ -81,6 +91,10 @@ export class TaskTurnJobDispatcher {
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
     private readonly media: Pick<TicketMediaExecutionService, "prepareForExecution"> = new TicketMediaExecutionService(),
     private readonly branches: Pick<TaskBranchNamer, "nameFor" | "existing"> = new TaskBranchNamer(),
+    private readonly spaceFiles: Pick<SpaceFilesRunService, "enqueue" | "payloadFor"> = spaceFilesRuns,
+    private readonly launches: Pick<JobLaunchDAO, "getQueued"> = new JobLaunchDAO(),
+    private readonly tickets: Pick<TicketDAO, "getTicket"> = new TicketDAO(),
+    private readonly failures: Pick<JobService, "updateJobStatus"> = new JobService(),
   ) {}
 
   /**
@@ -94,9 +108,10 @@ export class TaskTurnJobDispatcher {
     const { session, ticket, action, prompts } = input;
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const prepared = await prepareTicketRunContext(
-      { projectId: session.projectId, clankerId: session.clankerId, jobId },
+      { projectId: session.projectId, clankerId: session.clankerId, jobId, allowFiles: true },
       this.runContextDeps,
     );
+    const files = prepared.project.backingKind === "files";
     const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker);
     const { acpSessionId, conversationStateUrl } = resumeState(session.metadataJson);
     // A first turn starts cold for certain; a later one only if the harness can't resume.
@@ -109,9 +124,9 @@ export class TaskTurnJobDispatcher {
         tenantId: "api-server",
         repository: prepared.sourceRepository,
         task,
-        baseBranch: prepared.baseBranch,
+        ...(files ? {} : { baseBranch: prepared.baseBranch }),
         settings: { testRequired: false, maxChanges: action === "code" ? 10 : 1 },
-        scm: buildScmPayloadFromContext(prepared),
+        scm: files ? null : buildScmPayloadFromContext(prepared),
         ...(ticketMedia.mounts.length > 0 ? { mounts: ticketMedia.mounts } : {}),
         timestamp: Date.now(),
       },
@@ -129,7 +144,7 @@ export class TaskTurnJobDispatcher {
 
     const submitted = await this.jobService.submitJob(jobData, { ticketId: ticket.id, clankerId: session.clankerId });
     jobData.callbackToken = submitted.callbackToken;
-    const bootstrap = {
+    const bootstrap: Record<string, unknown> = {
       ...buildBootstrapPayload({
         workerType: prepared.workerType,
         jobKind: jobData.jobKind,
@@ -157,30 +172,90 @@ export class TaskTurnJobDispatcher {
       allowCode: input.allowCode,
       acpSessionId,
       conversationStateUrl,
-      lastAgentCommit: input.lastAgentCommit,
-      // A build names its pull request's branch; other turns read the code on the latest one, if there's one.
-      taskBranch:
-        action === "code"
-          ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? null)
-          : ((await this.branches.existing(ticket.id)) ?? undefined),
+      ...(files
+        ? {}
+        : {
+            lastAgentCommit: input.lastAgentCommit,
+            // A build names its pull request's branch; other turns read the code on the latest one, if there's one.
+            taskBranch:
+              action === "code"
+                ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? null)
+                : ((await this.branches.existing(ticket.id)) ?? undefined),
+          }),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };
+    // A Files run works on the space's files, not a repository.
+    if (files) withoutRepository(bootstrap);
     jobData.bootstrapPayload = bootstrap;
     await this.bootstraps.saveBootstrapPayload(jobId, bootstrap);
     await onSubmitted({ id: jobId, prompt: task });
 
+    if (files) {
+      // One run at a time changes a space's files; this one may wait for another to save.
+      const run = await this.spaceFiles.enqueue(jobId, prepared.project.id);
+      if (!run) return { id: jobId, status: "queued" };
+      bootstrap.files = this.spaceFiles.payloadFor(run);
+      await this.bootstraps.saveBootstrapPayload(jobId, bootstrap);
+    }
+    this.invoke(jobData, prepared.executionClanker, prepared.project, session.id);
+    return { id: jobId, status: "pending" };
+  }
+
+  /** Starts the worker of a Files run that waited for its space, from what was saved when it was submitted. */
+  async launchWaiting(run: SpaceFileRun): Promise<void> {
+    const job = await this.launches.getQueued(run.jobId);
+    if (!job?.clankerId) throw new Error(`Job ${run.jobId} can no longer start`);
+    try {
+      await this.startWaiting(run, job as QueuedJobRecord & { clankerId: string });
+    } catch (error) {
+      // A run that can't start fails, so its turn ends and the space moves on.
+      await this.failures.updateJobStatus(job.id, "failed", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        failureCode: JOB_FAILURE_CODE.RUNNER_UNAVAILABLE,
+      });
+      throw error;
+    }
+  }
+
+  private async startWaiting(run: SpaceFileRun, job: QueuedJobRecord & { clankerId: string }): Promise<void> {
+    const prepared = await prepareTicketRunContext(
+      { projectId: run.projectId, clankerId: job.clankerId, jobId: job.id, allowFiles: true },
+      this.runContextDeps,
+    );
+    const ticket = job.ticketId ? await this.tickets.getTicket(job.ticketId) : null;
+    if (!ticket) throw new Error(`Job ${run.jobId} has no task to run`);
+    const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker);
+    const bootstrap: Record<string, unknown> = { ...job.bootstrapPayload, files: this.spaceFiles.payloadFor(run) };
+    await this.bootstraps.saveBootstrapPayload(job.id, bootstrap);
+    const jobData = {
+      id: job.id,
+      jobKind: job.jobKind,
+      tenantId: job.tenantId,
+      repository: "",
+      task: job.task,
+      settings: job.settings,
+      context: job.context,
+      scm: null,
+      ...(ticketMedia.mounts.length > 0 ? { mounts: ticketMedia.mounts } : {}),
+      timestamp: Date.now(),
+      callbackToken: job.callbackToken,
+      bootstrapPayload: bootstrap,
+    } as unknown as JobData;
+    this.invoke(jobData, prepared.executionClanker, prepared.project, String(bootstrap.agentSessionId ?? ""));
+  }
+
+  private invoke(jobData: JobData, clanker: Clanker, project: Project, sessionId: string): void {
+    const jobId = jobData.id;
     this.workers
-      .executeJob(jobData, prepared.executionClanker, prepared.project)
-      .then((result) => logger.info("Task turn worker invoked", { sessionId: session.id, jobId, executionId: result.executionId }))
+      .executeJob(jobData, clanker, project)
+      .then((result) => logger.info("Task turn worker invoked", { sessionId, jobId, executionId: result.executionId }))
       .catch((error: unknown) =>
         logger.error("Task turn worker invocation failed", {
-          sessionId: session.id,
+          sessionId,
           jobId,
           error: error instanceof Error ? error.message : String(error),
         }),
       );
-
-    return { id: jobId, status: "pending" };
   }
 }

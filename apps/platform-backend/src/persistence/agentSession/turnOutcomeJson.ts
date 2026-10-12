@@ -1,4 +1,4 @@
-import { isObjectRecord, type TaskTurnOutcome, type TaskTurnProduct } from "@viberglass/types";
+import { isObjectRecord, type SpaceFilesSnapshotSummary, type TaskTurnOutcome, type TaskTurnProduct } from "@viberglass/types";
 import type { JsonValue } from "../types/database";
 
 const PRODUCTS: readonly TaskTurnProduct[] = ["plan", "code", "summary"];
@@ -11,6 +11,7 @@ export function outcomeOf(json: JsonValue | null): TaskTurnOutcome | null {
     intent: typeof json.intent === "string" ? json.intent : null,
     reply: json.reply,
     produced: PRODUCTS.filter((product) => produced.includes(product)),
+    ...(isObjectRecord(json.files) ? { files: filesOf(json.files) } : {}),
     codeDiscarded: json.codeDiscarded === true,
     resumed: typeof json.resumed === "boolean" ? json.resumed : null,
     mentioned: Array.isArray(json.mentioned) ? json.mentioned.filter(isPerson) : [],
@@ -18,6 +19,24 @@ export function outcomeOf(json: JsonValue | null): TaskTurnOutcome | null {
     compacted: json.compacted === true,
     commit: typeof json.commit === "string" ? json.commit : null,
     stoppedPartway: json.stoppedPartway === true,
+  };
+}
+
+function count(value: JsonValue | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+/** What a Files turn saved, as TaskTurnOutcomeService stored it. */
+function filesOf(json: { [key: string]: JsonValue | undefined }): SpaceFilesSnapshotSummary {
+  const changes = isObjectRecord(json.changes) ? json.changes : {};
+  return {
+    id: typeof json.id === "string" ? json.id : "",
+    parentId: typeof json.parentId === "string" ? json.parentId : null,
+    fileCount: count(json.fileCount),
+    totalBytes: count(json.totalBytes),
+    partial: json.partial === true,
+    changes: { added: count(changes.added), changed: count(changes.changed), removed: count(changes.removed) },
+    createdAt: typeof json.createdAt === "string" ? json.createdAt : "",
   };
 }
 

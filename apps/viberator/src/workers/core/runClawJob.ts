@@ -27,7 +27,11 @@ export async function runClawJob(
 ): Promise<JobResult> {
   return withJobLifecycle(params, "Claw job", async () => {
     const { data, gitService, sendProgress } = params;
-    const { id, repository, task, context, scm } = data;
+    const { id, task, context, scm } = data;
+    // Scheduled jobs build pull requests; a Files space's files aren't saved by this path.
+    if (data.files) throw new Error("Scheduled jobs can't run in a Files space yet");
+    if (!data.repository) throw new Error("A scheduled job needs a repository");
+    const repository = data.repository;
 
     const setup = await setupJob(params, "claw");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;

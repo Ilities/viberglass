@@ -33,6 +33,8 @@ import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
 import { chatBot } from "../chat";
 import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
+import { spaceFilesRuns } from "../services/spaceFiles/SpaceFilesRunService";
+import { TaskTurnJobDispatcher } from "../services/taskTurns/TaskTurnJobDispatcher";
 
 // Load environment variables
 dotenv.config();
@@ -84,6 +86,10 @@ const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
 // A failed run ends its turn, and a setup failure pauses the task's agent until someone retries.
 registerActivityListener(new RunFailureHandler());
 
+// A Files run that waited for its space starts the same way a turn's worker does.
+const turnDispatcher = new TaskTurnJobDispatcher();
+spaceFilesRuns.setLauncher((run) => turnDispatcher.launchWaiting(run));
+
 const questionReminders = new QuestionReminderService();
 const credentialExpiry = new CredentialExpiryWarner();
 const periodicSweepers = shouldRunBackgroundSweepers
@@ -92,6 +98,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         "question reminders",
         (now) => questionReminders.remindDue(now),
         parseInt(process.env.QUESTION_REMINDER_SWEEP_INTERVAL_MS || "300000", 10),
+      ),
+      new PeriodicSweeper(
+        "Files space runs",
+        () => spaceFilesRuns.sweep(),
+        parseInt(process.env.SPACE_FILES_SWEEP_INTERVAL_MS || "60000", 10),
       ),
       new PeriodicSweeper(
         "credential expiry warnings",

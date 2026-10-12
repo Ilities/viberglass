@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { createLogger, transports } from "winston";
-import { InstructionFileManager } from "./InstructionFileManager";
+import { InstructionFileManager, unmaterialize } from "./InstructionFileManager";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import type { KubernetesPayload } from "../core/types";
 import { JOB_KIND } from "@viberglass/types";
@@ -51,6 +51,34 @@ describe("InstructionFileManager.materialize", () => {
       );
       expect(excludeFile).toContain("agents/AGENTS.md");
       expect(excludeFile).toContain("outside.txt");
+    } finally {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("InstructionFileManager.materialize in a Files workspace", () => {
+  test("writes without a repository and reports what to put back", async () => {
+    const logger = createLogger({ level: "error", transports: [new transports.Console({ silent: true })] });
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "instruction-file-manager-files-"));
+    try {
+      fs.writeFileSync(path.join(repoDir, "CLAUDE.md"), "the space's own notes");
+
+      const written = await new InstructionFileManager(logger).materialize(
+        repoDir,
+        new Map([
+          ["AGENTS.md", "platform instructions"],
+          ["CLAUDE.md", "platform claude instructions"],
+        ]),
+      );
+
+      expect(fs.readFileSync(path.join(repoDir, "agents", "AGENTS.md"), "utf-8")).toBe("platform instructions");
+      expect(fs.readFileSync(path.join(repoDir, "CLAUDE.md"), "utf-8")).toBe("platform claude instructions");
+
+      await unmaterialize(written);
+
+      expect(fs.readdirSync(repoDir)).toEqual(["CLAUDE.md"]);
+      expect(fs.readFileSync(path.join(repoDir, "CLAUDE.md"), "utf-8")).toBe("the space's own notes");
     } finally {
       fs.rmSync(repoDir, { recursive: true, force: true });
     }

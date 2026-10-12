@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/115_plan_part_marks";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/120_files_turn_prompt";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -149,6 +149,16 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).toContain("Change the code as needed.");
     expect(prompt).not.toContain("code changes are thrown away");
     expect(prompt).not.toContain("This build is");
+  });
+
+  it("tells an agent in a Files space that its file changes are kept, not thrown away", async () => {
+    const files = await builder.build("p", context(), "reply", false, true);
+    expect(files.prompt).toContain("Your working directory holds this space's shared files, not a repository.");
+    expect(files.prompt).not.toContain("code changes are thrown away");
+
+    const git = await builder.build("p", context(), "reply", false);
+    expect(git.prompt).toContain("code changes are thrown away");
+    expect(git.prompt).not.toContain("shared files");
   });
 
   it("tells a build of some parts to build only those, in a pull request of its own", async () => {

@@ -53,6 +53,8 @@ interface TaskThreadProps {
   onAsked: () => void
   /** Run status and duration shown beneath the turn that started it. */
   runs?: JobListItem[]
+  /** Whether the task's space is backed by files rather than a repository. */
+  filesSpace?: boolean
 }
 
 /** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
@@ -74,6 +76,7 @@ export function TaskThread({
   clankers = [],
   onAsked,
   runs = [],
+  filesSpace = false,
 }: TaskThreadProps) {
   const { user } = useAuth()
   const personName = usePersonName()
@@ -142,6 +145,7 @@ export function TaskThread({
         key={entry.id}
         entry={entry}
         run={runs.find((run) => run.jobId === entry.jobId)}
+        filesSpace={filesSpace}
         summaryVersion={summaries.versionByTurn.get(entry.id)}
         retry={retry && entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />}
       />

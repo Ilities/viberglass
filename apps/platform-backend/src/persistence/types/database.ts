@@ -1,5 +1,5 @@
-import type { ColumnType } from "kysely";
-import type { IntegrationCredentialType, SpaceBackingKind, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
+import type { ColumnType, RawBuilder } from "kysely";
+import type { IntegrationCredentialType, SpaceBackingKind, SpaceFilesManifestEntry, SpaceFilesSnapshotSummary, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
 import type {
   AgentPendingRequestStatus,
   AgentPendingRequestType,
@@ -776,7 +776,50 @@ export interface ApiTokensTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface SpaceFileSnapshotsTable {
+  id: string;
+  project_id: string;
+  parent_snapshot_id: string | null;
+  job_id: string | null;
+  created_by: string | null;
+  storage_url: string;
+  archive_sha256: string;
+  archive_bytes: ColumnType<string, number, number>;
+  file_count: number;
+  total_bytes: ColumnType<string, number, number>;
+  manifest: ColumnType<SpaceFilesManifestEntry[], string, string>;
+  changes: ColumnType<SpaceFilesSnapshotSummary["changes"], string, string>;
+  partial: Generated<boolean>;
+  created_at: Generated<Date>;
+}
+
+export interface SpaceFileStateTable {
+  project_id: string;
+  current_snapshot_id: string | null;
+  lease_job_id: string | null;
+  lease_token: ColumnType<string, number | undefined, number | RawBuilder<unknown>>;
+  lease_expires_at: Date | null;
+  updated_at: Generated<Date>;
+}
+
+export type SpaceFileRunStatus = "waiting" | "running" | "saved" | "released";
+
+export interface SpaceFileRunsTable {
+  job_id: string;
+  project_id: string;
+  status: SpaceFileRunStatus;
+  base_snapshot_id: string | null;
+  checkpoint_snapshot_id: string;
+  lease_token: ColumnType<string | null, number | string | null | undefined, number | string | null>;
+  created_at: Generated<Date>;
+  started_at: Date | null;
+  finished_at: Date | null;
+}
+
 export interface Database {
+  space_file_snapshots: SpaceFileSnapshotsTable;
+  space_file_state: SpaceFileStateTable;
+  space_file_runs: SpaceFileRunsTable;
   user_chat_identities: UserChatIdentitiesTable;
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;

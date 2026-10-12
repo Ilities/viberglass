@@ -28,6 +28,8 @@ import { registerSkillCallbackRoute } from "./jobs/skillCallbackRoute";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { RunRecordDAO } from "../../persistence/job/RunRecordDAO";
 import { RunRecordService } from "../../services/runRecords/RunRecordService";
+import { spaceFilesRuns } from "../../services/spaceFiles/SpaceFilesRunService";
+import { registerFilesWorkerRoutes } from "./jobs/filesWorkerRoutes";
 
 const router = Router();
 // Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
@@ -228,6 +230,7 @@ router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
 const workerStorage = new WorkerStorageService(new JobBootstrapService(), signWorkerStorageUrl);
 registerJobWorkerCallbackRoutes(router, workerStorage);
 registerWorkerStorageRoute(router, workerStorage);
+registerFilesWorkerRoutes(router, spaceFilesRuns);
 registerJobResultRoute(router);
 registerAgentLoginRoute(router);
 registerQuestionCallbackRoute(router);

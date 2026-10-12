@@ -13,6 +13,8 @@ import { configuredWorkerStoppers } from "../../workers/configuredWorkerStoppers
 import { WorkerStopperChain } from "../../workers/WorkerStopperChain";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
+import { releaseSpaceFiles } from "../spaceFiles/releaseSpaceFiles";
+import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
 
 interface TicketStatusSynchronizer {
   synchronize(ticketId: string): Promise<unknown>;
@@ -23,6 +25,8 @@ export type CancelJobResult = "cancelled" | "already_cancelled" | "terminal" | "
 const logger = createChildLogger({ service: "JobCancellationService" });
 
 export class JobCancellationService {
+  private readonly spaceFiles: Pick<SpaceFilesRunService, "release"> = spaceFilesRuns;
+
   constructor(
     private readonly sessionDAO = new AgentSessionDAO(),
     private readonly turnDAO = new AgentTurnDAO(),
@@ -73,6 +77,7 @@ export class JobCancellationService {
       .where("status", "in", ["queued", "active"])
       .execute();
 
+    await releaseSpaceFiles(this.spaceFiles, jobId);
     await beforeWorkerStops?.();
     await new WorkerStopperChain(this.workerStoppers).stop(jobId, "cancelled");
     if (job.ticket_id) await this.synchronizeTicketStatus(job.ticket_id);

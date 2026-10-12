@@ -12,6 +12,8 @@ import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { documentsAskedFor } from "./documentsAskedFor";
 
 /** What the worker reports a turn produced. */
+import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
+
 export interface TurnResult {
   success: boolean;
   documents?: { plan?: string; summary?: string };
@@ -61,6 +63,7 @@ interface Dependencies {
   participants: Pick<TaskParticipantDAO, "list">;
   mentions: Pick<TaskMentionDAO, "createForTurn">;
   summaries: Pick<TaskSummaryDAO, "create">;
+  files: Pick<SpaceFilesRunService, "summaryForJob">;
 }
 
 /**
@@ -80,6 +83,7 @@ export class TaskTurnOutcomeService {
       participants: new TaskParticipantDAO(),
       mentions: new TaskMentionDAO(),
       summaries: new TaskSummaryDAO(),
+      files: spaceFilesRuns,
       ...deps,
     };
   }
@@ -115,10 +119,13 @@ export class TaskTurnOutcomeService {
       .filter(Boolean)
       .join("\n\n");
     const mentioned = steps.length > 0 ? await this.reviewersOf(session.ticketId) : [];
+    // A Files run saves its files before it reports, even when the agent failed partway.
+    const files = await this.deps.files.summaryForJob(jobId);
     const outcome: TaskTurnOutcome = {
       intent: intentOf(reply),
       reply,
       produced,
+      ...(files ? { files } : {}),
       codeDiscarded: result.codeDiscarded ?? false,
       resumed: result.resumed ?? null,
       mentioned,

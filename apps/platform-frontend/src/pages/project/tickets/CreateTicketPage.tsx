@@ -78,7 +78,7 @@ export function CreateTicketPage() {
 
       <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
         {projectData?.backingKind === 'files'
-          ? 'Describe the document, presentation or other artifact you want to create. You can discuss the task now; agent runs are coming soon.'
+          ? 'Describe the document, presentation or other artifact you want. Once the task is created, ask the agent in the conversation; it works in the space’s shared files.'
           : 'Once the task is created, choose Write the plan to have an agent read the codebase and write what it found and what it would change.'}
       </p>
 

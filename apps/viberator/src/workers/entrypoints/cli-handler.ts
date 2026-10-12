@@ -195,8 +195,8 @@ async function main() {
     if (!payload.tenantId) {
       throw new Error("Missing required field: tenantId");
     }
-    if (!payload.repository) {
-      throw new Error("Missing required field: repository");
+    if (!payload.repository && !payload.files) {
+      throw new Error("Missing required field: repository (or files, for a Files space)");
     }
     if (!payload.task) {
       throw new Error("Missing required field: task");
@@ -228,6 +228,7 @@ async function main() {
           jobKind: payload.jobKind,
           tenantId: payload.tenantId,
           repository: payload.repository,
+          files: payload.files,
           task: payload.task,
           branch: payload.branch,
           baseBranch: payload.baseBranch,

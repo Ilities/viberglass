@@ -18,6 +18,8 @@ import {
 import { describeJobFailure } from "./job/describeJobFailure";
 import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 import { currentActorId } from "../api/auth/requestActor";
+import { releaseSpaceFiles } from "./spaceFiles/releaseSpaceFiles";
+import { spaceFilesRuns, type SpaceFilesRunService } from "./spaceFiles/SpaceFilesRunService";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -39,6 +41,7 @@ export class JobService {
   private lifecycleStatusService: TicketLifecycleStatusService;
   private readonly activity = new TaskActivityRecorder();
   private readonly pullRequests = new TaskPullRequestDAO();
+  private readonly spaceFiles: Pick<SpaceFilesRunService, "release"> = spaceFilesRuns;
 
   constructor() {
     this.ticketDAO = new TicketDAO();
@@ -173,6 +176,10 @@ export class JobService {
     if (updated.numUpdatedRows === 0n) return false;
 
     logger.info("Job status updated", { jobId, status, ...updates });
+
+    if (status === "completed" || status === "failed" || status === "cancelled") {
+      await releaseSpaceFiles(this.spaceFiles, jobId);
+    }
 
     if (status === "active" || status === "completed" || status === "failed") {
       const job = await db

@@ -27,13 +27,11 @@ export function SetupFrame({
   title,
   intro,
   children,
-  files = false,
 }: {
   step: number
   title: string
   intro: React.ReactNode
   children: React.ReactNode
-  files?: boolean
 }) {
   return (
     <div className="w-full">
@@ -43,7 +41,7 @@ export function SetupFrame({
         description="Connect a model, choose how to store your work, and name your space."
       />
       <ol aria-label="Setup steps" className="mb-7 flex flex-wrap gap-2 text-xs text-[var(--gray-10)]">
-        {(files ? STEPS.slice(0, 3) : STEPS).map((name, index) => (
+        {STEPS.map((name, index) => (
           <li
             key={name}
             aria-current={index + 1 === step ? 'step' : undefined}

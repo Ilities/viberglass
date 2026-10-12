@@ -95,9 +95,9 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
 }
 
 describe("SetupStatusService", () => {
-  it("recognizes Files setup as complete without a repository or running agent", async () => {
-    const status = await service({ files: true }).getStatus();
-    expect(status).toMatchObject({ complete: true, repositoryConnected: false, agent: null, space: { backingKind: "files", repositoryUrl: null } });
+  it("needs a running agent for a Files space too, but no repository", async () => {
+    expect(await service({ files: true }).getStatus()).toMatchObject({ complete: false, repositoryConnected: false, space: { backingKind: "files", repositoryUrl: null } });
+    expect(await service({ files: true, agent: "active" }).getStatus()).toMatchObject({ complete: true, repositoryConnected: false, space: { backingKind: "files" } });
   });
   it("resumes the Git space when a newer Files space also exists", async () => {
     const status = await service({ files: true, space: true }).getStatus();

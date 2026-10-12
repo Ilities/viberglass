@@ -66,6 +66,18 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "agent",
     retryable: true,
   },
+  [JOB_FAILURE_CODE.FILES_RESTORE_FAILED]: {
+    title: "Files couldn't be restored",
+    summary: "The run couldn't load the space's saved files, so the agent didn't start. The saved files are unchanged.",
+    category: "platform",
+    retryable: true,
+  },
+  [JOB_FAILURE_CODE.FILES_SAVE_FAILED]: {
+    title: "Files weren't saved",
+    summary: "The run couldn't save the agent's files, so the space keeps its earlier files.",
+    category: "platform",
+    retryable: true,
+  },
   [JOB_FAILURE_CODE.RUNNER_UNAVAILABLE]: {
     title: "Agent couldn't start",
     summary: "No agent runner could be started for this run.",

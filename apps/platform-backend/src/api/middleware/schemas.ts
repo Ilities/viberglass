@@ -307,6 +307,8 @@ export const resultCallbackSchema = Joi.object({
   branch: Joi.string().optional(),
   conversationStateUrl: Joi.string().uri().allow(null, "").optional(),
   runManifest: runManifestSchema.optional(),
+  // What a Files run saved, as the checkpoint answered; the saved snapshot itself is what counts.
+  filesSnapshot: Joi.object().unknown(true).optional(),
 });
 
 // Progress update schema for worker progress reporting

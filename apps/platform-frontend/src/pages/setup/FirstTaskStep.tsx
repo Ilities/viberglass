@@ -11,20 +11,35 @@ import { useNavigate } from 'react-router-dom'
 import { SetupError, SetupFrame } from './SetupFrame'
 import { taskPath } from '@/lib/taskPath'
 
-const STARTER_TITLE = 'Explain how this codebase is organised'
-const STARTER_DESCRIPTION =
-  'Describe the main parts of this repository, how they fit together, and where a newcomer should start reading. Only read the code; change nothing.'
+/** A small first task for each backing: reading a repository, or writing a first file in a Files space. */
+const STARTERS = {
+  git: {
+    title: 'Explain how this codebase is organised',
+    description:
+      'Describe the main parts of this repository, how they fit together, and where a newcomer should start reading. Only read the code; change nothing.',
+    intro: 'Ask for something small. The agent reads your repository and writes a plan, with what it found, for you to review.',
+    note: "This starter only reads your code, so it's safe to try.",
+  },
+  files: {
+    title: 'Draft a one-page project brief',
+    description:
+      'Write BRIEF.md with the goals, audience and open questions for this space. Keep it to one page.',
+    intro: 'Ask for something small. The agent writes in the space’s files, which are kept for the next run and every task in the space.',
+    note: 'You can ask for changes in the task’s conversation afterwards.',
+  },
+} as const
 
 export function FirstTaskStep({
   space,
   clankerId,
 }: {
-  space: Pick<CreatedSpace, 'projectId' | 'slug'>
+  space: Pick<CreatedSpace, 'projectId' | 'slug' | 'backingKind'>
   clankerId: string
 }) {
   const navigate = useNavigate()
-  const [title, setTitle] = useState(STARTER_TITLE)
-  const [description, setDescription] = useState(STARTER_DESCRIPTION)
+  const starter = STARTERS[space.backingKind]
+  const [title, setTitle] = useState<string>(starter.title)
+  const [description, setDescription] = useState<string>(starter.description)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
 
@@ -47,7 +62,13 @@ export function FirstTaskStep({
         annotations: [],
         autoFixRequested: false,
       })
-      await askAgent(ticket.id, { action: 'plan', body: 'Write the plan', agentId: clankerId })
+      // In a Files space the work is the file itself, so the agent is asked directly rather than for a plan.
+      await askAgent(
+        ticket.id,
+        space.backingKind === 'files'
+          ? { action: 'reply', body: 'Please write this in the space’s files.', agentId: clankerId }
+          : { action: 'plan', body: 'Write the plan', agentId: clankerId }
+      )
       navigate(taskPath(space.slug, ticket))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start the task.")
@@ -59,7 +80,7 @@ export function FirstTaskStep({
     <SetupFrame
       step={5}
       title="Try your first task"
-      intro="Ask for something small. The agent reads your repository and writes a plan, with what it found, for you to review."
+      intro={starter.intro}
     >
       <form onSubmit={handleSubmit} className="grid gap-6">
         <SetupError message={error} />
@@ -75,7 +96,7 @@ export function FirstTaskStep({
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
-          <Description>This starter only reads your code, so it's safe to try.</Description>
+          <Description>{starter.note}</Description>
         </Field>
         <div>
           <Button type="submit" color="brand" disabled={isStarting || !title.trim() || !description.trim()}>

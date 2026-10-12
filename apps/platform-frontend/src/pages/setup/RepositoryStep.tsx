@@ -46,7 +46,6 @@ export function RepositoryStep({ onDone, onChooseFiles }: { onDone: (repository:
 
   return (
     <SetupFrame
-      files={backingKind === 'files'}
       step={2}
       title="Choose your space backing"
       intro="Use a repository for code, or Files for documents, presentations and other artifacts."

@@ -85,11 +85,11 @@ function setup() {
 }
 
 describe("TaskTurnService", () => {
-  it.each(["plan", "code", "reply", "summarise"] as const)("refuses unavailable Files %s turns before posting or scheduling work", async (action) => {
+  it("refuses a build in a Files space before posting or scheduling work", async () => {
     const { service, deps } = setup();
-    deps.execution.assertAvailable.mockRejectedValue(new TicketServiceError(TICKET_SERVICE_ERROR_CODE.FILES_EXECUTION_UNAVAILABLE, "Files runs are unavailable"));
-    await expect(service.ask("t-1", "maria", { message: "Make a presentation", action })).rejects.toMatchObject({ code: "FILES_EXECUTION_UNAVAILABLE", statusCode: 409 });
-    expect(deps.execution.assertAvailable).toHaveBeenCalledWith("p-1");
+    deps.execution.assertAvailable.mockRejectedValue(new TicketServiceError(TICKET_SERVICE_ERROR_CODE.FILES_BUILD_UNAVAILABLE, "Files spaces save files"));
+    await expect(service.ask("t-1", "maria", { message: "Make a presentation", action: "code" })).rejects.toMatchObject({ code: "FILES_BUILD_UNAVAILABLE", statusCode: 409 });
+    expect(deps.execution.assertAvailable).toHaveBeenCalledWith("p-1", "code");
     expect(deps.discussion.create).not.toHaveBeenCalled();
     expect(deps.sessions.create).not.toHaveBeenCalled();
     expect(deps.continuation.launchForPendingMessages).not.toHaveBeenCalled();
