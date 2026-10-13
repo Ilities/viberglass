@@ -17,6 +17,14 @@ data:
   S3_REGION: {{ .Values.storage.region | quote }}
   S3_BUCKET: {{ .Values.storage.bucket | quote }}
   S3_FORCE_PATH_STYLE: {{ .Values.storage.forcePathStyle | quote }}
+  {{- if .Values.storage.workerEndpoint }}
+  S3_WORKER_ENDPOINT: {{ .Values.storage.workerEndpoint | quote }}
+  {{- end }}
+  {{- if .Values.preview.publicUrl }}
+  {{- $_ := include "viberglass.previewHost" . }}
+  PREVIEW_PORT: "8890"
+  PREVIEW_PUBLIC_URL: {{ trimSuffix "/" .Values.preview.publicUrl | quote }}
+  {{- end }}
   KUBERNETES_WORKER_NAMESPACE: {{ include "viberglass.workersNamespace" . | quote }}
   {{- if .Values.workers.envSecret }}
   KUBERNETES_WORKER_ENV_SECRET: {{ .Values.workers.envSecret | quote }}

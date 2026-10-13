@@ -11,8 +11,8 @@ import { requireRunnerRole } from "../middleware/workspaceRoleGuards";
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: SPACE_UPLOAD_MAX_BYTES, files: 1 } }).single("file");
 
 const STATUS: Record<SpaceFileError["code"], number> = {
-  SPACE_BUSY: 409,
   FILE_CHANGED: 409,
+  CHANGE_NOT_FOUND: 404,
   FILE_NOT_FOUND: 404,
   INVALID_PATH: 400,
   NOT_TEXT: 409,
@@ -65,7 +65,7 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
     }
     try {
       const data = await files.saveText(req.params.projectId, userId(req), { path: body.path, content: body.content, baseSha256: body.baseSha256 });
-      return res.json({ success: true, data });
+      return res.status("queued" in data ? 202 : 200).json({ success: true, data });
     } catch (error) {
       return fail(res, error, "save the file");
     }
@@ -80,8 +80,8 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
       if (!req.file) return res.status(400).json({ error: "Upload one file as `file`." });
       try {
         const path = typeof req.body?.path === "string" && req.body.path.trim() ? req.body.path : req.file.originalname;
-        const snapshot = await files.upload(req.params.projectId, userId(req), path, req.file.buffer);
-        return res.status(201).json({ success: true, data: { snapshot } });
+        const data = await files.upload(req.params.projectId, userId(req), path, req.file.buffer);
+        return res.status("queued" in data ? 202 : 201).json({ success: true, data });
       } catch (error) {
         return fail(res, error, "upload the file");
       }
@@ -90,12 +90,36 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
 
   router.delete("/:projectId/files", validateUuidParam("projectId"), requireRunnerRole, async (req, res) => {
     try {
-      const snapshot = await files.remove(req.params.projectId, userId(req), req.query.path);
-      return res.json({ success: true, data: { snapshot } });
+      const data = await files.remove(req.params.projectId, userId(req), req.query.path);
+      return res.status("queued" in data ? 202 : 200).json({ success: true, data });
     } catch (error) {
       return fail(res, error, "delete the file");
     }
   });
+
+  router.get("/:projectId/files/changes/:changeId/content", validateUuidParam("projectId"), validateUuidParam("changeId"), async (req, res) => {
+    try {
+      const file = await files.changeContent(req.params.projectId, req.params.changeId);
+      sendFile(res, { filename: file.path.split("/").pop() ?? "file", contentType: file.contentType, content: file.content });
+    } catch (error) {
+      fail(res, error, "download the change");
+    }
+  });
+
+  router.delete(
+    "/:projectId/files/changes/:changeId",
+    validateUuidParam("projectId"),
+    validateUuidParam("changeId"),
+    requireRunnerRole,
+    async (req, res) => {
+      try {
+        await files.dismissChange(req.params.projectId, req.params.changeId);
+        return res.json({ success: true, data: null });
+      } catch (error) {
+        return fail(res, error, "dismiss the change");
+      }
+    },
+  );
 
   router.get("/:projectId/files/download", validateUuidParam("projectId"), async (req, res) => {
     try {

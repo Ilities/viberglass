@@ -83,13 +83,35 @@ export type TurnArtifact = {
   format: ArtifactFormat
 }
 
+/**
+ * A person's upload, edit or deletion made while a run held the space: it
+ * waits and is saved once the run has saved, or failed then because the run
+ * changed the same file, and keeps its content until someone dismisses it.
+ */
+export interface SpaceFileChangeSummary {
+  id: string
+  kind: 'write' | 'remove'
+  path: string
+  status: 'waiting' | 'failed'
+  error: string | null
+  /** Whether its content can be downloaded, which a failed text save needs to be recovered. */
+  hasContent: boolean
+  createdBy: string | null
+  createdAt: string
+}
+
 /** The space's working files, as the Files view lists them. */
 export interface SpaceFilesListing {
   snapshot: SpaceFilesSnapshotSummary | null
   files: SpaceFilesManifestEntry[]
-  /** A run or another person is changing the files right now, so changes would be refused. */
+  /** A run or another person is changing the files right now, so changes wait until it has saved. */
   busy: boolean
+  /** Changes waiting for the space, and ones that couldn't be saved after it, oldest first. */
+  changes: SpaceFileChangeSummary[]
 }
+
+/** What became of a person's change: saved at once, or waiting for the run holding the space. */
+export type SpaceFileChangeResult = { snapshot: SpaceFilesSnapshotSummary } | { queued: SpaceFileChangeSummary }
 
 /** A text file opened in the editor: its content and the hash a save must match. */
 export interface SpaceTextFile {

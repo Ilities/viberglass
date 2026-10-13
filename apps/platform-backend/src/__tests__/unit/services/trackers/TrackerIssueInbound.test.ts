@@ -1,5 +1,5 @@
 import { withViberglassMark } from "@viberglass/integration-core";
-import type { InboundIssue } from "@viberglass/types";
+import type { InboundIssue, TrackerPerson } from "@viberglass/types";
 import { TrackerIssueInbound, type TrackerContext } from "../../../../services/trackers/TrackerIssueInbound";
 import type { RoutedSpace } from "../../../../services/trackers/TrackerIssueRouter";
 
@@ -19,7 +19,9 @@ const ISSUE: InboundIssue = {
 
 type Linked = Array<{ ticketId: string; projectId: string }>;
 
-function setup(options: { linked?: Linked; routed?: RoutedSpace[]; users?: Record<string, string>; openQuestionFor?: Record<string, string> } = {}) {
+function setup(
+  options: { linked?: Linked; routed?: RoutedSpace[]; users?: Record<string, string>; openQuestionFor?: Record<string, string>; found?: TrackerPerson } = {},
+) {
   const deps = {
     router: { route: jest.fn().mockResolvedValue({ spaces: options.routed ?? [], reason: "No space takes issues labelled 'web'" }) },
     opener: {
@@ -45,6 +47,8 @@ function setup(options: { linked?: Linked; routed?: RoutedSpace[]; users?: Recor
     },
     answers: { answer: jest.fn().mockResolvedValue({ job: { id: "job-answer" } }) },
     turns: { ask: jest.fn().mockResolvedValue({ job: { id: "job-ask" } }) },
+    states: { apply: jest.fn() },
+    people: { complete: jest.fn().mockImplementation(async (_integrationId: string, person: TrackerPerson) => options.found ?? person) },
   };
   return { deps, inbound: new TrackerIssueInbound(deps) };
 }
@@ -131,5 +135,47 @@ describe("TrackerIssueInbound", () => {
       unlinked.inbound.commented(CONTEXT, { issueKey: "WEB-99", author: { name: "Pat", email: null }, body: "hi", mentionsBot: false }),
     ).resolves.toMatchObject({ ignoredReason: expect.stringContaining("No task is linked") });
     expect(own.deps.discussion.createFromTracker).not.toHaveBeenCalled();
+  });
+
+  it("finishes the linked tasks of a closed issue without opening new ones", async () => {
+    const { deps, inbound } = setup({ linked: [{ ticketId: "task-web", projectId: "web" }, { ticketId: "task-api", projectId: "api" }], routed: [{ projectId: "ops", plan: false }] });
+
+    await expect(inbound.issue(CONTEXT, { ...ISSUE, stateChange: "closed" })).resolves.toEqual({ ticketId: "task-web", projectId: "web" });
+
+    expect(deps.states.apply).toHaveBeenCalledWith("jira", ["task-web", "task-api"], "closed");
+    expect(deps.router.route).not.toHaveBeenCalled();
+    expect(deps.opener.open).not.toHaveBeenCalled();
+
+    const unlinked = setup({ routed: [{ projectId: "web", plan: false }] });
+    await expect(unlinked.inbound.issue(CONTEXT, { ...ISSUE, stateChange: "closed" })).resolves.toEqual({ ignoredReason: "The jira issue is closed" });
+    expect(unlinked.deps.opener.open).not.toHaveBeenCalled();
+  });
+
+  it("reopens the linked tasks of a reopened issue, and routes it as an edit", async () => {
+    const { deps, inbound } = setup({ linked: [{ ticketId: "task-web", projectId: "web" }], routed: [{ projectId: "web", plan: false }] });
+
+    await inbound.issue(CONTEXT, { ...ISSUE, stateChange: "reopened" });
+
+    expect(deps.states.apply).toHaveBeenCalledWith("jira", ["task-web"], "reopened");
+    expect(deps.router.route).toHaveBeenCalled();
+  });
+
+  it("leaves the tasks' state alone for an edit", async () => {
+    const { deps, inbound } = setup({ linked: [{ ticketId: "task-web", projectId: "web" }] });
+    await inbound.issue(CONTEXT, ISSUE);
+    expect(deps.states.apply).not.toHaveBeenCalled();
+  });
+
+  it("posts a comment as the person the tracker finds by their id, matched by email", async () => {
+    const { deps, inbound } = setup({
+      linked: [{ ticketId: "task-web", projectId: "web" }],
+      users: { "maria@example.com": "user-maria" },
+      found: { name: "Maria", email: "maria@example.com", accountId: "member-1" },
+    });
+
+    await inbound.commented(CONTEXT, { issueKey: "WEB-12", author: { name: "A member", email: null, accountId: "member-1" }, body: "Looks good", mentionsBot: false });
+
+    expect(deps.people.complete).toHaveBeenCalledWith("conn-1", { name: "A member", email: null, accountId: "member-1" });
+    expect(deps.discussion.createFromTracker).toHaveBeenCalledWith("task-web", { userId: "user-maria", name: "Maria", source: "jira" }, "Looks good");
   });
 });

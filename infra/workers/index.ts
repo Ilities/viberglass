@@ -596,6 +596,8 @@ const workerTaskDefinition = new aws.ecs.TaskDefinition(
             name: "viberator-worker",
             image: imageUri,
             essential: true,
+            // Seconds after SIGTERM for a stopped worker to save its work; Fargate allows up to 120.
+            stopTimeout: 60,
             logConfiguration: {
               logDriver: "awslogs",
               options: {

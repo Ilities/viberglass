@@ -18,7 +18,7 @@ const CHAT_APP: IntegrationManifest = {
 function renderForm(storedSecrets: string[], onSubmit = jest.fn()) {
   render(
     <Theme>
-      <IntegrationConfigForm integration={CHAT_APP} storedSecrets={storedSecrets} onSubmit={onSubmit} onCancel={jest.fn()} />
+      <IntegrationConfigForm integration={CHAT_APP} storedSecrets={storedSecrets} onSubmit={onSubmit} />
     </Theme>
   )
   return onSubmit
@@ -45,7 +45,26 @@ describe('IntegrationConfigForm secret fields', () => {
   it('submits the values entered', () => {
     const onSubmit = renderForm(['botToken', 'signingSecret'])
     fireEvent.change(screen.getByLabelText(/Signing secret/), { target: { value: 'new-secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save Configuration' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSubmit).toHaveBeenCalledWith({ signingSecret: 'new-secret' })
+  })
+  it('saves only once something changed, and says whether the connection test worked', () => {
+    render(
+      <Theme>
+        <IntegrationConfigForm
+          integration={CHAT_APP}
+          storedSecrets={['botToken', 'signingSecret']}
+          onSubmit={jest.fn()}
+          onTest={jest.fn()}
+          testResult={{ success: false, message: 'HTTP 401' }}
+        />
+      </Theme>
+    )
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Test connection' })).toBeEnabled()
+    expect(screen.getByRole('status')).toHaveTextContent("Couldn't connect. HTTP 401")
+
+    fireEvent.change(screen.getByLabelText(/Bot token/), { target: { value: 'xoxb-new' } })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 })

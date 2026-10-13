@@ -1,21 +1,19 @@
-import type { AuthCredentials } from '@viberglass/types'
 import type { TrackerCommenter, TrackerIssue } from '@viberglass/integration-core'
+import type { TrackerPerson } from '@viberglass/types'
+import { ShortcutMemberDirectory } from './members/ShortcutMemberDirectory'
+import { shortcutApiAccess, type ShortcutConfig } from './shortcutApiAccess'
 
 type Fetch = typeof fetch
-
-const SHORTCUT_API = 'https://api.app.shortcut.com/api/v3'
 
 /** Comments on Shortcut stories through the API; Shortcut renders Markdown as is. */
 export class ShortcutCommenter implements TrackerCommenter {
   constructor(
-    private readonly config: Pick<AuthCredentials, 'apiKey' | 'token'> & { baseUrl?: unknown },
+    private readonly config: ShortcutConfig,
     private readonly fetchImpl: Fetch = fetch,
   ) {}
 
   async postComment(issue: TrackerIssue, markdown: string): Promise<void> {
-    const token = this.config.apiKey || this.config.token
-    if (!token) throw new Error('The Shortcut connection has no API token')
-    const base = typeof this.config.baseUrl === 'string' && this.config.baseUrl ? this.config.baseUrl.replace(/\/+$/, '') : SHORTCUT_API
+    const { base, token } = shortcutApiAccess(this.config)
     const response = await this.fetchImpl(`${base}/stories/${encodeURIComponent(issue.key)}/comments`, {
       method: 'POST',
       headers: { 'Shortcut-Token': token, 'Content-Type': 'application/json' },
@@ -24,5 +22,10 @@ export class ShortcutCommenter implements TrackerCommenter {
     if (!response.ok) {
       throw new Error(`Shortcut didn't take the comment on story ${issue.key}: ${response.status} ${await response.text().catch(() => '')}`.trim())
     }
+  }
+
+  /** Shortcut's comment events name their author only by member id. */
+  findPerson(memberId: string): Promise<TrackerPerson | null> {
+    return new ShortcutMemberDirectory(shortcutApiAccess(this.config), this.fetchImpl).find(memberId)
   }
 }

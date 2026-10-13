@@ -273,10 +273,6 @@ export function IntegrationDetailPage() {
     }
   }
 
-  const handleCancel = () => {
-    navigate('/settings/connections')
-  }
-
   if (integrationType.status === 'stub') {
     return (
       <div className="space-y-8 p-6 lg:p-8">
@@ -375,7 +371,6 @@ export function IntegrationDetailPage() {
           storedSecrets={storedSecrets}
           onSubmit={handleSubmit}
           onTest={handleTest}
-          onCancel={handleCancel}
           isLoading={isSavingConfig}
           isTesting={isTesting}
           testResult={testResult}

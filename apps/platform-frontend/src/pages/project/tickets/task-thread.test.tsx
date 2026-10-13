@@ -99,6 +99,17 @@ describe('describeActivity', () => {
       'Part 1 merged by dev-koskinen; part 2 is next'
     )
   })
+
+  it('says when closing or reopening the linked tracker issue changed the task', () => {
+    const nameOf = () => 'Dana'
+    const system = { actorType: 'system' as const, actor: null }
+    expect(describeActivity(entry({ ...system, kind: 'task_done', payload: { source: 'tracky' } }), nameOf)).toBe('Closed on tracky, so the task is done')
+    expect(describeActivity(entry({ ...system, kind: 'task_reopened', payload: { source: 'tracky' } }), nameOf)).toBe(
+      'Reopened on tracky, so the task is open again'
+    )
+    expect(describeActivity(entry({ kind: 'task_done' }), nameOf)).toBe('Maria marked the task as done')
+    expect(describeActivity(entry({ kind: 'task_reopened' }), nameOf)).toBe('Maria reopened the task')
+  })
 })
 
 const MARIA = { id: 'u-1', name: 'Maria' }
@@ -327,6 +338,19 @@ describe('TaskThread', () => {
 
     await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'plan', body: 'Revise the plan with 1 comment' }))
     await waitFor(() => expect(onAsked).toHaveBeenCalled())
+  })
+
+  it("sends what's written in the composer with a suggestion, in place of its words", async () => {
+    mockTimeline.mockResolvedValue([])
+    mockAsk.mockResolvedValue({ sessionId: 's-1', turnId: 't-1', jobId: 'job-1', status: 'pending' })
+    renderThread()
+
+    const box = await screen.findByRole('combobox', { name: 'Write a message' })
+    fireEvent.change(box, { target: { value: 'Keep the intro short' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Revise the plan with 1 comment' }))
+
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'plan', body: 'Keep the intro short' }))
+    await waitFor(() => expect(box).toHaveValue(''))
   })
 
   it('suggests the agent after @, and sends a mention that asks it', async () => {

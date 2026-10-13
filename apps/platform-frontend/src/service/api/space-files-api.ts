@@ -3,6 +3,8 @@ import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   SaveSpaceTextFileRequest,
+  SpaceFileChangeResult,
+  SpaceFileChangeSummary,
   SpaceFilesListing,
   SpaceFilesSnapshotSummary,
   SpaceTextFile,
@@ -70,7 +72,7 @@ export async function getSpaceTextFile(projectId: string, path: string): Promise
 export async function saveSpaceTextFile(
   projectId: string,
   request: SaveSpaceTextFileRequest
-): Promise<{ snapshot: SpaceFilesSnapshotSummary; file: SpaceTextFile }> {
+): Promise<{ snapshot: SpaceFilesSnapshotSummary; file: SpaceTextFile } | { queued: SpaceFileChangeSummary }> {
   const response = await apiFetch(filesUrl(projectId, '/text'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -83,17 +85,30 @@ export async function uploadSpaceFile(
   projectId: string,
   file: File,
   path: string
-): Promise<{ snapshot: SpaceFilesSnapshotSummary }> {
+): Promise<SpaceFileChangeResult> {
   const form = new FormData()
   form.append('file', file)
   form.append('path', path)
   return readSpaceData(await apiFetch(filesUrl(projectId), { method: 'POST', body: form }), "Couldn't upload the file")
 }
 
-export async function deleteSpaceFile(projectId: string, path: string): Promise<{ snapshot: SpaceFilesSnapshotSummary }> {
+export async function deleteSpaceFile(projectId: string, path: string): Promise<SpaceFileChangeResult> {
   return readSpaceData(await apiFetch(filesUrl(projectId, withPath(path)), { method: 'DELETE' }), "Couldn't delete the file")
 }
 
 export function downloadSpaceFile(projectId: string, path: string): Promise<void> {
   return saveDownload(filesUrl(projectId, `/download${withPath(path)}`), path.split('/').pop() ?? path, "Couldn't download the file")
+}
+
+/** What a change waiting for the space, or one that couldn't be saved, would have written. */
+export function downloadSpaceFileChange(projectId: string, change: SpaceFileChangeSummary): Promise<void> {
+  return saveDownload(
+    filesUrl(projectId, `/changes/${change.id}/content`),
+    change.path.split('/').pop() ?? change.path,
+    "Couldn't download your version"
+  )
+}
+
+export async function dismissSpaceFileChange(projectId: string, changeId: string): Promise<void> {
+  await readSpaceData(await apiFetch(filesUrl(projectId, `/changes/${changeId}`), { method: 'DELETE' }), "Couldn't dismiss the change")
 }

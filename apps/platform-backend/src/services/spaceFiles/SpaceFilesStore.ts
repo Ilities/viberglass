@@ -21,6 +21,12 @@ export interface SpaceFilesStore {
   delete(storageUrl: string): Promise<void>;
 }
 
+/** Every object under a prefix, for finding ones nothing refers to any more. */
+export interface SpaceFilesObjectListing {
+  list(prefixUrl: string): Promise<Array<{ storageUrl: string; lastModified: Date | null }>>;
+  delete(storageUrl: string): Promise<void>;
+}
+
 /** Where an artifact version's files live; each file is its own object under it. */
 export function artifactVersionPrefix(bucket: string, projectId: string, artifactId: string, versionId: string): string {
   return `s3://${bucket}/spaces/${projectId}/artifacts/${artifactId}/versions/${versionId}/files/`;
@@ -41,7 +47,12 @@ function objectOf(storageUrl: string): { Bucket: string; Key: string } {
   return { Bucket: parsed.hostname, Key: decodeURIComponent(parsed.pathname.slice(1)) };
 }
 
-export class S3SpaceFilesStore implements SpaceFilesStore {
+/** The prefix of a space's objects of one kind, such as its snapshots or staged changes. */
+export function spacePrefix(bucket: string, projectId: string, kind: "snapshots" | "changes"): string {
+  return `s3://${bucket}/spaces/${projectId}/${kind}/`;
+}
+
+export class S3SpaceFilesStore implements SpaceFilesStore, SpaceFilesObjectListing {
   constructor(private readonly env: () => Record<string, string | undefined> = () => process.env) {}
 
   bucket(): string {
@@ -86,6 +97,25 @@ export class S3SpaceFilesStore implements SpaceFilesStore {
         if (keys.length > 0) await client.send(new DeleteObjectsCommand({ Bucket, Delete: { Objects: keys, Quiet: true } }));
         ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
       } while (ContinuationToken);
+    } finally {
+      client.destroy();
+    }
+  }
+
+  async list(prefixUrl: string): Promise<Array<{ storageUrl: string; lastModified: Date | null }>> {
+    const client = new S3Client(objectStorageClientConfig(this.env()));
+    try {
+      const { Bucket, Key: Prefix } = objectOf(prefixUrl);
+      const found: Array<{ storageUrl: string; lastModified: Date | null }> = [];
+      let ContinuationToken: string | undefined;
+      do {
+        const page = await client.send(new ListObjectsV2Command({ Bucket, Prefix, ContinuationToken }));
+        for (const object of page.Contents ?? []) {
+          if (object.Key) found.push({ storageUrl: `s3://${Bucket}/${object.Key}`, lastModified: object.LastModified ?? null });
+        }
+        ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (ContinuationToken);
+      return found;
     } finally {
       client.destroy();
     }

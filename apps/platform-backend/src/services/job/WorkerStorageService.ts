@@ -1,6 +1,6 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { isObjectRecord, objectStorageBucket, objectStorageClientConfig } from "@viberglass/types";
+import { isObjectRecord, objectStorageBucket, objectStorageWorkerClientConfig } from "@viberglass/types";
 import type { JobBootstrapService } from "./JobBootstrapService";
 
 export class WorkerStorageDenied extends Error {}
@@ -14,7 +14,8 @@ type StorageSigner = (operation: "read" | "write", storageUrl: string) => Promis
 
 export async function signWorkerStorageUrl(operation: "read" | "write", storageUrl: string): Promise<string> {
   const parsed = new URL(storageUrl);
-  const client = new S3Client(objectStorageClientConfig(process.env));
+  // Signed for the address workers reach storage at, which can differ from the backend's.
+  const client = new S3Client(objectStorageWorkerClientConfig(process.env));
   const object = { Bucket: parsed.hostname, Key: parsed.pathname.slice(1) };
   try {
     return await getSignedUrl(client, operation === "read" ? new GetObjectCommand(object) : new PutObjectCommand({

@@ -2,16 +2,11 @@ import { Button } from '@/components/button'
 import { useAuth } from '@/context/auth-context'
 import { interruptAgent, postTaskMessage } from '@/service/api/discussion-api'
 import { getPeopleDirectory } from '@/service/api/user-api'
-import { agentMentionToken, mentionToken } from '@viberglass/types'
 import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
+import type { ComposerDraft, Mentionable } from './composer-draft'
 
-/** Someone or something a message can mention. */
-export interface Mentionable {
-  kind: 'user' | 'agent'
-  id: string
-  name: string
-}
+export type { Mentionable } from './composer-draft'
 
 /** The @word being typed at the end of the draft, if any. */
 function mentionQuery(draft: string): string | null {
@@ -19,18 +14,11 @@ function mentionQuery(draft: string): string | null {
   return match ? match[1].toLowerCase() : null
 }
 
-/** Turns each picked "@Name" into a mention the server can read. */
-function withMentionTokens(draft: string, picked: Mentionable[]): string {
-  return picked.reduce((text, entry) => {
-    const token = entry.kind === 'agent' ? agentMentionToken(entry.name, entry.id) : mentionToken(entry.name, entry.id)
-    return text.split(`@${entry.name}`).join(token)
-  }, draft)
-}
-
 interface TaskComposerProps {
   taskId: string
   /** The agents that can be asked, the one already on the task first. */
   agents: Mentionable[]
+  draft: ComposerDraft
   /** Whether an agent turn is running, so a message waits for it to finish. */
   agentWorking?: boolean
   /** Whether the person may stop the agent's running turn with their message. */
@@ -39,11 +27,9 @@ interface TaskComposerProps {
 }
 
 /** Writing in a task's thread, with @mentions of people, and of agents to ask them. */
-export function TaskComposer({ taskId, agents, agentWorking = false, canInterrupt = false, onPosted }: TaskComposerProps) {
+export function TaskComposer({ taskId, agents, draft, agentWorking = false, canInterrupt = false, onPosted }: TaskComposerProps) {
   const { user } = useAuth()
   const [people, setPeople] = useState<Mentionable[]>([])
-  const [draft, setDraft] = useState('')
-  const [picked, setPicked] = useState<Mentionable[]>([])
   const [isPosting, setIsPosting] = useState(false)
   const [active, setActive] = useState(0)
   /** The @query Escape closed the list for; typing on opens it again. */
@@ -56,7 +42,7 @@ export function TaskComposer({ taskId, agents, agentWorking = false, canInterrup
       .catch(() => undefined)
   }, [])
 
-  const query = mentionQuery(draft)
+  const query = mentionQuery(draft.text)
   const suggestions = useMemo(
     () =>
       query === null
@@ -70,8 +56,7 @@ export function TaskComposer({ taskId, agents, agentWorking = false, canInterrup
   const activeIndex = Math.min(active, suggestions.length - 1)
 
   function pick(entry: Mentionable) {
-    setDraft((current) => current.replace(/@[\p{L}\p{N}._-]{0,30}$/u, `@${entry.name} `))
-    setPicked((current) => (current.some((other) => other.id === entry.id) ? current : [...current, entry]))
+    draft.pick(entry)
     setActive(0)
   }
 
@@ -94,10 +79,9 @@ export function TaskComposer({ taskId, agents, agentWorking = false, canInterrup
   async function post(interrupt = false) {
     setIsPosting(true)
     try {
-      const body = withMentionTokens(draft, picked)
+      const body = draft.body()
       const turn = interrupt ? await interruptAgent(taskId, body) : (await postTaskMessage(taskId, body)).turn
-      setDraft('')
-      setPicked([])
+      draft.clear()
       if (interrupt) toast.success('Stopped the agent; it starts again with your message')
       else if (turn) toast.success(turn.status === 'queued' ? 'The agent will read it when it finishes its turn' : turn.status === 'paused' ? 'The agent will read it when it carries on' : 'Asked the agent')
       onPosted()
@@ -118,10 +102,10 @@ export function TaskComposer({ taskId, agents, agentWorking = false, canInterrup
         aria-expanded={open}
         aria-controls={listId}
         aria-activedescendant={open ? `${listId}-${activeIndex}` : undefined}
-        value={draft}
+        value={draft.text}
         onKeyDown={onKeyDown}
         onChange={(event) => {
-          setDraft(event.target.value)
+          draft.setText(event.target.value)
           setActive(0)
         }}
         rows={4}
@@ -154,11 +138,11 @@ export function TaskComposer({ taskId, agents, agentWorking = false, canInterrup
       </ul>
       <div className="flex justify-end gap-2">
         {agentWorking && canInterrupt && (
-          <Button outline disabled={isPosting || draft.trim().length === 0} onClick={() => void post(true)}>
+          <Button outline disabled={isPosting || draft.isEmpty} onClick={() => void post(true)}>
             Send now and interrupt
           </Button>
         )}
-        <Button color="brand" disabled={isPosting || draft.trim().length === 0} onClick={() => void post()}>
+        <Button color="brand" disabled={isPosting || draft.isEmpty} onClick={() => void post()}>
           {isPosting ? 'Sending…' : agentWorking ? 'Send after this turn' : 'Send'}
         </Button>
       </div>

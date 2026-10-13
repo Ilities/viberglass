@@ -6,6 +6,9 @@ export function kubernetesJobName(jobId: string): string {
   return `viberglass-${createHash("sha256").update(jobId).digest("hex").slice(0, 32)}`;
 }
 
+/** Seconds a stopped worker gets to save its work (files, commits, documents) before it's killed. */
+const WORKER_TERMINATION_GRACE_SECONDS = 60;
+
 export interface KubernetesJobOptions {
   jobId: string;
   tenantId: string;
@@ -40,6 +43,7 @@ export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
         metadata: { labels },
         spec: {
           restartPolicy: "Never",
+          terminationGracePeriodSeconds: WORKER_TERMINATION_GRACE_SECONDS,
           automountServiceAccountToken: false,
           ...(options.imagePullSecrets?.length ? { imagePullSecrets: options.imagePullSecrets.map(name => ({ name })) } : {}),
           containers: [{

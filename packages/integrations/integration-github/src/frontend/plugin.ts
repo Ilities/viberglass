@@ -18,6 +18,8 @@ const githubFrontendPlugin: IntegrationFrontendPlugin = {
       { value: 'issues.opened', label: 'Issue opened', description: 'Creates a task in each space that takes the issue.' },
       { value: 'issues.edited', label: 'Issue edited', description: "Updates the linked tasks' title and description." },
       { value: 'issues.labeled', label: 'Issue labelled', description: 'Brings the issue into a space that takes the new label.' },
+      { value: 'issues.closed', label: 'Issue closed', description: 'Marks the linked tasks done.' },
+      { value: 'issues.reopened', label: 'Issue reopened', description: 'Reopens the linked tasks that are done.' },
       {
         value: 'issue_comment.created',
         label: 'Issue comment created',

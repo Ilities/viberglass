@@ -846,8 +846,28 @@ export interface SpaceFileRunsTable {
   finished_at: Date | null;
 }
 
+export type SpaceFileChangeStatus = "waiting" | "saved" | "failed";
+
+export interface SpaceFileChangesTable {
+  id: string;
+  project_id: string;
+  created_by: string | null;
+  kind: "write" | "remove";
+  path: string;
+  check_base: Generated<boolean>;
+  base_sha256: string | null;
+  staged_url: string | null;
+  bytes: ColumnType<string | null, number | null | undefined, number | null>;
+  status: SpaceFileChangeStatus;
+  error: string | null;
+  snapshot_id: string | null;
+  created_at: Generated<Date>;
+  finished_at: Date | null;
+}
+
 export interface Database {
   space_file_snapshots: SpaceFileSnapshotsTable;
+  space_file_changes: SpaceFileChangesTable;
   space_file_state: SpaceFileStateTable;
   space_file_runs: SpaceFileRunsTable;
   artifacts: ArtifactsTable;

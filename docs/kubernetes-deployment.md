@@ -8,6 +8,8 @@ For the complete first-install procedure, use [Install on Kubernetes](guide/admi
 
 Provision a cluster, PostgreSQL, S3-compatible storage, an ingress controller, DNS/TLS, and optionally SMTP. Use a NetworkPolicy-capable CNI. The frontend is a static Vite build served by nginx, which proxies `/api` to the backend. The chart sets `PLATFORM_PUBLIC_API_URL` for browser media links and keeps `PLATFORM_API_URL` internal for worker callbacks. No separate browser API hostname is needed.
 
+Artifact previews need a hostname of their own, such as `preview.viberglass.example.com`, so the agent's HTML and scripts never run where the app's cookies go. Set `preview.publicUrl` to its HTTPS address, point its DNS at the ingress controller and list it in `ingress.tls`. The chart then sets `PREVIEW_PORT` and `PREVIEW_PUBLIC_URL` on the backend, exposes port 8890 on the backend Service, adds an Ingress rule for the host and lets any source reach that port, since it serves only files named by a signed link. The backend's `frame-ancestors` header allows only `publicUrl` to frame previews. Without `preview.publicUrl`, HTML, image and PDF artifacts can only be downloaded.
+
 The image publishing workflows target GHCR for linux/amd64 and linux/arm64 on relevant changes to `main` and on each release:
 
 | Image | Repository |
@@ -26,7 +28,7 @@ Create the app namespace and worker namespace before loading secrets. Supply:
 
 | Namespace | Secret | Keys |
 | --- | --- | --- |
-| App | `viberglass-app` | `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY`, `WEBHOOK_SECRET_ENCRYPTION_KEY` |
+| App | `viberglass-app` | `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY`, `WEBHOOK_SECRET_ENCRYPTION_KEY`, optional `PREVIEW_SIGNING_KEY` (preview links fall back to `SECRETS_ENCRYPTION_KEY`) |
 | App | `viberglass-storage` | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, optional `S3_SESSION_TOKEN` |
 
 Workers do not receive S3 keys. The backend creates an immutable callback-token Secret per run, mounts it read-only, and gives it a Job owner reference so Job deletion/TTL cleanup also removes it. The backend needs namespaced create/get/delete permissions on these Secrets and get/list access to worker Pods and events; workers still have no Kubernetes API token or permissions.
@@ -37,7 +39,7 @@ Generate independent strong encryption keys and retain them securely. Secrets mu
 
 Copy the [production values example](../infra/kubernetes/chart/values-production.example.yaml) and replace its image tags, hosts, signing region and ingress class. The [installation guide](guide/admin/install-kubernetes.md#4-configure-the-installation) explains each setting. The commands below assume you saved it as `production-values.yaml`.
 
-The published images are public and need no pull Secret. For a private registry, create pull Secrets independently in both namespaces: `imagePullSecrets` serves app and migration Pods, and `workers.imagePullSecrets` names Secrets in the worker namespace. For private Git, private object storage, or internal telemetry, add allowed destinations to `networkPolicy.workerExtraEgress` using Kubernetes NetworkPolicy egress rules. Public HTTP(S)/SSH and cluster DNS/backend storage are allowed by default. Service endpoints must be reachable from nodes/Pods, and database network access must be allowed by the provider.
+The published images are public and need no pull Secret. For a private registry, create pull Secrets independently in both namespaces: `imagePullSecrets` serves app and migration Pods, and `workers.imagePullSecrets` names Secrets in the worker namespace. For private Git, private object storage, or internal telemetry, add allowed destinations to `networkPolicy.workerExtraEgress` using Kubernetes NetworkPolicy egress rules. Public HTTP(S)/SSH and cluster DNS/backend storage are allowed by default. Runs in Files spaces fetch and save the space's files through URLs the backend signs for `S3_WORKER_ENDPOINT` (`storage.workerEndpoint`), or `S3_ENDPOINT` when that's unset, so that address must be one worker Pods can resolve and reach. Media and session URLs are signed for `S3_ENDPOINT` either way. The bundled MinIO's cluster DNS name works from the worker namespace as is. Service endpoints must be reachable from nodes/Pods, and database network access must be allowed by the provider.
 
 ```bash
 helm upgrade --install viberglass infra/kubernetes/chart --namespace viberglass -f production-values.yaml --wait --wait-for-jobs --timeout 10m
@@ -50,7 +52,7 @@ Embedded PostgreSQL/MinIO are available in `values-local.yaml` for development. 
 ## Upgrade, rollback and capacity
 
 - Back up the database and encryption keys before migrations. Publish immutable app/worker image tags; update values and run Helm upgrade with `--wait --wait-for-jobs`.
-- Existing worker Jobs retain their image and run during app rolling updates. Keep the callback service stable and allow sufficient termination time. Maintain bootstrap/callback compatibility between deployed versions.
+- Existing worker Jobs retain their image and run during app rolling updates. Keep the callback service stable and allow sufficient termination time. Worker Pods get a 60 second termination grace period to save their work when stopped. Maintain bootstrap/callback compatibility between deployed versions.
 - Helm rollback can restore a Deployment, **not reverse database migrations**. Review schema compatibility before rollback; restore a backup when rollback requires it.
 - Adjust `workers.quota` and per-Clanker resources together. Quotas do not add nodes; pending Pods need schedulable node capacity. Production nodes must have room for the app, system workloads, and concurrent Jobs.
 - The supported deployment uses `backend.replicas: 1`; sweepers and dispatch coordination run in that process.

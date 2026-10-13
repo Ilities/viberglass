@@ -30,7 +30,11 @@ spec:
           image: {{ .Values.backend.image | quote }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           {{- include "viberglass.backendEnvironment" . | nindent 10 }}
-          ports: [{name: http, containerPort: 3000}]
+          ports:
+            - {name: http, containerPort: 3000}
+            {{- if .Values.preview.publicUrl }}
+            - {name: preview, containerPort: 8890}
+            {{- end }}
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
           startupProbe: {httpGet: {path: /health, port: http}, failureThreshold: 60, periodSeconds: 5}
           readinessProbe: {httpGet: {path: /health, port: http}}
@@ -46,4 +50,8 @@ metadata:
   name: {{ include "viberglass.name" . }}-backend
 spec:
   selector: {app: "{{ include "viberglass.name" . }}-backend"}
-  ports: [{port: 3000, targetPort: http}]
+  ports:
+    - {name: http, port: 3000, targetPort: http}
+    {{- if .Values.preview.publicUrl }}
+    - {name: preview, port: 8890, targetPort: preview}
+    {{- end }}

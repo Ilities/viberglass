@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { Readable } from "stream";
 import type { SpaceFileSnapshot } from "../../../../persistence/spaceFiles/SpaceFilesDAO";
+import { SpaceFileChangeApplier } from "../../../../services/spaceFiles/SpaceFileChangeApplier";
 import { editablePath, SpaceFilesEditService } from "../../../../services/spaceFiles/SpaceFilesEditService";
 import { readArchiveFile, repackArchive } from "../../../../services/spaceFiles/spaceArchiveFiles";
 import { inspectSpaceArchive } from "../../../../services/spaceFiles/inspectSpaceArchive";
@@ -51,8 +52,11 @@ async function setup(files: Record<string, string>, leaseFree = true) {
   };
   const registrar = { fromEdit: jest.fn().mockResolvedValue([]), storeFiles: jest.fn() };
   const runs = { startWaiting: jest.fn() };
-  const service = new SpaceFilesEditService(dao as never, store, registrar, runs);
-  return { service, dao, store, stored, registrar, runs };
+  const queued = { id: "change-1", kind: "write" as const, path: "b.md", status: "waiting" as const, error: null, hasContent: true, createdBy: "user-1", createdAt: "" };
+  const queue = { add: jest.fn().mockResolvedValue(queued), list: jest.fn().mockResolvedValue([]), content: jest.fn(), dismiss: jest.fn() };
+  const applier = new SpaceFileChangeApplier(dao as never, store, registrar);
+  const service = new SpaceFilesEditService(dao as never, store, runs, applier, queue);
+  return { service, dao, store, stored, registrar, runs, queue, queued };
 }
 
 describe("SpaceFilesEditService", () => {
@@ -66,7 +70,7 @@ describe("SpaceFilesEditService", () => {
 
     const saved = await service.saveText("space-1", "user-1", { path: "notes/brief.md", content: "# Brief v2", baseSha256: sha("# Brief") });
 
-    expect(saved.file).toEqual({ path: "notes/brief.md", content: "# Brief v2", sha256: sha("# Brief v2") });
+    expect(saved).toHaveProperty("file", { path: "notes/brief.md", content: "# Brief v2", sha256: sha("# Brief v2") });
     const [operationId, token, snapshot] = dao.commitOperation.mock.calls[0];
     expect(token).toBe("7");
     expect(snapshot).toMatchObject({ parentId: "snap-1", jobId: null, createdBy: "user-1", changes: { added: 0, changed: 1, removed: 0 } });
@@ -92,10 +96,31 @@ describe("SpaceFilesEditService", () => {
     await expect(service.saveText("space-1", "user-1", { path: "notes/brief.md", content: "x", baseSha256: null })).rejects.toMatchObject({ code: "FILE_CHANGED" });
   });
 
-  it("refuses changes while a run holds the space", async () => {
-    const { service, dao } = await setup({ "a.md": "a" }, false);
-    await expect(service.upload("space-1", "user-1", "b.md", Buffer.from("b"))).rejects.toMatchObject({ code: "SPACE_BUSY" });
+  it("queues a change while a run holds the space", async () => {
+    const { service, dao, queue, queued } = await setup({ "a.md": "a" }, false);
+    await expect(service.upload("space-1", "user-1", "b.md", Buffer.from("b"))).resolves.toEqual({ queued });
+    expect(queue.add).toHaveBeenCalledWith("space-1", "user-1", { kind: "write", path: "b.md", content: Buffer.from("b") }, undefined);
     expect(dao.commitOperation).not.toHaveBeenCalled();
+  });
+
+  it("queues a text save with the hash it was opened with, unless the file already changed", async () => {
+    const { service, queue } = await setup({ "notes/brief.md": "# Brief" }, false);
+    await service.saveText("space-1", "user-1", { path: "notes/brief.md", content: "v2", baseSha256: sha("# Brief") });
+    expect(queue.add).toHaveBeenCalledWith("space-1", "user-1", expect.objectContaining({ path: "notes/brief.md" }), { sha256: sha("# Brief") });
+
+    queue.add.mockClear();
+    await expect(service.saveText("space-1", "user-1", { path: "notes/brief.md", content: "v2", baseSha256: sha("# Older") })).rejects.toMatchObject({
+      code: "FILE_CHANGED",
+    });
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it("deletes the archive of a change that lost the space while saving, and queues the change", async () => {
+    const { service, dao, store, queue } = await setup({ "a.md": "a" });
+    dao.commitOperation.mockResolvedValueOnce("lease_lost" as never);
+    await service.upload("space-1", "user-1", "b.md", Buffer.from("b"));
+    expect(store.delete).toHaveBeenCalledWith(expect.stringMatching(/^s3:\/\/bucket\/spaces\/space-1\/snapshots\/.+\/workspace\.tar\.gz$/));
+    expect(queue.add).toHaveBeenCalled();
   });
 
   it("removes a file, and the folder it leaves empty", async () => {

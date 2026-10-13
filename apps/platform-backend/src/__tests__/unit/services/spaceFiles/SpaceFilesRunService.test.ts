@@ -7,6 +7,7 @@ import {
   SpaceFilesConflict,
   SpaceFilesDenied,
   SpaceFilesRunService,
+  STOP_SAVE_MS,
   WAITING_MESSAGE,
 } from "../../../../services/spaceFiles/SpaceFilesRunService";
 
@@ -41,6 +42,7 @@ function setup() {
     release: jest.fn<Promise<string | null>, [string]>().mockResolvedValue(null),
     listRunsOfFinishedJobs: jest.fn().mockResolvedValue([]),
     listStartableSpaces: jest.fn().mockResolvedValue([]),
+    shortenLease: jest.fn().mockResolvedValue(false),
   };
   const store = {
     bucket: () => "bucket",
@@ -196,5 +198,46 @@ describe("SpaceFilesRunService", () => {
     dao.listRunsOfFinishedJobs.mockResolvedValue(["job-9"]);
     await expect(service.sweep()).resolves.toBe(1);
     expect(dao.release).toHaveBeenCalledWith("job-9");
+  });
+
+  it("lets a stopped run's worker save what it had, as partial files without artifacts", async () => {
+    const { dao, service, bootstraps, registrar } = setup();
+    dao.shortenLease.mockResolvedValue(true);
+    await service.stop("job-1");
+    expect(dao.shortenLease).toHaveBeenCalledWith("job-1", STOP_SAVE_MS);
+    expect(dao.release).not.toHaveBeenCalled();
+
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "cancelled", payload: { turnAction: "code" } });
+    await expect(service.grant("job-1", "api-server", "read")).rejects.toBeInstanceOf(SpaceFilesDenied);
+    await service.grant("job-1", "api-server", "write");
+    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false });
+    expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.objectContaining({ partial: true }), []);
+    expect(registrar.fromDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("ends a stopped run at once when it never got its space", async () => {
+    const { dao, service } = setup();
+    await service.stop("job-1");
+    expect(dao.release).toHaveBeenCalledWith("job-1");
+  });
+
+  it("saves people's waiting changes before starting the next run, and sweeps spaces where they wait", async () => {
+    const { dao, service, launcher } = setup();
+    const order: string[] = [];
+    const changes = {
+      applyWaiting: jest.fn(async () => {
+        order.push("changes");
+      }),
+      spacesWithWaiting: jest.fn().mockResolvedValue(["space-2"]),
+    };
+    service.setWaitingChanges(changes);
+    dao.startNextWaiting.mockImplementation(async (projectId: string) => {
+      order.push(`run:${projectId}`);
+      return null;
+    });
+    await service.sweep();
+    expect(changes.applyWaiting).toHaveBeenCalledWith("space-2");
+    expect(order).toEqual(["changes", "run:space-2"]);
+    expect(launcher).not.toHaveBeenCalled();
   });
 });

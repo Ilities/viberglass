@@ -17,7 +17,7 @@ Set up the Pulumi state bucket and log in to it:
 pulumi login s3://viberglass-pulumi-state
 ```
 
-Copy `infra/platform/Pulumi.dev.yaml.example` to `Pulumi.dev.yaml` and set at least the base stack, `apiDomain`, `appDomain` and `route53ZoneId`. Then deploy the stacks in order:
+Copy `infra/platform/Pulumi.dev.yaml.example` to `Pulumi.dev.yaml` and set at least the base stack, `apiDomain`, `appDomain` and `route53ZoneId`. Set `previewDomain` too for artifact previews; see below. Then deploy the stacks in order:
 
 ```bash
 cd infra/base && npm install && pulumi stack select dev && pulumi up       # VPC, KMS, logging
@@ -32,6 +32,16 @@ Push the worker images to ECR before creating runners:
 ```
 
 Use `all` instead of `multi-agent` for one image per coding agent. Open your app address, create the administrator and go through setup as described in [Install with Docker](install-docker.md#first-run-setup). The default agent runs on ECS.
+
+## Artifact previews
+
+HTML, image and PDF artifacts preview from a host of their own, so the agent's scripts never run where the app's sign-in cookies go. Set `previewDomain` in the platform stack to a hostname in the same Route 53 zone that isn't `apiDomain` or `appDomain`, such as `preview.viberglass.example.com`. The stack gives it a certificate, a DNS alias to the API's load balancer and a listener rule that sends it to the backend's preview port, 8890. The base stack opens that port to the load balancer. Without `previewDomain`, those artifacts can only be downloaded.
+
+The backend service ignores task definition changes, because the deploy workflow registers its own. When you turn previews on for an existing stack, update the base stack first, then run `pulumi up` in the platform stack and the backend deploy workflow, which picks up the new task definition with the preview port. If ECS refuses the service's new target group because the running task definition has no port 8890, run `pulumi up` in the platform stack once more after the deploy.
+
+## Files spaces
+
+Files spaces keep their files and artifacts in the platform's S3 bucket; nothing extra is needed. ECS workers fetch and save a space's files through short-lived signed URLs from the backend, so they need outbound HTTPS to S3 like their other traffic, and no S3 permissions of their own. Lambda runners can't run in Files spaces. A stopped worker task gets 60 seconds to save its files before ECS kills it; a task definition you supply yourself keeps its own `stopTimeout`, 30 seconds unless set. In production the bucket moves objects to Glacier Instant Retrieval after 90 days, which S3 still serves directly, so a space left alone for months can still be restored. The dev stack deletes objects after 90 days, including the files of a space nobody changed in that time.
 
 ## Email
 

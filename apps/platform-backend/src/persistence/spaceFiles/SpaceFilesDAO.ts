@@ -238,7 +238,27 @@ export class SpaceFilesDAO {
     });
   }
 
-  /** Runs whose job ended without ending the run, for the sweeper to release. */
+  /**
+   * Cuts a stopped run's lease short, so its worker has only that long to
+   * save what it had done. False when the run doesn't hold its space.
+   */
+  async shortenLease(jobId: string, withinMs: number): Promise<boolean> {
+    const result = await db
+      .updateTable("space_file_state")
+      .set({
+        lease_expires_at: sql`LEAST(lease_expires_at, now() + ${`${withinMs} milliseconds`}::interval)`,
+        updated_at: sql`now()`,
+      })
+      .where("lease_job_id", "=", jobId)
+      .where("lease_expires_at", ">", sql<Date>`now()`)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) > 0;
+  }
+
+  /**
+   * Runs whose job ended without ending the run, for the sweeper to release.
+   * A cancelled run still saving within its shortened lease is left to finish.
+   */
   async listRunsOfFinishedJobs(): Promise<string[]> {
     const rows = await db
       .selectFrom("space_file_runs")
@@ -246,6 +266,9 @@ export class SpaceFilesDAO {
       .select("space_file_runs.job_id")
       .where("space_file_runs.status", "in", ["waiting", "running"])
       .where("jobs.status", "in", ["completed", "failed", "cancelled"])
+      .where(
+        sql<boolean>`NOT (jobs.status = 'cancelled' AND EXISTS (SELECT 1 FROM space_file_state s WHERE s.lease_job_id = space_file_runs.job_id AND s.lease_expires_at > now()))`,
+      )
       .execute();
     return rows.map((row) => row.job_id);
   }

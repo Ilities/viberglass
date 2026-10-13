@@ -7,6 +7,8 @@ import {
   type InboundWebhookEvent,
   type WebhookReadSettings,
 } from '@viberglass/integration-core'
+import { withBotMentionsAsAccountIds } from './jiraBotMentions'
+import { jiraStateChange } from './jiraStateChange'
 import { jiraBrowseUrl, jiraLabels, jiraPerson, jiraSeverity, jiraSiteUrl, jiraText } from './jiraPayload'
 
 /** How Jira writes a mention of an account: by account id on Cloud, by user name on Server, or as typed. */
@@ -21,6 +23,7 @@ function readIssue(event: InboundWebhookEvent, issue: Record<string, unknown> | 
     event.eventType === 'issue_created'
       ? (jiraPerson(recordAt(event.payload, 'user')) ?? jiraPerson(recordAt(fields, 'reporter')))
       : null
+  const stateChange = event.eventType === 'issue_updated' ? jiraStateChange(event.payload) : undefined
   return {
     kind: 'issue',
     issue: {
@@ -35,6 +38,7 @@ function readIssue(event: InboundWebhookEvent, issue: Record<string, unknown> | 
       labels: jiraLabels(fields),
       repository: null,
       metadata: { issueType: stringAt(recordAt(fields, 'issuetype'), 'name'), jiraProjectKey: key.split('-')[0] },
+      ...(stateChange ? { stateChange } : {}),
     },
   }
 }
@@ -47,7 +51,7 @@ function readComment(event: InboundWebhookEvent, issueKey: string, bot: string |
   if (bot && [stringAt(author, 'accountId'), stringAt(author, 'name'), stringAt(author, 'emailAddress')].includes(bot)) {
     return { kind: 'ignored', reason: 'Written by the bot account' }
   }
-  const { mentionsBot, body } = takeBotMention(jiraText(comment?.body), jiraMentionForms(bot))
+  const { mentionsBot, body } = takeBotMention(jiraText(withBotMentionsAsAccountIds(comment?.body, bot)), jiraMentionForms(bot))
   return {
     kind: 'comment',
     comment: { issueKey, author: jiraPerson(author) ?? { name: 'Someone', email: null }, body, mentionsBot },

@@ -130,6 +130,9 @@ describe("EcsProvisioningHandler", () => {
     const result = await handler.provision(clanker);
 
     expect(registerTaskDefinition).toHaveBeenCalledTimes(1);
+    expect(registerTaskDefinition).toHaveBeenCalledWith(expect.objectContaining({
+      containerDefinitions: [expect.objectContaining({ stopTimeout: 60 })],
+    }));
     expect(result.status).toBe("active");
     expect(result.statusMessage).toContain("ECS task definition ready");
     expect(result.deploymentConfig).toBeTruthy();

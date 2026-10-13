@@ -50,6 +50,7 @@ config:
   # viberglass:apiDomain: api.viberglass.io
   # viberglass:appDomain: app.viberglass.io
   # viberglass:route53ZoneId: Z1234567890ABC
+  # viberglass:previewDomain: preview.viberglass.io   # artifact previews, on a host of their own
   #
   # What gets created automatically:
   #   - ACM certificate for api.viberglass.io (DNS validated)
@@ -58,6 +59,8 @@ config:
   #   - Amplify custom domain for app.viberglass.io
   #   - Route53 CNAME record: app.viberglass.io -> CloudFront
   #   - Route53 validation record for Amplify SSL certificate
+  #   - With previewDomain: a certificate, DNS alias and ALB rule for preview.viberglass.io,
+  #     sent to the backend's artifact preview port
 
   # =============================================================================
   # EMAIL (Amazon SES, optional)

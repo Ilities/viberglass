@@ -1,11 +1,15 @@
 import type { InboundWebhookAction, InboundWebhookEvent, WebhookReadSettings } from '@viberglass/integration-core'
+import type { InboundIssueStateChange } from '@viberglass/types'
 import { field, idAt, recordAt, stringAt, takeBotMention } from '@viberglass/integration-core'
 import { gitHubLabels, gitHubSeverity } from './gitHubIssueLabels'
 
 /** Issue events that show the issue as it now is. */
-const ISSUE_ACTIONS = new Set(['opened', 'edited', 'labeled'])
+const ISSUE_ACTIONS = new Set(['opened', 'edited', 'labeled', 'closed', 'reopened'])
 
-function readIssue(issue: Record<string, unknown>, key: string, repository: string): InboundWebhookAction {
+const STATE_CHANGES: Partial<Record<string, InboundIssueStateChange>> = { closed: 'closed', reopened: 'reopened' }
+
+function readIssue(issue: Record<string, unknown>, key: string, repository: string, action: string): InboundWebhookAction {
+  const stateChange = STATE_CHANGES[action]
   const labels = gitHubLabels(issue)
   const body = field(issue, 'body')
   return {
@@ -21,6 +25,7 @@ function readIssue(issue: Record<string, unknown>, key: string, repository: stri
       labels,
       repository,
       metadata: { repository },
+      ...(stateChange ? { stateChange } : {}),
     },
   }
 }
@@ -47,7 +52,7 @@ export function readGitHubEvent(event: InboundWebhookEvent, settings: WebhookRea
   const key = `${repository}#${number}`
   const eventName = event.eventType.split('.')[0]
 
-  if (eventName === 'issues' && action && ISSUE_ACTIONS.has(action)) return readIssue(issue, key, repository)
+  if (eventName === 'issues' && action && ISSUE_ACTIONS.has(action)) return readIssue(issue, key, repository, action)
   if (eventName === 'issue_comment' && action === 'created') return readComment(payload, key, settings.botUsername)
   return { kind: 'ignored', reason: `Unsupported GitHub event '${eventName}.${action ?? ''}'` }
 }

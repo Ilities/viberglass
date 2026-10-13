@@ -1,4 +1,5 @@
 import type { TaskActivityEntry } from '@viberglass/types'
+import { integrationLabel } from '@/integrations/integrationLabels'
 import { readableQuote } from './readable-quote'
 
 const STEP: Record<string, string> = { planning: 'plan', execution: 'build', claw: 'scheduled run' }
@@ -7,6 +8,8 @@ const STEP: Record<string, string> = { planning: 'plan', execution: 'build', cla
 export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: string) => string): string {
   const who = entry.actor?.name ?? (entry.actorType === 'agent' ? 'The agent' : 'Viberglass')
   const person = typeof entry.payload.userId === 'string' ? nameOf(entry.payload.userId) : 'someone'
+  // Set when the change came from the tracker issue the task is linked to.
+  const tracker = typeof entry.payload.source === 'string' ? integrationLabel(entry.payload.source) : null
   const step = typeof entry.payload.step === 'string' ? (STEP[entry.payload.step] ?? entry.payload.step) : 'step'
   switch (entry.kind) {
     case 'task_created':
@@ -40,7 +43,9 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'document_approved':
       return `${who} approved the ${step}`
     case 'task_done':
-      return `${who} marked the task as done`
+      return tracker ? `Closed on ${tracker}, so the task is done` : `${who} marked the task as done`
+    case 'task_reopened':
+      return tracker ? `Reopened on ${tracker}, so the task is open again` : `${who} reopened the task`
     case 'pull_request_merged':
       return typeof entry.payload.mergedBy === 'string' ? `Merged by ${entry.payload.mergedBy}` : 'The pull request was merged'
     case 'part_merged': {

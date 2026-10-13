@@ -14,10 +14,12 @@ function normalizeRefs(value: unknown): ShortcutRef[] | undefined {
       if (typeof id === 'undefined' && !entityType) return undefined
 
       const name = toNonEmptyString(ref.name)
+      const type = toNonEmptyString(ref.type)
       return {
         id,
         entity_type: entityType,
         ...(name ? { name } : {}),
+        ...(type ? { type } : {}),
       }
     })
     .filter((ref): ref is ShortcutRef => typeof ref !== 'undefined')

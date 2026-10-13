@@ -1,0 +1,10 @@
+# The `https` profile of docker-compose.prod.yml: the app, and artifact previews
+# on a host of their own.
+
+{$VIBERGLASS_DOMAIN} {
+	reverse_proxy frontend:8080
+}
+
+{$VIBERGLASS_PREVIEW_DOMAIN} {
+	reverse_proxy backend:8890
+}

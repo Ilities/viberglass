@@ -27,12 +27,15 @@ storage:
   region: REPLACE_WITH_SIGNING_REGION
   bucket: viberglass
   forcePathStyle: true
+  workerEndpoint: ""
+preview:
+  publicUrl: https://preview.viberglass.example.com
 ingress:
   enabled: true
   className: REPLACE_WITH_INGRESS_CLASS
   host: viberglass.example.com
   tls:
-    - hosts: [viberglass.example.com]
+    - hosts: [viberglass.example.com, preview.viberglass.example.com]
       secretName: viberglass-tls
 networkPolicy:
   enabled: true

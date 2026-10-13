@@ -30,10 +30,8 @@ export interface LifecycleRule {
   expirationDays?: number;
   /** Transition current objects to IA after days */
   transitionToIaDays?: number;
-  /** Transition current objects to Glacier after days */
-  transitionToGlacierDays?: number;
-  /** Transition current objects to Deep Archive after days */
-  transitionToDeepArchiveDays?: number;
+  /** Transition current objects to Glacier Instant Retrieval after days */
+  transitionToGlacierInstantRetrievalDays?: number;
 }
 
 /**
@@ -55,7 +53,9 @@ export interface StorageOutputs {
  *
  * Dev: Aggressive cleanup to save costs
  * Staging: Keep data longer with tiered storage
- * Prod: Long-term retention with Glacier archiving
+ * Prod: Long-term retention with Glacier Instant Retrieval. Space files and
+ * artifacts are read back after months without changes, so current objects
+ * stay in classes S3 serves without a restore.
  */
 function getLifecycleRules(environment: string): LifecycleRule[] {
   const commonMultipartCleanup = 7; // 7 days for all environments
@@ -94,7 +94,7 @@ function getLifecycleRules(environment: string): LifecycleRule[] {
     ];
   }
 
-  // Production: long-term retention with Glacier archiving
+  // Production: long-term retention with Glacier Instant Retrieval
   return [
     {
       id: "abort-multipart-uploads",
@@ -106,11 +106,7 @@ function getLifecycleRules(environment: string): LifecycleRule[] {
     },
     {
       id: "transition-current-to-glacier",
-      transitionToGlacierDays: 90,
-    },
-    {
-      id: "transition-current-to-deep-archive",
-      transitionToDeepArchiveDays: 180,
+      transitionToGlacierInstantRetrievalDays: 90,
     },
     {
       id: "transition-noncurrent-to-glacier",
@@ -243,7 +239,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
       };
     }
 
-    // Current object transitions (IA -> Glacier -> Deep Archive)
+    // Current object transitions (IA -> Glacier Instant Retrieval)
     const transitions: aws.types.input.s3.BucketLifecycleConfigurationV2RuleTransition[] =
       [];
     if (rule.transitionToIaDays !== undefined) {
@@ -252,16 +248,10 @@ export function createStorage(options: StorageOptions): StorageOutputs {
         days: rule.transitionToIaDays,
       });
     }
-    if (rule.transitionToGlacierDays !== undefined) {
+    if (rule.transitionToGlacierInstantRetrievalDays !== undefined) {
       transitions.push({
-        storageClass: "GLACIER",
-        days: rule.transitionToGlacierDays,
-      });
-    }
-    if (rule.transitionToDeepArchiveDays !== undefined) {
-      transitions.push({
-        storageClass: "DEEP_ARCHIVE",
-        days: rule.transitionToDeepArchiveDays,
+        storageClass: "GLACIER_IR",
+        days: rule.transitionToGlacierInstantRetrievalDays,
       });
     }
     if (transitions.length > 0) {

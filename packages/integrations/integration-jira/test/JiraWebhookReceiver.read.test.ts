@@ -54,4 +54,54 @@ describe('JiraWebhookReceiver reading', () => {
       }),
     })
   })
+
+  it('matches a rich-text mention of the bot by account ID, whatever its display text', () => {
+    const paragraph = (...content: unknown[]) => ({ type: 'doc', version: 1, content: [{ type: 'paragraph', content }] })
+    const mention = (id: string, text: string) => ({ type: 'mention', attrs: { id, text, accessLevel: '' } })
+    const read = (body: unknown) =>
+      receiver.read(event({ eventType: 'comment_created', metadata: {}, payload: { issue: { key: 'OPS-1' }, comment: { body, author: { displayName: 'Maria' } } } }), {
+        botUsername: '712020:bot-account',
+      })
+
+    expect(read(paragraph(mention('712020:bot-account', '@Viberglass Bot'), { type: 'text', text: ' write the plan' }))).toEqual({
+      kind: 'comment',
+      comment: { issueKey: 'OPS-1', author: { name: 'Maria', email: null }, body: 'write the plan', mentionsBot: true },
+    })
+    expect(read(paragraph(mention('712020:someone-else', '@Pat'), { type: 'text', text: ' can you look?' }))).toEqual({
+      kind: 'comment',
+      comment: { issueKey: 'OPS-1', author: { name: 'Maria', email: null }, body: '@Pat can you look?', mentionsBot: false },
+    })
+  })
+
+  describe('closing and reopening', () => {
+    const updated = (items: unknown[], category = 'indeterminate') =>
+      receiver.read(
+        event({
+          eventType: 'issue_updated',
+          metadata: { action: 'issue_generic' },
+          payload: {
+            webhookEvent: 'jira:issue_updated',
+            changelog: { id: '10040', items },
+            issue: { key: 'KAN-4', fields: { summary: 'Add Nemotron models', status: { name: 'Status', statusCategory: { key: category } } } },
+          },
+        }),
+        settings,
+      )
+    const stateChangeOf = (action: ReturnType<typeof updated>) => (action.kind === 'issue' ? action.issue.stateChange : `not an issue: ${action.kind}`)
+    const status = (fromString: string, toString: string) => ({ field: 'status', fieldId: 'status', from: '1', fromString, to: '2', toString })
+
+    it('closes when the resolution is set, or the issue moves into a done status', () => {
+      expect(stateChangeOf(updated([status('In Progress', 'Done'), { field: 'resolution', fieldId: 'resolution', from: null, fromString: null, to: '10000', toString: 'Done' }], 'done'))).toBe('closed')
+      expect(stateChangeOf(updated([status('In Progress', 'Done')], 'done'))).toBe('closed')
+    })
+
+    it('reopens when the resolution is cleared', () => {
+      expect(stateChangeOf(updated([status('Done', 'To Do'), { field: 'resolution', fieldId: 'resolution', from: '10000', fromString: 'Done', to: null, toString: null }], 'new'))).toBe('reopened')
+    })
+
+    it('leaves moves between open statuses and other changes alone', () => {
+      expect(stateChangeOf(updated([status('To Do', 'In Progress')]))).toBeUndefined()
+      expect(stateChangeOf(updated([{ field: 'labels', fieldId: 'labels', fromString: '', toString: 'viberglass' }], 'done'))).toBeUndefined()
+    })
+  })
 })

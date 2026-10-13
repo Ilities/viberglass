@@ -25,7 +25,7 @@ The examples use Helm release `viberglass`, app namespace `viberglass`, and work
 | Install permissions | Permission to create namespaces, Deployments, Services, ServiceAccounts, Jobs, ConfigMaps, Secrets, Roles/RoleBindings, quotas, NetworkPolicies and Ingresses, and grant the chart's namespaced RBAC permissions. |
 | PostgreSQL | An existing database and login allowed to create/alter its schema and run migrations, reachable from app Pods. Use a dedicated database; enable backups. |
 | Object storage | An existing private S3-compatible bucket and credentials allowed to read, write, list and delete its objects. Backend and worker Pods must reach the storage endpoint; browsers must reach its public endpoint. |
-| Networking | An installed [Ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/), a DNS name and a certificate for it. Set up a [NetworkPolicy-capable CNI](https://kubernetes.io/docs/concepts/services-networking/network-policies/) to enforce the chart's policies. |
+| Networking | An installed [Ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/), a DNS name and a certificate for it. A second DNS name for artifact previews, covered by the same or another certificate, if you want previews. Set up a [NetworkPolicy-capable CNI](https://kubernetes.io/docs/concepts/services-networking/network-policies/) to enforce the chart's policies. |
 | First task | A supported model API key or compatible model endpoint, and a GitHub repository/access token. SMTP is optional for email invitations and notifications. |
 
 The chart does not provision the cluster, database, external bucket, ingress controller, DNS or certificates. External storage bucket creation is your responsibility. A default worker requests and limits 500m CPU, 1 GiB memory and 2 GiB ephemeral storage; adjust runner settings and the namespace quota to fit your tasks and available nodes. Keep `backend.replicas: 1`.
@@ -136,10 +136,12 @@ Edit this [non-secret example](../../../infra/kubernetes/chart/values-production
 | `publicUrl`, `ingress.host`, `ingress.tls[].hosts` | Your HTTPS URL and matching hostname, without a trailing slash in `publicUrl`. |
 | `database.host/port/name/user/ssl` | Your database connection. `DB_PASSWORD` comes from the app Secret. Keep `enabled: false` for external PostgreSQL. |
 | `storage.endpoint/publicEndpoint/region/bucket/forcePathStyle` | Your provider's endpoints, signing region, existing bucket and addressing mode. Keep `enabled: false` for external storage. |
+| `storage.workerEndpoint` | Optional. The storage address worker Pods use for a Files space's files, when it isn't `storage.endpoint`. |
+| `preview.publicUrl`, `ingress.tls[].hosts` | The HTTPS address of the artifact preview host, on a hostname of its own, and that hostname in the TLS hosts. Empty turns HTML, image and PDF previews off. |
 | `ingress.className`, `ingress.tls[].secretName` | Your installed ingress class and TLS Secret in the app namespace. |
 | `workers.quota` | Optional overrides of the [chart defaults](../../../infra/kubernetes/chart/values.yaml) for concurrent Pods and CPU/memory/disk. Quotas do not add node capacity. |
 
-Use a storage endpoint without embedded credentials. The backend and worker Pods use `storage.endpoint`; browsers download media using signed URLs at `storage.publicEndpoint`. If both can use the same HTTPS endpoint, set both to it. Configure bucket CORS for your `publicUrl` if required by browser requests to your provider; confirm media downloads during verification. The bucket stays private.
+Use a storage endpoint without embedded credentials. The backend and worker Pods use `storage.endpoint`; browsers download media using signed URLs at `storage.publicEndpoint`. Workers in Files spaces fetch and save the space's files through signed URLs, too. When worker Pods reach storage at another address than the backend does, set it in `storage.workerEndpoint`, and the backend signs those URLs for that address. Task media and saved sessions are still signed for `storage.endpoint`, so worker Pods need to reach that as well. If both can use the same HTTPS endpoint, set both to it. Configure bucket CORS for your `publicUrl` if required by browser requests to your provider; confirm media downloads during verification. The bucket stays private.
 
 For optional email, add `SMTP_URL` as another key in `viberglass-app` using your secret manager, and set `backend.env.EMAIL_FROM` to your sender address. Keep SMTP URLs containing passwords out of the values file. After changing an existing Secret, restart the backend as described under upgrades. Slack and other integrations are covered in [repositories and integrations](repositories-and-integrations.md).
 
@@ -158,7 +160,7 @@ networkPolicy:
           port: 443
 ```
 
-For NodeLocal DNS, add its actual IP as an `ipBlock` and allow both UDP and TCP port 53. Existing cluster policies must also permit app-to-database/storage access and ingress-controller-to-frontend traffic. Verify enforcement on your CNI; creating NetworkPolicy objects alone does not enforce them.
+Storage at a private address, in another namespace or on a port other than 80 or 443 needs such a rule too. Without one, runs in Files spaces fail to restore or save their files. For NodeLocal DNS, add its actual IP as an `ipBlock` and allow both UDP and TCP port 53. Existing cluster policies must also permit app-to-database/storage access and ingress-controller-to-frontend traffic. Verify enforcement on your CNI; creating NetworkPolicy objects alone does not enforce them.
 
 ## 5. Configure DNS, TLS and registry access
 
@@ -169,6 +171,8 @@ kubectl -n viberglass create secret tls viberglass-tls --cert=/path/to/fullchain
 ```
 
 Alternatively, have your existing certificate controller create `viberglass-tls` and add the controller's required annotations to `ingress.annotations`. The chart references the Secret and does not issue certificates. HTTPS is required for production sign-in cookies.
+
+Artifact previews run the agent's HTML and scripts, so they load from a host of their own, where the app's sign-in cookies never go. Point the preview hostname, such as `preview.viberglass.example.com`, at the ingress controller too, and include it in the certificate. The chart adds an Ingress rule that sends it to port 8890 of the backend Service, and its network policy lets the ingress controller reach that port; it serves only files named by a signed preview link. The chart refuses a `preview.publicUrl` on the app's own host. Links are signed with `SECRETS_ENCRYPTION_KEY`, or with a `PREVIEW_SIGNING_KEY` you add to `viberglass-app`.
 
 For a private registry, create a [pull Secret](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) in **both** namespaces. With a Docker config already containing the registry login:
 
@@ -211,9 +215,10 @@ Test the public address, replacing the example hostname:
 ```bash
 curl --fail --show-error https://viberglass.example.com/health
 curl --fail --show-error https://viberglass.example.com/api/auth/setup-status
+curl --show-error --output /dev/null --write-out '%{http_code}\n' https://preview.viberglass.example.com/
 ```
 
-`/health` checks the frontend route. The setup-status endpoint exercises the frontend proxy, backend and database; a fresh database returns `{"requiresInitialUser":true}`. Check that the browser sees a valid TLS certificate, too.
+`/health` checks the frontend route. The setup-status endpoint exercises the frontend proxy, backend and database; a fresh database returns `{"requiresInitialUser":true}`. The preview host answers `404` to anything but a signed link, which shows the request reached the backend. Check that the browser sees a valid TLS certificate, too.
 
 ## 7. Complete setup and run a task
 
@@ -226,6 +231,8 @@ kubectl -n viberglass-workers get jobs,pods --watch
 ```
 
 Stop the watch with Ctrl-C. Verify that the task receives its result and the Job completes. Then upload/download task media, run another turn in the same task to check session restoration in a new Pod, and cancel a running task. Cancellation should remove its Job and auth Secret. Finished Jobs and their auth Secrets expire after an hour. A healthy run can exceed thirty minutes; its runner deadline defaults to one hour and can be changed in the runner's Kubernetes settings.
+
+If you use Files spaces, create one, ask its agent to create an HTML artifact, and run a second turn that changes it. The second Pod should start from the files the first saved, and the artifact should preview from the preview host. A worker Pod that's stopped, for example at the runner's deadline, gets 60 seconds to save its files before Kubernetes kills it.
 
 Do not use the standalone `smoke:kubernetes` runner as an installed-platform check: it creates its own callback server and is intended for a disposable test cluster. For further deployment checks, use the [manual Kubernetes checklist](../../testing/e2e-manual/06-kubernetes.md).
 

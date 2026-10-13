@@ -8,7 +8,12 @@ export interface TrackerPerson {
   name: string
   /** Matches them to a Viberglass account when the tracker shares it. */
   email: string | null
+  /** The tracker's id for them, for a tracker whose events name people by id alone. */
+  accountId?: string
 }
+
+/** What an event did to the issue's state, when it closed or reopened it. */
+export type InboundIssueStateChange = 'closed' | 'reopened'
 
 /** An issue as an event shows it. */
 export interface InboundIssue {
@@ -28,6 +33,8 @@ export interface InboundIssue {
   repository: string | null
   /** Tracker details kept on a new task, such as the issue type. */
   metadata: Record<string, unknown>
+  /** Set when the event closed or reopened the issue. */
+  stateChange?: InboundIssueStateChange
 }
 
 export interface InboundComment {

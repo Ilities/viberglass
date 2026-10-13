@@ -5,14 +5,10 @@ import type { SpaceTextFile } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-type Problem = { kind: 'changed' } | { kind: 'busy' } | { kind: 'failed'; message: string }
+type Problem = { kind: 'changed' } | { kind: 'failed'; message: string }
 
-const PROBLEM_TEXT: Record<Problem['kind'], string> = {
-  changed:
-    'Someone changed this file since you opened it, so your save was refused. Your text is still here: copy what you need, then load their version.',
-  busy: 'A run is saving this space’s files right now. Your text is still here; save again in a moment.',
-  failed: '',
-}
+const CHANGED_TEXT =
+  'Someone changed this file since you opened it, so your save was refused. Your text is still here: copy what you need, then load their version.'
 
 /**
  * Edits one Markdown or plain-text file. Saving sends the hash of the file as
@@ -23,6 +19,7 @@ export function TextFileEditor({
   path,
   isNew,
   onSaved,
+  onQueued,
   onClose,
 }: {
   projectId: string
@@ -30,6 +27,8 @@ export function TextFileEditor({
   /** A file that doesn't exist yet: it starts empty and saving creates it. */
   isNew: boolean
   onSaved: () => void
+  /** The save waits for the run holding the space; the editor closes and the page lists it. */
+  onQueued: () => void
   onClose: () => void
 }) {
   const [opened, setOpened] = useState<SpaceTextFile | null>(isNew ? { path, content: '', sha256: '' } : null)
@@ -66,12 +65,16 @@ export function TextFileEditor({
         content: text,
         baseSha256: isNew && !opened.sha256 ? null : opened.sha256,
       })
+      if ('queued' in saved) {
+        toast.success(`Your save of ${path} waits for the run and is saved once it has`)
+        onQueued()
+        return
+      }
       setOpened(saved.file)
       toast.success(`Saved ${path}`)
       onSaved()
     } catch (error) {
       if (error instanceof SpaceRequestError && error.code === 'FILE_CHANGED') setProblem({ kind: 'changed' })
-      else if (error instanceof SpaceRequestError && error.code === 'SPACE_BUSY') setProblem({ kind: 'busy' })
       else setProblem({ kind: 'failed', message: error instanceof Error ? error.message : "Couldn't save the file" })
     } finally {
       setIsSaving(false)
@@ -115,7 +118,7 @@ export function TextFileEditor({
           />
           {problem && (
             <div role="alert" className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
-              <p>{problem.kind === 'failed' ? problem.message : PROBLEM_TEXT[problem.kind]}</p>
+              <p>{problem.kind === 'failed' ? problem.message : CHANGED_TEXT}</p>
               {problem.kind === 'changed' && (
                 <Button outline size="small" className="mt-2" onClick={() => void load()}>
                   Load their version

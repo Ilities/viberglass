@@ -1,6 +1,7 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { InfrastructureConfig } from "../config";
+import { PREVIEW_PORT } from "./preview-origin";
 
 /**
  * Backend ECS configuration options.
@@ -55,6 +56,11 @@ export interface BackendEcsOptions {
   email?: {
     identityArn: pulumi.Input<string>;
     from: string;
+  };
+  /** Artifact previews on their own host; without it the app offers no HTML, image or PDF previews */
+  preview?: {
+    publicUrl: pulumi.Input<string>;
+    targetGroupArn: pulumi.Input<string>;
   };
   /** S3 bucket used for uploaded assets and ticket media */
   uploadsBucketName?: pulumi.Input<string>;
@@ -379,6 +385,7 @@ export function createBackendEcs(
           allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
           platformApiUrl: options.platformApiUrl ?? "",
           platformFrontendUrl: options.platformFrontendUrl ?? "",
+          previewPublicUrl: options.preview?.publicUrl ?? "",
           workerExecRole: options.worker?.executionRoleArn ?? "",
           workerTaskRole: options.worker?.taskRoleArn ?? "",
           workerImage: options.worker?.imageUri ?? "",
@@ -401,6 +408,7 @@ export function createBackendEcs(
             allowedOrigins,
             platformApiUrl,
             platformFrontendUrl,
+            previewPublicUrl,
             workerExecRole,
             workerTaskRole,
             workerImage,
@@ -449,6 +457,11 @@ export function createBackendEcs(
                 name: "PLATFORM_FRONTEND_URL",
                 value: platformFrontendUrl,
               });
+            }
+
+            if (previewPublicUrl) {
+              envVars.push({ name: "PREVIEW_PORT", value: String(PREVIEW_PORT) });
+              envVars.push({ name: "PREVIEW_PUBLIC_URL", value: previewPublicUrl });
             }
 
             if (options.email) {
@@ -536,6 +549,9 @@ export function createBackendEcs(
                     containerPort: containerPort,
                     protocol: "tcp",
                   },
+                  ...(previewPublicUrl
+                    ? [{ containerPort: PREVIEW_PORT, protocol: "tcp" }]
+                    : []),
                 ],
                 logConfiguration: {
                   logDriver: "awslogs",
@@ -632,6 +648,15 @@ export function createBackendService(
           containerName: "viberglass-backend",
           containerPort: containerPort,
         },
+        ...(options.preview
+          ? [
+              {
+                targetGroupArn: options.preview.targetGroupArn,
+                containerName: "viberglass-backend",
+                containerPort: PREVIEW_PORT,
+              },
+            ]
+          : []),
       ],
       enableExecuteCommand: true,
       tags: options.config.tags,

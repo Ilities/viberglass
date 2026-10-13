@@ -27,6 +27,8 @@ export interface InfrastructureConfig {
   apiDomain?: string;
   /** Frontend domain name (e.g., "app.viberglass.io") - configures Amplify custom domain */
   appDomain?: string;
+  /** Host artifact previews load from (e.g., "preview.viberglass.io"); needs apiDomain and route53ZoneId, and must differ from both app hosts */
+  previewDomain?: string;
   /** Route 53 hosted zone ID for DNS validation and alias records (required if apiDomain is set) */
   route53ZoneId?: string;
   /** Domain to send email from through SES (e.g., "viberglass.io"); its DKIM records go in route53ZoneId when set */
@@ -62,6 +64,15 @@ export function getConfig(): InfrastructureConfig {
   const apiDomain = config.get("apiDomain");
   const appDomain = config.get("appDomain");
   const route53ZoneId = config.get("route53ZoneId");
+  const previewDomain = config.get("previewDomain");
+  if (previewDomain) {
+    if (!apiDomain || !route53ZoneId) {
+      throw new Error("previewDomain needs apiDomain and route53ZoneId: previews are served over HTTPS by the API's load balancer");
+    }
+    if (previewDomain === apiDomain || previewDomain === appDomain) {
+      throw new Error("previewDomain must be a host of its own, not apiDomain or appDomain");
+    }
+  }
   const emailDomain = config.get("emailDomain");
   const emailFrom = config.get("emailFrom");
   const defaultBackendImageTag = environment === "prod" ? "prod-latest" : "latest";
@@ -112,6 +123,7 @@ export function getConfig(): InfrastructureConfig {
     dbAllocatedStorage: finalDbAllocatedStorage,
     apiDomain,
     appDomain,
+    previewDomain,
     route53ZoneId,
     emailDomain,
     emailFrom,

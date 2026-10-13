@@ -21,6 +21,8 @@ const logger = createChildLogger({ service: "SpaceFilesRunService" });
 
 /** How long a run keeps its space without a heartbeat; heartbeats come every minute. */
 export const SPACE_LEASE_MS = 10 * 60_000;
+/** How long a stopped run's worker may still save its files; workers get 20–30 seconds after SIGTERM. */
+export const STOP_SAVE_MS = 60_000;
 const GRANT_SECONDS = 300;
 export const WAITING_MESSAGE = "Waiting for another run to save this space";
 
@@ -33,6 +35,12 @@ export { InvalidSpaceArchive };
 /** Starts the worker for a run that has just been given its space. */
 export type FilesRunLauncher = (run: SpaceFileRun) => Promise<void>;
 
+/** People's changes that waited for the space; they're saved before the next run starts. */
+export interface WaitingChanges {
+  applyWaiting(projectId: string): Promise<void>;
+  spacesWithWaiting(): Promise<string[]>;
+}
+
 /**
  * One writer at a time per Files space. A run waits for the space's lease,
  * starts from the space's current files, and its saved files become the
@@ -41,6 +49,7 @@ export type FilesRunLauncher = (run: SpaceFileRun) => Promise<void>;
  */
 export class SpaceFilesRunService {
   private launcher: FilesRunLauncher | null = null;
+  private changes: WaitingChanges | null = null;
 
   // Built on first use: the shared instance below is created when its module loads.
   constructor(
@@ -76,6 +85,11 @@ export class SpaceFilesRunService {
     this.launcher = launcher;
   }
 
+  /** Set by the composition root, which owns the queue of people's changes. */
+  setWaitingChanges(changes: WaitingChanges): void {
+    this.changes = changes;
+  }
+
   /** Queues the job for its space; it starts at once when the space is free. */
   async enqueue(jobId: string, projectId: string): Promise<SpaceFileRun | null> {
     await this.dao.createRun(jobId, projectId, randomUUID());
@@ -92,7 +106,8 @@ export class SpaceFilesRunService {
   }
 
   async grant(jobId: string, tenantId: string, operation: FilesStorageOperation): Promise<FilesStorageGrant> {
-    const { run } = await this.activeRun(jobId, tenantId);
+    // A stopped run may still save what it had, but not start reading.
+    const { run } = await this.activeRun(jobId, tenantId, operation === "write");
     const bucket = this.store.bucket();
     if (!bucket) throw new Error("File storage is not configured");
     let storageUrl: string;
@@ -121,7 +136,9 @@ export class SpaceFilesRunService {
       const saved = await this.dao.getSnapshot(existing.checkpointSnapshotId);
       if (saved) return { ...summary(saved), artifacts: await this.artifacts.listForJob(jobId), artifactError: null };
     }
-    const { run, payload } = await this.activeRun(jobId, tenantId);
+    const { run, payload, stopped } = await this.activeRun(jobId, tenantId, true);
+    // What a stopped run saves is what it had so far, never a finished artifact.
+    const partial = request.partial || stopped;
     const bucket = this.store.bucket();
     const storageUrl = snapshotStorageUrl(bucket, run.projectId, run.checkpointSnapshotId);
 
@@ -140,7 +157,7 @@ export class SpaceFilesRunService {
     // Only a run asked for an artifact keeps one; its files are saved either way.
     let versions: NewArtifactVersion[] = [];
     let artifactError: string | null = null;
-    if (!request.partial && payload.turnAction === "code") {
+    if (!partial && payload.turnAction === "code") {
       if (request.artifactManifestError) {
         artifactError = request.artifactManifestError;
       } else {
@@ -171,7 +188,7 @@ export class SpaceFilesRunService {
         totalBytes: archive.totalBytes,
         manifest: archive.manifest,
         changes: compareManifests(parent?.manifest ?? [], archive.manifest),
-        partial: request.partial,
+        partial,
       },
       versions,
     );
@@ -205,6 +222,15 @@ export class SpaceFilesRunService {
     await this.dao.renewLease(jobId, SPACE_LEASE_MS);
   }
 
+  /**
+   * The job was stopped: a running run keeps its space a little longer, so
+   * its worker can save what it had; a waiting one just ends.
+   */
+  async stop(jobId: string): Promise<void> {
+    if (await this.dao.shortenLease(jobId, STOP_SAVE_MS)) return;
+    await this.release(jobId);
+  }
+
   /** The job ended: free its space if it held it, and start whoever waits. */
   async release(jobId: string): Promise<void> {
     const projectId = await this.dao.release(jobId);
@@ -227,13 +253,15 @@ export class SpaceFilesRunService {
       await this.dao.release(jobId);
       done++;
     }
-    for (const projectId of await this.dao.listStartableSpaces()) {
+    const spaces = new Set([...(await this.dao.listStartableSpaces()), ...((await this.changes?.spacesWithWaiting()) ?? [])]);
+    for (const projectId of spaces) {
       if (await this.launchNext(projectId)) done++;
     }
     return done;
   }
 
   private async launchNext(projectId: string): Promise<boolean> {
+    await this.changes?.applyWaiting(projectId);
     const run = await this.dao.startNextWaiting(projectId, SPACE_LEASE_MS);
     if (!run) return false;
     await this.launch(run);
@@ -260,16 +288,22 @@ export class SpaceFilesRunService {
     }
   }
 
-  private async activeRun(jobId: string, tenantId: string): Promise<{ run: SpaceFileRun; payload: Record<string, unknown> }> {
+  /** The run, while it holds its space; a cancelled one only when `orStopped` and it still holds it. */
+  private async activeRun(
+    jobId: string,
+    tenantId: string,
+    orStopped = false,
+  ): Promise<{ run: SpaceFileRun; payload: Record<string, unknown>; stopped: boolean }> {
     const bootstrap = await this.bootstraps.getBootstrapPayload(jobId);
-    if (!bootstrap || bootstrap.tenantId !== tenantId || bootstrap.status !== "active") {
+    const stopped = bootstrap?.status === "cancelled";
+    if (!bootstrap || bootstrap.tenantId !== tenantId || !(bootstrap.status === "active" || (orStopped && stopped))) {
       throw new SpaceFilesDenied("Files are only available to this active run");
     }
     const run = await this.dao.getRun(jobId);
     if (!run || run.status !== "running" || !(await this.dao.holdsLease(run))) {
       throw new SpaceFilesDenied("This run doesn't hold its space's files");
     }
-    return { run, payload: bootstrap.payload ?? {} };
+    return { run, payload: bootstrap.payload ?? {}, stopped };
   }
 }
 

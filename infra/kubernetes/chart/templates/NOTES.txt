@@ -1,0 +1,15 @@
+Viberglass is installed. Open {{ .Values.publicUrl }} and create the first administrator.
+
+Agent runs start as Jobs in the {{ include "viberglass.workersNamespace" . }} namespace.
+{{- if .Values.preview.publicUrl }}
+
+Artifact previews load from {{ .Values.preview.publicUrl }}, served by port 8890 of the
+{{ include "viberglass.name" . }}-backend Service.
+{{- if .Values.ingress.enabled }} Point that hostname's DNS at your ingress controller and include
+it in the ingress TLS certificate.
+{{- end }}
+{{- else }}
+
+Artifact previews (HTML, images, PDF, SVG) are off. Set preview.publicUrl to a URL on its own
+host, such as https://preview.{{ (urlParse .Values.publicUrl).hostname }}, to turn them on.
+{{- end }}

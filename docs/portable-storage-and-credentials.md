@@ -28,6 +28,7 @@ Configure the following on the backend and AWS/Docker worker deployments. Kubern
 | `S3_ACCESS_KEY_ID` | Object storage access key | SDK credential chain if both S3 keys are unset |
 | `S3_SECRET_ACCESS_KEY` | Object storage secret key; set together with access key | SDK credential chain |
 | `S3_PUBLIC_ENDPOINT` | Browser-reachable endpoint for signed downloads; workers use `S3_ENDPOINT` | `S3_ENDPOINT` |
+| `S3_WORKER_ENDPOINT` | Endpoint for the URLs the backend signs for workers (Files snapshots), when workers reach storage at another address | `S3_ENDPOINT` |
 | `S3_SESSION_TOKEN` | Optional token for temporary S3 credentials | Unset |
 
 The neutral S3 variables let an OVH signing region coexist with an AWS region used by other clients. Existing AWS configuration continues to work without setting any new variables. Standard AWS SDK checksum environment settings also remain available; see [AWS checksum configuration](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html).

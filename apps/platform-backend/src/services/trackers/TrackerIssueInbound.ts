@@ -10,6 +10,8 @@ import { TaskDiscussionService } from "../tasks/TaskDiscussionService";
 import type { TaskTurnService } from "../taskTurns/TaskTurnService";
 import type { TrackerIssueRouter } from "./TrackerIssueRouter";
 import type { TrackerIssueTaskOpener } from "./TrackerIssueTaskOpener";
+import { TrackerIssueStateSync } from "./TrackerIssueStateSync";
+import { TrackerPersonLookup } from "./TrackerPersonLookup";
 import { trackerPersonId } from "./trackerPersonId";
 
 const logger = createChildLogger({ service: "TrackerIssueInbound" });
@@ -39,6 +41,8 @@ interface Dependencies {
   questions: Pick<AgentQuestionDAO, "listOpenForTasks">;
   answers: Pick<AgentQuestionAnswerService, "answer">;
   turns: Pick<TaskTurnService, "ask">;
+  states: Pick<TrackerIssueStateSync, "apply">;
+  people: Pick<TrackerPersonLookup, "complete">;
 }
 
 /**
@@ -47,6 +51,7 @@ interface Dependencies {
  * that takes it and doesn't have one yet, and its edits update the tasks it
  * has. A comment is a message in each task's thread: a mention of the bot asks
  * the agent, and a reply from the person the agent asked answers its question.
+ * Closing or reopening the issue finishes or reopens its tasks.
  */
 export class TrackerIssueInbound {
   private readonly deps: Dependencies;
@@ -58,6 +63,8 @@ export class TrackerIssueInbound {
       users: new UserDAO(),
       discussion: new TaskDiscussionService(),
       questions: new AgentQuestionDAO(),
+      states: new TrackerIssueStateSync(),
+      people: new TrackerPersonLookup(),
       ...deps,
     };
   }
@@ -72,9 +79,12 @@ export class TrackerIssueInbound {
       });
     }
 
+    if (issue.stateChange) await this.deps.states.apply(context.provider, linked.map((task) => task.ticketId), issue.stateChange);
+
+    const first: TrackerEventResult = linked[0] ? { ticketId: linked[0].ticketId, projectId: linked[0].projectId } : {};
+    if (issue.stateChange === "closed") return linked.length > 0 ? first : { ignoredReason: `The ${context.provider} issue is closed` };
     const { spaces, reason } = await this.deps.router.route(context, issue);
     const fresh = spaces.filter((space) => !linked.some((task) => task.projectId === space.projectId));
-    const first: TrackerEventResult = linked[0] ? { ticketId: linked[0].ticketId, projectId: linked[0].projectId } : {};
     if (fresh.length === 0) return linked.length > 0 ? first : { ignoredReason: reason ?? "No space takes the issue" };
     if (!title) return { ...first, ignoredReason: `The ${context.provider} event doesn't carry the issue's title` };
 
@@ -90,10 +100,11 @@ export class TrackerIssueInbound {
     const body = comment.body.trim();
     if (!body) return { ticketId: linked[0].ticketId, projectId: linked[0].projectId, ignoredReason: "The comment is empty" };
 
-    const userId = await trackerPersonId(this.deps.users, comment.author);
+    const author = await this.deps.people.complete(context.integrationId, comment.author);
+    const userId = await trackerPersonId(this.deps.users, author);
     const results: TrackerEventResult[] = [];
     for (const task of linked) {
-      results.push({ projectId: task.projectId, ...(await this.commentOn(task.ticketId, context, comment, userId, body)) });
+      results.push({ projectId: task.projectId, ...(await this.commentOn(task.ticketId, context, { ...comment, author }, userId, body)) });
     }
     return results.find((result) => result.jobId) ?? results[0];
   }

@@ -85,10 +85,14 @@ The dev stack is `docker compose up -d` (app on :3000, API on :8888). After chan
 
 ## Other known gaps and likely tweaks
 
-- Shortcut comment events carry the author only as a member id, so commenters show as "A Shortcut member". The delivery history has real payloads to check against.
-- Closing or reopening an issue doesn't change its task. Jira mentions written in rich text only match when the bot account is set to the mention's display text; wiki-markup bodies match by account ID.
+Fixed on 2026-10-13, none tried with real tracker events yet:
+- Shortcut commenters are looked up by member id through the Shortcut API, so they show by name and match a Viberglass person by email. Shortcut comment events couldn't be read at all before (`story-comment` actions carry no story id); that's fixed too.
+- Closing an issue marks its linked tasks done; reopening it opens them again. GitHub needs `issues.closed` and `issues.reopened` ticked on an existing webhook (the dev one `497130fc-…` doesn't have them). Jira counts a resolution or a move into the done category; Shortcut counts completed, archived and moves into a done workflow state.
+- Jira rich-text mentions of the bot match by account ID.
+- The Jira connection settings form follows the other connection sections.
+
+Still open:
 - The Markdown to Jira wiki conversion is deliberately simple.
-- The generic connection configuration form (now only used by Jira) is plain; worth a look once Jira works.
 - Not checked visually: outside authors in the thread, the GitHub and Shortcut connection screens after the rewording, the forgot-password page.
 - The dev `docker-compose.yml` uses `jussi` as the PostgreSQL user, and the Docker backup command in Upgrades and backups copies it.
 

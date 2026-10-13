@@ -24,6 +24,7 @@ export function actionFromEventType(eventType: string): string | undefined {
 }
 
 export function normalizeObjectType(objectType: unknown): ShortcutWebhookObjectType | undefined {
+  if (objectType === 'story-comment') return 'comment'
   if (objectType !== 'story' && objectType !== 'comment') return undefined
   return objectType
 }

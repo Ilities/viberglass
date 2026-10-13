@@ -19,7 +19,8 @@ const jiraFrontendPlugin: IntegrationFrontendPlugin = {
       {
         value: 'issue_updated',
         label: 'Issue updated',
-        description: "Updates the linked tasks, and brings the issue into a space that takes a label added to it.",
+        description:
+          'Updates the linked tasks, marks them done or reopens them as the issue is resolved or reopened, and brings the issue into a space that takes a label added to it.',
       },
       {
         value: 'comment_created',

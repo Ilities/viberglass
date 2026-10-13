@@ -13,6 +13,7 @@ import { CommentEntry, commentStatuses, isFullComment } from './comment-entry'
 import { NextAgentLine } from './next-agent-line'
 import { OpenQuestions, QuestionEntry } from './question-entry'
 import { PinnedSummary, SummaryEntry } from './summary-entry'
+import { useComposerDraft } from './composer-draft'
 import { TaskComposer, type Mentionable } from './task-composer'
 import { RetryTurnButton, TaskSuggestedActions } from './task-suggested-actions'
 import { retrySuggestion, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
@@ -85,6 +86,7 @@ export function TaskThread({
   const personName = usePersonName()
   const [entries, setEntries] = useState<TaskTimelineEntry[] | null>(null)
   const [messagesOnly, setMessagesOnly] = useState(false)
+  const draft = useComposerDraft()
 
   const load = useCallback(() => {
     getTaskTimeline(taskId)
@@ -239,6 +241,7 @@ export function TaskThread({
         <TaskComposer
           taskId={taskId}
           agents={canAsk ? agents : []}
+          draft={draft}
           agentWorking={agentWorking}
           canInterrupt={canSteer}
           onPosted={posted}
@@ -250,6 +253,7 @@ export function TaskThread({
           suggestions={suggestions}
           agentWorking={agentWorking}
           onAsked={posted}
+          draft={canPost ? draft : undefined}
           trailing={bringable.length > 0 && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
         />
       )}

@@ -18,7 +18,8 @@ const shortcutFrontendPlugin: IntegrationFrontendPlugin = {
       {
         value: 'story_updated',
         label: 'Story updated',
-        description: 'Updates the linked tasks, and brings the story into a space that takes a label added to it.',
+        description:
+          'Updates the linked tasks, marks them done or reopens them as the story is completed or reopened, and brings the story into a space that takes a label added to it.',
       },
       {
         value: 'comment_created',

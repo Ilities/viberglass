@@ -110,6 +110,16 @@ For each environment (`dev`, `staging`, `prod`):
 - [ ] Role has `ssm:GetParameter` permissions
 - [ ] Role has ECS/ECR/Amplify permissions
 
+### Artifact Preview Host (optional)
+
+HTML, image and PDF artifacts preview from a host of their own, so the agent's scripts never run where the app's cookies go. Without one, those artifacts can only be downloaded.
+
+- [ ] Set `viberglass:previewDomain` in the platform stack to a hostname in the Route 53 zone that isn't the API's or the app's, e.g. `preview.viberglass.io`
+- [ ] Run `pulumi up` in `infra/base` first: it opens the backend's preview port, 8890, to the load balancer
+- [ ] Run `pulumi up` in `infra/platform`: it creates the certificate, DNS alias, listener rule and target group, and a backend task definition with `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL` and the port mapping
+- [ ] Run the backend deploy workflow, so the service runs that task definition; if the platform `pulumi up` stopped at the ECS service because its task definition had no port 8890, run it again now
+- [ ] Check `pulumi stack output previewUrl`, and that `curl -s -o /dev/null -w '%{http_code}' <previewUrl>/` answers `404` (the preview host serves only signed links)
+
 ---
 
 ## Secret Requirements
@@ -246,7 +256,7 @@ gh run list --workflow=deploy-backend-prod.yml --json databaseId,status --jq '.[
    - Run `npm run migrate:latest`
 
 3. **Update ECS task definition**
-   - Register new task definition with new image
+   - Register new task definition with new image, copied from the latest revision, so settings Pulumi added there (such as the preview port) ship with it
    - Update ECS service with new task definition
    - Wait for service stability
 

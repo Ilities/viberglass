@@ -15,6 +15,7 @@ import {
   createBackendEcs,
   createBackendService,
 } from "./components/backend-ecs";
+import { createPreviewOrigin } from "./components/preview-origin";
 import {
   AmplifyOidcOutputs,
   createAmplifyOidc,
@@ -204,6 +205,23 @@ const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
   route53ZoneId: config.route53ZoneId,
 });
 
+// Artifact previews on their own host, through the same load balancer
+const previewOrigin =
+  config.previewDomain && config.route53ZoneId && loadBalancer.httpsListenerArn
+    ? createPreviewOrigin({
+        environment: config.environment,
+        vpcId: vpcId,
+        previewDomain: config.previewDomain,
+        route53ZoneId: config.route53ZoneId,
+        httpsListenerArn: loadBalancer.httpsListenerArn,
+        albDnsName: loadBalancer.albDnsName,
+        albZoneId: loadBalancer.albCanonicalHostedZoneId,
+        backendHealthPort: 3000,
+        healthCheckPath: "/health",
+        tags: config.tags,
+      })
+    : undefined;
+
 // =============================================================================
 // AMPLIFY FRONTEND (create first so backend can use its domain for CORS)
 // =============================================================================
@@ -332,6 +350,7 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
     : pulumi.interpolate`http://${loadBalancer.albDnsName}`,
   uploadsBucketName: storage.bucketName,
   ticketMediaS3Prefix: "ticket-media",
+  preview: previewOrigin,
   // Pass worker infrastructure values for clanker managed provisioning
   worker:
     workerExecutionRoleArn || workerLambdaImageUri || workerLambdaRoleArn
@@ -370,6 +389,7 @@ const backendService = createBackendService({
   minTasks: backendMinTasks,
   maxTasks: backendMaxTasks,
   taskDefinitionArn: backendEcs.taskDefinitionArn,
+  preview: previewOrigin,
   clusterArn: backendCluster.arn,
   clusterName: backendCluster.name,
   assignPublicIp: backendAssignPublicIp,
@@ -493,6 +513,7 @@ export const albTargetGroupName = loadBalancer.targetGroupName;
 export const albSecurityGroupId = loadBalancer.albSecurityGroupId;
 export const albCertificateArn = loadBalancer.certificateArn;
 export const apiDomain = loadBalancer.apiDomain;
+export const previewUrl = previewOrigin?.publicUrl;
 
 // Amplify outputs
 export const amplifyAppId = amplifyFrontend.appId;

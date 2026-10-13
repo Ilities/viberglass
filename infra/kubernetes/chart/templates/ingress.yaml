@@ -23,4 +23,15 @@ spec:
               service:
                 name: {{ include "viberglass.name" . }}-frontend
                 port: {number: 80}
+    {{- if .Values.preview.publicUrl }}
+    - host: {{ include "viberglass.previewHost" . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "viberglass.name" . }}-backend
+                port: {number: 8890}
+    {{- end }}
 {{- end }}

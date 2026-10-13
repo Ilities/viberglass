@@ -1,3 +1,5 @@
+import type { TrackerPerson } from '@viberglass/types'
+
 /** The issue a task is linked to, as the tracker names it. */
 export interface TrackerIssue {
   /** "PROJ-12" in Jira, the story id in Shortcut, "owner/repo#12" on GitHub. */
@@ -11,6 +13,8 @@ export interface TrackerIssue {
 export interface TrackerCommenter {
   /** Posts a comment written in Markdown; each tracker converts it to its own format. */
   postComment(issue: TrackerIssue, markdown: string): Promise<void>
+  /** Looks a person up by the tracker's id for them, for a tracker whose events carry only that; null when not found. */
+  findPerson?(accountId: string): Promise<TrackerPerson | null>
 }
 
 /**

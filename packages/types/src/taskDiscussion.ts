@@ -97,6 +97,8 @@ export const TASK_ACTIVITY_KINDS = [
   /** A document comment resolved or reopened; the thread shows it on the comment. */
   'comment_status_changed',
   'task_done',
+  /** A finished task opened again. */
+  'task_reopened',
   'pull_request_merged',
   /** A pull request for some of the plan's parts merged, with more parts to build. */
   'part_merged',

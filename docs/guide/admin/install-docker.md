@@ -61,6 +61,8 @@ You need:
 
 - A Linux server with Docker Engine 20.10 or newer and Docker Compose v2, and about 20 GB of free disk for agent images.
 - A domain name pointing at the server, with ports 80 and 443 open, for HTTPS. Sign-in cookies only work over HTTPS.
+- A second hostname pointing at the server for artifact previews, such as `preview.viberglass.example.com`. Optional; without it, HTML, image and PDF artifacts can only be downloaded.
+- An S3-compatible bucket, if you want Files spaces. Optional; spaces backed by a Git repository don't need one.
 - A model key, and a GitHub repository with an access token, as above.
 
 ```bash
@@ -76,6 +78,7 @@ Fill in `.env`:
 - `VIBERGLASS_DOMAIN`: the same domain without `https://`, for the certificate.
 - `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY` and `WEBHOOK_SECRET_ENCRYPTION_KEY`: generate each with `openssl rand -hex 32`. Keep a copy of the two keys somewhere safe. Without them, the credentials Viberglass stores can't be read.
 - `VIBERGLASS_VERSION`: the same release tag, so the images match. `latest` follows the main branch.
+- `VIBERGLASS_PREVIEW_URL` and `VIBERGLASS_PREVIEW_DOMAIN`: the preview host's HTTPS address and its domain. Leave both empty to turn previews off.
 
 Then start it with HTTPS:
 
@@ -83,9 +86,13 @@ Then start it with HTTPS:
 docker compose -f docker-compose.prod.yml --profile https up -d
 ```
 
-Caddy gets a Let's Encrypt certificate for your domain on the first request. Open your address and go through [first-run setup](#first-run-setup). The backend runs the database migrations each time it starts.
+Caddy gets a Let's Encrypt certificate for each domain on its first request. Open your address and go through [first-run setup](#first-run-setup). The backend runs the database migrations each time it starts.
 
-If you already have a reverse proxy, leave out `--profile https` and point the proxy at `127.0.0.1:8080`, the frontend. It serves the app and passes `/api` to the backend.
+If you already have a reverse proxy, leave out `--profile https` and point the proxy at `127.0.0.1:8080`, the frontend. It serves the app and passes `/api` to the backend. Send the preview host to `127.0.0.1:8890` (`VIBERGLASS_PREVIEW_PORT`), with HTTPS as well.
+
+Artifact previews run the agent's HTML and scripts, so they load from a host of their own, where the app's sign-in cookies never go. Use a hostname that isn't the app's, such as a sibling subdomain or another domain. The app only sets cookies for its own host, so a subdomain of the app's domain is fine. Preview links are signed with `SECRETS_ENCRYPTION_KEY`, or with `PREVIEW_SIGNING_KEY` when you set one, and work for an hour.
+
+Files spaces keep their files and artifacts in object storage. Set the `S3_*` settings in `.env` to a bucket that already exists; `.env.production.example` describes each. Agents running in containers on the server fetch and save files through signed URLs for `S3_WORKER_ENDPOINT`, or `S3_ENDPOINT` when it's unset, so it has to be an address they reach from the Docker bridge network. A bucket also moves task media and plan documents to it, and browsers download media from `S3_PUBLIC_ENDPOINT`.
 
 What else to know:
 

@@ -1,6 +1,6 @@
 # Model hosting: custom endpoints, Bedrock, and deployed open-weight models
 
-Status: phases 1, 3 and 4 implemented for Verda, 2026-10-06; live GPU trial pending · Owner of decisions: Jussi
+Status: done, 2026-10-13. Phases 1, 3 and 4 are implemented for Verda and work with a live GPU deployment; phase 2 was replaced by the Bedrock API key path, OVH AI Deploy and phase 5 are deferred · Owner of decisions: Jussi
 
 ## Goal
 
@@ -233,7 +233,7 @@ These are the facts the design depends on that the research didn't settle:
 
 | Question | Affects | How to check |
 |---|---|---|
-| Does any request, including `GET /v1/models`, wake a Verda container scaled to zero? | Phase 4 | Small-flavour trial (pending a funded account) |
+| Does any request, including `GET /v1/models`, wake a Verda container scaled to zero? | Phase 4 | Verified with a live deployment (2026-10-13) |
 | Does OVH AI Deploy autoscaling scale **from** zero on incoming requests? The docs describe CPU, RAM or custom-metric triggers. | Phase 3, 4 | OVH docs and a trial app. If it can't, Keep warm/Stop becomes the only OVH mode. |
 | Can AI Deploy apps be created through the OVH API, not only the CLI? Which credential does that need? | Phase 3 | OVH API console |
 | Does Verda authenticate requests to the container itself? If it does, our `--api-key` is redundant. | Phase 3 | **Yes**, with the account's inference API key; `--api-key` is not used. |

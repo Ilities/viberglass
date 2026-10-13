@@ -82,7 +82,11 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       callbacks: params.callbackClient.turn,
       logger,
     };
-    const stopped = onStop(() => keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch }));
+    const stopped = onStop(async () => {
+      // A stopped Files run's space waits briefly for this save, so it goes first.
+      if (files) await savePartialFiles(files, repoDir, setup.materializedFiles, logger);
+      await keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch });
+    });
     await sendProgress("execute", "Running ACP agent turn");
     const relay = new QuestionRelay(
       { sendQuestion: (question) => params.callbackClient.turn.sendQuestion(data.id, data.tenantId, question) },

@@ -22,7 +22,7 @@ describe('ShortcutWebhookReceiver reading', () => {
       kind: 'comment',
       comment: {
         issueKey: '42',
-        author: { name: 'A Shortcut member', email: null },
+        author: { name: 'A Shortcut member', email: null, accountId: 'm-1' },
         body: 'write the plan',
         mentionsBot: true,
       },
@@ -72,5 +72,34 @@ describe('ShortcutWebhookReceiver reading', () => {
     expect(created.eventType).toBe('story_updated')
     expect(labelsOf(receiver.read(created, { botUsername: null }))).toEqual(['viberglass'])
     expect(labelsOf(receiver.read(existing, { botUsername: null }))).toEqual(['viberglass'])
+  })
+
+  it("reads a real Shortcut comment delivery, finding its story through the story's own action", () => {
+    const delivery = {
+      id: 'delivery-2',
+      version: 'v1',
+      primary_id: 5011,
+      member_id: 'member-1',
+      actor_name: 'Jussi Hallila',
+      actions: [
+        { id: 5011, entity_type: 'story-comment', action: 'create', author_id: 'member-1', text: 'Looks good @viberglass' },
+        { id: 501, entity_type: 'story', action: 'update', name: 'Example', changes: { comment_ids: { adds: [5011] } } },
+      ],
+    }
+    const parsed = receiver.parseEvent(delivery, {})
+
+    expect(parsed.eventType).toBe('comment_created')
+    expect(receiver.read(parsed, { botUsername: 'viberglass' })).toEqual({
+      kind: 'comment',
+      comment: { issueKey: '501', author: { name: 'Jussi Hallila', email: null, accountId: 'member-1' }, body: 'Looks good', mentionsBot: true },
+    })
+  })
+
+  it("doesn't name a comment's author after someone else who made the change", () => {
+    const action = receiver.read(
+      event('comment_created', { member_id: 'member-2', actor_name: 'Pat', data: { story_id: 42, text: 'Hi', author_id: 'member-1' } }),
+      { botUsername: null },
+    )
+    expect(action).toEqual(expect.objectContaining({ comment: expect.objectContaining({ author: { name: 'A Shortcut member', email: null, accountId: 'member-1' } }) }))
   })
 })

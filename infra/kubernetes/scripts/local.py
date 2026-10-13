@@ -93,4 +93,5 @@ run(["helm", "upgrade", "--install", args.release, "infra/kubernetes/chart", "--
      "--set", f"workers.namespace={workers_namespace}", "--wait", "--wait-for-jobs", "--timeout", "10m"])
 print(f"Installed. Frontend: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-frontend 3100:80")
 print(f"Storage: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-minio 39000:9000")
+print(f"Artifact previews: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-backend 38890:8890")
 print("Open http://localhost:3100 and create the first administrator. Secrets and PVC data are retained on reinstall.")

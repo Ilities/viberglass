@@ -1,9 +1,11 @@
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
+import { Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Text } from '@/components/text'
+import { CheckCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons'
 import type { IntegrationManifest, PluginField } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
@@ -19,7 +21,6 @@ interface IntegrationConfigFormProps {
   storedSecrets?: string[]
   onSubmit: (values: Record<string, FieldValue>) => void
   onTest?: (values: Record<string, FieldValue>) => Promise<void>
-  onCancel: () => void
   isLoading?: boolean
   isTesting?: boolean
   testResult?: { success: boolean; message: string } | null
@@ -31,7 +32,6 @@ export function IntegrationConfigForm({
   storedSecrets = [],
   onSubmit,
   onTest,
-  onCancel,
   isLoading,
   isTesting,
   testResult,
@@ -158,95 +158,54 @@ export function IntegrationConfigForm({
     }
   }
 
+  const dirty = Object.keys({ ...initialValues, ...values }).some((key) => (values[key] ?? '') !== (initialValues[key] ?? ''))
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Configuration Fields Section */}
-      {integration.configFields.length > 0 && (
-        <section className="app-frame rounded-lg p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 20h9M12 20l-4-4m4 4l-4 4M3 12h18M3 12l4-4m-4 4l4 4" />
-              </svg>
-            </div>
-            <Text className="text-base font-semibold text-[var(--gray-12)]">Configuration</Text>
-          </div>
-          <Text className="text-sm text-[var(--gray-9)]">Configure the specific settings for your {integration.label} integration.</Text>
+    <section className="app-frame rounded-lg p-6">
+      <Subheading>Settings</Subheading>
+      <Text className="text-sm text-[var(--gray-9)]">How Viberglass reaches {integration.label}.</Text>
 
-          <Fieldset className="mt-4">
-            <FieldGroup>
-              {integration.configFields.map((field) => (
-                <Field key={field.key}>
-                  <Label>
-                    {field.label}
-                    {field.required && <span className="ml-1 text-red-500">*</span>}
-                  </Label>
-                  {field.description && <Description>{field.description}</Description>}
-                  {field.type !== 'boolean' ? (
-                    renderField(field)
-                  ) : (
-                    <div className="mt-2">{renderField(field)}</div>
-                  )}
-                </Field>
-              ))}
-            </FieldGroup>
-          </Fieldset>
-        </section>
-      )}
+      <form onSubmit={handleSubmit} className="mt-6 max-w-lg">
+        <Fieldset>
+          <FieldGroup>
+            {integration.configFields.map((field) => (
+              <Field key={field.key}>
+                <Label>
+                  {field.label}
+                  {field.required && <span className="ml-1 text-[var(--red-11)]">*</span>}
+                </Label>
+                {field.description && <Description>{field.description}</Description>}
+                {field.type !== 'boolean' ? renderField(field) : <div className="mt-2">{renderField(field)}</div>}
+              </Field>
+            ))}
+          </FieldGroup>
+        </Fieldset>
 
-      {/* Test Result */}
-      {testResult && (
-        <div
-          className={`rounded-lg border p-4 ${
-            testResult.success
-              ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400'
-              : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400'
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            {testResult.success ? (
-              <svg className="size-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg className="size-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            )}
-            <div>
-              <p className="font-medium">{testResult.success ? 'Connection successful' : 'Connection failed'}</p>
-              <p className="mt-1 text-sm opacity-90">{testResult.message}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex flex-col-reverse gap-4 border-t border-[var(--gray-6)] pt-6 sm:flex-row sm:justify-between">
-        <div className="flex gap-4">
-          <Button type="button" outline onClick={onCancel}>
-            Cancel
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <Button type="submit" color="brand" disabled={isLoading || !dirty}>
+            {isLoading ? 'Saving…' : 'Save'}
           </Button>
-        </div>
-        <div className="flex gap-4">
           {onTest && (
             <Button type="button" outline onClick={handleTest} disabled={isTesting}>
-              {isTesting ? 'Testing...' : 'Test Connection'}
+              {isTesting ? 'Testing…' : 'Test connection'}
             </Button>
           )}
-          <Button type="submit" color="brand" disabled={isLoading}>
-            {isLoading ? 'Saving...' : 'Save Configuration'}
-          </Button>
         </div>
-      </div>
-    </form>
+
+        {testResult && !isTesting && (
+          <div
+            role="status"
+            className={`mt-4 flex items-start gap-2 text-sm ${testResult.success ? 'text-[var(--green-11)]' : 'text-[var(--red-11)]'}`}
+          >
+            {testResult.success ? (
+              <CheckCircledIcon className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <CrossCircledIcon className="mt-0.5 size-4 shrink-0" />
+            )}
+            <span>{testResult.success ? testResult.message : `Couldn't connect. ${testResult.message}`}</span>
+          </div>
+        )}
+      </form>
+    </section>
   )
 }

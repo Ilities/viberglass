@@ -77,8 +77,10 @@ export class TaskIssueMirror implements ActivityListener {
         return parts.length > 0 ? [partMergedPost(parts)] : [];
       }
       case "pull_request_merged":
-      case "task_done":
         return [DONE_POST];
+      case "task_done":
+        // Closing the issue itself finished the task; the issue already shows it.
+        return payload.source === link.provider ? [] : [DONE_POST];
       default:
         return [];
     }

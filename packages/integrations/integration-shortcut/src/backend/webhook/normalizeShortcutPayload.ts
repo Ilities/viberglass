@@ -1,15 +1,16 @@
 import { isObjectRecord } from '@viberglass/types'
 import { applyChangedFields, normalizeChangedFields } from './shortcutChanges'
 import { actionFromEventType, normalizeAction, normalizeObjectType, objectTypeFromEventType } from './shortcutEventKind'
+import { withCommentStory } from './shortcutCommentStory'
 import { collectRefs } from './shortcutRefs'
 import { getNestedRecord, toIdentifier, toNonEmptyString } from './shortcutValues'
 import type { ShortcutWebhookObjectType, ShortcutWebhookPayload } from './shortcutWebhookTypes'
 
-function getFirstAction(source: Record<string, unknown>): Record<string, unknown> | undefined {
-  const actions = source.actions
-  if (!Array.isArray(actions) || actions.length === 0) return undefined
-  const firstAction = actions[0]
-  return isObjectRecord(firstAction) ? firstAction : undefined
+/** The action on the delivery's primary entity, else the first; a comment's delivery also updates its story. */
+function getPrimaryAction(source: Record<string, unknown>): Record<string, unknown> | undefined {
+  const actions = Array.isArray(source.actions) ? source.actions.filter(isObjectRecord) : []
+  const primaryId = toIdentifier(source.primary_id)
+  return (primaryId ? actions.find((action) => toIdentifier(action.id) === primaryId) : undefined) ?? actions[0]
 }
 
 function parseNestedPayload(value: unknown): Record<string, unknown> | undefined {
@@ -61,7 +62,7 @@ export function normalizeShortcutPayload(sourcePayload: Record<string, unknown>)
   payload: ShortcutWebhookPayload
 } {
   const source = unwrapShortcutPayload(sourcePayload)
-  const actionRecord = getFirstAction(source)
+  const actionRecord = getPrimaryAction(source)
   const eventType =
     toNonEmptyString(source.event_type) ||
     toNonEmptyString(source.eventType) ||
@@ -85,7 +86,8 @@ export function normalizeShortcutPayload(sourcePayload: Record<string, unknown>)
     normalizeChangedFields(actionRecord?.changed_fields) ||
     normalizeChangedFields(actionRecord?.changedFields)
   const resolvedData = resolveData(source, objectType, actionRecord)
-  const normalizedData = applyChangedFields(resolvedData, source, actionRecord)
+  const normalizedData = applyChangedFields(resolvedData, source, actionRecord) || resolvedData
+  const changes = getNestedRecord(actionRecord, 'changes') || getNestedRecord(source, 'changes')
 
   return {
     source,
@@ -95,7 +97,9 @@ export function normalizeShortcutPayload(sourcePayload: Record<string, unknown>)
       object_type: objectType,
       action,
       member_id: toNonEmptyString(source.member_id) || toNonEmptyString(source.memberId),
-      data: normalizedData || resolvedData,
+      actor_name: toNonEmptyString(source.actor_name),
+      data: objectType === 'comment' ? withCommentStory(normalizedData, source) : normalizedData,
+      ...(changes ? { changes } : {}),
       refs: collectRefs(source),
       changed_fields: changedFields,
     },

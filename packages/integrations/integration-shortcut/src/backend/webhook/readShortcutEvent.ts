@@ -2,6 +2,7 @@ import { idAt, recordAt, stringAt, takeBotMention } from '@viberglass/integratio
 import type { InboundWebhookAction, InboundWebhookEvent, WebhookReadSettings } from '@viberglass/integration-core'
 import type { Severity } from '@viberglass/types'
 import { shortcutLabels } from './shortcutLabels'
+import { shortcutStateChange } from './shortcutStateChange'
 
 const SEVERITY_OF_STORY_TYPE: Record<string, Severity> = { bug: 'high', feature: 'medium', chore: 'low' }
 
@@ -16,6 +17,7 @@ export function readShortcutEvent(event: InboundWebhookEvent, settings: WebhookR
       if (!key) return { kind: 'ignored', reason: 'The Shortcut story has no id' }
       const storyType = stringAt(data, 'story_type') ?? 'feature'
       const description = data?.description
+      const stateChange = event.eventType === 'story_updated' ? shortcutStateChange(event.payload) : undefined
       return {
         kind: 'issue',
         issue: {
@@ -29,6 +31,7 @@ export function readShortcutEvent(event: InboundWebhookEvent, settings: WebhookR
           labels: shortcutLabels(event.payload),
           repository: null,
           metadata: { storyType, shortcutProjectId: idAt(data, 'project_id'), workflowState: stringAt(recordAt(data, 'workflow_state'), 'name') },
+          ...(stateChange ? { stateChange } : {}),
         },
       }
     }
@@ -37,9 +40,12 @@ export function readShortcutEvent(event: InboundWebhookEvent, settings: WebhookR
       if (!issueKey) return { kind: 'ignored', reason: 'The Shortcut comment has no story' }
       const bot = settings.botUsername
       const { mentionsBot, body } = takeBotMention(stringAt(data, 'text') ?? '', bot ? [`@${bot}`] : [])
-      // Shortcut's comment events name the author only by member id.
-      const name = stringAt(data, 'author_name') ?? 'A Shortcut member'
-      return { kind: 'comment', comment: { issueKey, author: { name, email: null }, body, mentionsBot } }
+      const actor = stringAt(event.payload, 'member_id')
+      const accountId = stringAt(data, 'author_id') ?? actor
+      // The delivery names the member who made the change, who is usually but not always the author.
+      const actorName = accountId === actor ? stringAt(event.payload, 'actor_name') : undefined
+      const name = stringAt(data, 'author_name') ?? actorName ?? 'A Shortcut member'
+      return { kind: 'comment', comment: { issueKey, author: { name, email: null, ...(accountId ? { accountId } : {}) }, body, mentionsBot } }
     }
     default:
       return { kind: 'ignored', reason: `Unsupported Shortcut event '${event.eventType}'` }

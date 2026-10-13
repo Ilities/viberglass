@@ -48,8 +48,11 @@ storage:
   region: us-east-1
   bucket: viberglass
   forcePathStyle: false
+  workerEndpoint: ""
   size: 5Gi
   storageClass: ""
+preview:
+  publicUrl: ""
 ingress:
   enabled: false
   className: ""

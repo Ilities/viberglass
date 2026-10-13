@@ -113,4 +113,16 @@ describe('GitHubWebhookReceiver', () => {
       comment: { issueKey: 'acme/shop#7', author: { name: 'bob', email: null }, body: 'fix this', mentionsBot: true },
     })
   })
+
+  it('says when an issue was closed or reopened, and nothing about its state otherwise', () => {
+    const stateChangeOf = (action: string) => {
+      const read = receiver.read(event(`issues.${action}`, { action, repository, issue: { ...issue, state_reason: 'completed' } }), { botUsername: null })
+      if (read.kind !== 'issue') throw new Error(`Expected an issue, got ${read.kind}`)
+      return read.issue.stateChange
+    }
+
+    expect(stateChangeOf('closed')).toBe('closed')
+    expect(stateChangeOf('reopened')).toBe('reopened')
+    expect(stateChangeOf('edited')).toBeUndefined()
+  })
 })

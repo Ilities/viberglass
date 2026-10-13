@@ -3,7 +3,14 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { Project, SpaceFilesListing } from '@viberglass/types'
 import { useProject } from '@/context/project-context'
-import { getSpaceFiles, getSpaceTextFile, saveSpaceTextFile, SpaceRequestError } from '@/service/api/space-files-api'
+import {
+  dismissSpaceFileChange,
+  downloadSpaceFileChange,
+  getSpaceFiles,
+  getSpaceTextFile,
+  saveSpaceTextFile,
+  SpaceRequestError,
+} from '@/service/api/space-files-api'
 import { FilesPage } from './FilesPage'
 import { fileRows, isEditableText } from './files-table'
 import { pathProblem } from './file-dialogs'
@@ -19,9 +26,12 @@ jest.mock('@/service/api/space-files-api', () => {
     uploadSpaceFile: jest.fn(),
     deleteSpaceFile: jest.fn(),
     downloadSpaceFile: jest.fn(),
+    downloadSpaceFileChange: jest.fn(),
+    dismissSpaceFileChange: jest.fn(),
   }
 })
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
+jest.mock('@/hooks/usePeople', () => ({ usePersonName: () => (id: string) => (id === 'user-1' ? 'Dana' : null) }))
 
 const SPACE: Project = {
   backingKind: 'files',
@@ -58,6 +68,7 @@ const LISTING: SpaceFilesListing = {
     { path: 'README.md', bytes: 500, sha256: 'c' },
   ],
   busy: false,
+  changes: [],
 }
 
 function renderPage(space: Project = SPACE) {
@@ -99,7 +110,7 @@ describe('FilesPage', () => {
   })
 
   it('explains the files when there are none', async () => {
-    jest.mocked(getSpaceFiles).mockResolvedValue({ snapshot: null, files: [], busy: false })
+    jest.mocked(getSpaceFiles).mockResolvedValue({ snapshot: null, files: [], busy: false, changes: [] })
     renderPage()
     expect(await screen.findByText('No files yet')).toBeInTheDocument()
     expect(screen.getByText(/stay here between runs/)).toBeInTheDocument()
@@ -127,6 +138,59 @@ describe('FilesPage', () => {
     expect(saveSpaceTextFile).toHaveBeenCalledWith('space-1', { path: 'notes/brief.md', content: '# Brief\n\nMy addition', baseSha256: 'a' })
     expect(screen.getByLabelText('Content of notes/brief.md')).toHaveValue('# Brief\n\nMy addition')
     expect(screen.getByRole('button', { name: 'Load their version' })).toBeInTheDocument()
+  })
+
+  it('closes the editor when a save waits for the run, and lists the change', async () => {
+    const queued = {
+      id: 'change-1',
+      kind: 'write' as const,
+      path: 'notes/brief.md',
+      status: 'waiting' as const,
+      error: null,
+      hasContent: true,
+      createdBy: 'user-1',
+      createdAt: new Date().toISOString(),
+    }
+    jest.mocked(getSpaceFiles).mockResolvedValueOnce({ ...LISTING, busy: true }).mockResolvedValue({ ...LISTING, busy: true, changes: [queued] })
+    jest.mocked(getSpaceTextFile).mockResolvedValue({ path: 'notes/brief.md', content: '# Brief', sha256: 'a' })
+    jest.mocked(saveSpaceTextFile).mockResolvedValue({ queued })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit notes/brief.md' }))
+    const editor = await screen.findByLabelText('Content of notes/brief.md')
+    await waitFor(() => expect(editor).toHaveValue('# Brief'))
+    fireEvent.change(editor, { target: { value: '# Brief v2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    const waiting = await screen.findByRole('region', { name: 'Waiting changes' })
+    expect(waiting).toHaveTextContent('Save notes/brief.md')
+    expect(waiting).toHaveTextContent('Saved once the run has saved the files')
+    expect(waiting).toHaveTextContent('Dana')
+    expect(screen.queryByLabelText('Content of notes/brief.md')).not.toBeInTheDocument()
+  })
+
+  it('offers a failed change’s content back, and dismisses it', async () => {
+    const failedChange = {
+      id: 'change-2',
+      kind: 'write' as const,
+      path: 'notes/brief.md',
+      status: 'failed' as const,
+      error: 'Someone changed this file since you opened it.',
+      hasContent: true,
+      createdBy: 'user-1',
+      createdAt: new Date().toISOString(),
+    }
+    jest.mocked(getSpaceFiles).mockResolvedValue({ ...LISTING, changes: [failedChange] })
+    jest.mocked(dismissSpaceFileChange).mockResolvedValue(undefined)
+    jest.mocked(downloadSpaceFileChange).mockResolvedValue(undefined)
+    renderPage()
+
+    const waiting = await screen.findByRole('region', { name: 'Waiting changes' })
+    expect(waiting).toHaveTextContent('Not saved: Someone changed this file since you opened it.')
+    fireEvent.click(within(waiting).getByRole('button', { name: 'Download your version' }))
+    expect(downloadSpaceFileChange).toHaveBeenCalledWith('space-1', failedChange)
+    fireEvent.click(within(waiting).getByRole('button', { name: 'Dismiss' }))
+    await waitFor(() => expect(dismissSpaceFileChange).toHaveBeenCalledWith('space-1', 'change-2'))
   })
 
   it('sends Git spaces back to the space', () => {

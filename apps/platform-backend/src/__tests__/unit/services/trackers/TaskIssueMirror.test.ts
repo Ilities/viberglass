@@ -63,6 +63,17 @@ describe("TaskIssueMirror", () => {
     expect(posted(commenter)[1]).toContain("**Done.**");
   });
 
+  it("posts done when the task was finished in Viberglass, but not when closing the issue finished it", async () => {
+    const { commenter, mirror } = setup();
+
+    await mirror.onActivity({ ticketId: "task-1", kind: "task_done", actorId: "user-1", payload: {} });
+    await mirror.onActivity({ ticketId: "task-1", kind: "task_done", actorId: null, payload: { source: "jira" } });
+    await mirror.onActivity({ ticketId: "task-1", kind: "task_reopened", actorId: null, payload: { source: "jira" } });
+
+    expect(posted(commenter)).toHaveLength(1);
+    expect(posted(commenter)[0]).toContain("**Done.**");
+  });
+
   it("names the space when the issue has a task in more than one", async () => {
     const shared = setup({ sharing: 2, produced: ["code"] });
     await shared.mirror.onActivity(finished);

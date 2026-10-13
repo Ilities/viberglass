@@ -33,6 +33,9 @@ export function mapTaskDefinitionDetails(
   };
 }
 
+/** Seconds ECS waits after SIGTERM, so a stopped worker can save its work; Fargate allows up to 120. */
+const WORKER_STOP_TIMEOUT_SECONDS = 60;
+
 export function buildEcsFamilyName(clanker: Clanker): string {
   const base = clanker.slug || clanker.id;
   return `viberator-worker-${base}`.slice(0, 255);
@@ -73,6 +76,7 @@ export function buildDefaultTaskDefinition(
         name: config.containerName || "worker",
         image: containerImage,
         essential: true,
+        stopTimeout: WORKER_STOP_TIMEOUT_SECONDS,
         logConfiguration: {
           logDriver: "awslogs",
           options: {

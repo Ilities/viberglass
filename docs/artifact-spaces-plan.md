@@ -1,6 +1,6 @@
 # Artifact spaces: persistent files, previews and publishing
 
-- **Status:** Product decisions accepted; phases 1–3 implemented and verified on 2026-10-12. Publishing (phases 4–5) remains planned.
+- **Status:** Product decisions accepted; phases 1–3 implemented and verified on 2026-10-12, their known gaps closed on 2026-10-13. Publishing (phases 4–5) remains planned.
 - **Date:** 2026-10-12.
 - **Baseline:** `main` at `6f05b6f9`, branch `feat/artifact-spaces-plan`.
 - **Requested outcome:** create a space without Git, retain its files across harness runs, save final artifacts in S3, preview web-compatible output, and publish a selected version to an external destination.
@@ -289,7 +289,7 @@ Files spaces now run agents. Every turn in a Files space restores the space's la
 
 Validation: 1,535 backend unit tests, 248 worker tests, 476 frontend tests and six PostgreSQL integration tests for leasing, fencing, stale bases, idempotent saves and release passed. On the dev stack with Docker workers, a fake agent proved restore and append across fresh containers, queuing of two tasks in one space with the correct snapshot chain, partial saves on failure, and release on cancel. The real OpenCode harness created and deleted files in a directory without Git, then edited the restored file on a fresh worker.
 
-Not yet verified: Kubernetes and ECS workers running Files runs, and a cooperative checkpoint when a run is cancelled. Retention of old snapshots ships with stage 3, so snapshots accumulate until then.
+Not yet verified at the time: Kubernetes and ECS workers running Files runs, and a cooperative checkpoint when a run is cancelled (added on 2026-10-13, see phase 3). Retention of old snapshots shipped with stage 3.
 
 ## Phase 3 implementation and verification
 
@@ -304,7 +304,15 @@ Files spaces now produce artifacts: named deliverables with immutable versions t
 
 Validation: 1,576 backend unit tests, 252 worker tests, 496 frontend tests and 13 PostgreSQL integration tests passed. End to end on the dev stack, the OpenCode harness (OpenCode Go, `deepseek-v4.1-flash`) created an HTML presentation of three files with an ES module script, which previewed with working click and arrow navigation, a slide counter and full screen. A probe uploaded as the deck's script confirmed an opaque origin, no cookies, storage, parent access, app API or internet, and only its own assets. OpenCode then revised the same artifact to version 3 and created a Markdown brief. Editing the brief in the Files view made new person versions, and a stale save was refused with the text kept. A retention sweep with small limits retired and deleted the oldest versions and snapshots, kept the current files, and a later run restored them.
 
-Known gaps: the suggestion buttons send their own label, so a request typed in the composer isn't sent with "Create artifact"; describe it first, or the buttons should take the draft. Uploads and edits that find a run holding the space are refused rather than queued. Uploaded candidates that never became a snapshot are not cleaned up. Kubernetes and ECS Files runs, publishing, and a production preview host are not yet set up.
+Known gaps closed on 2026-10-13:
+
+- The suggestion buttons send what's written in the composer, so a request typed there goes with "Create artifact" or "Revise artifact".
+- Uploads, edits and deletions made while a run holds the space wait in `space_file_changes` (migration `124_space_file_changes`), with their content staged under `spaces/{id}/changes/`. They're saved oldest first as soon as the space is free, before the next waiting run starts. A text save the run made stale fails then and keeps its text, which the Files view offers to download until someone dismisses it.
+- Objects nothing refers to (refused or abandoned run uploads, staged content of changes that were never recorded) are deleted a day after they were written, by the retention sweep.
+- Cancelling a run gives its worker a minute to save what it had: the space's lease is cut to 60 seconds instead of released, the worker saves a partial snapshot on SIGTERM, and the space is freed when it saves or the minute runs out. Kubernetes Jobs and ECS tasks now get 60 seconds after SIGTERM, Docker 20. Verified on the dev stack with Docker workers.
+- The preview origin is wired into the one-server compose install (Caddy serves a second hostname), the Helm chart (its own ingress host) and the AWS stack (`previewDomain`). Worker media and session links are now signed for `S3_WORKER_ENDPOINT` too.
+
+Still to verify on real deployments: Kubernetes and ECS Files runs, the preview host on each install path, and a stopped worker saving within its grace period there. Publishing is the next stage.
 
 ## Accepted decisions and remaining details
 

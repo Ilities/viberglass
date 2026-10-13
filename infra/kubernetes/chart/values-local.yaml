@@ -20,3 +20,5 @@ storage:
   enabled: true
   publicEndpoint: http://localhost:39000
   forcePathStyle: true
+preview:
+  publicUrl: http://127.0.0.1:38890

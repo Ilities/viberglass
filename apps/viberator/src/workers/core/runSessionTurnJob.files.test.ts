@@ -5,6 +5,8 @@ const mockSave = jest.fn();
 const mockListCodeChanges = jest.fn();
 const mockDiscard = jest.fn();
 const mockDeliver = jest.fn();
+const mockKeepPartialWork = jest.fn();
+const stopHandlers: Array<() => Promise<void>> = [];
 
 jest.mock("./jobPipeline", () => ({ setupJob: mockSetupJob, filesRunOf: mockFilesRunOf }));
 jest.mock("./jobLifecycle", () => ({ withJobLifecycle: (_params: unknown, _label: string, run: () => Promise<unknown>) => run() }));
@@ -17,7 +19,13 @@ jest.mock("./workingTreeChanges", () => ({
 }));
 jest.mock("./deliverPullRequest", () => ({ deliverPullRequest: mockDeliver }));
 jest.mock("../runtime/SessionStateManager", () => ({ captureAndStore: jest.fn(), retrieveAndRestore: jest.fn() }));
-jest.mock("../runtime/stopSignal", () => ({ onStop: () => () => undefined }));
+jest.mock("../runtime/stopSignal", () => ({
+  onStop: (handler: () => Promise<void>) => {
+    stopHandlers.push(handler);
+    return () => undefined;
+  },
+}));
+jest.mock("./keepPartialWork", () => ({ keepPartialWork: mockKeepPartialWork }));
 jest.mock("../../questions/QuestionRelay", () => ({
   QuestionRelay: jest.fn(() => ({ start: async () => ({ name: "ask_human" }), close: async () => undefined })),
 }));
@@ -64,6 +72,7 @@ function params(): JobRunnerParams {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  stopHandlers.length = 0;
   repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "files-turn-"));
   fs.writeFileSync(path.join(repoDir, "AGENTS.md"), "platform instructions");
   mockSetupJob.mockResolvedValue({
@@ -120,4 +129,17 @@ it("fails the run when the files can't be saved", async () => {
   mockSave.mockRejectedValue(new Error("Couldn't save the space's files: storage down"));
 
   await expect(runSessionTurnJob(params())).rejects.toThrow("Couldn't save the space's files");
+});
+
+it("saves the files as partial first when the worker is stopped partway", async () => {
+  mockExecute.mockImplementation(async () => {
+    await stopHandlers[0]();
+    return {};
+  });
+
+  await runSessionTurnJob(params());
+
+  expect(mockSave).toHaveBeenNthCalledWith(1, { jobId: "job-1" }, repoDir, { partial: true });
+  expect(mockKeepPartialWork).toHaveBeenCalled();
+  expect(mockSave.mock.invocationCallOrder[0]).toBeLessThan(mockKeepPartialWork.mock.invocationCallOrder[0]);
 });

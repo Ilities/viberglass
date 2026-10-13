@@ -36,6 +36,8 @@ import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 import { spaceFilesRuns } from "../services/spaceFiles/SpaceFilesRunService";
 import { TaskTurnJobDispatcher } from "../services/taskTurns/TaskTurnJobDispatcher";
 import { createPreviewApp } from "./previewServer";
+import { SpaceFileChangeQueue } from "../services/spaceFiles/SpaceFileChangeQueue";
+import { SpaceFilesOrphanCleanup } from "../services/spaceFiles/SpaceFilesOrphanCleanup";
 import { SpaceFilesRetention } from "../services/spaceFiles/SpaceFilesRetention";
 
 // Load environment variables
@@ -91,6 +93,8 @@ registerActivityListener(new RunFailureHandler());
 // A Files run that waited for its space starts the same way a turn's worker does.
 const turnDispatcher = new TaskTurnJobDispatcher();
 spaceFilesRuns.setLauncher((run) => turnDispatcher.launchWaiting(run));
+// People's changes that waited for a run are saved before the next run starts.
+spaceFilesRuns.setWaitingChanges(new SpaceFileChangeQueue(spaceFilesRuns));
 
 const questionReminders = new QuestionReminderService();
 const credentialExpiry = new CredentialExpiryWarner();
@@ -108,7 +112,7 @@ const periodicSweepers = shouldRunBackgroundSweepers
       ),
       new PeriodicSweeper(
         "Files retention",
-        () => new SpaceFilesRetention().sweep(),
+        async () => (await new SpaceFilesRetention().sweep()) + (await new SpaceFilesOrphanCleanup().sweep()),
         parseInt(process.env.SPACE_FILES_RETENTION_SWEEP_INTERVAL_MS || "600000", 10),
       ),
       new PeriodicSweeper(

@@ -4,7 +4,10 @@ import { Pool } from "pg";
 import type { Database } from "../../persistence/types/database";
 import { up } from "../../migrations/119_space_files";
 import { up as upArtifacts } from "../../migrations/121_artifacts";
+import { up as upChanges } from "../../migrations/124_space_file_changes";
 import { ArtifactDAO, type NewArtifactVersion } from "../../persistence/artifacts/ArtifactDAO";
+import { SpaceFileChangesDAO } from "../../persistence/spaceFiles/SpaceFileChangesDAO";
+import { SpaceFileObjectsDAO } from "../../persistence/spaceFiles/SpaceFileObjectsDAO";
 import { SpaceFilesDAO, type NewSpaceFileSnapshot } from "../../persistence/spaceFiles/SpaceFilesDAO";
 
 let mockDb: Kysely<Database>;
@@ -18,6 +21,7 @@ jest.mock("../../persistence/config/database", () => ({
 const SPACE = "11111111-1111-4111-8111-111111111111";
 const TICKET = "22222222-2222-4222-8222-222222222222";
 const OTHER_TICKET = "33333333-3333-4333-8333-333333333333";
+const PERSON = "44444444-4444-4444-8444-444444444444";
 const LEASE_MS = 60_000;
 let container: StartedPostgreSqlContainer;
 const dao = new SpaceFilesDAO();
@@ -51,9 +55,11 @@ beforeAll(async () => {
   await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, progress jsonb, ticket_id uuid)`.execute(mockDb);
   await sql`CREATE TABLE tickets (id uuid PRIMARY KEY, task_key text)`.execute(mockDb);
   await sql`INSERT INTO projects VALUES (${SPACE})`.execute(mockDb);
+  await sql`INSERT INTO users VALUES (${PERSON})`.execute(mockDb);
   await sql`INSERT INTO tickets VALUES (${TICKET}, 'FQD-1'), (${OTHER_TICKET}, 'FQD-2')`.execute(mockDb);
   await up(mockDb);
   await upArtifacts(mockDb);
+  await upChanges(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -65,6 +71,7 @@ beforeEach(async () => {
   await sql`UPDATE artifacts SET current_version_id = NULL`.execute(mockDb);
   await sql`DELETE FROM artifact_versions`.execute(mockDb);
   await sql`DELETE FROM artifacts`.execute(mockDb);
+  await sql`DELETE FROM space_file_changes`.execute(mockDb);
   await sql`DELETE FROM space_file_runs`.execute(mockDb);
   await sql`DELETE FROM space_file_state`.execute(mockDb);
   await sql`DELETE FROM space_file_snapshots`.execute(mockDb);
@@ -146,6 +153,65 @@ describe("SpaceFilesDAO", () => {
     await expect(dao.listRunsOfFinishedJobs()).resolves.toEqual([holder]);
     await dao.release(holder);
     await expect(dao.listStartableSpaces()).resolves.toEqual([SPACE]);
+  });
+
+  it("keeps a cancelled run's space only for its shortened lease, so its worker can save", async () => {
+    const holder = await enqueue(uuid(12));
+    const waiting = await enqueue(uuid(13));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+
+    await expect(dao.shortenLease(waiting, 1_000)).resolves.toBe(false);
+    await expect(dao.shortenLease(holder, 1_000)).resolves.toBe(true);
+    await sql`UPDATE jobs SET status = 'cancelled' WHERE id = ${holder}`.execute(mockDb);
+    await expect(dao.listRunsOfFinishedJobs()).resolves.toEqual([]);
+    await expect(dao.startNextWaiting(SPACE, LEASE_MS)).resolves.toBeNull();
+
+    // Its worker saved what it had within the window.
+    await expect(dao.commitCheckpoint({ ...snapshotFor(holder, uuid(12), null), partial: true })).resolves.toMatchObject({ snapshot: { partial: true } });
+    await expect(dao.startNextWaiting(SPACE, LEASE_MS)).resolves.toMatchObject({ jobId: waiting, baseSnapshotId: uuid(12) });
+  });
+
+  it("lets the sweeper release a cancelled run once its shortened lease ran out", async () => {
+    const holder = await enqueue(uuid(14));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await sql`UPDATE jobs SET status = 'cancelled' WHERE id = ${holder}`.execute(mockDb);
+    await sql`UPDATE space_file_state SET lease_expires_at = now() - interval '1 second'`.execute(mockDb);
+    await expect(dao.listRunsOfFinishedJobs()).resolves.toEqual([holder]);
+  });
+});
+
+describe("people's waiting changes", () => {
+  const changes = new SpaceFileChangesDAO();
+  const objects = new SpaceFileObjectsDAO();
+  const change = (id: string, path: string) => ({
+    id, projectId: SPACE, createdBy: PERSON, kind: "write" as const, path, checkBase: false, baseSha256: null,
+    stagedUrl: `s3://bucket/spaces/${SPACE}/changes/${id}`, bytes: 3,
+  });
+
+  it("lists waiting changes oldest first, keeps failed ones open with their content, and drops saved ones", async () => {
+    await sql`INSERT INTO space_file_state (project_id) VALUES (${SPACE})`.execute(mockDb);
+    await changes.insert(change(uuid(21), "a.md"));
+    await changes.insert(change(uuid(22), "b.md"));
+    await expect(changes.listSpacesWithWaiting()).resolves.toEqual([SPACE]);
+    expect((await changes.listWaiting(SPACE)).map((c) => c.path)).toEqual(["a.md", "b.md"]);
+
+    await changes.markFailed(uuid(21), "Someone changed this file");
+    await changes.markSaved(uuid(22), null);
+    await expect(changes.listWaiting(SPACE)).resolves.toEqual([]);
+    await expect(changes.listOpen(SPACE)).resolves.toEqual([
+      expect.objectContaining({ id: uuid(21), status: "failed", error: "Someone changed this file", hasContent: true }),
+    ]);
+    await expect(changes.get(SPACE, uuid(22))).resolves.toBeNull();
+    await expect(objects.listStagedUrls(SPACE)).resolves.toEqual(new Set([`s3://bucket/spaces/${SPACE}/changes/${uuid(21)}`]));
+  });
+
+  it("knows a space's snapshots and the checkpoints its live runs will save", async () => {
+    const saver = await enqueue(uuid(23));
+    await enqueue(uuid(24));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await dao.commitCheckpoint(snapshotFor(saver, uuid(23), null));
+    await expect(objects.listSpaces()).resolves.toEqual([SPACE]);
+    await expect(objects.listSnapshotIds(SPACE)).resolves.toEqual(new Set([uuid(23), uuid(24)]));
   });
 });
 

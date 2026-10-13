@@ -5,15 +5,26 @@ import { PageMeta } from '@/components/page-meta'
 import { Timestamp } from '@/components/timestamp'
 import { useProject } from '@/context/project-context'
 import { formatBytes } from '@/lib/artifacts'
-import { deleteSpaceFile, downloadSpaceFile, getSpaceFiles, uploadSpaceFile } from '@/service/api/space-files-api'
+import {
+  deleteSpaceFile,
+  dismissSpaceFileChange,
+  downloadSpaceFile,
+  downloadSpaceFileChange,
+  getSpaceFiles,
+  uploadSpaceFile,
+} from '@/service/api/space-files-api'
 import { FileTextIcon } from '@radix-ui/react-icons'
-import type { SpaceFilesListing } from '@viberglass/types'
+import type { SpaceFileChangeResult, SpaceFilesListing } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { DeleteFileDialog, NewTextFileDialog, UploadFileDialog } from './file-dialogs'
 import { FilesTable } from './files-table'
 import { TextFileEditor } from './text-file-editor'
+import { WaitingChanges } from './waiting-changes'
+
+/** How often the page looks again while a run holds the files or changes wait for it. */
+const WHILE_BUSY_MS = 5000
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
@@ -42,6 +53,13 @@ export function FilesPage() {
     void load()
   }, [load])
 
+  const waiting = Boolean(listing?.busy || listing?.changes.some((change) => change.status === 'waiting'))
+  useEffect(() => {
+    if (!waiting) return
+    const timer = setInterval(() => void load(), WHILE_BUSY_MS)
+    return () => clearInterval(timer)
+  }, [waiting, load])
+
   if (isLoading) return <p className="py-20 text-center text-sm text-[var(--gray-10)]">Loading…</p>
   if (!project) return null
   if (project.backingKind !== 'files') return <Navigate to={`/spaces/${project.slug}`} replace />
@@ -49,6 +67,9 @@ export function FilesPage() {
   const canChange = Boolean(project.viewerAccess?.canCreateTasks)
   const files = listing?.files ?? []
   const snapshot = listing?.snapshot ?? null
+  const done = (result: SpaceFileChangeResult, saved: string, queued: string) =>
+    toast.success('queued' in result ? queued : saved)
+  const failed = (fallback: string) => (error: unknown) => toast.error(error instanceof Error ? error.message : fallback)
   const download = (path: string) =>
     void downloadSpaceFile(project.id, path).catch((error: unknown) =>
       toast.error(error instanceof Error ? error.message : "Couldn't download the file")
@@ -85,9 +106,20 @@ export function FilesPage() {
 
       {listing?.busy && (
         <p role="status" className="mb-4 rounded-md bg-[var(--gray-3)] px-4 py-3 text-sm text-[var(--gray-11)]">
-          A run is changing these files right now. Uploads and edits wait until it has saved.
+          A run is changing these files right now. Uploads and edits you make now are saved once it has.
         </p>
       )}
+
+      <WaitingChanges
+        changes={listing?.changes ?? []}
+        canChange={canChange}
+        onDownload={(change) => void downloadSpaceFileChange(project.id, change).catch(failed("Couldn't download your version"))}
+        onDismiss={(change) =>
+          void dismissSpaceFileChange(project.id, change.id)
+            .then(() => load())
+            .catch(failed("Couldn't dismiss the change"))
+        }
+      />
 
       {editing && (
         <div className="mb-6">
@@ -98,6 +130,10 @@ export function FilesPage() {
             isNew={editing.isNew}
             onSaved={() => {
               setEditing((current) => (current ? { ...current, isNew: false } : null))
+              void load()
+            }}
+            onQueued={() => {
+              setEditing(null)
               void load()
             }}
             onClose={() => setEditing(null)}
@@ -134,8 +170,7 @@ export function FilesPage() {
         open={uploading}
         onClose={() => setUploading(false)}
         onUpload={async (file, path) => {
-          await uploadSpaceFile(project.id, file, path)
-          toast.success(`Uploaded ${path}`)
+          done(await uploadSpaceFile(project.id, file, path), `Uploaded ${path}`, `${path} is saved once the run has saved`)
           await load()
         }}
       />
@@ -149,8 +184,7 @@ export function FilesPage() {
         path={deleting}
         onClose={() => setDeleting(null)}
         onDelete={async (path) => {
-          await deleteSpaceFile(project.id, path)
-          toast.success(`Deleted ${path}`)
+          done(await deleteSpaceFile(project.id, path), `Deleted ${path}`, `${path} is deleted once the run has saved`)
           if (editing?.path === path) setEditing(null)
           await load()
         }}

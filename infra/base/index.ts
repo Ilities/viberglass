@@ -226,6 +226,13 @@ const backendSecurityGroup = new aws.ec2.SecurityGroup(
         protocol: "tcp",
         cidrBlocks: [vpcCidr],
       },
+      {
+        description: "Artifact preview port from VPC",
+        fromPort: 8890,
+        toPort: 8890,
+        protocol: "tcp",
+        cidrBlocks: [vpcCidr],
+      },
     ],
     egress: [
       {
