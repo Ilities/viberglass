@@ -90,7 +90,7 @@ Check the name with `pulumi stack ls` in `infra/workers` (it's case-sensitive) a
 error: failed to get output 'ecsExecutionRoleArn' from stack reference
 ```
 
-The worker stack hasn't been deployed, or was deployed before the output existed. Run `pulumi up` in `infra/workers`.
+The worker stack hasn't been deployed, or its outputs are out of date. Run `pulumi up` in `infra/workers`.
 
 ### Provisioning still fails
 

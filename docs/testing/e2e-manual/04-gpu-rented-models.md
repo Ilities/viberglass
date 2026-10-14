@@ -1,6 +1,6 @@
 # 04 · Rented GPU models
 
-An open-weight model served from a GPU you rent, used by agents through a workspace model endpoint. Viberglass deploys models to Verda itself ([Viberglass-created deployments](#viberglass-created-deployments-verda)); for any other provider you set the server up by hand and point an endpoint at it ([Tests (GPU)](#tests-gpu)). Background: [../../model-hosting-plan.md](../../model-hosting-plan.md).
+An open-weight model served from a GPU you rent, used by agents through a workspace model endpoint. Viberglass deploys models to Verda itself ([Viberglass-created deployments](#viberglass-created-deployments-verda)); for any other provider you set the server up by hand and point an endpoint at it ([Tests (GPU)](#tests-gpu)). Setup: [Agents and models](../../guide/admin/agents-and-models.md).
 
 **Stop or delete the GPU when you finish.** A running GPU bills by the hour.
 
@@ -106,4 +106,4 @@ Expect: the first attempt is refused, naming the runner. The second can take abo
 
 ## Not available yet
 
-Mark these `n/a`: OVH AI Deploy deployments, Bedrock with the ECS task role (replaced by GPU-06).
+Mark these `n/a`: OVH AI Deploy deployments, Bedrock with the ECS task role (use GPU-06 instead).

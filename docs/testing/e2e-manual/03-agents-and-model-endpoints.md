@@ -21,18 +21,18 @@ For each row, run the **harness script** below on a fresh task and record each s
 6. **Records:** Run records shows harness, requested model, and reported model or "model not reported".
 7. **Usage:** the turn's footer shows the session and context (TASK-15); Run details shows input and output tokens, or leaves them out where the harness doesn't report them.
 
-| Row | Harness | Credentials and configuration | Notes from the v1 review |
+| Row | Harness | Credentials and configuration | Notes |
 |---|---|---|---|
-| 1 | Claude Code | z.ai Anthropic endpoint (`https://api.z.ai/api/anthropic`) via the runner's base-URL variable, GLM key | Worked end to end |
-| 2 | Claude Code | Native Anthropic key | Optional; not yet validated |
+| 1 | Claude Code | z.ai Anthropic endpoint (`https://api.z.ai/api/anthropic`) via the runner's base-URL variable, GLM key | |
+| 2 | Claude Code | Native Anthropic key | Optional |
 | 3 | OpenCode | OpenCode Go key (native provider) | Setup default |
 | 4 | OpenCode | z.ai via a workspace model endpoint (Chat Completions) | See EP tests |
-| 5 | Pi | Model endpoint, Chat Completions | Returned empty research before UX-01; should now fail visibly if still empty |
+| 5 | Pi | Model endpoint, Chat Completions | If the agent returns nothing, the run fails visibly |
 | 6 | Pi | Model endpoint, Anthropic Messages | |
-| 7 | Qwen CLI | z.ai OpenAI-compatible endpoint | Failed with "Internal error"; record whether it still does |
-| 8 | Codex | API key mode with z.ai Responses endpoint | Failed "Authentication required"; now classified as Model key rejected |
+| 7 | Qwen CLI | z.ai OpenAI-compatible endpoint | Known issue: fails with "Internal error" |
+| 8 | Codex | API key mode with z.ai Responses endpoint | An "Authentication required" failure shows as Model key rejected |
 | 9 | Codex | ChatGPT login (RUNNER-03) | Optional |
-| 10 | Kimi Code | z.ai base URL and model | Failed "Authentication required" |
+| 10 | Kimi Code | z.ai base URL and model | Known issue: fails with "Authentication required" |
 | 11 | Kimi Code | Native Moonshot key | Optional |
 | 12 | Antigravity | Native Gemini key | Optional; no endpoint path |
 | 13 | Mistral Vibe | Native Mistral key | Optional; no endpoint path |

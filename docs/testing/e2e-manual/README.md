@@ -85,10 +85,9 @@ Gather these first; tests list which they need. Keep keys outside the repo where
 
 ## Known blockers before you start
 
-Found while reading the code for this suite (2026-10-05). Check them first; several stop a deployment test outright.
+Check these first; several stop a deployment test outright.
 
-- **Kubernetes** support is in `main`; its migration is `101_kubernetes_deployment_strategy`. Clusters installed from the old branch must be recreated. The automated platform smoke (K8S-02) still asks for the removed research step. See [06-kubernetes.md](06-kubernetes.md#k8s-00-merge-gate).
-- **OVH GPU deployments created by Viberglass** and **Bedrock role auth** are not built. Verda deployments work (tested 2026-10-08).
+- **OVH GPU deployments created by Viberglass** and **Bedrock role auth** are not built. Verda deployments work.
 - **AWS**:
   - Login over HTTPS likely needs `apiDomain` + `appDomain` + `route53ZoneId`.
   - Managed ECS workers don't get `AWS_S3_BUCKET`, so conversation state may not survive between turns.

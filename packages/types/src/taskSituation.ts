@@ -37,7 +37,13 @@ export interface TaskSituation {
   yourMove: boolean
 }
 
-export type TaskSituationArtifact = 'plan' | 'code'
+/** A task's output: its plan, its pull request, or in a Files space an artifact it made. */
+export type TaskSituationArtifact = 'plan' | 'code' | 'artifact'
+
+/** The newest thing a task made; an artifact goes by its title, since a task can make several. */
+export type TaskSituationOutput =
+  | { kind: 'plan' | 'code'; version: number; at: string }
+  | { kind: 'artifact'; title: string; version: number; at: string }
 
 /** What a task's situation is worked out from; the server gathers it per task. */
 export interface TaskSituationInput {
@@ -48,7 +54,7 @@ export interface TaskSituationInput {
   /** Who drives the task when nobody else is asked: its owner, else its requester. */
   owner: TaskPerson | null
   /** The newest artifact version; code is the pull request. */
-  latestArtifact: { kind: TaskSituationArtifact; version: number; at: string } | null
+  latestArtifact: TaskSituationOutput | null
   /** The agent's turn running now. */
   runningTurn: { action: TaskTurnAction; since: string } | null
   /** Since when someone has had the agent paused; asks wait until it's resumed. */
@@ -76,7 +82,7 @@ export interface SituationViewer {
   isAdmin: boolean
 }
 
-const ARTIFACT_NAME: Record<TaskSituationArtifact, string> = { plan: 'Plan', code: 'Code' }
+const outputName = (output: TaskSituationOutput) => (output.kind === 'artifact' ? output.title : output.kind === 'plan' ? 'Plan' : 'Code')
 
 const REVISING: Partial<Record<TaskTurnAction, string>> = { plan: 'revising the plan', code: 'updating the code' }
 
@@ -168,7 +174,7 @@ function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
   if (artifact) {
     return {
       state: 'artifact_ready',
-      label: `${ARTIFACT_NAME[artifact.kind]} v${artifact.version} ready`,
+      label: `${outputName(artifact)} v${artifact.version} ready`,
       waitingOn: mentionedElseOwner(input, artifact.at),
       since: artifact.at,
     }

@@ -54,6 +54,7 @@ beforeAll(async () => {
   await sql`CREATE TABLE users (id uuid PRIMARY KEY)`.execute(mockDb);
   await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, progress jsonb, ticket_id uuid)`.execute(mockDb);
   await sql`CREATE TABLE tickets (id uuid PRIMARY KEY, task_key text)`.execute(mockDb);
+  await sql`CREATE TABLE agent_turns (id serial PRIMARY KEY, job_id varchar(255), completed_at timestamptz)`.execute(mockDb);
   await sql`INSERT INTO projects VALUES (${SPACE})`.execute(mockDb);
   await sql`INSERT INTO users VALUES (${PERSON})`.execute(mockDb);
   await sql`INSERT INTO tickets VALUES (${TICKET}, 'FQD-1'), (${OTHER_TICKET}, 'FQD-2')`.execute(mockDb);
@@ -75,6 +76,7 @@ beforeEach(async () => {
   await sql`DELETE FROM space_file_runs`.execute(mockDb);
   await sql`DELETE FROM space_file_state`.execute(mockDb);
   await sql`DELETE FROM space_file_snapshots`.execute(mockDb);
+  await sql`DELETE FROM agent_turns`.execute(mockDb);
 });
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -248,6 +250,22 @@ describe("artifacts", () => {
     await dao.commitCheckpoint(snapshotFor(id, uuid(22), null), [versionOf(uuid(33), uuid(34), true, uuid(22))]);
     await expect(artifacts.revisableIds(SPACE, TICKET, [uuid(33)])).resolves.toEqual(new Set([uuid(33)]));
     await expect(artifacts.revisableIds(SPACE, OTHER_TICKET, [uuid(33)])).resolves.toEqual(new Set());
+  });
+
+  it("gives each task's newest artifact version, dated from when its run's turn finished", async () => {
+    const first = await enqueue(uuid(24));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await dao.commitCheckpoint(snapshotFor(first, uuid(24), null), [versionOf(uuid(37), uuid(38), true, uuid(24))]);
+    const second = await enqueue(uuid(25));
+    await dao.startNextWaiting(SPACE, LEASE_MS);
+    await dao.commitCheckpoint(snapshotFor(second, uuid(25), uuid(24)), [versionOf(uuid(37), uuid(39), false, uuid(25), second)]);
+    const finished = new Date("2030-01-01T00:00:00.000Z");
+    await sql`INSERT INTO agent_turns (job_id, completed_at) VALUES (${second}, ${finished})`.execute(mockDb);
+
+    const latest = await artifacts.latestForTickets([TICKET, OTHER_TICKET]);
+    expect([...latest.keys()]).toEqual([TICKET]);
+    expect(latest.get(TICKET)).toEqual({ title: "Q4 deck", number: 2, at: finished });
+    await expect(artifacts.latestForTickets([])).resolves.toEqual(new Map());
   });
 
   it("finds the artifacts a person's edit to a file revises", async () => {

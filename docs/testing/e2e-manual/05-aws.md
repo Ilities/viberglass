@@ -13,7 +13,7 @@ Deploys the three Pulumi stacks (base, workers, platform, in that order) to a de
 
 ## Known issues
 
-Found in the code on 2026-10-05. Record whether each still happens.
+Record whether each still happens.
 
 | # | Issue | Where it shows |
 |---|---|---|
@@ -24,7 +24,7 @@ Found in the code on 2026-10-05. Record whether each still happens.
 | K7 | Prod S3 lifecycle moves objects to Glacier/Deep Archive after 90/180 days; old media and session state become unreadable | Prod only |
 | K8 | `deploy-backend-prod.yml` smoke steps read a missing SSM key and probe `/api/projects` and `/api/version` | Prod only |
 | K9 | Alarms, SNS and the logging component exist but aren't wired; `enableAlarms`/`enableSpot`/autoscaling settings do nothing | AWS-03 |
-| K10 | The worker Lambda in the workers stack is unused legacy | AWS-04 |
+| K10 | The worker Lambda in the workers stack is unused | AWS-04 |
 | K11 | Docs with stale names: `DEPLOYMENT_SECRETS.md` (`/viberator/{env}` paths), `database-migrations.md` (cluster names), the `aws logs tail` group name | Wherever you follow them |
 
 ## Before you deploy (AWS-00)

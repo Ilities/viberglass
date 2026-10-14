@@ -62,7 +62,7 @@ Expect: both sessions end.
 ### A11Y-01 · Automated scan
 1. Run axe (browser extension or `@axe-core/playwright`) on Home, Overview, a space, a task, Notifications, Settings → Agents, Space settings, a Files space's Files and Artifacts pages, setup, in light and dark.
 
-Expect: no violations (the v1 review baseline is zero on the first five routes).
+Expect: no violations.
 
 ### A11Y-02 · Keyboard only
 1. Without a mouse: sign in, open a task, switch artifact tabs with arrows, pick a mention, post, open a dialog and close it with Escape, submit a form with an error and fix it.

@@ -1,6 +1,6 @@
 # Kubernetes deployment and operations
 
-The chart is in [`infra/kubernetes/chart`](../infra/kubernetes/chart). It deploys the application into an existing Kubernetes cluster. The OVHcloud Pulumi stack is a subsequent work package; this chart does not create cloud resources.
+The chart is in [`infra/kubernetes/chart`](../infra/kubernetes/chart). It deploys the application into an existing Kubernetes cluster and does not create cloud resources.
 
 For the complete first-install procedure, use [Install on Kubernetes](guide/admin/install-kubernetes.md). It includes namespace ownership, Secret creation, production values, DNS/TLS, private registries, first-run setup and verification. Start from the [production values example](../infra/kubernetes/chart/values-production.example.yaml).
 
@@ -31,7 +31,7 @@ Create the app namespace and worker namespace before loading secrets. Supply:
 | App | `viberglass-app` | `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY`, `WEBHOOK_SECRET_ENCRYPTION_KEY`, optional `PREVIEW_SIGNING_KEY` (preview links fall back to `SECRETS_ENCRYPTION_KEY`) |
 | App | `viberglass-storage` | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, optional `S3_SESSION_TOKEN` |
 
-Workers do not receive S3 keys. The backend creates an immutable callback-token Secret per run, mounts it read-only, and gives it a Job owner reference so Job deletion/TTL cleanup also removes it. The backend needs namespaced create/get/delete permissions on these Secrets and get/list access to worker Pods and events; workers still have no Kubernetes API token or permissions.
+Workers do not receive S3 keys. The backend creates an immutable callback-token Secret per run, mounts it read-only, and gives it a Job owner reference so Job deletion/TTL cleanup also removes it. The backend needs namespaced create/get/delete permissions on these Secrets and get/list access to worker Pods and events; workers have no Kubernetes API token or permissions.
 
 For authenticated worker telemetry, `workers.envSecret` optionally names a worker-namespace Secret containing `OTEL_EXPORTER_OTLP_HEADERS`. Only that key is referenced; arbitrary environment values and storage keys are not imported.
 
@@ -45,7 +45,7 @@ The published images are public and need no pull Secret. For a private registry,
 helm upgrade --install viberglass infra/kubernetes/chart --namespace viberglass -f production-values.yaml --wait --wait-for-jobs --timeout 10m
 ```
 
-A regular migration Job runs on each Helm revision. Backend init waits for every numbered migration shipped in the backend image to appear in `kysely_migration`, on both fresh installs and upgrades. This avoids hook ordering deadlocks on a fresh database. Review migration logs on errors. The gate reads migration names from the image; there is no `migration.marker` value to maintain. Existing backend Pods can remain running during upgrades, so future migrations must support rolling deployments.
+A regular migration Job runs on each Helm revision. Backend init waits for every numbered migration shipped in the backend image to appear in `kysely_migration`, on both fresh installs and upgrades. This avoids hook ordering deadlocks on a fresh database. Review migration logs on errors. The gate reads migration names from the image. Existing backend Pods can remain running during upgrades, so future migrations must support rolling deployments.
 
 Embedded PostgreSQL/MinIO are available in `values-local.yaml` for development. They are single instance services, without automated backups or high availability. External object storage buckets must already exist; bucket creation runs only for the embedded MinIO option.
 
@@ -59,8 +59,6 @@ Embedded PostgreSQL/MinIO are available in `values-local.yaml` for development. 
 - Use ingress annotations/TLS resources appropriate to your installed controller. Certificate issuance/renewal belongs to the cluster operator; the chart references an existing TLS Secret.
 
 Kubernetes runs use a minute-by-minute heartbeat, and orphan detection measures inactivity rather than total runtime. Kubernetes still enforces the runner's Job deadline. Pod state and events appear in the existing run's worker log. Image-pull, container configuration, scheduling and Pod admission failures are reconciled after a two-minute startup grace period; Job failures retain their reported reason. Diagnostics do not count as worker heartbeats.
-
-When upgrading an earlier installation, deploy the backend and worker images from the same revision. Older Kubernetes workers expect shared S3 credentials. After the new workers are deployed, remove obsolete worker-namespace storage Secrets through your normal secret-management process. The application namespace still needs its storage credentials.
 
 ## Backups and restore
 

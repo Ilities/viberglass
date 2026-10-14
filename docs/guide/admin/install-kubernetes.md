@@ -40,7 +40,7 @@ git checkout YOUR_RELEASE_OR_COMMIT
 
 Replace `YOUR_RELEASE_OR_COMMIT` with the revision you intend to deploy. Use the chart and backend/frontend/worker images from that revision. The publish workflows target `ghcr.io/ilities` on releases and relevant changes to `main`; check that all required images exist under your chosen tag. The chart is installed from this checkout, rather than a Helm repository.
 
-For unpublished changes, use [your own image builds](#build-your-own-images). Backend and worker images must come from the same revision: an older worker doesn't support the mounted-token and scoped-storage flow. Use immutable tags instead of `latest`.
+For unpublished changes, use [your own image builds](#build-your-own-images). Backend and worker images must come from the same revision. Use immutable tags instead of `latest`.
 
 Worker image names come from the [image catalog](../../../packages/types/src/workerImageCatalog.json):
 
@@ -270,7 +270,7 @@ kubectl -n viberglass rollout restart deployment/viberglass-backend
 kubectl -n viberglass rollout status deployment/viberglass-backend
 ```
 
-Helm rollback does not reverse database migrations. For upgrades from older experimental workers, deploy matching backend and worker images, then remove obsolete worker storage Secrets after old runs finish. See [deployment operations](../../kubernetes-deployment.md) for backup/restore details and migration limitations.
+Helm rollback does not reverse database migrations. See [deployment operations](../../kubernetes-deployment.md) for backup/restore details and migration limitations.
 
 To remove the installation, first stop/cancel active runs and preserve needed data. This deletes the worker namespace and its Jobs:
 

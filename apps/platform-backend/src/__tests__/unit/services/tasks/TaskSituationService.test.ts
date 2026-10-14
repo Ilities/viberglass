@@ -26,6 +26,7 @@ function setup() {
     pullRequests: { lastMergedParts: jest.fn().mockResolvedValue(new Map()) },
     marks: { listFor: jest.fn().mockResolvedValue(new Map()) },
     spaces: { backingKinds: jest.fn().mockResolvedValue(new Map([["t-1", "git"]])) },
+    artifacts: { latestForTickets: jest.fn().mockResolvedValue(new Map()) },
   };
   return { deps, service: new TaskSituationService(deps) };
 }
@@ -84,6 +85,29 @@ describe("TaskSituationService", () => {
     expect(described?.situation).toMatchObject({ state: "agent_working", label: "Agent working on the artifact" });
   });
 
+  it("reads a Files task's finished artifact run as the artifact ready, not a discussion", async () => {
+    const { deps, service } = setup();
+    deps.spaces.backingKinds.mockResolvedValue(new Map([["t-1", "files"]]));
+    deps.thread.latestRevisions.mockResolvedValue(new Map([["t-1", { phase: "planning", version: 1, at: at("09:00") }]]));
+    deps.artifacts.latestForTickets.mockResolvedValue(new Map([["t-1", { title: "Q3 report", number: 2, at: at("11:00") }]]));
+    // The artifact run's own turn has no products, so it is the latest "reply" at the moment it finished.
+    deps.turns.aggregates.mockResolvedValue(new Map([["t-1", { codeTurns: 0, lastCodeAt: null, lastReplyAt: at("11:00") }]]));
+
+    const described = (await service.describe([TASK], viewer("owner"))).get("t-1");
+
+    expect(described?.situation).toMatchObject({ state: "artifact_ready", label: "Q3 report v2 ready", yourMove: true });
+  });
+
+  it("keeps a plan written after the artifact as the latest", async () => {
+    const { deps, service } = setup();
+    deps.artifacts.latestForTickets.mockResolvedValue(new Map([["t-1", { title: "Q3 report", number: 1, at: at("09:00") }]]));
+    deps.thread.latestRevisions.mockResolvedValue(new Map([["t-1", { phase: "planning", version: 2, at: at("10:00") }]]));
+
+    const described = (await service.describe([TASK], viewer("owner"))).get("t-1");
+
+    expect(described?.situation).toMatchObject({ state: "artifact_ready", label: "Plan v2 ready" });
+  });
+
   it("counts a pull request as the code artifact, newer than the plan", async () => {
     const { deps, service } = setup();
     deps.thread.latestRevisions.mockResolvedValue(new Map([["t-1", { phase: "planning", version: 1, at: at("09:00") }]]));
@@ -120,5 +144,7 @@ describe("TaskSituationService", () => {
     await service.describe([TASK, { ...TASK, id: "t-2" }], viewer("owner"));
     expect(deps.turns.running).toHaveBeenCalledTimes(1);
     expect(deps.turns.running).toHaveBeenCalledWith(["t-1", "t-2"]);
+    expect(deps.artifacts.latestForTickets).toHaveBeenCalledTimes(1);
+    expect(deps.artifacts.latestForTickets).toHaveBeenCalledWith(["t-1", "t-2"]);
   });
 });

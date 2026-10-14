@@ -31,7 +31,6 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 - Security architecture
 - [adr/README.md](adr/README.md) - Product and architecture decision records
 - [artifact-spaces-plan.md](artifact-spaces-plan.md) - Spaces without Git, persistent files and artifact previews (implemented); publishing is still planned
-- [model-hosting-plan.md](model-hosting-plan.md) - Custom endpoints, Bedrock, model deployments and implementation progress
 - [eval-plan.md](eval-plan.md) - Grading agent runs
 
 ### Development

@@ -121,6 +121,29 @@ export class ArtifactDAO {
     return rows.map((row) => ({ artifactId: row.id, title: row.title, format: row.format, entrypoint: row.entrypoint, files: row.files }));
   }
 
+  /**
+   * Each task's newest artifact version. A run's version counts from when its
+   * turn finished, so the turn itself doesn't read as a later reply.
+   */
+  async latestForTickets(ticketIds: string[]): Promise<Map<string, { title: string; number: number; at: Date }>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("artifact_versions as v")
+      .innerJoin("artifacts as a", "a.id", "v.artifact_id")
+      .distinctOn("a.ticket_id")
+      .select([
+        "a.ticket_id",
+        "a.title",
+        "v.number",
+        sql<Date>`coalesce((select max(t.completed_at) from agent_turns t where t.job_id = v.job_id), v.created_at)`.as("at"),
+      ])
+      .where("a.ticket_id", "in", ticketIds)
+      .orderBy("a.ticket_id")
+      .orderBy("v.created_at", "desc")
+      .execute();
+    return new Map(rows.flatMap((row) => (row.ticket_id ? [[row.ticket_id, { title: row.title, number: row.number, at: row.at }]] : [])));
+  }
+
   async listForJob(jobId: string): Promise<TurnArtifact[]> {
     const rows = await db
       .selectFrom("artifact_versions")

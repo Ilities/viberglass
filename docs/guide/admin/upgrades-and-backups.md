@@ -25,7 +25,7 @@ Back up the database:
 docker exec viberglass-dev-postgres pg_dump -U jussi -d viberglass-platform -Fc > viberglass.dump
 ```
 
-The database lives in the `viberglass-postgres-data` Docker volume. Task media, plan documents and the files of Files spaces are in the bundled object storage, in the `viberglass-storage-data` volume. Saved agent conversations are kept on the host under `~/.viberglass/session-state`; back them up together with the database. Set `VIBERGLASS_DATA_DIR` in the root `.env` to keep them somewhere else. Docker creates these folders as root, so use `sudo` to copy or remove them. Task media are also written to `~/.viberglass/media`, which Docker workers mount. Media uploaded before the bundled object storage was added exist only there, so back that folder up too and don't remove it after upgrading.
+The database lives in the `viberglass-postgres-data` Docker volume. Task media, plan documents and the files of Files spaces are in the bundled object storage, in the `viberglass-storage-data` volume. Saved agent conversations are kept on the host under `~/.viberglass/session-state`; back them up together with the database. Set `VIBERGLASS_DATA_DIR` in the root `.env` to keep them somewhere else. Docker creates these folders as root, so use `sudo` to copy or remove them. Task media are also written to `~/.viberglass/media`, which Docker workers mount. Some media exist only in that folder, so back it up too and don't remove it.
 
 ## Docker on a server
 

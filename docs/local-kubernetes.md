@@ -1,6 +1,6 @@
 # Run Viberglass locally on Kubernetes
 
-The Helm distribution installs the backend, React/Vite frontend, migration Jobs, PostgreSQL and MinIO into a local kind cluster. Agent executions use separate Kubernetes Jobs. This is an experimental self-hosted application installation; an OVHcloud production deployment has not yet been validated.
+The Helm distribution installs the backend, React/Vite frontend, migration Jobs, PostgreSQL and MinIO into a local kind cluster. Agent executions use separate Kubernetes Jobs. This is an experimental self-hosted application installation; OVHcloud production deployments are not validated.
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ Use `--agent claude-code`, `antigravity`, `kimi`, `mistral`, `pi`, or `qwen` as 
 
 The installer builds and loads each agent's default image from the worker catalog. Claude Code uses `viberator-worker-multi-agent:local`; its Dockerfile is `infra/workers/docker/viberator-worker-multi-agent.Dockerfile`.
 
-Local installs use `<namespace>-workers` by default to retain existing installations. Override it with `--worker-namespace`. Direct Helm installs use `<namespace>-<release>-workers` unless `workers.namespace` is set. The platform smoke reads the installed backend ConfigMap to find the actual worker namespace; pass `--namespace` and `--release` when checking a custom installation, or `--worker-namespace` to select it explicitly.
+Local installs use `<namespace>-workers` by default. Override it with `--worker-namespace`. Direct Helm installs use `<namespace>-<release>-workers` unless `workers.namespace` is set. The platform smoke reads the installed backend ConfigMap to find the actual worker namespace; pass `--namespace` and `--release` when checking a custom installation, or `--worker-namespace` to select it explicitly.
 
 ## Architecture and persistence
 
@@ -145,7 +145,7 @@ KUBECONFIG=/tmp/viberglass-runtime-smoke.kubeconfig kind delete cluster --name v
 unset KUBECONFIG KUBERNETES_WORKER_NAMESPACE KUBERNETES_SMOKE_IMAGE KUBERNETES_SMOKE_HOST
 ```
 
-The full application has been installed on kind v0.33.0 / Kubernetes v1.37.0 using fresh images built from the checked-in Dockerfiles. A repeatable installed-platform check uses an in-cluster temporary Git fixture:
+The full application runs on kind v0.33.0 / Kubernetes v1.37.0 with images built from the checked-in Dockerfiles. A repeatable installed-platform check uses an in-cluster temporary Git fixture:
 
 ```bash
 python3 infra/kubernetes/scripts/platformSmoke.py
@@ -153,7 +153,7 @@ python3 infra/kubernetes/scripts/platformSmoke.py
 
 Run it against a disposable installation with both port forwards active. It creates a test administrator if the database is empty, a fake-agent credential/runner, and test spaces/tasks. It retains synthetic login credentials in `/tmp/viberglass-platform-smoke-credentials.json` with mode 0600; pass `--credentials` pointing to an existing credentials JSON (`email`, `password`) if the app already has an administrator. It removes its temporary Git Pod/Service/ConfigMap/egress policy on exit. App test data remains until the disposable cluster is removed.
 
-The check validates strategy activation, credential bootstrap, media upload/download, plan persistence, session continuation in a different Pod, and cancellation during execution and dispatch. It needs no paid model key and does not push to external repositories. Paid-model and real-cloud behavior remain separate validation gates.
+The check validates strategy activation, credential bootstrap, media upload/download, plan persistence, session continuation in a different Pod, and cancellation during execution and dispatch. It needs no paid model key and does not push to external repositories.
 
 These local checks don't cover OVHcloud provisioning, provider storage and networking, paid models, network policy enforcement or backup restoration.
 

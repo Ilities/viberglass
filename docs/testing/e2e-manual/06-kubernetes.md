@@ -4,17 +4,9 @@ The Helm chart (`infra/kubernetes/chart/`) and the Kubernetes runner strategy, f
 
 ## Contents
 
-- [K8S-00 · Merge gate](#k8s-00-merge-gate)
 - [Known issues](#known-issues)
 - [Local kind cluster (K8S-01 – K8S-17)](#local-kind-cluster-k8s-01--k8s-17)
 - [Managed cluster (K8S-20 – K8S-33)](#managed-cluster-k8s-20--k8s-33)
-
-## K8S-00 · Merge gate
-
-1. Check `main` contains the Kubernetes merge (`git log --oneline | grep -i kubernetes`) and that `apps/platform-backend/src/migrations/101_kubernetes_deployment_strategy.ts` exists. Backend startup must wait for all numbered migrations shipped in its image.
-2. Delete any kind cluster installed from the old branch (`kind delete cluster --name viberglass-local`): its migration history has the old `099_`/`088_` names.
-
-Expect: merged and renumbered; no stale cluster.
 
 ## Known issues
 
@@ -23,9 +15,9 @@ Expect: merged and renumbered; no stale cluster.
 | K6 | kind's default CNI doesn't enforce NetworkPolicy | K8S-12 vs K8S-27 |
 | K7 | `helm uninstall` deletes the worker namespace and its Jobs; Helm rollback doesn't reverse migrations | K8S-29 |
 
-K1 and K2 have regression fixes: the installer uses catalog Dockerfiles/image names (including Claude's multi-agent default), and the platform smoke discovers the installed worker namespace. Local installs retain `<ns>-workers` by default; `--worker-namespace` overrides it. For custom installations, give the smoke `--namespace` and `--release`.
+The installer uses catalog Dockerfiles and image names (including Claude's multi-agent default), and the platform smoke discovers the installed worker namespace. Local installs use `<ns>-workers` by default; `--worker-namespace` overrides it. For custom installations, give the smoke `--namespace` and `--release`.
 
-K3–K5 are implemented: Pod state/events are persisted in the run log, startup failures reconcile after a short grace period, callback tokens are mounted from run-owned Secrets, and workers receive scoped storage URLs instead of bucket credentials. The deployment intentionally uses one backend replica.
+Pod state and events are persisted in the run log, startup failures reconcile after a short grace period, callback tokens are mounted from run-owned Secrets, and workers receive scoped storage URLs instead of bucket credentials. The deployment intentionally uses one backend replica.
 
 ## Local kind cluster (K8S-01 – K8S-17)
 

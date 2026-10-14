@@ -55,7 +55,7 @@ tests/e2e/
 
 1. **Creating unit tests**: Follow the package's existing layout (see above)
 2. **Creating integration tests**: Place in `apps/platform-backend/src/__tests__/integration/`
-3. **Creating E2E tests**: Place in `tests/e2e/tests/smoke/`; the other specs under `tests/e2e/tests/` are quarantined legacy specs
+3. **Creating E2E tests**: Place in `tests/e2e/tests/smoke/`; the other specs under `tests/e2e/tests/` are quarantined and don't run by default
 
 ## Test Type Guidelines
 

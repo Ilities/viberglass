@@ -26,11 +26,11 @@ Targets for launch: local install to the first task's plan in under 15 minutes o
 
 ## Known issues
 
-Found while rewriting the README (2026-10-07). Record whether each still holds.
+Record whether each still holds.
 
-- Pull requests are GitHub-only. `GitService` calls `api.github.com`. The GitLab, Bitbucket, Linear and Monday integration packages are stubs. The README no longer claims GitLab.
+- Pull requests are GitHub-only. `GitService` calls `api.github.com`. The GitLab, Bitbucket, Linear and Monday integration packages are stubs.
 - Password reset only logs the request; resets are admin-issued links.
-- No visuals. The old diagram, infographic and screenshots were removed; a demo video or GIF and new screenshots are needed.
+- No visuals. The docs have no diagram or screenshots; a demo video or GIF and screenshots are needed.
 - License loose ends. `apps/platform-frontend/LICENSE.md` is an unfilled Apache 2.0 template. If it's there for vendored components (`components/ai-elements` comes from Vercel's Apache-licensed AI Elements), move it next to them with a notice saying what it covers. Otherwise remove it. The app has no link to its source; AGPL section 13 asks a modified version to offer one to its network users, so a "Source" link (e.g. in the user menu) makes that easy for people who fork it.
 - `security@viberglass.io` is the reporting address in SECURITY.md. Send it a test mail before launch.
 

@@ -8,8 +8,7 @@ that dispatches it and the ephemeral worker that runs it.
 
 ## Why this package exists
 
-The plan needs traces that can later serve as an eval
-corpus. That imposes three constraints ordinary app tracing does not:
+The traces also serve as an eval corpus. That imposes three constraints ordinary app tracing does not:
 
 1. **The convention revision must be pinned and recorded.** GenAI conventions
    are still `development` stability and the names have churned
@@ -53,8 +52,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 npm run dev
 ```
 
 The exporter is generic OTLP. Langfuse, Braintrust, Jaeger, Grafana Tempo and
-anything else OTLP-shaped all work without code changes — the hosting decision
-is deliberately deferred until the pilot has measured real trace volume.
+anything else OTLP-shaped all work without code changes.
 
 ### Content capture is opt-in
 
@@ -121,7 +119,7 @@ merge and close times, and comment counts. The labels go in
 `pull_request_outcomes`, keyed by PR URL. It polls the SCM with the project's
 own connection token, so it needs no webhook, and its first sweeps backfill
 older PRs. Open PRs are checked again hourly; merged and closed are final.
-GitHub is the only source so far. `PR_OUTCOME_SWEEP_INTERVAL_MS` sets the
+GitHub is the only source. `PR_OUTCOME_SWEEP_INTERVAL_MS` sets the
 sweep interval (default 15 minutes), and `DISABLE_BACKGROUND_SWEEPERS=true`
 turns it off along with the other sweepers.
 
@@ -163,7 +161,7 @@ ECS, Docker and Kubernetes workers launched with `--job-ref` re-fetch the stored
 so a carrier attached only to the in-memory copy would never reach them.
 
 A missing or malformed carrier is not an error: the worker starts its own
-trace. Payloads written before this existed still run.
+trace.
 
 ## Flushing
 

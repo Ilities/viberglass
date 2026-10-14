@@ -40,7 +40,7 @@ viberglass/
 ├── packages/cli/test/
 └── tests/e2e/                            # Separate E2E test package
     ├── tests/smoke/                      # The smoke journeys (default run)
-    ├── tests/<feature>/                  # Quarantined legacy specs (opt-in)
+    ├── tests/<feature>/                  # Quarantined specs (opt-in)
     ├── playwright/
     │   ├── e2eEnvironment.ts             # Ports, URLs, accounts, backend env
     │   ├── globalSetup.ts                # Git fixture server + database seed
@@ -198,7 +198,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Only people on the task (and maintainers and admins) are offered *Build it*, and the API refuses anyone else; a guest off the task can't ask at all, and once on it their build runs as theirs; a space's default reviewers join each new task and the agent mentions them when the plan is ready | `ask-policy.e2e.test.ts` |
 | A reviewer comments on text in the rendered plan; the comment follows its text through an edit, reaches the agent with its quote, and is outdated once the text is gone | `rendered-document-comments.e2e.test.ts` |
 | The audit log records secrets and role changes (never a secret's value), is admin-only, and filters by area | `audit-log.e2e.test.ts` |
-| Phase 2's exit, as a conversation: three people invited by link; the PM asks, the designer is @mentioned and replies, the agent mentions the reviewer when the plan is ready, the reviewer comments on the rendered plan, has it revised with the comment and asks for the build; Home's Needs you and the thread name each person | `phase-2-exit.e2e.test.ts` |
+| A task worked through as a conversation: three people invited by link; the PM asks, the designer is @mentioned and replies, the agent mentions the reviewer when the plan is ready, the reviewer comments on the rendered plan, has it revised with the comment and asks for the build; Home's Needs you and the thread name each person | `team-review-conversation.e2e.test.ts` |
 | A turn whose context is past the threshold is followed by Summary v1, unasked and compacted, pinned in the thread; a second agent brought in starts cold from the summary | `summary-and-second-agent.e2e.test.ts` |
 | Home per role: a mentioned member sees it under Needs you with an unread count, and replying clears it; a new task is its owner's move, and the agent's plan mentions the owner; a guest on a task is mentioned and replies; a viewer lands on Overview | `home.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing. A run stopped after writing its plan keeps it as a version, and says who stopped it | `cancel-run.e2e.test.ts` |
@@ -240,7 +240,7 @@ docker build -f infra/workers/docker/generated/fake.Dockerfile \
 npm run test:e2e                       # resets the database, runs the smoke journeys
 npm run test:e2e -- cancel-run         # one spec (still resets first)
 npm run test:e2e:teardown              # stop the e2e Postgres
-npm run test:legacy -w @viberator/e2e-tests   # quarantined older specs
+npm run test:legacy -w @viberator/e2e-tests   # quarantined specs
 ```
 
 The suite runs beside the dev stack. It uses its own ports: frontend 3100,

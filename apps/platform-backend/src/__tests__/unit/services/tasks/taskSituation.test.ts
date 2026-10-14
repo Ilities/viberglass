@@ -18,6 +18,7 @@ const base: TaskSituationInput = {
 };
 
 const PLAN_V2 = { kind: "plan" as const, version: 2, at: "2026-10-01T10:00:00Z" };
+const REPORT_V2 = { kind: "artifact" as const, title: "Q3 report", version: 2, at: "2026-10-01T12:00:00Z" };
 const as = (id: string, isAdmin = false) => ({ id, isAdmin });
 const situation = (input: Partial<TaskSituationInput>, viewer = as("owner")) => taskSituation({ ...base, ...input }, viewer);
 
@@ -46,6 +47,26 @@ describe("taskSituation", () => {
       "failed",
       "Failed · Credential expired · Olli",
     ],
+    ["a Files task's artifact", { backing: "files" as const, latestArtifact: REPORT_V2 }, "artifact_ready", "Q3 report v2 ready · Olli"],
+    [
+      "the agent revising a Files task's artifact",
+      { backing: "files" as const, latestArtifact: REPORT_V2, runningTurn: { action: "code" as const, since: "t" } },
+      "agent_working",
+      "Agent working on the artifact",
+    ],
+    [
+      "a question asked after the artifact",
+      { backing: "files" as const, latestArtifact: REPORT_V2, openQuestion: { askedOf: [MARIA], since: "2026-10-01T13:00:00Z" } },
+      "question",
+      "Question for Maria",
+    ],
+    [
+      "people talking since the artifact",
+      { backing: "files" as const, latestArtifact: REPORT_V2, lastMessageAt: "2026-10-01T13:00:00Z" },
+      "discussing",
+      "Discussing · Olli",
+    ],
+    ["a Files task marked done", { backing: "files" as const, status: "resolved" as const, latestArtifact: REPORT_V2 }, "done", "Done"],
     ["a pull request", { latestArtifact: { kind: "code" as const, version: 1, at: "2026-10-01T12:00:00Z" } }, "pr_open", "PR open · Olli"],
     [
       "a merged part with more to build",

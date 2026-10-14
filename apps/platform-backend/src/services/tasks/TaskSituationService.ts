@@ -5,8 +5,10 @@ import {
   type SituationViewer,
   type TaskSituation,
   type TaskSituationInput,
+  type TaskSituationOutput,
   type Ticket,
 } from "@viberglass/types";
+import { ArtifactDAO } from "../../persistence/artifacts/ArtifactDAO";
 import { TaskTurnFactsDAO } from "../../persistence/agentSession/TaskTurnFactsDAO";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
@@ -46,6 +48,7 @@ interface Dependencies {
   pullRequests: Pick<TaskPullRequestDAO, "lastMergedParts">;
   marks: Pick<TaskPlanPartMarkDAO, "listFor">;
   spaces: Pick<TaskThreadListDAO, "backingKinds">;
+  artifacts: Pick<ArtifactDAO, "latestForTickets">;
 }
 
 const MESSAGE_PREVIEW = 140;
@@ -59,6 +62,11 @@ function nextUnmarked(merged: number | undefined, marked: Set<number> | undefine
 }
 const ARTIFACT_OF_PHASE = { planning: "plan", execution: "code" } as const;
 const iso = (date: Date) => date.toISOString();
+
+/** The newest of what a task made; on a tie the earlier one listed wins. */
+function newestOutput(outputs: Array<TaskSituationOutput | null | undefined>): TaskSituationOutput | null {
+  return outputs.reduce<TaskSituationOutput | null>((latest, output) => (output && (!latest || output.at > latest.at) ? output : latest), null);
+}
 const newest = (...dates: Array<Date | null | undefined>) =>
   dates.reduce<Date | null>((latest, date) => (date && (!latest || date > latest) ? date : latest), null);
 
@@ -85,13 +93,14 @@ export class TaskSituationService {
       pullRequests: new TaskPullRequestDAO(),
       marks: new TaskPlanPartMarkDAO(),
       spaces: new TaskThreadListDAO(),
+      artifacts: new ArtifactDAO(),
       ...deps,
     };
   }
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked, backings] = await Promise.all([
+    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked, backings, made] = await Promise.all([
       this.deps.turns.running(ids),
       this.deps.turns.paused(ids),
       this.deps.turns.lastFinished(ids),
@@ -106,6 +115,7 @@ export class TaskSituationService {
       this.deps.pullRequests.lastMergedParts(ids),
       this.deps.marks.listFor(ids),
       this.deps.spaces.backingKinds(ids),
+      this.deps.artifacts.latestForTickets(ids),
     ]);
 
     return new Map(
@@ -118,12 +128,12 @@ export class TaskSituationService {
         const turnRunning = running.get(task.id);
 
         const codeAt = task.pullRequestUrl ? (aggregate?.lastCodeAt ?? task.updatedAt) : null;
-        const latestArtifact: TaskSituationInput["latestArtifact"] =
-          codeAt && (!revision || codeAt >= revision.at)
-            ? { kind: "code", version: Math.max(1, aggregate?.codeTurns ?? 0), at: iso(codeAt) }
-            : revision
-              ? { kind: ARTIFACT_OF_PHASE[revision.phase], version: revision.version, at: iso(revision.at) }
-              : null;
+        const artifact = made.get(task.id);
+        const latestArtifact = newestOutput([
+          codeAt && { kind: "code", version: Math.max(1, aggregate?.codeTurns ?? 0), at: iso(codeAt) },
+          artifact && { kind: "artifact", title: artifact.title, version: artifact.number, at: iso(artifact.at) },
+          revision && { kind: ARTIFACT_OF_PHASE[revision.phase], version: revision.version, at: iso(revision.at) },
+        ]);
         const lastMessageAt = newest(message?.at, aggregate?.lastReplyAt);
 
         const input: TaskSituationInput = {

@@ -143,7 +143,7 @@ Needs: TASK-01; a ready GLM runner (L-REV's anthropic/claude-code works).
 2. When done: select a sentence → comment; select another → **Suggest a change** with new wording; apply the suggestion as Maria.
 3. **Revise the plan with 1 comment**.
 
-Expect: plan v1 appears, with what the agent found in the repository, and reviewers are asked to take a look; the applied suggestion creates a new version; the revision is a new version and addresses the comment; comment cards appear in the thread. There is no separate research step any more.
+Expect: plan v1 appears, with what the agent found in the repository, and reviewers are asked to take a look; the applied suggestion creates a new version; the revision is a new version and addresses the comment; comment cards appear in the thread.
 
 ### TASK-05 · Versions and hand edits
 Needs: TASK-04.
