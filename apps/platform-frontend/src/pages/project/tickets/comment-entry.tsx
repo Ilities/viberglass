@@ -2,6 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Timestamp } from '@/components/timestamp'
 import type { TaskTimelineEntry } from '@viberglass/types'
+import { decodeSuggestion } from './phase-document-comment-entry'
 import { readableQuote } from './readable-quote'
 
 type EventEntry = Extract<TaskTimelineEntry, { kind: 'event' }>
@@ -25,7 +26,8 @@ export function commentStatuses(entries: TaskTimelineEntry[]): Map<string, 'open
 /**
  * A comment on a document, as the thread shows it: who said what, a short
  * quote of the text it's about, and whether it's still open. The quote is
- * clamped so it never pushes the feedback out of view.
+ * clamped so it never pushes the feedback out of view. A suggestion shows the
+ * text it would replace and its new wording.
  */
 export function CommentEntry({
   entry,
@@ -38,15 +40,27 @@ export function CommentEntry({
 }) {
   const { payload, actor } = entry.activity
   const quote = typeof payload.quote === 'string' ? readableQuote(payload.quote) : null
+  const { isSuggestion, text } = decodeSuggestion(String(payload.comment))
   return (
     <li aria-label={`${actor?.name ?? 'Someone'}'s comment`} className="rounded-lg border border-[var(--gray-5)] px-4 py-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gray-10)]">
         <span className="font-medium text-[var(--gray-11)]">{actor?.name ?? 'Someone'}</span>
-        <span>commented on the plan</span>· <Timestamp date={entry.at} />
+        <span>{isSuggestion ? 'suggested a change to the plan' : 'commented on the plan'}</span>· <Timestamp date={entry.at} />
         <Badge color={status === 'open' ? 'amber' : 'zinc'}>{status === 'open' ? 'Open' : 'Resolved'}</Badge>
       </div>
-      <p className="mt-1.5 text-sm whitespace-pre-wrap text-[var(--gray-12)]">{String(payload.comment)}</p>
-      {quote && <blockquote className="mt-1.5 line-clamp-2 border-l-2 border-[var(--gray-6)] pl-2 text-xs text-[var(--gray-10)]">{quote}</blockquote>}
+      {isSuggestion ? (
+        <div role="group" aria-label="Suggested change" className="mt-1.5 space-y-0.5 font-mono text-xs">
+          {quote && (
+            <div className="line-clamp-2 rounded bg-red-50 px-3 py-1 whitespace-pre-wrap text-red-700 dark:bg-red-950/40 dark:text-red-300">- {quote}</div>
+          )}
+          <div className="rounded bg-green-50 px-3 py-1 whitespace-pre-wrap text-green-700 dark:bg-green-950/40 dark:text-green-300">+ {text}</div>
+        </div>
+      ) : (
+        <>
+          <p className="mt-1.5 text-sm whitespace-pre-wrap text-[var(--gray-12)]">{text}</p>
+          {quote && <blockquote className="mt-1.5 line-clamp-2 border-l-2 border-[var(--gray-6)] pl-2 text-xs text-[var(--gray-10)]">{quote}</blockquote>}
+        </>
+      )}
       <Button plain className="mt-1 -ml-2 text-xs" onClick={onOpenComments}>
         Open in comments
       </Button>

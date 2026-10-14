@@ -66,6 +66,9 @@ export function TicketDetailPage() {
   // The step view counts new comments as people add and resolve them; the page's counts are from its last load.
   const [liveNewComments, setLiveNewComments] = useState<number | null>(null)
   const countNewComments = useCallback((count: number) => setLiveNewComments(count), [])
+  // Comments show in the thread, but adding or resolving one changes nothing else the thread follows.
+  const [commentChanges, setCommentChanges] = useState(0)
+  const commentsChanged = useCallback(() => setCommentChanges((count) => count + 1), [])
 
   // A link to a run opens it; if it's new, load it.
   const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
@@ -165,6 +168,7 @@ export function TicketDetailPage() {
     ...data.sessions.map((session) => `${session.id}:${session.status}`),
     data.plan.updatedAt,
     ticket.updatedAt,
+    commentChanges,
   ].join('|')
 
   const archive = async () => {
@@ -243,6 +247,7 @@ export function TicketDetailPage() {
                 onDocumentSaved={setDocument}
                 onNewComments={countNewComments}
                 onAsked={changed}
+                onCommentsChanged={commentsChanged}
               />
             </div>
           </section>

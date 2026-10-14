@@ -29,6 +29,8 @@ interface TaskStepViewProps {
   onNewComments: (count: number) => void
   /** Someone asked the agent from the artifact, such as for a part's build. */
   onAsked: () => void
+  /** Someone added, resolved or reopened a comment here. */
+  onCommentsChanged?: () => void
 }
 
 /** The artifact tabs (Plan, Code) and the panel they show. */
@@ -86,10 +88,11 @@ export function TaskStepView({
   onDocumentSaved,
   onNewComments,
   onAsked,
+  onCommentsChanged,
 }: TaskStepViewProps) {
   const isPlan = step === 'planning'
   const hasPlan = isPlan && data.plan.content.trim().length > 0
-  const comments = useDocumentComments(data.ticket.id, hasPlan)
+  const comments = useDocumentComments(data.ticket.id, hasPlan, onCommentsChanged)
   const applySuggestion = useApplySuggestion(data, comments, onDocumentSaved)
   const planContent = isPlan ? data.plan.content : ''
   const reloadComments = comments.reload

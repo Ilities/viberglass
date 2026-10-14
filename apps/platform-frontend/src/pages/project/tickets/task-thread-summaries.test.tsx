@@ -118,6 +118,19 @@ describe('bringing in another agent', () => {
     await waitFor(() => expect(onAsked).toHaveBeenCalled())
   })
 
+  it("sends what's written in the composer as the ask, and clears it", async () => {
+    mockPost.mockResolvedValue({ messages: [], turn: { jobId: 'job-2' } })
+    renderThread([summaryTurn])
+
+    const composer = await screen.findByRole('combobox', { name: 'Write a message' })
+    fireEvent.change(composer, { target: { value: 'Review the checkout copy for tone' } })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Bring in another agent' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Codex' }))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', 'Review the checkout copy for tone', { agentId: CODEX }))
+    await waitFor(() => expect(composer).toHaveValue(''))
+  })
+
   it("isn't offered when every agent is already on the task", async () => {
     renderThread([summaryTurn], [{ id: CLAUDE, name: 'Claude' }])
     await screen.findByRole('listitem', { name: "Claude's turn" })

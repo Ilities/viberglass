@@ -27,6 +27,22 @@ export function spaceParamGuard(
   };
 }
 
+/**
+ * `router.param` handler for what a space's tasks work on, such as a Files
+ * space's files: reading needs the space to be visible, changing it needs to
+ * be allowed to create tasks there.
+ */
+export function spaceContentParamGuard(
+  access: Pick<SpaceAccessService, "assertCanSee" | "assertCanCreateTasks"> = new SpaceAccessService(),
+): RequestParamHandler {
+  return (req: Request, _res: Response, next: NextFunction, value: string) => {
+    const viewer = spaceViewerOf(req);
+    if (!viewer) return next();
+    const check = READ_METHODS.has(req.method) ? access.assertCanSee(viewer, value) : access.assertCanCreateTasks(viewer, value);
+    check.then(() => next(), next);
+  };
+}
+
 type OwnerLookup = (id: string) => Promise<string | null>;
 
 /**

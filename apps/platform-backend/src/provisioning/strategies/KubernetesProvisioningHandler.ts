@@ -36,8 +36,10 @@ export class KubernetesProvisioningHandler implements ProvisioningStrategyHandle
     if (error) return { status: "inactive", statusMessage: error };
     const config = resolveClankerConfig(clanker).config.strategy;
     const namespace = process.env.KUBERNETES_WORKER_NAMESPACE?.trim();
-    const image = getWorkerImageForClanker(clanker, "kubernetes");
-    if (config.type !== "kubernetes" || !namespace || !image) return { status: "inactive", statusMessage: "Worker configuration is incomplete" };
+    if (config.type !== "kubernetes" || !namespace) return { status: "inactive", statusMessage: "Worker configuration is incomplete" };
+    // Runs use the image saved on the runner, which starting it fills in with the agent's default.
+    const image = config.containerImage?.trim();
+    if (!image) return { status: "inactive", statusMessage: "Start the agent to set up its worker image" };
     try {
       await this.client.validateJob(namespace, buildKubernetesJob({
         jobId: randomUUID(), tenantId: "availability-check", image, callbackSecret: "dry-run-only",

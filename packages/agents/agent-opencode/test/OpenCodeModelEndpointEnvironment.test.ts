@@ -13,6 +13,7 @@ test("generates an OpenAI-compatible provider with model and env-referenced head
   expect(env.OPENCODE_MODEL).toBe("viberglass/org/qwen");
   expect(JSON.parse(env.OPENCODE_CONFIG_CONTENT)).toEqual({
     model: "viberglass/org/qwen",
+    small_model: "viberglass/org/qwen",
     provider: {
       viberglass: {
         npm: "@ai-sdk/openai-compatible",

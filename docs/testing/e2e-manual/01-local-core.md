@@ -71,7 +71,7 @@ Needs: L-NEW after AUTH-01; an OpenCode Go key.
 1. Model step: choose **OpenCode Go**, paste a wrong key → error from the provider check. Paste the real key → continue.
 2. Continue through space backing (Git repository), space and agent (SETUP-03 covers the repository; FILES-02 covers Files).
 
-Expect: the default agent runs OpenCode, is **Ready** under Settings → Agents, and the first task produces a plan.
+Expect: the default agent runs OpenCode, is **Ready** under Settings → Agents, and the starter task gets an explanation of the codebase in the task's conversation, with no plan and no Build suggestion.
 
 ### SETUP-02 · Setup with a custom endpoint
 Needs: L-NEW (fresh); z.ai key.

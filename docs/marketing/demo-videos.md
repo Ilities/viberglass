@@ -8,6 +8,7 @@ A prioritised list of short videos, each showing one journey from [User journeys
 - [Shared seed workspace](#shared-seed-workspace)
 - [The videos](#the-videos)
 - [Overview video (2 to 3 minutes)](#overview-video-2-to-3-minutes)
+- [Recorded 2026-10-14: deviations](#recorded-2026-10-14-deviations)
 - [Sources](#sources)
 
 ## Recording ground rules
@@ -230,6 +231,20 @@ Persona: a product team (Maria, Tomi, Quinn, Pat), told from Maria's side. Seed:
 | 2:45 – 2:55 | Logo, the repository address and the docs address. | "Viberglass. Bring your team, bring your agents." |
 
 Keep the deployed-model and Files segments to what's verified: label deployed models experimental in the on-screen caption, and film Files on the Docker install.
+
+## Recorded 2026-10-14: deviations
+
+The first cut of every video was recorded on a local kind install (`infra/kubernetes/scripts/local.py --agent opencode`) with OpenCode on OpenCode Go and real runs against github.com/Ilities/token.observer and local-ctx. The files and their notes are in `~/Videos/viberglass-demos/` on the recording machine. What differs from the scripts above:
+
+- No Slack, Jira, Verda or z.ai, so there is no "Claude Code · GLM" or "Qwen on Verda" runner. The second agent is "OpenCode · Kimi K2.7 Code" (OpenCode Go). Video 6 shows the Deployed models dialog without an account and labels it experimental; there's no live deployment or wake.
+- One browser profile, signing in as each person between cuts, rather than one profile per person.
+- No merges into the demo repositories' main. Video 1 ends on the open pull request. Background tasks marked done were closed with Mark done, not by a merge.
+- Video 3: no Slack. The agent asks Quinn in the app, Quinn picks an option, Maria builds, and the pull request opens.
+- Video 4: setup only (Incoming issues with label `agent` and automatic planning, and the connection's webhook page). A local cluster has no public address, so no live issue, comment or delivery is shown. Re-shoot on a public install.
+- Video 5: part 1's pull request isn't merged. Tomi uses Add to part 1's pull request, so parts 1 and 2 share one open pull request. The terminal is a replay of the real checkout commands; no commit is pushed. The hand-back note led the agent to revise the plan (part 3 now covers the rename) rather than push code.
+- Video 7: full screen in the preview didn't show in the headless browser, so it's left out.
+- Video 8: v1.0.0 isn't published. The terminal shows the documented commands as a replay, and the browser part is the real first-run setup on the kind install. Re-shoot after the release.
+- Overview: the tracker and Slack segment shows the Incoming issues settings instead, with the voice-over changed to match. There's no merged or done state.
 
 ## Sources
 

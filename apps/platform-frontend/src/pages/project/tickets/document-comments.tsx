@@ -15,8 +15,8 @@ import { readableQuote } from './readable-quote'
 
 export type ApplySuggestion = (comment: PhaseDocumentCommentResponse, suggestedText: string) => Promise<void>
 
-/** The plan's comments, kept current as people add and resolve them. */
-export function useDocumentComments(ticketId: string, enabled: boolean) {
+/** The plan's comments, kept current as people add and resolve them. `onChanged` follows each change made here, for the thread. */
+export function useDocumentComments(ticketId: string, enabled: boolean, onChanged?: () => void) {
   const [comments, setComments] = useState<PhaseDocumentCommentResponse[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
@@ -39,6 +39,7 @@ export function useDocumentComments(ticketId: string, enabled: boolean) {
       setIsSaving(true)
       try {
         await createPlanComment(ticketId, { quote, content })
+        onChanged?.()
         await reload()
         toast.success('Comment added')
         return true
@@ -49,7 +50,7 @@ export function useDocumentComments(ticketId: string, enabled: boolean) {
         setIsSaving(false)
       }
     },
-    [enabled, reload, ticketId]
+    [enabled, reload, ticketId, onChanged]
   )
 
   const toggleStatus = useCallback(
@@ -59,6 +60,7 @@ export function useDocumentComments(ticketId: string, enabled: boolean) {
       setIsSaving(true)
       try {
         await updatePlanComment(ticketId, comment.id, { status })
+        onChanged?.()
         await reload()
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update comment')
@@ -66,7 +68,7 @@ export function useDocumentComments(ticketId: string, enabled: boolean) {
         setIsSaving(false)
       }
     },
-    [enabled, reload, ticketId]
+    [enabled, reload, ticketId, onChanged]
   )
 
   const openCount = comments.filter((comment) => comment.status === 'open').length

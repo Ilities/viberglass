@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { OpenCodeConfig } from "./config";
 import { readOpenCodeSessionDetails } from "./readOpenCodeSessionDetails";
+import { withOpenCodeModel } from "./withOpenCodeModel";
 
 export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
   protected override createOutputNormalizer(): AgentOutputNormalizer {
@@ -24,6 +25,15 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
 
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  /** A workspace model endpoint's model wins over the runner's own setting. */
+  private resolveModel(): string | undefined {
+    return (
+      (process.env.OPENCODE_CONFIG_CONTENT ? this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL) : undefined) ??
+      this.getNonEmptyTrimmedString(this.config.model) ??
+      this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL)
+    );
   }
 
   protected requiresApiKey(): boolean {
@@ -47,6 +57,10 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
     if (endpoint) {
       env.OPENCODE_BASE_URL = endpoint;
       env.OPENAI_BASE_URL = endpoint;
+    }
+    const model = this.resolveModel();
+    if (model) {
+      env.OPENCODE_CONFIG_CONTENT = withOpenCodeModel(process.env.OPENCODE_CONFIG_CONTENT, model);
     }
     if (fs.existsSync(harnessConfigDir)) {
       env.OPENCODE_CONFIG_DIR = harnessConfigDir;
@@ -74,10 +88,7 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
 
       const args = ["run", "--format", "json"];
 
-      const model =
-        (process.env.OPENCODE_CONFIG_CONTENT ? this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL) : undefined) ??
-        this.getNonEmptyTrimmedString(this.config.model) ??
-        this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL);
+      const model = this.resolveModel();
       if (model) {
         args.push("--model", model);
       }
@@ -85,6 +96,9 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
       args.push(effectivePrompt);
 
       const env: NodeJS.ProcessEnv = { ...process.env };
+      if (model) {
+        env.OPENCODE_CONFIG_CONTENT = withOpenCodeModel(env.OPENCODE_CONFIG_CONTENT, model);
+      }
       if (this.config.apiKey) {
         env.OPENCODE_API_KEY = this.config.apiKey;
         env.OPENAI_API_KEY = env.OPENAI_API_KEY || this.config.apiKey;

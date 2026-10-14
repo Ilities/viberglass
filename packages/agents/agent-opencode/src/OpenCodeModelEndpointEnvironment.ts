@@ -18,6 +18,7 @@ export class OpenCodeModelEndpointEnvironment implements AgentEndpointEnvironmen
       OPENCODE_MODEL: `viberglass/${endpoint.model}`,
       OPENCODE_CONFIG_CONTENT: JSON.stringify({
         model: `viberglass/${endpoint.model}`,
+        small_model: `viberglass/${endpoint.model}`,
         provider: {
           viberglass: {
             npm: "@ai-sdk/openai-compatible",

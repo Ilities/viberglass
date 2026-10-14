@@ -17,8 +17,10 @@ const STARTERS = {
     title: 'Explain how this codebase is organised',
     description:
       'Describe the main parts of this repository, how they fit together, and where a newcomer should start reading. Only read the code; change nothing.',
-    intro: 'Ask for something small. The agent reads your repository and writes a plan, with what it found, for you to review.',
+    intro: 'Ask for something small. The agent reads your repository and answers in the task with what it found.',
     note: "This starter only reads your code, so it's safe to try.",
+    // A plan would offer to build it; this starter asks for an answer and nothing else.
+    ask: { action: 'reply', body: 'Please answer here in the task.' },
   },
   files: {
     title: 'Draft a one-page project brief',
@@ -26,6 +28,8 @@ const STARTERS = {
       'Write BRIEF.md with the goals, audience and open questions for this space. Keep it to one page.',
     intro: 'Ask for something small. The agent writes in the space’s files, which are kept for the next run and every task in the space.',
     note: 'You can ask for changes in the task’s conversation afterwards.',
+    // The work is the file itself, so the agent is asked directly rather than for a plan.
+    ask: { action: 'reply', body: 'Please write this in the space’s files.' },
   },
 } as const
 
@@ -62,13 +66,7 @@ export function FirstTaskStep({
         annotations: [],
         autoFixRequested: false,
       })
-      // In a Files space the work is the file itself, so the agent is asked directly rather than for a plan.
-      await askAgent(
-        ticket.id,
-        space.backingKind === 'files'
-          ? { action: 'reply', body: 'Please write this in the space’s files.', agentId: clankerId }
-          : { action: 'plan', body: 'Write the plan', agentId: clankerId }
-      )
+      await askAgent(ticket.id, { ...starter.ask, agentId: clankerId })
       navigate(taskPath(space.slug, ticket))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start the task.")

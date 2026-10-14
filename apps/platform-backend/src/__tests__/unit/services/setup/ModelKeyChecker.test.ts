@@ -31,16 +31,32 @@ describe("ModelKeyChecker", () => {
 
   it("checks keys whose model list is public with a request that generates nothing", async () => {
     const fetchFn = respondWith(400);
+    await new ModelKeyChecker(fetchFn).check("alibaba-coding-plan", "sk-sp-abc");
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions",
+      expect.objectContaining({
+        method: "POST",
+        headers: { Authorization: "Bearer sk-sp-abc", "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+    );
+  });
+
+  it("checks OpenCode Go keys on the model list, which authenticates a key it is sent", async () => {
+    const fetchFn = respondWith(200);
     await new ModelKeyChecker(fetchFn).check("opencode-go", "key-123");
 
     expect(fetchFn).toHaveBeenCalledWith(
-      "https://opencode.ai/zen/go/v1/chat/completions",
-      expect.objectContaining({
-        method: "POST",
-        headers: { Authorization: "Bearer key-123", "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "deepseek-v4.1-flash", messages: [] }),
-      }),
+      "https://opencode.ai/zen/go/v1/models",
+      expect.objectContaining({ method: "GET", headers: { Authorization: "Bearer key-123" } }),
     );
+  });
+
+  it.each([400, 401])("rejects an OpenCode Go key refused with HTTP %i", async (status) => {
+    const check = new ModelKeyChecker(respondWith(status)).check("opencode-go", "sk-not-a-real-key-123");
+
+    await expect(check).rejects.toMatchObject({ code: SETUP_SERVICE_ERROR_CODE.KEY_REJECTED });
   });
 
   it("still rejects such a key when authentication fails", async () => {

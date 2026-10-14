@@ -57,6 +57,18 @@ export class SpaceAccessService {
     return spaceCapabilities(viewer.role, await this.deps.members.getRole(projectId, viewer.id));
   }
 
+  /** Refuses someone who can't create tasks in the space: they can't change what its tasks work on either. */
+  async assertCanCreateTasks(viewer: SpaceViewer, idOrSlug: string): Promise<string> {
+    const { projectId, membership } = await this.assertCanSee(viewer, idOrSlug);
+    if (!spaceCapabilities(viewer.role, membership).canCreateTasks) {
+      throw new SpaceAccessError(
+        SPACE_ACCESS_ERROR_CODE.CANNOT_CREATE_TASKS,
+        "Only people who can create tasks in this space can change its files.",
+      );
+    }
+    return projectId;
+  }
+
   async assertCanMaintain(viewer: SpaceViewer, idOrSlug: string): Promise<string> {
     const { projectId, membership } = await this.assertCanSee(viewer, idOrSlug);
     if (!canMaintainSpace(viewer.role, membership)) {

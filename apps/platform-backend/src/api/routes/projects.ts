@@ -1,7 +1,7 @@
 import { registerProjectReadinessRoutes } from "./projectReadinessRoutes";
 import { registerProjectScmRoutes } from "./projectScmRoutes";
 import { registerProjectPromptRoutes } from "./projectPromptRoutes";
-import { registerSpaceFilesRoutes } from "./spaceFilesRoutes";
+import { spaceFilesRouter } from "./spaceFilesRoutes";
 import { SpaceFilesEditService } from "../../services/spaceFiles/SpaceFilesEditService";
 import { ArtifactService } from "../../services/artifacts/ArtifactService";
 import express from "express";
@@ -303,7 +303,7 @@ registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectI
 
 registerProjectPromptRoutes(router, promptTemplateService);
 
-registerSpaceFilesRoutes(router, new SpaceFilesEditService(), new ArtifactService());
+router.use(spaceFilesRouter(new SpaceFilesEditService(), new ArtifactService(), spaceAccess));
 
 // GET /api/spaces/:projectId/agent-sessions
 router.get(

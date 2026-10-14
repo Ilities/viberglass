@@ -139,13 +139,10 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
     displayName: 'OpenCode Go',
     keyUrl: 'https://opencode.ai/auth',
     keyPrefixes: [],
-    // The model list is public, and the model is checked before the key, so
-    // name a real model and send no messages.
-    keyCheck: {
-      url: 'https://opencode.ai/zen/go/v1/chat/completions',
-      auth: bearer,
-      post: { body: { model: 'deepseek-v4.1-flash', messages: [] }, acceptedStatuses: [400] },
-    },
+    // The model list is public, but a key sent with it is checked (401 when
+    // invalid). Completions refuse a request without a session header before
+    // they look at the key, so they can't tell a bad key from a good one.
+    keyCheck: { url: 'https://opencode.ai/zen/go/v1/models', auth: bearer },
   },
   {
     id: 'openrouter',

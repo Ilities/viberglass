@@ -20,6 +20,26 @@ describe("KubernetesProvisioningHandler", () => {
     expect(validateJob).toHaveBeenCalledWith("workers", expect.objectContaining({ spec: expect.objectContaining({ template: expect.objectContaining({ spec: expect.objectContaining({ automountServiceAccountToken: false }) }) }) }));
   });
 
+  it("gives a runner without an image the agent's default worker image when it starts", async () => {
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "local";
+    const validateJob = jest.fn().mockResolvedValue(undefined);
+    const withoutImage: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes", provisioningMode: "prebuilt" }, agent: { type: "opencode" } } };
+
+    const result = await new KubernetesProvisioningHandler({ validateJob }).provision(withoutImage);
+
+    expect(result).toMatchObject({ status: "active", deploymentConfig: { strategy: { containerImage: "viberator-worker-opencode:local" } } });
+  });
+
+  it("isn't ready until the runner has an image of its own", async () => {
+    const validateJob = jest.fn();
+    const withoutImage: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes", provisioningMode: "prebuilt" }, agent: { type: "opencode" } } };
+
+    const result = await new KubernetesProvisioningHandler({ validateJob }).checkAvailability(withoutImage);
+
+    expect(result).toEqual({ status: "inactive", statusMessage: "Start the agent to set up its worker image" });
+    expect(validateJob).not.toHaveBeenCalled();
+  });
+
   it("rejects namespaces outside the configured boundary", async () => {
     const validateJob = jest.fn();
     const result = await new KubernetesProvisioningHandler({ validateJob }).checkAvailability({ ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes", namespace: "other" }, agent: { type: "opencode" } } });

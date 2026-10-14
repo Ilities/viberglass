@@ -5,13 +5,13 @@ import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
 import type { JobListItem } from '@/service/api/job-api'
 import type { Clanker, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
 import { BringInAgent, type BringableAgent } from './bring-in-agent'
 import { CommentEntry, commentStatuses, isFullComment } from './comment-entry'
 import { NextAgentLine } from './next-agent-line'
-import { OpenQuestions, QuestionEntry } from './question-entry'
+import { OpenQuestions, QuestionEntry, withAnswer, type OnAnswered } from './question-entry'
 import { PinnedSummary, SummaryEntry } from './summary-entry'
 import { useComposerDraft } from './composer-draft'
 import { TaskComposer, type Mentionable } from './task-composer'
@@ -88,10 +88,17 @@ export function TaskThread({
   const [messagesOnly, setMessagesOnly] = useState(false)
   const draft = useComposerDraft()
 
+  // Loads overlap (an answer, a poll, a refresh); only the latest may set the thread, so an older one can't bring back stale state.
+  const latestLoad = useRef(0)
   const load = useCallback(() => {
+    const requested = ++latestLoad.current
     getTaskTimeline(taskId)
-      .then(setEntries)
-      .catch(() => setEntries((current) => current ?? []))
+      .then((loaded) => {
+        if (requested === latestLoad.current) setEntries(loaded)
+      })
+      .catch(() => {
+        if (requested === latestLoad.current) setEntries((current) => current ?? [])
+      })
   }, [taskId])
 
   useEffect(() => load(), [load, refreshKey])
@@ -143,6 +150,13 @@ export function TaskThread({
   const posted = () => {
     load()
     onAsked()
+  }
+  const answered: OnAnswered = (answer) => {
+    if (answer) {
+      const by = user ? { id: user.id, name: user.name } : null
+      setEntries((current) => current && withAnswer(current, answer.questionId, { by, text: answer.text }))
+    }
+    posted()
   }
 
   const renderEntry = (entry: TaskTimelineEntry) =>
@@ -227,7 +241,7 @@ export function TaskThread({
         canSteer={canSteer}
         onChanged={posted}
       />
-      {canPost && <OpenQuestions taskId={taskId} entries={entries} viewerId={user?.id} onAnswered={posted} />}
+      {canPost && <OpenQuestions taskId={taskId} entries={entries} viewerId={user?.id} onAnswered={answered} />}
       {canAsk && !agentWorking && (
         <NextAgentLine taskId={taskId} refreshKey={refreshKey} clankers={clankers} agentsOnTask={onTask} />
       )}
@@ -254,7 +268,7 @@ export function TaskThread({
           agentWorking={agentWorking}
           onAsked={posted}
           draft={canPost ? draft : undefined}
-          trailing={bringable.length > 0 && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
+          trailing={bringable.length > 0 && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} draft={canPost ? draft : undefined} />}
         />
       )}
     </section>

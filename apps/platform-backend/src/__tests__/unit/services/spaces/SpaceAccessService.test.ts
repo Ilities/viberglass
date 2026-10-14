@@ -58,6 +58,23 @@ describe("SpaceAccessService", () => {
     await expect(access.assertCanMaintain(member, SPACE_ID)).rejects.toMatchObject({ statusCode: 403 });
   });
 
+  it("lets anyone who can create tasks in a space change its files, members included", async () => {
+    await expect(service({ isPrivate: false, membership: "member" }).access.assertCanCreateTasks(member, SPACE_ID)).resolves.toBe(SPACE_ID);
+    await expect(service({ isPrivate: false, membership: null }).access.assertCanCreateTasks(member, SPACE_ID)).resolves.toBe(SPACE_ID);
+  });
+
+  it("refuses viewers and guests the changes that creating tasks allows, and hides spaces they can't see", async () => {
+    await expect(
+      service({ isPrivate: false, membership: null }).access.assertCanCreateTasks({ id: "v", role: "viewer" }, SPACE_ID),
+    ).rejects.toMatchObject({ statusCode: 403, code: "SPACE_CANNOT_CREATE_TASKS" });
+    await expect(
+      service({ isPrivate: true, membership: "member" }).access.assertCanCreateTasks({ id: "g", role: "guest" }, SPACE_ID),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(service({ isPrivate: true, membership: null }).access.assertCanCreateTasks(member, SPACE_ID)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
   it("describes what each role may do in a space, for the UI to hide the rest", async () => {
     await expect(service({ isPrivate: false, membership: "member" }).access.describe(member, SPACE_ID)).resolves.toEqual({
       membership: "member",

@@ -13,6 +13,7 @@ import {
   type TaskTimelineEntry,
 } from '@viberglass/types'
 import { describeActivity } from './activity-sentence'
+import { encodeSuggestion } from './phase-document-comment-entry'
 import { TaskThread } from './task-thread'
 
 const DANA = '22222222-2222-4222-8222-222222222222'
@@ -467,5 +468,48 @@ describe('TaskThread', () => {
     expect(screen.queryByText(/resolved a comment/)).not.toBeInTheDocument()
     fireEvent.click(within(first).getByRole('button', { name: 'Open in comments' }))
     expect(onOpenComments).toHaveBeenCalled()
+  })
+
+  it('shows a suggested change as the text it replaces and its new wording, without the marker', async () => {
+    mockTimeline.mockResolvedValue([
+      {
+        kind: 'event',
+        id: 's',
+        at: '2026-10-01T10:09:00Z',
+        activity: {
+          id: 's',
+          ticketId: 't-1',
+          actorType: 'human',
+          actor: { id: 'q', name: 'Quinn' },
+          kind: 'comment_added',
+          payload: { step: 'planning', quote: 'short on mobile', commentId: 'c-s', comment: encodeSuggestion('short everywhere') },
+          createdAt: '2026-10-01T10:09:00Z',
+        },
+      },
+    ])
+    render(
+      <Theme>
+        <MemoryRouter>
+          <TaskThread
+            taskId="t-1"
+            refreshKey="1"
+            onOpenArtifact={jest.fn()}
+            agents={[]}
+            suggestionInput={SUGGESTION_INPUT}
+            canPost={false}
+            canAsk={false}
+            runnableAgents={[]}
+            onAsked={jest.fn()}
+          />
+        </MemoryRouter>
+      </Theme>
+    )
+
+    const comment = await screen.findByRole('listitem', { name: "Quinn's comment" })
+    expect(comment).toHaveTextContent('suggested a change to the plan')
+    const change = within(comment).getByRole('group', { name: 'Suggested change' })
+    expect(change).toHaveTextContent('- short on mobile')
+    expect(change).toHaveTextContent('+ short everywhere')
+    expect(comment).not.toHaveTextContent('@@SUGGESTION@@')
   })
 })

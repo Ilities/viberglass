@@ -34,9 +34,11 @@ it('starts a Files space with a file to write, asked of the agent directly', asy
   )
 })
 
-it('starts a Git space by asking for a plan of the codebase', async () => {
+it('starts a Git space by asking for an answer in the task, not a plan to build', async () => {
   renderStep('git')
   expect(screen.getByRole('textbox', { name: 'Task' })).toHaveValue('Explain how this codebase is organised')
   fireEvent.click(screen.getByRole('button', { name: 'Start the task' }))
-  await waitFor(() => expect(askAgent).toHaveBeenCalledWith('t1', { action: 'plan', body: 'Write the plan', agentId: 'c1' }))
+  await waitFor(() =>
+    expect(askAgent).toHaveBeenCalledWith('t1', { action: 'reply', body: 'Please answer here in the task.', agentId: 'c1' })
+  )
 })

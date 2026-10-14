@@ -1,4 +1,4 @@
-import type { Request, Response, Router } from "express";
+import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { isObjectRecord, SPACE_UPLOAD_MAX_BYTES } from "@viberglass/types";
 import logger from "../../config/logger";
@@ -6,7 +6,8 @@ import { ArtifactNotFound, type ArtifactService } from "../../services/artifacts
 import { InvalidSpaceArchive } from "../../services/spaceFiles/inspectSpaceArchive";
 import { SpaceFileError, type SpaceFilesEditService } from "../../services/spaceFiles/SpaceFilesEditService";
 import { validateUuidParam } from "../middleware/validation";
-import { requireRunnerRole } from "../middleware/workspaceRoleGuards";
+import { spaceContentParamGuard } from "../middleware/spaceAccessGuards";
+import type { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: SPACE_UPLOAD_MAX_BYTES, files: 1 } }).single("file");
 
@@ -40,8 +41,20 @@ function sendFile(res: Response, file: { filename: string; contentType: string; 
 
 const userId = (req: Request) => req.authContext!.user.id;
 
-/** A Files space's working files and its artifacts. Reading needs only to see the space; changing files needs a runner role. */
-export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditService, artifacts: ArtifactService): void {
+/**
+ * A Files space's working files and its artifacts. Reading needs only to see
+ * the space; changing files needs to be allowed to create tasks in it, since
+ * those people can have the agent change the files anyway. Its own router, so
+ * the space settings' maintainer guard doesn't apply.
+ */
+export function spaceFilesRouter(
+  files: Pick<SpaceFilesEditService, "list" | "readText" | "saveText" | "upload" | "remove" | "changeContent" | "dismissChange" | "download">,
+  artifacts: Pick<ArtifactService, "list" | "detail" | "preview" | "download">,
+  access: Pick<SpaceAccessService, "assertCanSee" | "assertCanCreateTasks">,
+): Router {
+  const router = Router();
+  router.param("projectId", spaceContentParamGuard(access));
+
   router.get("/:projectId/files", validateUuidParam("projectId"), async (req, res) => {
     try {
       return res.json({ success: true, data: await files.list(req.params.projectId) });
@@ -58,7 +71,7 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
     }
   });
 
-  router.put("/:projectId/files/text", validateUuidParam("projectId"), requireRunnerRole, async (req, res) => {
+  router.put("/:projectId/files/text", validateUuidParam("projectId"), async (req, res) => {
     const body: unknown = req.body;
     if (!isObjectRecord(body) || typeof body.path !== "string" || typeof body.content !== "string" || !(body.baseSha256 === null || typeof body.baseSha256 === "string")) {
       return res.status(400).json({ error: "path, content and baseSha256 are required" });
@@ -71,7 +84,7 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
     }
   });
 
-  router.post("/:projectId/files", validateUuidParam("projectId"), requireRunnerRole, (req, res) => {
+  router.post("/:projectId/files", validateUuidParam("projectId"), (req, res) => {
     upload(req, res, async (uploadError: unknown) => {
       if (uploadError) {
         const tooLarge = isObjectRecord(uploadError) && uploadError.code === "LIMIT_FILE_SIZE";
@@ -88,7 +101,7 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
     });
   });
 
-  router.delete("/:projectId/files", validateUuidParam("projectId"), requireRunnerRole, async (req, res) => {
+  router.delete("/:projectId/files", validateUuidParam("projectId"), async (req, res) => {
     try {
       const data = await files.remove(req.params.projectId, userId(req), req.query.path);
       return res.status("queued" in data ? 202 : 200).json({ success: true, data });
@@ -110,7 +123,6 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
     "/:projectId/files/changes/:changeId",
     validateUuidParam("projectId"),
     validateUuidParam("changeId"),
-    requireRunnerRole,
     async (req, res) => {
       try {
         await files.dismissChange(req.params.projectId, req.params.changeId);
@@ -174,4 +186,6 @@ export function registerSpaceFilesRoutes(router: Router, files: SpaceFilesEditSe
       }
     },
   );
+
+  return router;
 }

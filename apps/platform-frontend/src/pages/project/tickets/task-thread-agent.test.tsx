@@ -172,6 +172,55 @@ describe('TaskThread and the agent', () => {
       await waitFor(() => expect(onAsked).toHaveBeenCalled())
     })
 
+    it('shows an option answer in the thread straight away, before the reload comes back', async () => {
+      mockTimeline.mockResolvedValueOnce([question()]).mockReturnValue(new Promise(() => undefined))
+      mockAnswer.mockResolvedValue({ sessionId: 's-1', turnId: 'turn-2', jobId: 'job-2', status: 'pending' })
+      renderThread()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'South' }))
+
+      await waitFor(() => expect(screen.queryByRole('group', { name: "Answer Claude's question" })).not.toBeInTheDocument())
+      expect(screen.getByRole('listitem', { name: "Claude's question" })).toHaveTextContent('Me answered for Maria: South')
+    })
+
+    it("doesn't let an earlier, slower load bring an answered question back", async () => {
+      const answered = question({ status: 'answered', answer: { by: { id: 'me', name: 'Me' }, text: 'South', at: '2026-10-01T10:20:00Z' } })
+      let finishStaleLoad: (entries: TaskTimelineEntry[]) => void = () => undefined
+      mockTimeline
+        .mockResolvedValueOnce([question()])
+        .mockReturnValueOnce(new Promise<TaskTimelineEntry[]>((resolve) => (finishStaleLoad = resolve)))
+        .mockResolvedValue([answered])
+      mockAnswer.mockResolvedValue({ sessionId: 's-1', turnId: 'turn-2', jobId: 'job-2', status: 'pending' })
+      const thread = (refreshKey: string) => (
+        <Theme>
+          <MemoryRouter>
+            <TaskThread
+              taskId="t-1"
+              refreshKey={refreshKey}
+              onOpenArtifact={jest.fn()}
+              agents={[]}
+              suggestionInput={SUGGESTION_INPUT}
+              canPost
+              canAsk
+              runnableAgents={[]}
+              onAsked={jest.fn()}
+            />
+          </MemoryRouter>
+        </Theme>
+      )
+      const { rerender } = render(thread('1'))
+      await screen.findByRole('button', { name: 'South' })
+      // A refresh starts a load that's still out when the answer is given.
+      rerender(thread('2'))
+
+      fireEvent.click(screen.getByRole('button', { name: 'South' }))
+      await waitFor(() => expect(mockTimeline).toHaveBeenCalledTimes(3))
+      finishStaleLoad([question()])
+
+      await waitFor(() => expect(screen.getByRole('listitem', { name: "Claude's question" })).toHaveTextContent('Me answered for Maria: South'))
+      expect(screen.queryByRole('group', { name: "Answer Claude's question" })).not.toBeInTheDocument()
+    })
+
     it('takes a written answer', async () => {
       mockTimeline.mockResolvedValue([question({ options: [] })])
       mockAnswer.mockResolvedValue({ sessionId: 's-1', turnId: 'turn-2', jobId: 'job-2', status: 'pending' })

@@ -29,7 +29,7 @@ The first visit asks you to create the administrator account: your name, email a
 2. Choose your space backing. Git repository is for code: enter the GitHub repository and an access token. "Create a token with the right permissions" opens GitHub's fine-grained token form with what the agent needs filled in: write access to Contents and Pull requests. Setup checks the token with GitHub. Files is for documents, presentations and other artifacts, and needs no repository. A space's backing can't be changed later.
 3. Name your first space.
 4. Getting your agent ready. Setup creates a default agent for your key and starts it on Docker. The first time, this downloads the agent's image and takes a couple of minutes.
-5. Try your first task. Setup suggests a starter task: in a repository it only reads your code and writes a plan, and in a Files space the agent writes a one-page brief. Choose Start the task to run it.
+5. Try your first task. Setup suggests a starter task: in a repository it only reads your code and answers in the task, and in a Files space the agent writes a one-page brief. Choose Start the task to run it.
 
 To look around before connecting anything, choose Explore a demo workspace on setup's first screen. It loads a sample space with tasks in different states. Its tasks don't run agents. Remove demo, in the demo's banner, deletes exactly what it added.
 

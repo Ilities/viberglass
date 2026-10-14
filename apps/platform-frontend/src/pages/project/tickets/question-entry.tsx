@@ -1,7 +1,7 @@
 import { Button } from '@/components/button'
 import { Textarea } from '@/components/textarea'
 import { answerQuestion } from '@/service/api/discussion-api'
-import type { AgentQuestion, TaskTimelineEntry } from '@viberglass/types'
+import type { AgentQuestion, TaskPerson, TaskTimelineEntry } from '@viberglass/types'
 import { ChatBubbleIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -59,8 +59,20 @@ export function QuestionEntry({ entry, answerBelow = false }: QuestionEntryProps
   )
 }
 
+/** The thread with one question shown as answered, until the reload that follows brings back what the server recorded. */
+export function withAnswer(entries: TaskTimelineEntry[], questionId: string, answer: { by: TaskPerson | null; text: string }): TaskTimelineEntry[] {
+  return entries.map((entry) =>
+    entry.kind === 'question' && entry.question.id === questionId
+      ? { ...entry, question: { ...entry.question, status: 'answered', answer: { ...answer, at: new Date().toISOString() } } }
+      : entry
+  )
+}
+
+/** A question was answered, with what; or an answer failed, possibly because someone else answered first. */
+export type OnAnswered = (answered: { questionId: string; text: string } | null) => void
+
 /** Answering one open question: a press on an option, or a written answer. */
-function AnswerCard({ taskId, question, viewerId, onAnswered }: { taskId: string; question: AgentQuestion; viewerId: string | undefined; onAnswered: () => void }) {
+function AnswerCard({ taskId, question, viewerId, onAnswered }: { taskId: string; question: AgentQuestion; viewerId: string | undefined; onAnswered: OnAnswered }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -70,11 +82,11 @@ function AnswerCard({ taskId, question, viewerId, onAnswered }: { taskId: string
     try {
       await answerQuestion(taskId, question.id, answer.trim())
       setText('')
-      onAnswered()
+      onAnswered({ questionId: question.id, text: answer.trim() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to answer the question')
       // Someone else may have answered it; the thread shows who.
-      onAnswered()
+      onAnswered(null)
     } finally {
       setSending(false)
     }
@@ -142,7 +154,7 @@ export function OpenQuestions({
   taskId: string
   entries: TaskTimelineEntry[]
   viewerId: string | undefined
-  onAnswered: () => void
+  onAnswered: OnAnswered
 }) {
   const open = entries.flatMap((entry) => (entry.kind === 'question' && entry.question.status === 'open' ? [entry.question] : []))
   if (open.length === 0) return null
