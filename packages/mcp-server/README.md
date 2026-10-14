@@ -6,7 +6,7 @@ MCP (Model Context Protocol) server for the Viberglass platform. Exposes agents,
 
 The server uses the **Streamable HTTP** transport (stateless mode) and is mounted at `POST /api/mcp` in the platform backend. Each request creates a fresh `McpServer` + `StreamableHTTPServerTransport` pair — there is no session state between calls.
 
-Authentication is handled by the `requireApiToken` middleware on the Express route. MCP clients must send a valid API token via the `Authorization` header.
+Authentication is handled by the `requireApiToken` middleware on the Express route. MCP clients must send a valid API token via the `Authorization` header. Roles that can't run agents are refused, and the tools only see the spaces the token's user can see.
 
 ## Tools
 
@@ -41,7 +41,7 @@ List tasks with optional filters.
 |------------------|------------------|-----------------------------------------------------------|
 | `spaceId`        | `string (UUID)`  | Filter by space                                           |
 | `statuses`       | `string`         | Comma-separated: `open, in_progress, in_review, resolved` |
-| `workflowPhases` | `string`         | Comma-separated: `research, planning, execution`          |
+| `workflowPhases` | `string`         | Comma-separated: `planning, execution`                    |
 | `severity`       | `string`         | `low, medium, high, critical`                             |
 | `search`         | `string`         | Search in title and description                           |
 | `limit`          | `number (1–200)` | Max results (default 50)                                  |
@@ -74,6 +74,16 @@ Create a new task in a space.
 
 Returns the created task with its ID and initial workflow state.
 
+### `task_branch`
+
+Get the git branch a task's code is on, its repository and base branch, and who has taken the work over. `viberglass checkout` uses it.
+
+| Parameter | Type     | Description                                 |
+|-----------|----------|---------------------------------------------|
+| `task`    | `string` | **Required.** The task's key (`WEB-42`) or UUID |
+
+Returns `{ branch, repositoryUrl, baseBranch, pushed, takenOver }`, or an error when there's no such task or its space has no repository.
+
 ### `task_trigger`
 
 Trigger a workflow phase run for a task. Returns a run ID for tracking.
@@ -82,29 +92,28 @@ Trigger a workflow phase run for a task. Returns a run ID for tracking.
 |---------------|---------------------------------------|----------------------------------------------|
 | `taskId`      | `string (UUID)`                       | **Required.** Task UUID                    |
 | `agentId`     | `string (UUID)`                       | **Required.** Agent UUID to run, from `agent_list` |
-| `targetPhase` | `enum(research, planning, execution)` | **Required.** Workflow phase to run          |
+| `targetPhase` | `enum(planning, execution)`           | **Required.** Workflow phase to run          |
 
 Returns `{ jobId, status }`.
 
 ### `task_review`
 
-Get the full review state for a task across all workflow phases. Includes phase documents and inline comments. Nothing is approved: to go on, trigger the next step with `task_trigger`.
+Get the full review state for a task: its workflow phases, and its plan with inline comments. Nothing is approved: to go on, trigger the next step with `task_trigger`.
 
 | Parameter  | Type            | Description               |
 |------------|-----------------|---------------------------|
 | `taskId`   | `string (UUID)` | **Required.** Task UUID |
 
-Returns a `ReviewState` object with the current workflow phase, per-phase documents (`content`), and any inline comments.
+Returns a `ReviewState` object with the current workflow phase, each phase's status, and the plan (`plan.content` and `plan.comments`).
 
 ### `task_review_comment`
 
-Add an inline comment to a research or planning phase document. Use to request revisions.
+Add an inline comment to the task's plan. Use to request revisions.
 
 | Parameter    | Type                       | Description                               |
 |--------------|----------------------------|-------------------------------------------|
 | `taskId`     | `string (UUID)`            | **Required.** Task UUID                 |
-| `phase`      | `enum(research, planning)` | **Required.** Phase to comment on         |
-| `lineNumber` | `number (≥1)`              | **Required.** Line number in the document |
+| `lineNumber` | `number (≥1)`              | **Required.** Line number in the plan     |
 | `content`    | `string`                   | **Required.** Comment text                |
 
 Returns `{ id, lineNumber, content, status }`.
@@ -158,4 +167,4 @@ Configure your MCP client (Claude Desktop, Cursor, etc.) to use the Streamable H
 }
 ```
 
-The API token must be created through the Viberglass UI under **Secrets → API Tokens**.
+Create the API token in the Viberglass UI under Settings → API tokens.

@@ -244,7 +244,7 @@ Arguments:
 
 Environment Variables:
   AWS_REGION     AWS region (default: eu-west-1)
-  IMAGE_TAG      Image tag/version (default: latest)
+  IMAGE_TAG      Image tag/version (default: latest); any other tag is pushed alongside latest
 
 Examples:
   $0 dev                    # Build and push multi-agent harness image for dev (default)
@@ -253,8 +253,8 @@ Examples:
   $0 prod multi-agent       # Build and push only multi-agent for prod
   IMAGE_TAG=v1.0.0 $0 dev   # Build and push with specific tag
 
-Note: The ECS worker image built by Pulumi (ecs-worker) is handled
-by the workers infrastructure stack and is NOT included here.
+ECS runners pull these harness images when the platform stack sets
+viberglass:workerImageRegistry: ecr; pin them with viberglass:workerImageTag.
 Agent image builds automatically ensure viberator-base-worker is present in ECR.
 EOF
 

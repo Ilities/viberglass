@@ -21,6 +21,11 @@ import { ClankerStartService } from "../../services/ClankerStartService";
 import { AgentLoginJobService } from "../../services/agentLogin/AgentLoginJobService";
 import { McpServerDAO } from "../../persistence/mcpServer/McpServerDAO";
 import { SkillDAO } from "../../persistence/skill/SkillDAO";
+import {
+  buildsDockerImageFromSource,
+  canBuildWorkerFromSource,
+  SOURCE_BUILD_UNAVAILABLE_MESSAGE,
+} from "../../provisioning/shared/sourceBuild";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
@@ -103,6 +108,15 @@ async function validateTools(body: { mcpServerIds?: string[]; skillIds?: string[
   }
 }
 
+function validateImageSource(deploymentConfig: unknown): void {
+  if (buildsDockerImageFromSource(deploymentConfig) && !canBuildWorkerFromSource()) {
+    throw new ClankerServiceError(
+      CLANKER_SERVICE_ERROR_CODE.PROVISIONING_CONFIG_ERROR,
+      SOURCE_BUILD_UNAVAILABLE_MESSAGE,
+    );
+  }
+}
+
 // GET /api/clankers - List all clankers
 router.get(
   "/",
@@ -146,6 +160,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
+    validateImageSource(req.body.deploymentConfig);
     await modelEndpoints.validateSelection(req.body.modelEndpoint, req.body.agent);
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
@@ -173,6 +188,7 @@ router.put(
     await modelEndpoints.validateSelection(req.body.modelEndpoint === undefined ? existing.modelEndpoint : req.body.modelEndpoint, req.body.agent === undefined ? existing.agent : req.body.agent);
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
+    validateImageSource(req.body.deploymentConfig);
 
     const updatedClanker = await clankerService.updateClanker(
       req.params.id,

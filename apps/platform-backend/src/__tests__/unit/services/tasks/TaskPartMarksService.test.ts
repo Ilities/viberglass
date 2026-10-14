@@ -1,5 +1,6 @@
 import type { TaskPlanParts, TaskPlanPartStatus } from "@viberglass/types";
 import type { TaskPullRequestRow } from "../../../../persistence/ticketing/TaskPullRequestDAO";
+import { TaskDoneService } from "../../../../services/tasks/TaskDoneService";
 import { TaskPartMarksService } from "../../../../services/tasks/TaskPartMarksService";
 
 const part = (number: number, status: TaskPlanPartStatus) => ({ number, title: null, status, pullRequestUrl: null });
@@ -31,7 +32,8 @@ function setup(options: { before?: TaskPlanParts; after?: TaskPlanParts; open?: 
     activity: { record: jest.fn().mockResolvedValue(undefined) },
     lifecycle: { synchronize: jest.fn().mockResolvedValue("in_review") },
   };
-  return { deps, service: new TaskPartMarksService(deps) };
+  const done = new TaskDoneService({ tickets: deps.tickets, lifecycle: deps.lifecycle, activity: deps.activity });
+  return { deps, service: new TaskPartMarksService({ ...deps, done }) };
 }
 
 describe("TaskPartMarksService", () => {
@@ -52,7 +54,7 @@ describe("TaskPartMarksService", () => {
     await service.mark("t-1", "maria", 3, "skipped");
 
     expect(deps.tickets.updateTicket).toHaveBeenCalledWith("t-1", { status: "resolved" });
-    expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "maria" }, "task_done");
+    expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "maria" }, "task_done", {});
   });
 
   it("refuses a part that is merged, or not in the plan", async () => {

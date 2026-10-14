@@ -49,6 +49,18 @@ The endpoint is the generic one, so `/v1/traces` is appended per the OTLP
 exporter spec — the full URL becomes `/api/public/otel/v1/traces`, which is
 what Langfuse expects.
 
+The backend passes its `OTEL_*` variables on to Docker workers, but workers run
+on a bridge network and can't resolve `langfuse-web`. For worker spans
+(`job.execute`, `invoke_agent`), also give them an address they can reach
+through the host:
+
+```bash
+WORKER_OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:3001/api/public/otel
+```
+
+Pass it the same way as the two variables above, or put all three in the root
+`.env`.
+
 | | |
 |---|---|
 | UI | http://localhost:3001 (3000 is the frontend) |
@@ -143,8 +155,14 @@ as it stands.
 The exporter is generic OTLP/HTTP. Jaeger, Grafana Tempo, Braintrust and
 anything else OTLP-shaped work with no code change:
 
+The backend runs in a container, so `localhost` there is the container itself.
+Point it at a collector on your machine through `host.docker.internal`, and
+point the workers at the same address:
+
 ```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 docker compose up -d backend
+OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318 \
+WORKER_OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318 \
+  docker compose up -d backend
 ```
 
 ## Turning it back off

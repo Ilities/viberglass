@@ -1,15 +1,14 @@
 #!/bin/bash
 # Production Migration Runner Script
 #
-# Safely runs database migrations against production or staging environments
-# with proper validation and rollback capabilities.
+# Runs database migrations against the dev or prod database on AWS, reading
+# its URL from SSM. The backend also migrates on start.
 #
 # Usage:
 #   ./scripts/run-migrations.sh <environment> [--dry-run]
 #
 # Examples:
 #   ./scripts/run-migrations.sh dev          # Run migrations in dev
-#   ./scripts/run-migrations.sh staging      # Run migrations in staging
 #   ./scripts/run-migrations.sh prod         # Run migrations in production
 #   ./scripts/run-migrations.sh prod --dry-run  # Dry run for production
 
@@ -33,9 +32,9 @@ echo ""
 echo -e "Environment: ${YELLOW}$ENV${NC}"
 
 # Validate environment
-if [[ ! "$ENV" =~ ^(dev|staging|prod)$ ]]; then
+if [[ ! "$ENV" =~ ^(dev|prod)$ ]]; then
   echo -e "${RED}Error: Invalid environment '$ENV'${NC}"
-  echo "Valid environments: dev, staging, prod"
+  echo "Valid environments: dev, prod"
   exit 1
 fi
 
@@ -129,35 +128,16 @@ if [ "$DRY_RUN" == "--dry-run" ]; then
   exit 0
 fi
 
-# Check current migration status
-echo ""
-echo "Checking current migration status..."
-
 cd "$(dirname "$0")/.."
-
-# Get list of pending migrations
-PENDING_MIGRATIONS=$(npm run migrate:status -w @viberglass/platform-backend 2>&1 | grep -c "pending" || echo "0")
-
-echo "Pending migrations: $PENDING_MIGRATIONS"
-
-if [ "$PENDING_MIGRATIONS" == "0" ]; then
-  echo -e "${GREEN}✓ Database is up to date${NC}"
-  exit 0
-fi
 
 # Run migrations
 echo ""
 echo -e "${GREEN}Running migrations...${NC}"
 echo ""
 
-if npm run migrate -w @viberglass/platform-backend; then
+if npm run migrate:latest; then
   echo ""
   echo -e "${GREEN}✓ Migrations completed successfully${NC}"
-
-  # Verify migrations
-  echo ""
-  echo "Verifying migration status..."
-  npm run migrate:status -w @viberglass/platform-backend
 
   echo ""
   echo -e "${GREEN}================================${NC}"
@@ -165,14 +145,12 @@ if npm run migrate -w @viberglass/platform-backend; then
   echo -e "${GREEN}================================${NC}"
   echo "  Environment: $ENV"
   echo "  Status: SUCCESS"
-  echo "  Applied: $PENDING_MIGRATIONS migration(s)"
   echo ""
 
   if [ "$ENV" == "prod" ]; then
     echo -e "${YELLOW}Remember to:${NC}"
     echo "  1. Monitor CloudWatch logs for errors"
     echo "  2. Verify application health"
-    echo "  3. Update deployment documentation"
   fi
 
   exit 0
@@ -188,7 +166,7 @@ else
   echo "  1. Check error messages above"
   echo "  2. Review migration code for issues"
   echo "  3. Check database logs"
-  echo "  4. Consider rolling back (see rollback-procedure.md)"
+  echo "  4. Restore from a backup if needed (docs/operations/database-migrations.md)"
   echo ""
 
   exit 1

@@ -2,6 +2,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { TabButton } from '@/components/tab-button'
+import { useProject } from '@/context/project-context'
 import { formatJobKind } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { cancelJob } from '@/service/api/job-api'
@@ -16,6 +17,7 @@ import { decideRunNextStep } from './run-next-step'
 import { RunNextStepCard } from './run-next-step-card'
 import { RunPrompt } from './run-prompt'
 import { RunLog } from './run-log'
+import { RunFilesOutcome } from './run-files-outcome'
 import { RunRecordPanel } from './run-record-panel'
 import { resolveRunTab, type RunTab } from './run-tab'
 import { findNewerRun, useRunContext } from './use-run-context'
@@ -24,6 +26,7 @@ export function JobDetailPage() {
   const { project, jobId } = useParams<{ project: string; jobId: string }>()
   const { job, isLoading, error, isPolling, refetch } = useJobStatus(jobId)
   const context = useRunContext(job)
+  const { project: space } = useProject()
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<RunTab>(() => resolveRunTab(searchParams.get('runTab')))
   const [isCancelling, setIsCancelling] = useState(false)
@@ -141,6 +144,7 @@ export function JobDetailPage() {
                       cancel={{ isCancelling, onConfirm: () => void handleCancel() }}
                       onChanged={refresh}
                     />
+                    {space?.backingKind === 'files' && <RunFilesOutcome job={job} space={{ id: space.id, slug: space.slug }} />}
                   </div>
                 }
               />

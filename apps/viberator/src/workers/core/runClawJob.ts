@@ -10,6 +10,7 @@ import {
 import { JobRunnerParams, setupJob } from "./jobPipeline";
 import { executeAgentWithRetry } from "./agentExecution";
 import { withJobLifecycle } from "./jobLifecycle";
+import { runClawFilesJob } from "./runClawFilesJob";
 import {
   ATTR_VG_BASE_BRANCH,
   ATTR_VG_BRANCH,
@@ -28,8 +29,7 @@ export async function runClawJob(
   return withJobLifecycle(params, "Claw job", async () => {
     const { data, gitService, sendProgress } = params;
     const { id, task, context, scm } = data;
-    // Scheduled jobs build pull requests; a Files space's files aren't saved by this path.
-    if (data.files) throw new Error("Scheduled jobs can't run in a Files space yet");
+    if (data.files) return runClawFilesJob(params, data.files);
     if (!data.repository) throw new Error("A scheduled job needs a repository");
     const repository = data.repository;
 

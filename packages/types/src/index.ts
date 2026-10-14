@@ -100,6 +100,7 @@ export * from './documentAnchor'
 
 // A plan's parts, each built as one pull request
 export * from './planParts'
+export * from './nextWork'
 
 // The workspace audit log
 export * from './auditLog'

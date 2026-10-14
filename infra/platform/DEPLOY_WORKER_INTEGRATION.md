@@ -1,317 +1,115 @@
-# Deploy Worker Integration for Clanker ECS Provisioning
+# Connecting the Worker Stack to the Platform Stack
 
-This guide walks through deploying the infrastructure changes that enable automatic ECS clanker provisioning by integrating the worker stack with the platform stack.
+The platform backend provisions ECS and Lambda workers for agents with the worker stack's IAM roles, images, cluster and network. It gets them as environment variables, which the platform stack reads from the worker stack through a stack reference. Without that reference the platform stack warns during `pulumi up`, and agents using ECS or Lambda need their roles and images set by hand in their deployment config.
 
-## What Changed
+## Deployment Order
 
-The platform backend now automatically receives worker infrastructure values (IAM roles, container image, cluster ARN) as environment variables. This allows the ClankerProvisioningService to automatically create ECS task definitions when you click "Start" on a clanker.
+Deploy `infra/base`, then `infra/workers`, then `infra/platform`. The platform backend only receives the worker values during the platform `pulumi up`, so if you deployed the platform before the workers, run `pulumi up` in `infra/platform` again.
 
-## Prerequisites
+## Steps
 
-1. You have the worker infrastructure deployed:
-   ```bash
-   cd infra/workers
-   pulumi stack ls
-   # Should show your worker stack (e.g., viberglass-workers/prod)
-   ```
+### 1. Check the worker stack's outputs
 
-2. Verify worker stack has required outputs:
-   ```bash
-   pulumi stack output ecsExecutionRoleArn
-   pulumi stack output ecsTaskRoleArn
-   pulumi stack output ecsImageUri
-   pulumi stack output ecsClusterArn
-   ```
+```bash
+cd infra/workers
+pulumi stack ls        # note the full stack name
+pulumi stack output ecsExecutionRoleArn
+pulumi stack output ecsTaskRoleArn
+pulumi stack output workerRepositoryUrl
+pulumi stack output ecsClusterArn
+pulumi stack output lambdaImageUri
+pulumi stack output lambdaRoleArn
+pulumi stack output workerSubnets
+pulumi stack output workerSecurityGroup
+```
 
-## Important Deployment Order Note
+### 2. Set `workerStack` in the platform config
 
-If you deployed stacks in this order:
-
-1. `infra/base`
-2. `infra/platform`
-3. `infra/workers`
-
-then you must run `infra/platform` again after workers are deployed.
-
-Reason: the platform backend only receives `VIBERATOR_ECS_*` values from the worker stack during the platform `pulumi up`. If workers did not exist yet, those values are missing and ECS managed clanker provisioning will fail.
-
-## Deployment Steps
-
-### Step 1: Update Pulumi Configuration
-
-Edit your platform stack config file (e.g., `infra/platform/Pulumi.prod.yaml`):
+In `infra/platform/Pulumi.<stack>.yaml` (copied from `Pulumi.<stack>.yaml.example`), uncomment and set:
 
 ```yaml
 config:
   viberglass:baseStack: organization/viberglass-base/prod
-
-  # Add this line with your worker stack name
   viberglass:workerStack: organization/viberglass-workers/prod
 ```
 
-The format depends on your Pulumi backend:
-- **S3 backend**: `organization/viberglass-workers/prod`
-- **Local backend**: `viberglass-workers/prod`
-- **Pulumi Cloud**: `org-name/viberglass-workers/prod`
+Use the full name `pulumi stack ls` shows. The format depends on your Pulumi backend:
+- S3 or local backend: `organization/viberglass-workers/prod`
+- Pulumi Cloud: `<org-name>/viberglass-workers/prod`
 
-To find your exact worker stack name:
-```bash
-cd infra/workers
-pulumi stack ls
-# Use the full name shown (including org prefix if any)
-```
-
-### Step 2: Preview the Changes
+### 3. Deploy the platform stack
 
 ```bash
 cd infra/platform
-pulumi stack select prod  # or your environment
-pulumi preview
-```
-
-Expected changes:
-- **Backend task definition**: Updated with new environment variables
-  - `VIBERATOR_ECS_EXECUTION_ROLE_ARN`
-  - `VIBERATOR_ECS_TASK_ROLE_ARN`
-  - `VIBERATOR_ECS_CONTAINER_IMAGE`
-  - `VIBERATOR_ECS_CLUSTER_ARN`
-
-The preview should show:
-```
-~ aws:ecs/taskDefinition:TaskDefinition: (update)
-    [urn=...]
-  ~ containerDefinitions: [
-      ~ [0]: {
-          ~ environment: [
-              + [6]: {
-                  + name : "VIBERATOR_ECS_EXECUTION_ROLE_ARN"
-                  + value: "arn:aws:iam::123456:role/..."
-                }
-              + [7]: {
-                  + name : "VIBERATOR_ECS_TASK_ROLE_ARN"
-                  + value: "arn:aws:iam::123456:role/..."
-                }
-              + [8]: {
-                  + name : "VIBERATOR_ECS_CONTAINER_IMAGE"
-                  + value: "123456.dkr.ecr.eu-west-1..."
-                }
-              + [9]: {
-                  + name : "VIBERATOR_ECS_CLUSTER_ARN"
-                  + value: "arn:aws:ecs:eu-west-1:123456:cluster/..."
-                }
-            ]
-        }
-    ]
-```
-
-### Step 3: Deploy the Changes
-
-```bash
+pulumi stack select prod
 pulumi up
-# Review the changes and confirm with 'yes'
 ```
 
-This will:
-1. Register a new backend task definition revision with the worker environment variables
-2. Update the backend ECS service to use the new task definition
-3. Trigger a rolling deployment of backend tasks
+This registers a new revision of the backend task definition with these variables:
 
-### Step 4: Monitor the Deployment
+- `VIBERATOR_ECS_EXECUTION_ROLE_ARN`
+- `VIBERATOR_ECS_TASK_ROLE_ARN`
+- `VIBERATOR_ECS_CLUSTER_ARN`
+- `VIBERATOR_ECS_SUBNET_IDS`
+- `VIBERATOR_ECS_SECURITY_GROUP_IDS`
+- `VIBERATOR_ECS_LOG_GROUP`
+- `VIBERATOR_LAMBDA_IMAGE_URI`
+- `VIBERATOR_LAMBDA_ROLE_ARN`
+- `VIBERATOR_WORKER_REGISTRY` and `VIBERATOR_WORKER_IMAGE_TAG`, from `viberglass:workerImageRegistry` and `viberglass:workerImageTag`; with `workerImageRegistry: ecr` the registry is the host of `workerRepositoryUrl`
 
-```bash
-# Watch the ECS service deployment
-aws ecs describe-services \
-  --cluster prod-viberglass-backend-cluster \
-  --services prod-viberglass-backend \
-  --region eu-west-1 \
-  --query 'services[0].deployments'
-```
+The backend service ignores task definition changes made by Pulumi. The backend deploy workflow (`deploy-backend-dev.yml` / `deploy-backend-prod.yml`) builds on the latest revision of the family, so run it after `pulumi up` to roll the new variables out.
 
-Wait until:
-- Only one deployment is shown (the new one)
-- `runningCount` equals `desiredCount`
-- `rolloutState` is `COMPLETED`
+### 4. Verify
 
-Or use Pulumi to wait:
-```bash
-pulumi stack output | grep serviceArn
-# Then watch in AWS Console or CLI
-```
-
-### Step 5: Verify the Configuration
-
-Check that environment variables are set:
 ```bash
 aws ecs describe-task-definition \
   --task-definition prod-viberglass-backend \
   --region eu-west-1 \
-  --query 'taskDefinition.containerDefinitions[0].environment[?starts_with(name, `VIBERATOR_ECS`)]'
+  --query 'taskDefinition.containerDefinitions[0].environment[?starts_with(name, `VIBERATOR_`)]'
 ```
 
-Expected output:
-```json
-[
-  {
-    "name": "VIBERATOR_ECS_EXECUTION_ROLE_ARN",
-    "value": "arn:aws:iam::123456:role/prod-viberglass-ecs-task-exec-role"
-  },
-  {
-    "name": "VIBERATOR_ECS_TASK_ROLE_ARN",
-    "value": "arn:aws:iam::123456:role/prod-viberglass-ecs-task-role"
-  },
-  {
-    "name": "VIBERATOR_ECS_CONTAINER_IMAGE",
-    "value": "123456.dkr.ecr.eu-west-1.amazonaws.com/prod-viberglass-worker-repo:..."
-  },
-  {
-    "name": "VIBERATOR_ECS_CLUSTER_ARN",
-    "value": "arn:aws:ecs:eu-west-1:123456:cluster/prod-viberglass-worker-cluster"
-  }
-]
-```
+Then create or start an agent with the ECS deployment strategy under Settings → Agents. If it fails, the backend logs are in:
 
-### Step 6: Test Clanker Provisioning
-
-1. Go to your Viberator platform UI
-2. Navigate to Clankers page
-3. Create a new clanker or select existing one with ECS deployment strategy
-4. Click "Start"
-5. Verify it succeeds (status changes to "active" or "deploying")
-
-Check backend logs for provisioning messages:
 ```bash
-aws logs tail /aws/ecs/prod-viberglass-backend \
-  --follow \
-  --filter-pattern "ClankerProvisioningService" \
-  --region eu-west-1
-```
-
-## Rollback
-
-If you need to rollback:
-
-### Option 1: Revert Infrastructure Code
-```bash
-cd infra/platform
-git revert <commit-hash>
-pulumi up
-```
-
-### Option 2: Remove workerStack Config
-```bash
-# Edit Pulumi.prod.yaml and comment out:
-# viberglass:workerStack: organization/viberglass-workers/prod
-
-pulumi up
-```
-
-This will remove the worker environment variables from the backend task definition.
-
-### Option 3: Rollback to Previous Task Definition
-```bash
-# List recent task definitions
-aws ecs list-task-definitions \
-  --family-prefix prod-viberglass-backend \
-  --region eu-west-1 \
-  --sort DESC \
-  --max-items 5
-
-# Update service to use previous revision
-aws ecs update-service \
-  --cluster prod-viberglass-backend-cluster \
-  --service prod-viberglass-backend \
-  --task-definition prod-viberglass-backend:PREVIOUS_REVISION \
-  --region eu-west-1
+aws logs tail /ecs/viberglass-prod-backend --follow --region eu-west-1
 ```
 
 ## Troubleshooting
 
-### Error: "Stack not found"
+### "Stack not found"
 
-If you get an error about worker stack not found:
 ```
 error: failed to load stack reference: stack not found: organization/viberglass-workers/prod
 ```
 
-**Solutions:**
-1. Verify the worker stack name:
-   ```bash
-   cd infra/workers
-   pulumi stack ls
-   ```
-2. Use the exact name shown (case-sensitive)
-3. Check you're using the correct Pulumi backend
+Check the name with `pulumi stack ls` in `infra/workers` (it's case-sensitive) and that you're logged in to the same Pulumi backend.
 
-### Error: "output not found"
+### "output not found"
 
-If Pulumi can't find worker stack outputs:
 ```
 error: failed to get output 'ecsExecutionRoleArn' from stack reference
 ```
 
-**Solutions:**
-1. Verify worker stack has been deployed:
-   ```bash
-   cd infra/workers
-   pulumi stack output
-   ```
-2. If missing outputs, redeploy worker stack:
-   ```bash
-   pulumi up
-   ```
+The worker stack hasn't been deployed, or was deployed before the output existed. Run `pulumi up` in `infra/workers`.
 
-### Backend tasks fail to start
+### Provisioning still fails
 
-If new backend tasks fail health checks:
-
-1. Check CloudWatch logs:
-   ```bash
-   aws logs tail /aws/ecs/prod-viberglass-backend --follow
-   ```
-
-2. Check task definition is valid:
-   ```bash
-   aws ecs describe-task-definition \
-     --task-definition prod-viberglass-backend
-   ```
-
-3. Verify environment variables are correctly formatted (no syntax errors)
-
-### Clanker provisioning still fails
-
-If clankers still can't provision after deployment:
-
-1. Verify backend is using new task definition:
+1. Check the backend service runs the new task definition revision:
    ```bash
    aws ecs describe-services \
-     --cluster prod-viberglass-backend-cluster \
+     --cluster "$(cd infra/platform && pulumi stack output backendClusterName)" \
      --services prod-viberglass-backend \
      --query 'services[0].taskDefinition'
    ```
+2. Look for the error in the backend logs (above).
+3. The backend task role needs `ecs:RegisterTaskDefinition` and `iam:PassRole` for the worker execution and task roles. The platform stack adds `iam:PassRole` only when the worker roles are known, so it too depends on `workerStack`.
 
-2. Check backend logs for specific error:
-   ```bash
-   aws logs tail /aws/ecs/prod-viberglass-backend \
-     --follow \
-     --filter-pattern "ClankerProvisioningService"
-   ```
+## Rolling Back
 
-3. Verify IAM permissions - backend task role needs:
-   - `ecs:RegisterTaskDefinition`
-   - `iam:PassRole` for worker execution and task roles
-
-## Next Steps
-
-After successful deployment:
-
-1. **Update documentation**: Update any internal docs about clanker setup
-2. **Test multiple agents**: Try provisioning clankers with different agent types
-3. **Monitor costs**: Track ECS task costs in AWS Cost Explorer
-4. **Consider auto-scaling**: Set up ECS auto-scaling for worker tasks if needed
+Comment out `viberglass:workerStack` and run `pulumi up` in `infra/platform`, then the backend deploy workflow. The variables are removed and agents need their ECS or Lambda settings in their own deployment config.
 
 ## See Also
 
-- [CLANKER_ECS_SETUP_FIX.md](../../docs/CLANKER_ECS_SETUP_FIX.md) - Original problem and all solution options
-- [AWS_ECS_SETUP.md](../../docs/AWS_ECS_SETUP.md) - Manual ECS setup guide
 - Worker infrastructure: `infra/workers/index.ts`
-- Clanker provisioning service: `apps/platform-backend/src/services/ClankerProvisioningService.ts`
+- Backend task definition: `infra/platform/components/backend-ecs.ts`
+- Provisioning: `apps/platform-backend/src/services/ClankerProvisioningService.ts` and `apps/platform-backend/src/provisioning/`

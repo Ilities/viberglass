@@ -1,5 +1,5 @@
 import type { Thread } from "chat";
-import { nextBuild, TICKET_WORKFLOW_PHASE, type TaskTurnProduct } from "@viberglass/types";
+import { buildWork, isTaskTurnAction, turnRunLabel, type TaskTurnAction, type TurnRunLabel } from "@viberglass/types";
 import { currentChatActor } from "../api/auth/requestActor";
 import { AgentQuestionDAO, publicQuestion } from "../persistence/agentSession/AgentQuestionDAO";
 import { TaskAgentTurnDAO } from "../persistence/agentSession/TaskAgentTurnDAO";
@@ -8,17 +8,14 @@ import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import type { RecordedActivity } from "../services/notifications/NotificationService";
 import type { ActivityListener } from "../services/tasks/activityListeners";
 import { TaskPartsService } from "../services/tasks/TaskPartsService";
-import { TicketPhaseDocumentService } from "../services/TicketPhaseDocumentService";
-import { ticketUrl } from "./platformLinks";
 import { getThreadForTicket } from "./ticketThreadMap";
+import { TaskTurnChatPosts } from "./TaskTurnChatPosts";
 import {
   answeredPost,
-  documentPost,
   messagePost,
-  nextBuildCard,
+  nextWorkCard,
   partMergedPost,
   questionCard,
-  replyPost,
   runFailedPost,
   runStartedPost,
 } from "./taskMirrorPosts";
@@ -30,9 +27,9 @@ interface Dependencies {
   turns: Pick<TaskAgentTurnDAO, "getByJobId">;
   questions: Pick<AgentQuestionDAO, "getById">;
   messages: Pick<TaskMessageDAO, "getById">;
-  documents: Pick<TicketPhaseDocumentService, "getOrCreateDocument">;
   tickets: Pick<TicketDAO, "getSummary">;
   parts: Pick<TaskPartsService, "state">;
+  turnPosts: Pick<TaskTurnChatPosts, "forRun">;
   /** Whether the change came from chat, which shows it already. */
   fromChat: () => boolean;
 }
@@ -54,9 +51,9 @@ export class TaskChatMirror implements ActivityListener {
       turns: new TaskAgentTurnDAO(),
       questions: new AgentQuestionDAO(),
       messages: new TaskMessageDAO(),
-      documents: new TicketPhaseDocumentService(),
       tickets: new TicketDAO(),
       parts: new TaskPartsService(),
+      turnPosts: new TaskTurnChatPosts(),
       fromChat: () => currentChatActor() !== null,
       ...deps,
     };
@@ -69,18 +66,20 @@ export class TaskChatMirror implements ActivityListener {
   }
 
   private async postsFor({ ticketId, kind, payload }: RecordedActivity): Promise<Postable[]> {
-    const step = text(payload.step) ?? TICKET_WORKFLOW_PHASE.PLANNING;
     switch (kind) {
       case "message_posted": {
         const message = this.deps.fromChat() ? null : await this.deps.messages.getById(text(payload.messageId) ?? "");
         return message ? [messagePost(message.author?.name ?? message.externalAuthor?.name ?? "Someone", message.body)] : [];
       }
       case "run_started":
-        return [runStartedPost(step)];
+        return [runStartedPost(await this.runLabel(ticketId, isTaskTurnAction(payload.action) ? payload.action : null))];
       case "run_finished":
-        return this.turnPosts(ticketId, text(payload.jobId));
-      case "run_failed":
-        return [runFailedPost(step, text(payload.reason))];
+        return this.deps.turnPosts.forRun(ticketId, text(payload.jobId));
+      case "run_failed": {
+        const jobId = text(payload.jobId);
+        const turn = jobId ? await this.deps.turns.getByJobId(jobId) : null;
+        return [runFailedPost(await this.runLabel(ticketId, turn?.action ?? null), text(payload.reason))];
+      }
       case "run_cancelled":
         return [{ markdown: "_The run was cancelled._" }];
       case "question_asked": {
@@ -97,33 +96,19 @@ export class TaskChatMirror implements ActivityListener {
         return [{ markdown: "**Done.**" }];
       case "part_merged": {
         const merged = Array.isArray(payload.parts) ? payload.parts.filter((part): part is number => typeof part === "number") : [];
-        const build = nextBuild(await this.deps.parts.state({ id: ticketId }));
-        return [partMergedPost(merged, text(payload.mergedBy)), ...(build ? [nextBuildCard(ticketId, build, "Mention me to ask for something else, or:")] : [])];
+        const builds = buildWork(await this.deps.parts.state({ id: ticketId }));
+        const next = builds.length > 0 ? [nextWorkCard(ticketId, builds, { intro: "Mention me to ask for something else, or:" })] : [];
+        return [partMergedPost(merged, text(payload.mergedBy)), ...next];
       }
       default:
         return [];
     }
   }
 
-  /** The agent's reply, the documents it wrote, the pull request, and the next step to ask for. */
-  private async turnPosts(ticketId: string, jobId: string | null): Promise<Postable[]> {
-    const turn = jobId ? await this.deps.turns.getByJobId(jobId) : null;
-    if (!turn?.outcome) return [];
+  /** What the run does, from what was asked and the space; null for a run that isn't a task's turn. */
+  private async runLabel(ticketId: string, action: TaskTurnAction | null): Promise<TurnRunLabel | null> {
+    if (!action) return null;
     const task = await this.deps.tickets.getSummary(ticketId);
-    const link = task ? ticketUrl(task.spaceSlug, task.key) : null;
-    const posts: Postable[] = [replyPost(turn.agent.name, turn.outcome.reply, link)];
-    for (const product of turn.outcome.produced) {
-      posts.push(...(await this.productPosts(ticketId, product, task?.pullRequestUrl ?? null)));
-    }
-    const build = turn.outcome.produced.includes("plan") ? nextBuild(await this.deps.parts.state({ id: ticketId })) : null;
-    if (build) posts.push(nextBuildCard(ticketId, build));
-    return posts;
-  }
-
-  private async productPosts(ticketId: string, product: TaskTurnProduct, pullRequestUrl: string | null): Promise<Postable[]> {
-    if (product === "code") return pullRequestUrl ? [{ markdown: `**Pull request:** ${pullRequestUrl}` }] : [];
-    if (product === "summary") return [];
-    const document = await this.deps.documents.getOrCreateDocument(ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
-    return document.content.trim() ? [documentPost(document.content, null)] : [];
+    return turnRunLabel(action, task?.backingKind ?? "git");
   }
 }

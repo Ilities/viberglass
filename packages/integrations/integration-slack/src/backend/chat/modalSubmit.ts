@@ -28,7 +28,7 @@ function buildSlackThreadId(channelId: string, sentThreadId: string, sentMessage
  * The launch form: creates the task, starts its thread in the channel, then
  * asks the agent for the first step. The thread is the task's from then on.
  */
-export function registerModalSubmitHandler(bot: import("chat").Chat, services: ChatHandlerServices): void {
+export function registerModalSubmitHandler(bot: Pick<import("chat").Chat, "onModalSubmit">, services: ChatHandlerServices): void {
   bot.onModalSubmit("viberglass_launch", async (event) => {
     const { projectId, clankerId, mode, message, title: rawTitle } = event.values;
     const channel = event.relatedChannel;
@@ -45,6 +45,10 @@ export function registerModalSubmitHandler(bot: import("chat").Chat, services: C
         },
       };
     }
+
+    // The account may have been unlinked since the form opened; no task or thread is made without one.
+    const unlinked = await services.unlinkedAccountMessage(event.user.userId);
+    if (unlinked) return { action: "errors", errors: { message: unlinked } };
 
     const title = rawTitle?.trim() || message.split("\n")[0].slice(0, 120) || "Asked from Slack";
     try {

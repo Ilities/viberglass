@@ -130,8 +130,8 @@ When making UI changes, verify them visually using the agent-browser skill:
    - `agent-browser --session ui-verify get url`
    - `agent-browser --session ui-verify snapshot -i`
 3. Success criteria:
-   - URL is not `/login` (in this app successful login usually lands on `/`, not `/dashboard`).
-   - Authenticated navigation elements are present (e.g. `Dashboard`, `Clankers`, `Secrets`).
+   - URL is not `/login` (successful login lands on Home at `/`).
+   - Authenticated navigation elements are present (e.g. `Home`, `Overview`, the `Spaces` heading; `Settings` only for admins).
 4. If still on `/login`, retry once:
    - `agent-browser --session ui-verify open http://localhost:3000/login`
    - Repeat snapshot/fill/click/wait commands.

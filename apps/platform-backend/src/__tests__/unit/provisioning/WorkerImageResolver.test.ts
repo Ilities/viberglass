@@ -1,4 +1,5 @@
 import { getWorkerImageForClanker } from "../../../provisioning/shared/workerImage";
+import type { ProvisioningStrategyName } from "../../../provisioning/types";
 import { buildClanker } from "./testUtils";
 
 describe("getWorkerImageForClanker", () => {
@@ -9,6 +10,7 @@ describe("getWorkerImageForClanker", () => {
     delete process.env.VIBERATOR_WORKER_REGISTRY;
     delete process.env.VIBERATOR_WORKER_IMAGE_PREFIX;
     delete process.env.VIBERATOR_LAMBDA_IMAGE_URI;
+    delete process.env.VIBERATOR_WORKER_IMAGE_TAG;
   });
 
   afterAll(() => {
@@ -129,6 +131,38 @@ describe("getWorkerImageForClanker", () => {
 
     expect(image).toBe(
       "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator/viberator-worker-codex:latest",
+    );
+  });
+
+  const taggedStrategies: ProvisioningStrategyName[] = ["ecs", "docker", "kubernetes"];
+
+  it.each(taggedStrategies)(
+    "tags %s worker images with VIBERATOR_WORKER_IMAGE_TAG",
+    (strategy) => {
+      process.env.VIBERATOR_WORKER_REGISTRY = "registry.example";
+      process.env.VIBERATOR_WORKER_IMAGE_TAG = "abc123";
+      const clanker = buildClanker(strategy, {
+        version: 1,
+        strategy: { type: strategy },
+      });
+      clanker.agent = "codex";
+
+      expect(getWorkerImageForClanker(clanker, strategy)).toBe(
+        "registry.example/viberator-worker-codex:abc123",
+      );
+    },
+  );
+
+  it("keeps the lambda catalog image on latest", () => {
+    process.env.VIBERATOR_WORKER_REGISTRY = "registry.example";
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "abc123";
+    const clanker = buildClanker("lambda", {
+      version: 1,
+      strategy: { type: "lambda" },
+    });
+
+    expect(getWorkerImageForClanker(clanker, "lambda")).toBe(
+      "registry.example/viberator-lambda-worker:latest",
     );
   });
 });

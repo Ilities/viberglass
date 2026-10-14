@@ -10,25 +10,30 @@ This document provides a comprehensive overview of the Viberglass system archite
 - [Data Flow](#data-flow)
 - [Technology Stack](#technology-stack)
 - [Deployment Architecture](#deployment-architecture)
+- [Security](#security)
 - [Scalability Considerations](#scalability-considerations)
+- [Monitoring & Observability](#monitoring--observability)
 
 ## System Overview
 
-Viberglass is an AI agent orchestrator and ticket management platform. It automates the process of fixing bugs and implementing code changes by:
+Viberglass is a self-hosted workspace where people and coding agents work on the same tasks. The platform:
 
-1. Receiving tickets from external systems (GitHub, Jira, Shortcut, etc.)
-2. Dispatching jobs to AI agent workers (Clankers)
-3. Managing the execution lifecycle
-4. Posting results back to the originating system
+1. Takes tasks from the web app, Slack, issue trackers (GitHub Issues, Jira, Shortcut) and custom webhooks
+2. Runs an agent for each step of a task (the plan, then the build) in a worker started for that run
+3. Keeps one thread per task: people's messages, the agent's questions, plan revisions, runs and pull requests
+4. Opens the pull request on the space's code host, or saves files and artifacts for a Files space, and mirrors activity back to Slack and the linked tracker issue
 
 ### Key Concepts
 
-- **Ticket**: A work item representing a bug, feature request, or code change
-- **Job**: An execution unit that processes a ticket
-- **Clanker**: A configured AI agent worker (defines model, compute, credentials)
-- **Viberator**: A running instantiation of a Clanker
-- **Project**: A collection of tickets, integrations, and configurations
-- **Integration**: Connection to external systems (GitHub, Jira, etc.)
+The product and the code use different names for some of these. The code name is in brackets.
+
+- Space (`project`): A group of tasks, backed by a Git repository or by Files
+- Task (`ticket`): A work item with its plan, code, people and one thread
+- Run (`job`): One execution of an agent on a task, such as writing the plan
+- Agent or runner (`clanker`): A configured agent: harness, model, compute and the secrets bound to it
+- Viberator: The worker process (`apps/viberator`) that executes a run inside its container, Kubernetes Job, ECS task or Lambda invocation
+- Artifact: A versioned deliverable an agent makes in a Files space, such as a document or a presentation
+- Integration: A plugin connection to an external system: code host, tracker, webhooks or chat
 
 ## Architecture Diagram
 
@@ -39,6 +44,7 @@ flowchart TB
         Jira["Jira"]
         SC["Shortcut"]
         WH["Custom Webhooks"]
+        Slack["Slack"]
     end
 
     subgraph Platform["🏗️ Viberglass Platform"]
@@ -48,24 +54,26 @@ flowchart TB
         end
 
         subgraph Services["Core Services"]
-            TS["Ticket Service"]
-            JS["Job Service"]
+            TS["Task & Plan Services"]
+            JS["Job Service<br/>(Worker Invokers)"]
             WS["Webhook Service"]
-            IS["Integration Service"]
+            IS["Integration Registry<br/>(Plugins)"]
+            Chat["Chat Runtime"]
         end
 
         subgraph Data["Data Layer"]
-            PG[("PostgreSQL<br/>(Tickets, Jobs)")]
-            S3[("S3<br/>(Files, Media)")]
-            SSM[("AWS SSM<br/>(Secrets)")]
+            PG[("PostgreSQL<br/>(Tasks, Runs, Secrets)")]
+            S3[("S3-compatible Storage<br/>(Space Files, Artifacts, Media)")]
+            SSM[("AWS SSM<br/>(Secrets, optional)")]
         end
     end
 
-    subgraph Workers["🔧 Worker Layer (Clankers)"]
+    subgraph Workers["🔧 Worker Layer (one per run)"]
         Orchestrator["Worker Orchestrator"]
         
         subgraph Compute["Compute Targets"]
-            Docker["Docker (Local)"]
+            Docker["Docker"]
+            K8s["Kubernetes Job"]
             ECS["AWS ECS (Fargate)"]
             Lambda["AWS Lambda"]
         end
@@ -73,7 +81,7 @@ flowchart TB
         subgraph Agent["AI Agent Harness"]
             A1["Claude Code"]
             A2["Codex/Antigravity/Qwen"]
-            A3["Mistral/Kimi/OpenCode"]
+            A3["Mistral/Kimi/OpenCode/Pi"]
         end
 
         subgraph Ops["Operations"]
@@ -84,7 +92,7 @@ flowchart TB
     end
 
     subgraph SCM["📦 Source Control"]
-        GitHub["GitHub / GitLab"]
+        GitHub["GitHub"]
     end
 
     %% External to Platform
@@ -92,27 +100,32 @@ flowchart TB
     Jira -->|"Webhooks"| Gateway
     SC -->|"Webhooks"| Gateway
     WH -->|"Webhooks"| Gateway
+    Slack -->|"Events"| Gateway
 
     %% API to Services
     Gateway --> TS
     Gateway --> JS
     Gateway --> WS
+    Gateway --> Chat
     WS --> IS
+    Chat --> IS
 
     %% Services to Data
     TS --> PG
+    TS --> S3
     JS --> PG
-    IS --> S3
-    IS --> SSM
+    JS --> SSM
 
     %% Platform to Workers
-    JS -->|"Job Dispatch"| Orchestrator
-    Orchestrator --> Compute
-    Compute --> Agent
+    JS -->|"Job Dispatch"| Compute
+    Compute --> Orchestrator
+    Orchestrator --> Agent
     Agent --> Ops
+    Orchestrator -->|"Callbacks"| Gateway
 
     %% Workers to SCM
-    Git --> GitHub
+    Git -->|"Push branch"| GitHub
+    IS -->|"Open PR"| GitHub
 
     %% Styling - Viberglass brand colors
     classDef external fill:#fef7e8,stroke:#d97706,stroke-width:2px,color:#1f2937
@@ -122,11 +135,11 @@ flowchart TB
     classDef workers fill:#fed7aa,stroke:#c2410c,stroke-width:2px,color:#1f2937
     classDef scm fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#1f2937
 
-    class External,GH,Jira,SC,WH external
+    class External,GH,Jira,SC,WH,Slack external
     class Platform,API,Gateway platform
-    class Services,TS,JS,WS,IS services
+    class Services,TS,JS,WS,IS,Chat services
     class Data,PG,S3,SSM data
-    class Workers,Orchestrator,Compute,Docker,ECS,Lambda,Agent,A1,A2,A3,Ops,Git,FS,Code workers
+    class Workers,Orchestrator,Compute,Docker,K8s,ECS,Lambda,Agent,A1,A2,A3,Ops,Git,FS,Code workers
     class SCM,GitHub scm
 ```
 
@@ -137,49 +150,62 @@ flowchart TB
 Express.js REST API that serves as the central coordination point.
 
 **Responsibilities:**
-- RESTful API for ticket, job, and project management
-- Webhook ingestion and processing
-- Job queue management
-- Integration with external systems
+- REST API under `/api` for spaces, tasks, runs, agents, secrets and settings
+- Webhook ingestion and processing, and the Slack bot (`/api/webhooks/slack`)
+- Starting each run on its runner's compute and taking the worker's callbacks (progress, questions, results, pull request)
+- Opening pull requests through the space's code host integration
+- Files spaces: storing space files and artifact versions in S3-compatible storage
 - Secret management and encryption
+- The MCP endpoint (`/api/mcp`) for agents and MCP clients
+- Artifact previews, served from a separate port and origin (`PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`)
 
 **Key Services:**
-- `TicketService`: CRUD operations for tickets
-- `JobService`: Job lifecycle management
-- `IntegrationService`: External system connectors
+- `TicketWorkflowService`, `TicketPlanningService`, `TicketPhaseDocumentService`: task phases and plan documents
+- `JobService`, `WorkerExecutionService`: run lifecycle and dispatch through a `WorkerInvoker` per compute target (`DockerInvoker`, `KubernetesInvoker`, `EcsInvoker`, `LambdaInvoker`)
 - `WebhookService`: Webhook processing and validation
-- `SecretService`: Credential encryption/decryption
-- `ClankerService`: Worker configuration and management
+- `ChatBotRuntime`, `TaskChatMirror`: the Slack bot and the task threads it mirrors
+- `SpaceFilesRunService`, `ArtifactService`: Files space snapshots and artifact versions
+- `SecretService`, `SecretResolutionService`: secret storage and resolving the secrets bound to a runner
+- `ClankerProvisioningService`: setting up a runner's compute (ECS task definitions, Lambda functions, Kubernetes checks)
+- Sweepers (`HeartbeatSweeper`, `OrphanSweeper`, `KubernetesJobReconciler`, `PullRequestOutcomeSweeper`): stale runs, Kubernetes Job state and merged pull requests
 
 ### Platform Frontend (`apps/platform-frontend`)
 
 React SPA (Vite) for user interaction.
 
 **Responsibilities:**
-- Dashboard and project management UI
-- Ticket creation and monitoring
-- Job execution visualization
-- Integration configuration
-- Clanker management
+- Home, Overview and space pages
+- Task threads, plan review and comments
+- Files and Artifacts pages for Files spaces, with artifact previews
+- Run inspection: the agent's steps, tool calls, prompt, worker log and usage
+- Workspace settings: agents, models, secrets, connections, members, notifications, API tokens and audit log
+- First-run setup
 
 **Key Features:**
-- Real-time job progress updates
-- Interactive ticket forms with media upload
-- Integration-specific configuration pages
-- Clanker health monitoring
+- Live run progress
+- Task forms with media upload
+- Configuration screens contributed by integration plugins
+- Agent readiness and health checks
 
 ### Viberator Worker (`apps/viberator`)
 
 AI agent execution engine that processes jobs.
 
 **Responsibilities:**
-- Repository cloning and branch management
+- Repository cloning and branch management, or for a Files space, restoring the space's files at the start of the run and saving them at the end
 - AI agent harness execution
 - Code analysis and modification
 - Committing and pushing; the platform opens the pull request on the space's code host
+- Relaying the agent's questions to the task and waiting for answers
 - Progress reporting to platform
 
-**Agent harnesses:** the ones `viberglass.plugins.json` lists. A default build has Claude Code, OpenAI Codex, Google Antigravity, Qwen CLI, Mistral Vibe, OpenCode, Kimi Code and Pi.
+**Agent harnesses:** the ones `viberglass.plugins.json` lists. A default build has Claude Code, OpenAI Codex, Google Antigravity, Qwen CLI, Mistral Vibe, OpenCode, Kimi Code and Pi, plus a fake agent for tests.
+
+### Other clients
+
+- `packages/cli`: the `viberglass` CLI (`npm install -g viberglass`); `viberglass checkout` takes over a task's branch locally
+- `packages/mcp-server`: the MCP server behind `/api/mcp`
+- `apps/chrome-extension`: creates tasks from any page, with a screenshot, a recording and the page's context
 
 ### Harness and integration plugins
 
@@ -187,16 +213,18 @@ Harnesses (`packages/agents/`) and integrations (`packages/integrations/`) are p
 
 ### Infrastructure (`infra/`)
 
-Pulumi-based infrastructure as code.
+Pulumi stacks for AWS, a Helm chart for Kubernetes and the worker images.
 
 **Stacks:**
-1. **Base**: VPC, KMS, CloudWatch logging
-2. **Platform**: ECS, RDS, S3, Amplify
-3. **Workers**: Lambda, ECS task definitions
+1. **Base** (`infra/base`): VPC, KMS, CloudWatch logging
+2. **Workers** (`infra/workers`): worker ECR repositories, Lambda worker, ECS Fargate cluster and task definition, worker roles
+3. **Platform** (`infra/platform`): ECR, RDS, S3, backend on ECS behind an ALB, Amplify frontend, the preview origin, SES email
+
+The Helm chart in `infra/kubernetes/chart` installs the backend, frontend and a migration Job on an existing cluster, with optional bundled PostgreSQL and MinIO; each run is a Kubernetes Job in a separate worker namespace. Worker Dockerfiles are in `infra/workers/docker`, most of them generated from the harness plugins.
 
 ## Data Flow
 
-### Ticket Creation Flow
+### Task Creation Flow (from a tracker or webhook)
 
 ```mermaid
 sequenceDiagram
@@ -210,51 +238,58 @@ sequenceDiagram
     Ext->>WH: Webhook Delivery
     WH->>API: POST /webhooks
     API->>API: Verify Signature
-    API->>DB: Create Ticket
-    API->>DB: Queue Job (auto-execute)
+    API->>DB: Create Task
+    API->>DB: Request Plan (if the webhook is set to)
     
-    Note over API,DB: Ticket created in<br/>pending state
+    Note over API,DB: Task linked to<br/>the tracker issue
 ```
 
 1. User creates issue in GitHub/Jira/Shortcut
 2. Webhook delivered to platform
-3. Signature verified, payload validated
-4. Ticket created in database
-5. If auto-execute enabled, job queued
+3. Signature verified, payload validated, duplicate deliveries dropped
+4. Task created in the space the webhook belongs to, linked to the issue
+5. If the webhook is set to plan new issues, the task's agent is asked for a plan
+
+Tasks created from the web app, Slack (`/viberglass`), the Chrome extension or the API skip the webhook steps.
 
 ### Job Execution Flow
 
 ```mermaid
 sequenceDiagram
     participant Job as 💼 Job Service
-    participant Orch as 🔧 Orchestrator
+    participant Compute as 🔧 Compute Target
     participant Worker as 👷 Viberator Worker
     participant Git as 📦 Git Repository
     participant AI as 🤖 AI Agent
-    participant PR as 📝 Pull Request
+    participant PR as 📝 Code Host
     
-    Job->>Orch: Job Queued
-    Orch->>Worker: Dispatch Job
+    Job->>Compute: Start Worker (Docker, Kubernetes, ECS, Lambda)
+    Compute->>Worker: Run
+    Worker->>Job: Fetch Bootstrap and Credentials
     Worker->>Git: Clone Repository
-    Worker->>Git: Create Fix Branch
+    Worker->>Git: Create Task Branch
     Worker->>AI: Execute Agent
     AI->>Git: Commit Changes
     Worker->>Git: Push Branch
-    Worker->>PR: Create Pull Request
+    Worker->>Job: Ask for Pull Request
+    Job->>PR: Open Pull Request
     Worker->>Job: Report Result
     Job->>Job: Mark Completed
     
-    Note over Job,PR: PR linked to ticket
+    Note over Job,PR: PR linked to task
 ```
 
-1. Job status: `queued`
-2. Available Clanker picks up job
-3. Worker clones repository
-4. AI agent analyzes and modifies code
-5. Changes committed and pushed
-6. Pull request created
-7. Job status: `completed`
-8. Result posted back to external system
+1. Run status: `queued`
+2. The backend starts a worker on the runner's compute target
+3. Worker fetches its bootstrap payload and the secrets bound to the runner, authenticated with the run's callback token
+4. Worker clones the repository and checks out the task branch
+5. AI agent analyzes and modifies code, sending progress and questions to the platform
+6. Changes committed and pushed
+7. The platform opens the pull request through the space's code host
+8. Run status: `completed` (or `failed`, `cancelled`)
+9. Result posted to the task's thread, and from there to Slack and the linked issue
+
+A plan run follows the same path without the push and pull request. In a Files space the worker restores the space's files instead of cloning, and saves them and any artifacts back to storage at the end.
 
 ## Technology Stack
 
@@ -267,8 +302,9 @@ sequenceDiagram
 | TypeScript | Type safety |
 | Kysely | Type-safe SQL query builder |
 | PostgreSQL | Primary database |
-| AWS SSM | Secret storage (production) |
-| AWS S3 | File storage |
+| AWS SSM | Optional secret storage (required when agents run on ECS) |
+| S3-compatible storage (AWS S3, MinIO, others) | Space files, artifacts, media, plan documents, session archives |
+| OpenTelemetry | Optional tracing |
 
 ### Frontend
 
@@ -284,10 +320,13 @@ sequenceDiagram
 | Technology | Purpose |
 |------------|---------|
 | Pulumi | Infrastructure as Code |
+| Helm | Kubernetes installation |
+| Docker / Docker Compose | Local development, single-server installs, worker containers |
+| Kubernetes | Platform and worker Jobs |
 | AWS ECS | Container orchestration |
 | AWS Lambda | Serverless compute |
 | AWS RDS | Managed PostgreSQL |
-| AWS CloudFront | CDN |
+| AWS Amplify | Frontend hosting |
 
 ## Deployment Architecture
 
@@ -298,19 +337,25 @@ flowchart TB
     subgraph Docker["🐳 Docker Compose"]
         subgraph Services["Services"]
             PG[("PostgreSQL<br/>:5432")]
+            MinIO[("MinIO<br/>:9000")]
         end
 
         subgraph Apps["Applications"]
-            Backend["Backend<br/>:8888"]
+            Backend["Backend<br/>:8888, previews :8890"]
             Frontend["Frontend<br/>:3000"]
         end
 
         Services --> Apps
     end
 
+    Workers["Docker Workers<br/>(one container per run)"]
+
     User["👤 Developer"] -->|"http://localhost:3000"| Frontend
     Frontend -->|"API calls"| Backend
     Backend --> PG
+    Backend --> MinIO
+    Backend -->|"Docker socket"| Workers
+    Workers -->|"Callbacks"| Backend
     
     classDef docker fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#1f2937
     classDef services fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#1f2937
@@ -318,10 +363,16 @@ flowchart TB
     classDef user fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#1f2937
     
     class Docker docker
-    class Services,PG services
+    class Services,PG,MinIO services
     class Apps,Backend,Frontend apps
-    class User user
+    class User,Workers user
 ```
+
+Optional compose profiles add Mailpit (`mail`) and Langfuse (`langfuse`); see [local-development.md](local-development.md). `docker-compose.prod.yml` runs the same backend, frontend and PostgreSQL from published images on one server, with Caddy for HTTPS.
+
+### Kubernetes
+
+The Helm chart runs the backend and frontend as Deployments, migrations as a Job per Helm revision, and each run as a Kubernetes Job in a separate worker namespace. The frontend's nginx proxies `/api` to the backend. Workers get no Kubernetes API token and no storage keys: they fetch their credentials and signed storage URLs from the backend with a callback token mounted from a per-run Secret. Bring PostgreSQL, S3-compatible storage, ingress and TLS, or use the bundled PostgreSQL and MinIO locally. See [kubernetes-deployment.md](kubernetes-deployment.md) and [local-kubernetes.md](local-kubernetes.md).
 
 ### Production (AWS)
 
@@ -329,7 +380,6 @@ flowchart TB
 flowchart TB
     subgraph AWS["☁️ AWS Cloud"]
         subgraph CDN["Content Delivery"]
-            CF["CloudFront CDN"]
             Amplify["Amplify Hosting<br/>(Frontend)"]
         end
         
@@ -341,12 +391,12 @@ flowchart TB
             subgraph ECS["ECS Cluster"]
                 Backend["Backend Service<br/>(Fargate Tasks)"]
             end
-            Lambda["Lambda Functions<br/>(Workers)"]
+            Lambda["Lambda / ECS Fargate<br/>(Workers)"]
         end
         
         subgraph Data["Data Layer"]
             RDS[("RDS PostgreSQL<br/>(Multi-AZ)")]
-            S3[("S3 Buckets<br/>(Files, Media)")]
+            S3[("S3 Bucket<br/>(Space Files, Artifacts, Media)")]
         end
         
         subgraph Security["Security & Ops"]
@@ -356,16 +406,16 @@ flowchart TB
         end
     end
     
-    User["👤 End User"] -->|"HTTPS"| CF
-    CF --> Amplify
-    Amplify -->|"API calls"| ALB
+    User["👤 End User"] -->|"HTTPS"| Amplify
+    User -->|"API calls, previews"| ALB
     ALB --> Backend
     Backend --> RDS
     Backend --> S3
     Backend --> SSM
     Backend -->|"Job Dispatch"| Lambda
     Lambda --> SSM
-    Lambda -->|"Git ops"| ExternalGit["GitHub/GitLab"]
+    Lambda -->|"Callbacks"| ALB
+    Lambda -->|"Git ops"| ExternalGit["GitHub"]
     
     classDef aws fill:#f0f9ff,stroke:#0369a1,stroke-width:2px,color:#1f2937
     classDef cdn fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#1f2937
@@ -377,7 +427,7 @@ flowchart TB
     classDef external fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#1f2937
     
     class AWS aws
-    class CDN,CF,Amplify cdn
+    class CDN,Amplify cdn
     class Network,ALB network
     class Compute,ECS,Backend,Lambda compute
     class Data,RDS,S3 data
@@ -386,79 +436,67 @@ flowchart TB
     class ExternalGit external
 ```
 
+## Security
+
 ### Authentication & Authorization
 
-- Tenant-based data isolation
-- API authentication (configurable)
-- Webhook signature verification (HMAC-SHA256)
+- Email and password sign-in with server-side sessions; API tokens for scripts, the CLI and MCP clients
+- Workspace roles (admin, member, guest, viewer), open or private spaces, and per-task people decide who can see, comment, ask the agent and build
+- Workers authenticate their callbacks with a per-run callback token
+- Webhook signature verification (HMAC-SHA256 where the provider signs deliveries)
+- Admin changes to secrets, agents, members and other settings are recorded in the audit log
 
 ### Data Protection
 
-- **At Rest**: AES-256 encryption for secrets and credentials
-- **In Transit**: TLS 1.3 for all communications
-- **Key Management**: AWS KMS for encryption keys
+- **At Rest**: AES-256-GCM encryption for secrets and credentials stored in PostgreSQL (`SECRETS_ENCRYPTION_KEY`)
+- **In Transit**: TLS at the ingress or load balancer (TLS 1.2 or newer on the AWS ALB)
+- **Key Management**: AWS KMS for SSM parameters on AWS
+- Artifact previews are served from a separate origin, so an artifact's scripts never share the app's origin or cookies
 
 ### Network Security
 
 - VPC isolation for production workloads
 - Security groups for fine-grained access control
 - Private subnets for database and workers
+- On Kubernetes, network policies limit worker egress; they need a NetworkPolicy-capable CNI
 
 ### Secret Management
 
-- Local: Encrypted file storage (`.credentials.json`)
-- Production: AWS SSM Parameter Store with KMS encryption
-- Never logged or exposed in API responses
+- Workspace secrets: encrypted in PostgreSQL, or in AWS SSM Parameter Store with KMS encryption (SSM when agents run on ECS)
+- Only the secrets bound to a runner reach its runs; Kubernetes workers fetch them from the backend at start instead of having them in the Job spec
+- Worker-only credentials, such as a ChatGPT sign-in, are kept out of the agent's environment
+- Never exposed in API responses; log output is redacted
+- Deployment secrets: see [DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md)
 
 ## Scalability Considerations
 
 ### Horizontal Scaling
 
-- Stateless backend services scale with ECS auto-scaling
-- Lambda workers scale automatically with job volume
-- Read replicas for PostgreSQL under high read load
+- Each run gets its own worker, so runs scale with the compute target: Docker on the host, Kubernetes Jobs within the worker namespace quota, ECS Fargate tasks or Lambda invocations
+- The backend runs as a single instance (`backend.replicas: 1` on Kubernetes, one ECS task on AWS); sweepers and dispatch coordination run in that process
+- Any number of runners can work on tasks at the same time
 
-### Job Queue
+### Webhook Delivery
 
-- Multiple Clankers can process jobs concurrently
-- Job prioritization and fair scheduling
-
-### Rate Limiting
-
-- API rate limiting per tenant
-- External API rate limit handling with backoff
-- Webhook delivery retry with exponential backoff
-
-### Performance Targets
-
-| Metric | Target |
-|--------|--------|
-| API Response Time (p95) | < 200ms |
-| Webhook Processing | < 5 seconds |
-| Job Queue Latency | < 10 seconds |
-| Database Query Time (p95) | < 50ms |
+- Inbound deliveries are recorded and deduplicated
+- A failed delivery can be retried from the recorded payload
 
 ## Monitoring & Observability
 
 ### Logging
 
-- Structured JSON logging
-- CloudWatch Logs aggregation
-- Correlation IDs for request tracing
+- Structured JSON logging (Winston) with sensitive values redacted
+- CloudWatch Logs on AWS
+- Each run's worker log, Kubernetes Pod state and events are shown on the run
 
 ### Metrics
 
-- API request rates and latencies
-- Job execution times
-- Worker health and utilization
-- Database connection pool stats
+- Cost and token usage per run where the harness reports it
+- Run records across the workspace under Settings → Run records
 
-### Alerting
+### Tracing
 
-- Worker failures and timeouts
-- API error rate thresholds
-- Database connection issues
-- Queue depth monitoring
+- Optional OpenTelemetry tracing from the backend through the worker and the agent (`OTEL_EXPORTER_OTLP_ENDPOINT`); see [telemetry-local.md](telemetry-local.md)
 
 ---
 
@@ -466,3 +504,4 @@ For more information, see:
 - [README.md](../README.md) - Quick start and overview
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 - [docs/DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md) - Deployment configuration
+- [docs/guide/README.md](guide/README.md) - User and administrator guide

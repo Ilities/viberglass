@@ -6,6 +6,7 @@ const MARIA = { id: "maria", name: "Maria" };
 
 const base: TaskSituationInput = {
   status: "open",
+  backing: "git",
   createdAt: "2026-10-01T08:00:00Z",
   owner: OWNER,
   latestArtifact: null,
@@ -24,6 +25,8 @@ describe("taskSituation", () => {
   it.each([
     ["a new task", {}, "not_started", "Not started · Olli"],
     ["the agent writing the plan", { runningTurn: { action: "plan" as const, since: "t" } }, "agent_working", "Agent writing the plan"],
+    ["the agent building", { runningTurn: { action: "code" as const, since: "t" } }, "agent_working", "Agent building"],
+    ["the agent making a Files task's artifact", { backing: "files" as const, runningTurn: { action: "code" as const, since: "t" } }, "agent_working", "Agent working on the artifact"],
     ["the agent revising the plan it wrote", { latestArtifact: PLAN_V2, runningTurn: { action: "plan" as const, since: "t" } }, "agent_working", "Agent revising the plan"],
     ["a plan nobody was mentioned on", { latestArtifact: PLAN_V2 }, "artifact_ready", "Plan v2 ready · Olli"],
     ["a plan the agent mentioned Tomi on", { latestArtifact: PLAN_V2, openMentions: [{ person: TOMI, at: PLAN_V2.at }] }, "artifact_ready", "Plan v2 ready · Tomi"],

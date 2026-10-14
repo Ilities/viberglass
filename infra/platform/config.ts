@@ -13,6 +13,10 @@ export interface InfrastructureConfig {
   baseStack: string;
   /** Worker stack name for StackReference (e.g., "viberglass-workers/dev") - optional for clanker ECS provisioning */
   workerStack?: string;
+  /** Registry agent worker images are pulled from; "ecr" means the workers stack's ECR */
+  workerImageRegistry: string;
+  /** Tag of the agent worker images */
+  workerImageTag: string;
   /** Whether to use Fargate Spot for cost savings */
   enableSpot: boolean;
   /** Whether to enable ECS Container Insights (adds ~$5-20/month per cluster) */
@@ -56,6 +60,11 @@ export function getConfig(): InfrastructureConfig {
   const environment = config.require("environment");
   const baseStack = config.require("baseStack");
   const workerStack = config.get("workerStack");
+  const workerImageRegistry = config.get("workerImageRegistry") ?? "ghcr.io/ilities";
+  if (workerImageRegistry === "ecr" && !workerStack) {
+    throw new Error("workerImageRegistry: ecr needs workerStack: the ECR registry comes from the workers stack");
+  }
+  const workerImageTag = config.get("workerImageTag") ?? "latest";
   const enableSpot = config.getBoolean("enableSpot") ?? false;
   const containerInsights = config.getBoolean("containerInsights") ?? false;
   const enableAlarms = config.getBoolean("enableAlarms") ?? false;
@@ -116,6 +125,8 @@ export function getConfig(): InfrastructureConfig {
     environment,
     baseStack,
     workerStack,
+    workerImageRegistry,
+    workerImageTag,
     enableSpot,
     containerInsights,
     enableAlarms,

@@ -21,6 +21,8 @@ export interface PartialWorkInput {
   repoDir: string;
   snapshot: ArtifactSnapshot;
   taskBranch: TaskBranch | undefined;
+  /** A Files run saved its files first; the platform records them on the turn. */
+  filesSaved?: boolean;
 }
 
 /**
@@ -42,7 +44,7 @@ export async function keepPartialWork(run: PartialWorkRun, input: PartialWorkInp
       branch = input.taskBranch.name;
     }
   }
-  if (Object.keys(documents).length === 0 && !commitHash) return;
+  if (Object.keys(documents).length === 0 && !commitHash && !input.filesSaved) return;
   run.logger.info("Keeping what the stopped turn had done", { jobId: run.jobId, documents: Object.keys(documents), commitHash });
   await run.callbacks.sendPartialResult(run.jobId, run.tenantId, { documents, commitHash, branch });
 }

@@ -1,6 +1,6 @@
 # Building and pull requests
 
-When the plan is agreed, the agent builds it and opens a GitHub pull request for your engineers to review. This page covers Build it, plans in parts, pull requests, and when a task is done.
+When the plan is agreed, the agent builds it and opens a GitHub pull request for your engineers to review. This page covers Build it, plans in parts, pull requests, and when a task is done. In a Files space the agent makes an artifact instead; see [Files and artifacts](files-and-artifacts.md).
 
 ## Build it
 
@@ -26,9 +26,11 @@ When the work doesn't go part by part, each part's menu (⋯) in the plan has a 
 
 - Mark done, for a part finished some other way, such as by hand in another pull request. If its pull request is still open, it stops holding up the next part, which gets a pull request of its own.
 - Skip this part, for a part that isn't needed after all.
-- Discard this build, for a build that stopped before opening its pull request, so its parts show Building with nothing happening. Its parts can then be built again. It isn't offered while the agent is working.
+- Discard this build, for a build that stopped before opening its pull request, so its parts show Stopped. Discarding puts them back to not built, and the next build starts over. It isn't offered while the agent is working.
 
-A mark can be taken back from the same menu, and a merge always counts over it. Marking the last part that's left finishes the task, as a merge would.
+To carry on with a stopped build instead, choose Build part N again: the agent picks up on the same branch.
+
+A mark can be taken back from the same menu with Not done after all or Not skipped after all, and a merge always counts over it. Marking the last part that's left finishes the task, as a merge would, and taking a mark back on a finished task opens it again.
 
 While a part's pull request is open, the next part has Add to part N's pull request. The agent builds that part on the same branch, and the one pull request then covers both parts.
 

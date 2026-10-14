@@ -14,7 +14,7 @@ import { TaskPlanPartMarkDAO } from "../../persistence/ticketing/TaskPlanPartMar
 import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TaskTakeoverDAO } from "../../persistence/ticketing/TaskTakeoverDAO";
 import { TaskThreadFactsDAO } from "../../persistence/ticketing/TaskThreadFactsDAO";
-import type { ThreadTaskRow } from "../../persistence/ticketing/TaskThreadListDAO";
+import { TaskThreadListDAO, type ThreadTaskRow } from "../../persistence/ticketing/TaskThreadListDAO";
 
 export type SituationTask = Pick<ThreadTaskRow, "id" | "status" | "pullRequestUrl" | "createdAt" | "updatedAt">;
 
@@ -45,6 +45,7 @@ interface Dependencies {
   takeovers: Pick<TaskTakeoverDAO, "listFor">;
   pullRequests: Pick<TaskPullRequestDAO, "lastMergedParts">;
   marks: Pick<TaskPlanPartMarkDAO, "listFor">;
+  spaces: Pick<TaskThreadListDAO, "backingKinds">;
 }
 
 const MESSAGE_PREVIEW = 140;
@@ -83,13 +84,14 @@ export class TaskSituationService {
       takeovers: new TaskTakeoverDAO(),
       pullRequests: new TaskPullRequestDAO(),
       marks: new TaskPlanPartMarkDAO(),
+      spaces: new TaskThreadListDAO(),
       ...deps,
     };
   }
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked] = await Promise.all([
+    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked, backings] = await Promise.all([
       this.deps.turns.running(ids),
       this.deps.turns.paused(ids),
       this.deps.turns.lastFinished(ids),
@@ -103,6 +105,7 @@ export class TaskSituationService {
       this.deps.takeovers.listFor(ids),
       this.deps.pullRequests.lastMergedParts(ids),
       this.deps.marks.listFor(ids),
+      this.deps.spaces.backingKinds(ids),
     ]);
 
     return new Map(
@@ -125,6 +128,7 @@ export class TaskSituationService {
 
         const input: TaskSituationInput = {
           status: task.status,
+          backing: backings.get(task.id) ?? "git",
           createdAt: iso(task.createdAt),
           owner: drivers.get(task.id) ?? null,
           latestArtifact,

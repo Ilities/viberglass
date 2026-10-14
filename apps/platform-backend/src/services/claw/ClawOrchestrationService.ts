@@ -27,6 +27,7 @@ import { ClawExecutionService } from "./ClawExecutionService";
 import type { ClawJobData } from "../../types/Job";
 import { ClawWebhookService } from "./ClawWebhookService";
 import { PromptTemplateService } from "../PromptTemplateService";
+import { spaceFilesRuns } from "../spaceFiles/SpaceFilesRunService";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -114,10 +115,11 @@ export class ClawOrchestrationService {
         },
       );
 
+      const files = preparedContext.project.backingKind === "files";
       const task = await this.promptTemplateService.render(
         PROMPT_TYPE.claw_scheduled_task,
         template.projectId,
-        { taskInstructions: template.taskInstructions },
+        { taskInstructions: template.taskInstructions, filesSpace: files ? "yes" : undefined },
       );
 
       // Build job data
@@ -127,8 +129,7 @@ export class ClawOrchestrationService {
         tenantId: preparedContext.project.id,
         repository: preparedContext.sourceRepository,
         task,
-        branch: preparedContext.baseBranch,
-        baseBranch: preparedContext.baseBranch,
+        ...(files ? {} : { branch: preparedContext.baseBranch, baseBranch: preparedContext.baseBranch }),
         context: {
           clawExecutionId: execution.id,
           clawScheduleId: scheduleId,
@@ -149,6 +150,7 @@ export class ClawOrchestrationService {
           bootstraps: this.bootstraps,
           credentialRequirementsService: this.credentialRequirementsService,
           workerExecutionService: this.workerExecutionService,
+          spaceFiles: spaceFilesRuns,
         },
       );
 
@@ -166,82 +168,19 @@ export class ClawOrchestrationService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      await this.clawExecutionService.recordExecutionResult(execution.id, {
+      const failed = await this.clawExecutionService.recordExecutionResult(execution.id, {
         status: "failed",
         errorMessage,
       });
 
       const sched = await this.clawScheduleDAO.getSchedule(scheduleId);
-      await this.webhookService.sendWebhook(sched!, execution, "failed", {
-        errorMessage,
-      });
+      if (failed && sched) {
+        await this.webhookService.sendWebhook(sched, failed, "failed", {
+          errorMessage,
+        });
+      }
 
       throw error;
     }
-  }
-
-  /**
-   * Handle job completion callback from worker
-   * Called when a claw job completes
-   */
-  async handleJobCompletion(
-    executionId: string,
-    jobId: string,
-    result: {
-      success: boolean;
-      result?: Record<string, unknown>;
-      errorMessage?: string;
-    },
-  ): Promise<void> {
-    logger.info("Claw job completion", {
-      executionId,
-      jobId,
-      success: result.success,
-    });
-
-    // Get execution to find schedule
-    const execution = await this.clawExecutionService.getExecution(executionId);
-    if (!execution) {
-      logger.warn("Claw execution not found for job completion", {
-        executionId,
-        jobId,
-      });
-      return;
-    }
-
-    const schedule = await this.clawScheduleDAO.getSchedule(
-      execution.scheduleId,
-    );
-    if (!schedule) {
-      logger.warn("Claw schedule not found for job completion", {
-        scheduleId: execution.scheduleId,
-        executionId,
-      });
-      return;
-    }
-
-    // Record execution result
-    const status = result.success ? "completed" : "failed";
-    await this.clawExecutionService.recordExecutionResult(executionId, {
-      status,
-      result: result.result,
-      errorMessage: result.errorMessage,
-    });
-
-    // Send completion webhook
-    await this.webhookService.sendWebhook(
-      schedule,
-      await this.clawExecutionService.getExecution(executionId),
-      result.success ? "completed" : "failed",
-      result.result
-        ? { result: result.result }
-        : { errorMessage: result.errorMessage },
-    );
-
-    logger.info("Claw job completion processed", {
-      executionId,
-      jobId,
-      status,
-    });
   }
 }

@@ -1,5 +1,6 @@
 import type { DeploymentStrategy } from "@viberglass/types";
 import { kubernetesEnvironmentError } from "./kubernetesEnvironment";
+import { canBuildWorkerFromSource } from "./sourceBuild";
 
 export function isAwsDeployment(): boolean {
   return Boolean(
@@ -30,5 +31,10 @@ export function availableDeploymentStrategies(
     .sort(
       (left, right) =>
         Number(right.name === defaultName) - Number(left.name === defaultName),
+    )
+    .map((strategy) =>
+      strategy.name === "docker"
+        ? { ...strategy, canBuildFromSource: canBuildWorkerFromSource() }
+        : strategy,
     );
 }

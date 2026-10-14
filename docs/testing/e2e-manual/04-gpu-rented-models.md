@@ -41,7 +41,7 @@ Expect: the model is discovered; the endpoint saved.
 ### GPU-03 · Agent work on OpenCode and Pi
 1. Run the [harness script](03-agents-and-model-endpoints.md#harness-matrix-harn) steps 1–4 with an OpenCode runner and a Pi runner on the endpoint.
 
-Expect: research, a follow-up, a question and a build all complete. Record quality issues (tool-call errors, truncation at Pi's 32k context) separately from failures.
+Expect: a plan, a follow-up, a question and a build all complete. Record quality issues (tool-call errors, truncation at Pi's 32k context) separately from failures.
 
 ### GPU-04 · Cold start
 Needs: a scale-to-zero deployment (OVH AI Deploy with minimum replicas 0), or stop the server by hand.
@@ -88,7 +88,7 @@ Expect: the row goes from Creating to Idle · scaled to zero; the Verda console 
 
 ### DEP-04 · A run wakes the deployment
 1. Point an OpenCode runner at the deployment's endpoint (Model section → Workspace models).
-2. Start a research task while the deployment is idle.
+2. Ask for a plan on a task while the deployment is idle.
 
 Expect: the run shows "Waking …", then completes; the row shows Running during the run and Idle again about five minutes after. Record the wake time.
 

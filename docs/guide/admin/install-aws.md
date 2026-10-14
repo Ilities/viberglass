@@ -17,21 +17,30 @@ Set up the Pulumi state bucket and log in to it:
 pulumi login s3://viberglass-pulumi-state
 ```
 
-Copy `infra/platform/Pulumi.dev.yaml.example` to `Pulumi.dev.yaml` and set at least the base stack, `apiDomain`, `appDomain` and `route53ZoneId`. Set `previewDomain` too for artifact previews; see below. Then deploy the stacks in order:
+Copy `infra/platform/Pulumi.dev.yaml.example` to `Pulumi.dev.yaml` and set at least the base stack, `apiDomain`, `appDomain` and `route53ZoneId`. Set `workerStack` to the workers stack, such as `organization/viberglass-workers/dev`; without it, runners on ECS and Lambda get no default cluster, roles or images, and need them entered by hand. Set `previewDomain` too for artifact previews; see below. Then deploy the stacks in order:
 
 ```bash
 cd infra/base && npm install && pulumi stack select dev && pulumi up       # VPC, KMS, logging
-cd infra/platform && npm install && pulumi stack select dev && pulumi up   # ECS backend, RDS, S3, Amplify frontend
 cd infra/workers && npm install && pulumi stack select dev && pulumi up    # ECS and Lambda workers
+cd infra/platform && npm install && pulumi stack select dev && pulumi up   # ECS backend, RDS, S3, Amplify frontend
 ```
 
-Push the worker images to ECR before creating runners:
+ECS runners pull the published worker images from `ghcr.io/ilities`, so there's nothing to push for them. Lambda runners use a Lambda worker image in the stack's ECR repository; push it before creating one:
 
 ```bash
-./infra/workers/scripts/setup-harness-images.sh dev multi-agent
+./infra/workers/scripts/setup-harness-images.sh dev lambda
 ```
 
-Use `all` instead of `multi-agent` for one image per coding agent. Open your app address, create the administrator and go through setup as described in [Install with Docker](install-docker.md#first-run-setup). The default agent runs on ECS.
+To run ECS runners from your own ECR instead, set `workerImageRegistry: ecr` in the platform stack, which needs `workerStack` set. Push every harness image to the workers stack's ECR, run `pulumi up` in the platform stack, then the backend deploy workflow so the backend picks up the new registry:
+
+```bash
+./infra/workers/scripts/setup-harness-images.sh dev all
+cd infra/platform && pulumi up
+```
+
+The images are tagged `latest` and, with `IMAGE_TAG` set or from the `deploy-viberators` workflow, a tag of your own or the commit. Set `workerImageTag` to one of those to pin it; the default is `latest`.
+
+Open your app address, create the administrator and go through setup as described in [Install with Docker](install-docker.md#first-run-setup). The default agent runs on ECS.
 
 ## Artifact previews
 
@@ -53,7 +62,7 @@ Secrets can be stored encrypted in the database, as on any install, or in AWS SS
 
 ## Teardown
 
-Destroy the stacks in reverse order: workers, then platform, then base.
+Destroy the stacks in reverse order: platform, then workers, then base.
 
 ## More detail
 

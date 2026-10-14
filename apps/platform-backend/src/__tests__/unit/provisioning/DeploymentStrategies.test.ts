@@ -52,4 +52,10 @@ describe("availableDeploymentStrategies", () => {
       "kubernetes",
     );
   });
+
+  it("says whether Docker can build worker images from source", () => {
+    const available = availableDeploymentStrategies(strategies);
+    expect(available.find((item) => item.name === "docker")?.canBuildFromSource).toBe(true);
+    expect(available.find((item) => item.name === "ecs")).not.toHaveProperty("canBuildFromSource");
+  });
 });

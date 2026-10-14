@@ -9,36 +9,8 @@ import { CodingJobData, JobResult } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
 
-interface SqsRecordLike {
-  body: unknown;
-}
-
-interface SqsEventLike {
-  Records: SqsRecordLike[];
-}
-
-interface BodyWrappedEventLike {
-  body: unknown;
-}
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
-
-const isSqsRecordLike = (value: unknown): value is SqsRecordLike =>
-  isRecord(value) && "body" in value;
-
-const isSqsEventLike = (value: unknown): value is SqsEventLike => {
-  if (!isRecord(value) || !("Records" in value)) {
-    return false;
-  }
-
-  const records = value["Records"];
-  return Array.isArray(records) && records.every(isSqsRecordLike);
-};
-
-const isBodyWrappedEventLike = (
-  value: unknown,
-): value is BodyWrappedEventLike => isRecord(value) && "body" in value;
 
 const isS3InstructionFile = (value: unknown): value is S3InstructionFile =>
   isRecord(value) &&
@@ -74,35 +46,12 @@ const isLambdaPayload = (value: unknown): value is LambdaPayload => {
   );
 };
 
-const parsePayloadValue = (value: unknown, source: string): LambdaPayload => {
-  if (typeof value === "string") {
-    try {
-      const parsed: unknown = JSON.parse(value);
-      return parsePayloadValue(parsed, source);
-    } catch {
-      throw new Error(`Invalid JSON payload in ${source}`);
-    }
+const parsePayload = (event: unknown): LambdaPayload => {
+  if (isLambdaPayload(event)) {
+    return event;
   }
 
-  if (isLambdaPayload(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid Lambda payload in ${source}`);
-};
-
-const extractPayloads = (event: unknown): LambdaPayload[] => {
-  if (isSqsEventLike(event)) {
-    return event.Records.map((record, index) =>
-      parsePayloadValue(record.body, `event.Records[${index}].body`),
-    );
-  }
-
-  if (isBodyWrappedEventLike(event)) {
-    return [parsePayloadValue(event.body, "event.body")];
-  }
-
-  return [parsePayloadValue(event, "event")];
+  throw new Error("Invalid Lambda payload in event");
 };
 
 export const handler = async (
@@ -116,76 +65,74 @@ export const handler = async (
     context.callbackWaitsForEmptyEventLoop = false;
   }
 
-  const payloads = extractPayloads(event);
+  const payload = parsePayload(event);
 
-  for (const payload of payloads) {
-    try {
-      console.log("Lambda processing task:", payload);
+  try {
+    console.log("Lambda processing task:", payload);
 
-      // Validate required fields
-      if (!payload.tenantId) {
-        throw new Error("Missing tenantId in payload");
-      }
-      if (!payload.jobId) {
-        throw new Error("Missing jobId in payload");
-      }
-      // Lambda workers don't save a Files space's files yet; those runs go to Docker, ECS or Kubernetes.
-      if (payload.files) {
-        throw new Error("Files spaces can't run on Lambda workers");
-      }
-      if (!payload.repository) {
-        throw new Error("Missing repository in payload");
-      }
-      if (!payload.task) {
-        throw new Error("Missing task in payload");
-      }
-
-      // Run under the backend's trace context, carried in the payload because
-      // there is no HTTP request from backend to worker to put headers on.
-      const result: JobResult = await withRemoteTraceContext(
-        payload.telemetry,
-        async () => {
-          // Initialize worker with payload - handles credential fetching and injection
-          const worker = new ViberatorWorker(
-            new ClankerAgentAuthLifecycleFactory(),
-            new ClankerAgentEndpointEnvironmentFactory(),
-          );
-          await worker.initialize(payload);
-
-          // Convert LambdaPayload to CodingJobData for executeTask
-          const jobData: CodingJobData = {
-            id: payload.jobId,
-            jobKind: payload.jobKind,
-            tenantId: payload.tenantId,
-            repository: payload.repository,
-            task: payload.task,
-            branch: payload.branch,
-            baseBranch: payload.baseBranch,
-            context: payload.context,
-            settings: payload.settings,
-            scm: payload.scm,
-            timestamp: Date.now(),
-          };
-
-          return worker.executeTask(jobData);
-        },
-      );
-
-      if (!result.success) {
-        console.error(`Task failed: ${result.errorMessage}`);
-        throw new Error(result.errorMessage || "Task execution failed");
-      }
-
-      console.log(`Task ${payload.jobId} finished successfully`);
-    } catch (error) {
-      console.error("Error in Lambda execution loop:", error);
-      throw error;
-    } finally {
-      // The handler sets callbackWaitsForEmptyEventLoop = false, so Lambda
-      // freezes the container as soon as it returns and any span still sitting
-      // in the batch processor is lost. Flush — but do not shut the provider
-      // down, because the frozen container is reused for the next invocation.
-      await flushTelemetryBeforeFreeze();
+    // Validate required fields
+    if (!payload.tenantId) {
+      throw new Error("Missing tenantId in payload");
     }
+    if (!payload.jobId) {
+      throw new Error("Missing jobId in payload");
+    }
+    // Lambda workers don't save a Files space's files yet; those runs go to Docker, ECS or Kubernetes.
+    if (payload.files) {
+      throw new Error("Files spaces can't run on Lambda workers");
+    }
+    if (!payload.repository) {
+      throw new Error("Missing repository in payload");
+    }
+    if (!payload.task) {
+      throw new Error("Missing task in payload");
+    }
+
+    // Run under the backend's trace context, carried in the payload because
+    // there is no HTTP request from backend to worker to put headers on.
+    const result: JobResult = await withRemoteTraceContext(
+      payload.telemetry,
+      async () => {
+        // Initialize worker with payload - handles credential fetching and injection
+        const worker = new ViberatorWorker(
+          new ClankerAgentAuthLifecycleFactory(),
+          new ClankerAgentEndpointEnvironmentFactory(),
+        );
+        await worker.initialize(payload);
+
+        // Convert LambdaPayload to CodingJobData for executeTask
+        const jobData: CodingJobData = {
+          id: payload.jobId,
+          jobKind: payload.jobKind,
+          tenantId: payload.tenantId,
+          repository: payload.repository,
+          task: payload.task,
+          branch: payload.branch,
+          baseBranch: payload.baseBranch,
+          context: payload.context,
+          settings: payload.settings,
+          scm: payload.scm,
+          timestamp: Date.now(),
+        };
+
+        return worker.executeTask(jobData);
+      },
+    );
+
+    if (!result.success) {
+      console.error(`Task failed: ${result.errorMessage}`);
+      throw new Error(result.errorMessage || "Task execution failed");
+    }
+
+    console.log(`Task ${payload.jobId} finished successfully`);
+  } catch (error) {
+    console.error("Error in Lambda execution:", error);
+    throw error;
+  } finally {
+    // The handler sets callbackWaitsForEmptyEventLoop = false, so Lambda
+    // freezes the container as soon as it returns and any span still sitting
+    // in the batch processor is lost. Flush — but do not shut the provider
+    // down, because the frozen container is reused for the next invocation.
+    await flushTelemetryBeforeFreeze();
   }
 };

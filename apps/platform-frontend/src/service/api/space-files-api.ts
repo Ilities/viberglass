@@ -8,6 +8,7 @@ import type {
   SpaceFilesListing,
   SpaceFilesSnapshotSummary,
   SpaceTextFile,
+  TurnArtifact,
 } from '@viberglass/types'
 
 /** A refused request, with the server's code when it gave one, such as FILE_CHANGED or SPACE_BUSY. */
@@ -63,6 +64,16 @@ const withPath = (path: string) => `?path=${encodeURIComponent(path)}`
 
 export async function getSpaceFiles(projectId: string): Promise<SpaceFilesListing> {
   return readSpaceData(await apiFetch(filesUrl(projectId)), "Couldn't load the space's files")
+}
+
+/** What a run saved of its space's files, and the artifacts it made; `files` is null for a run that saved none. */
+export interface RunFilesOutcome {
+  files: SpaceFilesSnapshotSummary | null
+  artifacts: TurnArtifact[]
+}
+
+export async function getRunFiles(jobId: string): Promise<RunFilesOutcome> {
+  return readSpaceData(await apiFetch(`${API_BASE_URL}/api/jobs/${encodeURIComponent(jobId)}/files`), "Couldn't load the run's files")
 }
 
 export async function getSpaceTextFile(projectId: string, path: string): Promise<SpaceTextFile> {

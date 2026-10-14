@@ -1,4 +1,4 @@
-import { buildPartsMessage, nextBuild, type JobFailure, type PartRange, type TaskCapabilities, type TaskPlanParts, type TaskTurnAction, type Ticket } from '@viberglass/types'
+import { nextWork, type JobFailure, type PartRange, type TaskCapabilities, type TaskPlanParts, type TaskTurnAction, type Ticket } from '@viberglass/types'
 
 /** A common next move, offered above the composer; pressing it posts the label and asks the agent. */
 export interface TaskSuggestion {
@@ -91,32 +91,10 @@ export function suggestTaskActions({
     suggestions.push({ action: 'summarise', label: 'Summarise so far' })
   }
   if (capabilities.canAskForCode) {
-    suggestions.push(
-      ...(filesSpace ? [artifactSuggestion(hasArtifacts)] : buildSuggestions(planParts ?? null))
-    )
+    const work = nextWork(filesSpace ? 'files' : 'git', { planParts: planParts ?? null, hasArtifacts })
+    // Files work rarely needs a plan, so making the artifact comes first there and the plan stays on offer.
+    if (filesSpace) suggestions.unshift(...work)
+    else suggestions.push(...work)
   }
   return suggestions
-}
-
-/** In a Files space, the build makes or revises the task's artifact. */
-export function artifactSuggestion(hasArtifacts: boolean): TaskSuggestion {
-  return { action: 'code', label: hasArtifacts ? 'Revise artifact' : 'Create artifact' }
-}
-
-/**
- * The builds to offer: a plan in parts builds its next part, or everything
- * left in one pull request, once the earlier parts are merged; a plan in one
- * part, or none, is built as a whole.
- */
-export function buildSuggestions(planParts: TaskPlanParts | null): TaskSuggestion[] {
-  const next = planParts ? nextBuild(planParts) : { label: 'Build it' }
-  if (!next) return []
-  const offered: TaskSuggestion[] = [{ action: 'code', label: next.label, ...(next.parts ? { parts: next.parts } : {}) }]
-  const left = planParts?.parts.filter((part) => part.status === 'not_built') ?? []
-  // A build offered again keeps its parts; the rest go with it only once nothing is open.
-  if (next.parts && !planParts?.open && left.length > 1) {
-    const rest = { first: next.parts.first, last: null }
-    offered.push({ action: 'code', label: buildPartsMessage(rest), parts: rest })
-  }
-  return offered
 }

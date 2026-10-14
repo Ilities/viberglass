@@ -101,6 +101,43 @@ export class ClawExecutionDAO {
     return this.mapRowToExecution(result);
   }
 
+  /** Marks a pending execution running on its job; one that already finished keeps its outcome. */
+  async startExecution(id: string, jobId: string): Promise<void> {
+    await db
+      .updateTable("claw_executions")
+      .set({ status: "running", job_id: jobId, started_at: new Date() })
+      .where("id", "=", id)
+      .where("status", "=", "pending")
+      .execute();
+  }
+
+  /** Ends an execution that hasn't ended yet; null when it already has, so its outcome is recorded once. */
+  async finishExecution(
+    id: string,
+    outcome: {
+      status: "completed" | "failed" | "cancelled";
+      jobId?: string;
+      result?: Record<string, unknown>;
+      errorMessage?: string;
+    },
+  ): Promise<ClawExecution | null> {
+    const row = await db
+      .updateTable("claw_executions")
+      .set({
+        status: outcome.status,
+        completed_at: new Date(),
+        result: outcome.result ? JSON.stringify(outcome.result) : null,
+        error_message: outcome.errorMessage ?? null,
+        ...(outcome.jobId ? { job_id: outcome.jobId } : {}),
+      })
+      .where("id", "=", id)
+      .where("status", "in", ["pending", "running"])
+      .returningAll()
+      .executeTakeFirst();
+
+    return row ? this.mapRowToExecution(row) : null;
+  }
+
   async deleteExecution(id: string): Promise<boolean> {
     const result = await db
       .deleteFrom("claw_executions")

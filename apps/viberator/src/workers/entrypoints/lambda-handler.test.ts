@@ -54,24 +54,6 @@ describe("lambda-handler", () => {
     );
   });
 
-  test("processes an SQS event payload", async () => {
-    await handler({
-      Records: [{ body: JSON.stringify(lambdaPayload) }],
-    });
-
-    expect(initializeSpy).toHaveBeenCalledWith(lambdaPayload);
-    expect(executeTaskSpy).toHaveBeenCalledTimes(1);
-  });
-
-  test("processes a body-wrapped payload", async () => {
-    await handler({
-      body: JSON.stringify(lambdaPayload),
-    });
-
-    expect(initializeSpy).toHaveBeenCalledWith(lambdaPayload);
-    expect(executeTaskSpy).toHaveBeenCalledTimes(1);
-  });
-
   test("refuses a Files space's run clearly instead of losing its files", async () => {
     const { repository: _repository, ...withoutRepository } = lambdaPayload;
     const filesPayload = {
@@ -83,8 +65,8 @@ describe("lambda-handler", () => {
     expect(executeTaskSpy).not.toHaveBeenCalled();
   });
 
-  test("throws on invalid payload shape", async () => {
-    await expect(handler({ Records: {} })).rejects.toThrow(
+  test("rejects events that are not a direct invocation payload", async () => {
+    await expect(handler({ Records: [{ body: JSON.stringify(lambdaPayload) }] })).rejects.toThrow(
       "Invalid Lambda payload in event",
     );
   });

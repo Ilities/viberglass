@@ -7,7 +7,8 @@ import type { TicketListDAO } from "../../../persistence/ticketing/TicketListDAO
 import type { IntegrationDAO } from "../../../persistence/integrations";
 import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
 import type { TaskParticipantService } from "../../../services/tasks/TaskParticipantService";
-import type { TaskActivityRecorder } from "../../../services/tasks/TaskActivityRecorder";
+import type { ActivityActor } from "../../../services/tasks/TaskActivityRecorder";
+import type { TaskDoneService } from "../../../services/tasks/TaskDoneService";
 import { spaceViewerOf, tasksInBodyGuard } from "../../middleware/spaceAccessGuards";
 import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 import { taskChangeGuard, tasksInBodyChangeGuard } from "../../middleware/taskChangeGuards";
@@ -35,7 +36,7 @@ interface TicketCrudRouteDependencies {
   integrationDAO: IntegrationDAO;
   spaceAccess: Pick<SpaceAccessService, "scopeFor" | "assertCanSee">;
   participants: Pick<TaskParticipantService, "assertCanSeeSpace">;
-  activity: Pick<TaskActivityRecorder, "recordByCurrentActor">;
+  done: Pick<TaskDoneService, "finish" | "reopen">;
 }
 
 import { uuidRegex } from "./taskListQuery";
@@ -50,7 +51,7 @@ export function registerTicketCrudRoutes(
     integrationDAO,
     spaceAccess,
     participants,
-    activity,
+    done,
   }: TicketCrudRouteDependencies,
 ): void {
   // POST /api/tasks - Create a new ticket
@@ -225,11 +226,19 @@ export function registerTicketCrudRoutes(
           });
         }
 
-        await ticketService.updateTicket(req.params.id, req.body);
-        const updatedTicket = await ticketService.getTicket(req.params.id);
-        if (existingTicket.status !== TICKET_STATUS.RESOLVED && updatedTicket?.status === TICKET_STATUS.RESOLVED) {
-          await activity.recordByCurrentActor(req.params.id, "task_done");
+        // Finishing and reopening go through their own service, so both are recorded the same way everywhere.
+        const { status, ...fields } = req.body;
+        const actor: ActivityActor = { type: "human", userId: req.authContext?.user.id ?? null };
+        if (status === TICKET_STATUS.RESOLVED) {
+          await ticketService.updateTicket(req.params.id, fields);
+          await done.finish(req.params.id, actor);
+        } else if (status !== undefined && existingTicket.status === TICKET_STATUS.RESOLVED) {
+          await done.reopen(req.params.id, actor);
+          await ticketService.updateTicket(req.params.id, { ...fields, status });
+        } else {
+          await ticketService.updateTicket(req.params.id, req.body);
         }
+        const updatedTicket = await ticketService.getTicket(req.params.id);
 
         res.json({
           success: true,

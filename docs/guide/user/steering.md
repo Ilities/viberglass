@@ -12,17 +12,17 @@ Choose Let it carry on to resume. Only the work the task was on last resumes; ot
 
 ## Interrupt with a new instruction
 
-To change direction while the agent is working, write your message and choose Interrupt with this instead of Post. The agent's current turn stops and it starts again with your message.
+To change direction while the agent is working, write your message and choose Send now and interrupt. The agent's current turn stops and it starts again with your message.
 
-A plain Post leaves the current turn running; your message is read when the turn finishes.
+Send after this turn leaves the current turn running; your message is read when the turn finishes.
 
 ## Cancel a run
 
-Cancel run on a running turn stops that run. The thread records who cancelled it. Anything the agent had already written, such as part of the plan, is kept.
+Cancel run on a running turn stops that run. Members and admins have it. The thread records who cancelled it. Anything the agent had already written, such as part of the plan, is kept.
 
 ## Take over
 
-When the agent has a branch for the task, you can work on it yourself.
+When the agent has a branch for the task, you can work on it yourself. Tasks in a Files space have no branch, so there's nothing to take over.
 
 1. Choose Take over. The agent is paused, and the task shows who has the work.
 2. The Taken over card shows the commands to get the branch, such as `git clone`, `git fetch` and `git switch`. If the agent hasn't pushed the branch yet, the commands start it from the base branch.

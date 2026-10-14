@@ -30,6 +30,8 @@ import {
   TICKET_SERVICE_ERROR_CODE,
 } from "./errors/TicketServiceError";
 import logger from "../config/logger";
+import type { SpaceFilesRunService } from "./spaceFiles/SpaceFilesRunService";
+import { claimSpaceFiles, withoutRepository } from "./spaceFiles/filesRunBootstrap";
 import { integrationRegistry } from "../integrations/registerIntegrationPlugins";
 import {
   ATTR_VG_CLANKER_ID,
@@ -80,8 +82,6 @@ export interface PrepareTicketRunContextInput {
   jobId: string;
   instructionFiles?: Array<Partial<InlineInstructionFile>>;
   additionalSecretBindings?: SecretBinding[];
-  /** Task turns run in Files spaces; schedules don't yet. */
-  allowFiles?: boolean;
 }
 
 export interface PreparedTicketRunContext {
@@ -191,12 +191,6 @@ export async function prepareTicketRunContext(
     throw new Error("Associated project not found");
   }
   const files = project.backingKind === "files";
-  if (files && !input.allowFiles) {
-    throw new TicketServiceError(
-      TICKET_SERVICE_ERROR_CODE.FILES_EXECUTION_UNAVAILABLE,
-      "Schedules don't run in Files spaces yet.",
-    );
-  }
   if (files && !objectStorageBucket(deps.storageEnvironment?.() ?? process.env)) {
     throw new TicketServiceError(
       TICKET_SERVICE_ERROR_CODE.FILES_STORAGE_UNAVAILABLE,
@@ -318,6 +312,7 @@ export interface JobSubmissionDependencies {
     typeof import("../workers/WorkerExecutionService").WorkerExecutionService.prototype,
     "executeJob"
   >;
+  spaceFiles: Pick<SpaceFilesRunService, "enqueue" | "payloadFor">;
 }
 
 export interface BuildBootstrapPayloadInput {
@@ -528,8 +523,14 @@ async function dispatchJob(
     skills: preparedContext.skills,
   });
 
+  const files = project.backingKind === "files";
+  if (files) withoutRepository(bootstrapPayload);
   jobData.bootstrapPayload = bootstrapPayload;
   await deps.bootstraps.saveBootstrapPayload(jobData.id, bootstrapPayload);
+  // One run at a time changes a space's files; one that waits is started when the space is free.
+  if (files && !(await claimSpaceFiles(deps.spaceFiles, deps.bootstraps, { jobId: jobData.id, projectId: project.id, bootstrap: bootstrapPayload }))) {
+    return { jobId: jobData.id, status: "queued" };
+  }
 
   // Invoke worker (fire-and-forget)
   deps.workerExecutionService

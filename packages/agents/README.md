@@ -157,6 +157,7 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `agentEnv` | — | Other env vars the harness CLI reads, such as its config dir. Agent CLIs get a deny-by-default environment: a variable reaches them only if a configured plugin names it here, in `envAliases`, `providers` or `settings`. Platform credentials never do. |
 | `stateDirs` | — | `$HOME`-relative paths holding the agent's sessions (e.g. `[".aider"]`), archived after each turn and restored before the next so the session resumes. Check where the harness really writes: opencode, for one, uses `~/.local/share/opencode`, not `~/.opencode`. |
 | `stateExcludes` | — | Paths inside `stateDirs` left out of the archive, such as credential files the worker injects fresh each run. |
+| `skillDirs` | — | `$HOME`-relative folders the harness reads user-level skills from; the worker writes the runner's skills there. Defaults to `.agents/skills`. |
 | `harnessConfigPatterns` | — | Relative file patterns in `.harness-config/` the harness should materialise for this agent. |
 | `harnessConfigEditor` | — | `{ fileType, label, envReferences, template }`: the config file the runner form edits. `fileType` is one of `harnessConfigPatterns`; `envReferences` are how the file refers to an env var, with `NAME` in its place (the editor writes the first); `template` fills an empty editor. |
 | `settings` | — | Settings the runner form shows, stored on the runner's agent config under each `key`: `{ key, label, type: "string" \| "select", description?, placeholder?, options?, allowCustom?, providerDefault?, env }`. The worker sets each `env` var to the runner's value; declaring it is what lets it through the agent environment. `providerDefault` (`"model"` or `"endpoint"`) fills the setting from the chosen provider's default. Backticks in `description` show as code. |
@@ -177,6 +178,8 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 
 ## Generated Artifacts
 
+`npm run generate:catalog` writes three files in `packages/types/src/`. `agentPluginCatalog.json` carries what the runner form shows for each harness (name, description, logo, settings, config file editor, sign-in methods); the other two are below.
+
 ### `agentProviderCatalog.json`
 
 `packages/types/src/agentProviderCatalog.json` lists which harness runs which provider's keys, from each plugin's `providers`. The same `npm run generate:catalog` writes it, and fails when a plugin names a provider missing from `MODEL_PROVIDERS` or a provider doesn't have exactly one default harness. A new provider is a `MODEL_PROVIDERS` entry (display name, key page, distinctive key prefixes, key check request) plus a binding in the harness that runs it.
@@ -190,7 +193,7 @@ npm run build            # build all packages first
 npm run generate:catalog # regenerate the catalog
 ```
 
-Commit the updated JSON. CI verifies the committed file matches what the generator produces.
+Commit the updated JSON; nothing in CI regenerates it.
 
 ### Agent Dockerfiles
 

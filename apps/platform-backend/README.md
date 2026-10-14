@@ -1,12 +1,15 @@
 # Platform Backend
 
-Backend service for spaces and tasks, agent turns, worker execution, integrations, webhooks, and secret management.
+Backend service for spaces and tasks, files and artifacts, agent turns, worker execution, integrations, webhooks, and secret management.
 
 ## Documentation
 - Architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
+- Local development: [docs/local-development.md](../../docs/local-development.md)
 - Decisions: [docs/adr](../../docs/adr/)
 
 ## Quick Start
+
+The usual way to run it is `docker compose up` from the repository root, which also starts Postgres, MinIO and the frontend and runs migrations on start. To run the backend on its own:
 
 ### 1) Install dependencies
 ```bash
@@ -23,6 +26,7 @@ Update `.env` values for your local PostgreSQL and any optional AWS/webhook inte
 ```bash
 npm run migrate:latest
 ```
+Or set `RUN_MIGRATIONS_ON_STARTUP=true` to migrate when the server starts.
 
 ### 4) Start dev server
 ```bash

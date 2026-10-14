@@ -9,6 +9,7 @@ Home is where you land. At the top it says how many conversations need your atte
 Needs you lists the tasks where it's your move. Each row says why:
 
 - Agent asked you: the agent has a question for you.
+- Ready for your review: the agent finished its work and asked you to look at it.
 - A name, such as "Maria mentioned you": someone mentioned you.
 - Your move: the task waits on you, for example as its owner or a reviewer.
 
@@ -31,11 +32,11 @@ After setup, admins see a short Next steps list on Home: invite your team, conne
 Overview shows the tasks in every space you can see, each counted once:
 
 - Needs attention: failed, paused, asking a question, or waiting on someone for more than a day. Each one names its next move.
-- Live now: tasks an agent is working on.
+- Agent working: tasks an agent is working on.
 - Waiting on people: someone's move, for less than a day.
 - Not started: nothing asked for yet.
 
-It also shows recent outcomes. Filter it to one space at the top. Viewers land on Overview instead of Home.
+It also shows Recent outcomes. Filter it to one space at the top. Viewers land on Overview instead of Home.
 
 ## Notifications
 

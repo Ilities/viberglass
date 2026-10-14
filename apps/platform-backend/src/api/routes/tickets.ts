@@ -50,7 +50,8 @@ import { AgentQuestionAnswerService } from "../../services/questions/AgentQuesti
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskTimelineService } from "../../services/tasks/TaskTimelineService";
 import { TaskTurnService } from "../../services/taskTurns/TaskTurnService";
-import { TaskActivityRecorder } from "../../services/tasks/TaskActivityRecorder";
+import type { ActivityActor } from "../../services/tasks/TaskActivityRecorder";
+import { TaskDoneService } from "../../services/tasks/TaskDoneService";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { taskChangeGuard } from "../middleware/taskChangeGuards";
 import { TaskChangePolicyService } from "../../services/tasks/TaskChangePolicyService";
@@ -74,7 +75,7 @@ router.param("id", taskParamGuard());
 router.param("key", taskKeyParamGuard());
 
 const taskParticipants = new TaskParticipantService();
-const taskActivity = new TaskActivityRecorder();
+const taskDone = new TaskDoneService();
 const taskDiscussion = new TaskDiscussionService();
 const taskTurns = new TaskTurnService({ discussion: taskDiscussion });
 registerTaskParticipantRoutes(router, taskParticipants);
@@ -115,21 +116,28 @@ const validSetStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.RESOLVED,
 ];
 
+const isSetStatus = (value: unknown): value is TicketLifecycleStatus =>
+  validSetStatuses.some((status) => status === value);
+
 router.post("/:id/set-status", validateUuidParam("id"), taskChangeGuard("edit"), async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body as { status: unknown };
+  const status: unknown = req.body?.status;
 
-  if (!status || !validSetStatuses.includes(status as TicketLifecycleStatus)) {
+  if (!isSetStatus(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
 
   try {
     const before = await ticketService.getTicket(id);
-    await ticketService.updateTicket(id, {
-      status: status as TicketLifecycleStatus,
-    });
-    if (before && before.status !== TICKET_STATUS.RESOLVED && status === TICKET_STATUS.RESOLVED) {
-      await taskActivity.recordByCurrentActor(id, "task_done");
+    const actor: ActivityActor = { type: "human", userId: req.authContext?.user.id ?? null };
+    // Finishing and reopening go through their own service, so both are recorded the same way everywhere.
+    if (status === TICKET_STATUS.RESOLVED) {
+      await taskDone.finish(id, actor);
+    } else if (before?.status === TICKET_STATUS.RESOLVED) {
+      await taskDone.reopen(id, actor);
+      await ticketService.updateTicket(id, { status });
+    } else {
+      await ticketService.updateTicket(id, { status });
     }
 
     const updated = await ticketService.getTicket(id);
@@ -156,7 +164,7 @@ registerTicketCrudRoutes(router, {
   integrationDAO: new IntegrationDAO(),
   spaceAccess,
   participants: taskParticipants,
-  activity: taskActivity,
+  done: taskDone,
 });
 registerTaskMediaRoutes(router, { ticketService, fileUploadService });
 registerTaskReadRoutes(router, {

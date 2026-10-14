@@ -25,6 +25,7 @@ function setup() {
     takeovers: { listFor: jest.fn().mockResolvedValue(new Map()) },
     pullRequests: { lastMergedParts: jest.fn().mockResolvedValue(new Map()) },
     marks: { listFor: jest.fn().mockResolvedValue(new Map()) },
+    spaces: { backingKinds: jest.fn().mockResolvedValue(new Map([["t-1", "git"]])) },
   };
   return { deps, service: new TaskSituationService(deps) };
 }
@@ -71,6 +72,16 @@ describe("TaskSituationService", () => {
 
     expect(described?.lastMessage?.text).toBe("@Tomi can you look?");
     expect(described?.situation.state).toBe("discussing");
+  });
+
+  it("says a code turn in a Files space is working on the artifact", async () => {
+    const { deps, service } = setup();
+    deps.spaces.backingKinds.mockResolvedValue(new Map([["t-1", "files"]]));
+    deps.turns.running.mockResolvedValue(new Map([["t-1", { action: "code", since: at("11:00") }]]));
+
+    const described = (await service.describe([TASK], viewer("owner"))).get("t-1");
+
+    expect(described?.situation).toMatchObject({ state: "agent_working", label: "Agent working on the artifact" });
   });
 
   it("counts a pull request as the code artifact, newer than the plan", async () => {

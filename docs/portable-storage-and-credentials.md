@@ -22,7 +22,7 @@ Configure the following on the backend and AWS/Docker worker deployments. Kubern
 | --- | --- | --- |
 | `S3_ENDPOINT` | S3-compatible HTTP(S) endpoint, without embedded credentials | AWS SDK endpoint |
 | `S3_REGION` | Signing region | `AWS_REGION`, then `eu-west-1` |
-| `S3_BUCKET` | Media, documents, and session archive bucket | `AWS_S3_BUCKET` |
+| `S3_BUCKET` | Files space snapshots and artifacts, media, documents, and session archive bucket | `AWS_S3_BUCKET` |
 | `INSTRUCTION_FILES_S3_BUCKET` | Optional separate instruction bucket | `S3_BUCKET`, then `AWS_S3_BUCKET` |
 | `S3_FORCE_PATH_STYLE` | `true` for `/bucket/key`, `false` for virtual host addressing | SDK default |
 | `S3_ACCESS_KEY_ID` | Object storage access key | SDK credential chain if both S3 keys are unset |
@@ -36,6 +36,8 @@ The neutral S3 variables let an OVH signing region coexist with an AWS region us
 Backend and worker storage clients use the same resolver in `packages/types/src/objectStorage.ts`. Stored references remain `s3://bucket/key`. Media download URLs are signed against the configured endpoint. The bucket must already exist and allow the required object operations. Uploads do not provision buckets.
 
 Kubernetes workers authenticate `POST /api/jobs/:jobId/storage-url` with the run's callback token and tenant. Reads are limited to exact instruction/media/prior-session references in the stored bootstrap payload. Writes are limited to one backend-selected archive key for the run; conversation-state callbacks cannot choose another run's archive. URLs expire after sixty seconds and continue working for that short window if a run is cancelled after authorization. Terminal runs cannot request more URLs. The underlying storage endpoint must be reachable from worker Pods.
+
+Runs in Files spaces, on any compute target, get their read and write URLs for the space's files archive from `POST /api/jobs/:jobId/files/storage-url`, signed for `S3_WORKER_ENDPOINT` when it is set, and record the saved archive and its artifacts with `POST /api/jobs/:jobId/files/checkpoint`.
 
 `KUBERNETES_WORKER_ENV_SECRET` is optional and reads only `OTEL_EXPORTER_OTLP_HEADERS`; it no longer imports arbitrary values or storage credentials. The Helm chart supplies namespace boundaries and network policies; policy enforcement requires a compatible CNI.
 

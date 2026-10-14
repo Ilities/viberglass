@@ -9,10 +9,10 @@ describe("EcsProvisioningHandler", () => {
     process.env = { ...originalEnv };
     delete process.env.VIBERATOR_ECS_EXECUTION_ROLE_ARN;
     delete process.env.VIBERATOR_ECS_TASK_ROLE_ARN;
-    delete process.env.VIBERATOR_ECS_CONTAINER_IMAGE;
     delete process.env.VIBERATOR_ECS_CLUSTER_ARN;
     delete process.env.VIBERATOR_WORKER_REGISTRY;
     delete process.env.VIBERATOR_WORKER_IMAGE_PREFIX;
+    delete process.env.VIBERATOR_WORKER_IMAGE_TAG;
   });
 
   afterAll(() => {
@@ -61,7 +61,7 @@ describe("EcsProvisioningHandler", () => {
     );
     expect(error).toContain("executionRoleArn");
     expect(error).toContain("taskRoleArn");
-    expect(error).toContain("containerImage");
+    expect(error).not.toContain("containerImage");
     expect(error).toContain("clusterArn");
   });
 
@@ -70,8 +70,6 @@ describe("EcsProvisioningHandler", () => {
       "arn:aws:iam::123456789012:role/ecs-exec";
     process.env.VIBERATOR_ECS_TASK_ROLE_ARN =
       "arn:aws:iam::123456789012:role/ecs-task";
-    process.env.VIBERATOR_ECS_CONTAINER_IMAGE =
-      "123456789012.dkr.ecr.eu-west-1.amazonaws.com/worker:latest";
     process.env.VIBERATOR_ECS_CLUSTER_ARN =
       "arn:aws:ecs:eu-west-1:123456789012:cluster/worker-cluster";
 
@@ -149,6 +147,24 @@ describe("EcsProvisioningHandler", () => {
     await new EcsProvisioningHandler(client).provision(clanker);
     expect(registerTaskDefinition).toHaveBeenCalledWith(expect.objectContaining({
       containerDefinitions: [expect.objectContaining({ image: "ghcr.io/ilities/viberator-worker-pi:latest" })],
+    }));
+  });
+
+  it("registers the configured worker registry and tag", async () => {
+    process.env.VIBERATOR_WORKER_REGISTRY = "123456789012.dkr.ecr.eu-west-1.amazonaws.com";
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "abc123";
+    const { client, registerTaskDefinition } = buildEcsClient();
+    const clanker = buildClanker("ecs", {
+      version: 1,
+      strategy: { type: "ecs", executionRoleArn: "arn:exec", taskRoleArn: "arn:task", clusterArn: "arn:cluster" },
+      agent: { type: "pi" },
+    });
+    clanker.agent = "pi";
+    await new EcsProvisioningHandler(client).provision(clanker);
+    expect(registerTaskDefinition).toHaveBeenCalledWith(expect.objectContaining({
+      containerDefinitions: [expect.objectContaining({
+        image: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberator-worker-pi:abc123",
+      })],
     }));
   });
 

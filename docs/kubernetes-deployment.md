@@ -70,7 +70,7 @@ For managed PostgreSQL, enable the provider's backups/PITR and perform a test re
 kubectl -n viberglass exec viberglass-postgres-0 -- pg_dump -U viberglass -d viberglass -Fc > viberglass.dump
 ```
 
-Store the dump together with securely backed-up encryption keys and a snapshot/copy of the object-storage bucket (instructions, media, documents, session archives). Restore into a fresh database with the same encryption keys and matching objects. Point the backend at the restored database/bucket and validate login, secret resolution, document downloads, and a resumed session before replacing production. Bucket lifecycle policies must not delete active session archives prematurely.
+Store the dump together with securely backed-up encryption keys and a snapshot/copy of the object-storage bucket (instructions, media, documents, Files space snapshots and artifacts, session archives). Restore into a fresh database with the same encryption keys and matching objects. Point the backend at the restored database/bucket and validate login, secret resolution, document downloads, and a resumed session before replacing production. Bucket lifecycle policies must not delete active session archives or Files space snapshots prematurely.
 
 ## Diagnostics and cleanup
 

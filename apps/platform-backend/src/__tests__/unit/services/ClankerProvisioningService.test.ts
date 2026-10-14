@@ -40,7 +40,6 @@ describe("ClankerProvisioningService.getProvisioningPreflightError", () => {
     process.env = { ...originalEnv };
     delete process.env.VIBERATOR_ECS_EXECUTION_ROLE_ARN;
     delete process.env.VIBERATOR_ECS_TASK_ROLE_ARN;
-    delete process.env.VIBERATOR_ECS_CONTAINER_IMAGE;
     delete process.env.VIBERATOR_ECS_CLUSTER_ARN;
   });
 
@@ -59,7 +58,6 @@ describe("ClankerProvisioningService.getProvisioningPreflightError", () => {
     );
     expect(error).toContain("executionRoleArn");
     expect(error).toContain("taskRoleArn");
-    expect(error).toContain("containerImage");
     expect(error).toContain("clusterArn");
   });
 
@@ -68,8 +66,6 @@ describe("ClankerProvisioningService.getProvisioningPreflightError", () => {
       "arn:aws:iam::123456789012:role/ecs-exec";
     process.env.VIBERATOR_ECS_TASK_ROLE_ARN =
       "arn:aws:iam::123456789012:role/ecs-task";
-    process.env.VIBERATOR_ECS_CONTAINER_IMAGE =
-      "123456789012.dkr.ecr.eu-west-1.amazonaws.com/worker:latest";
     process.env.VIBERATOR_ECS_CLUSTER_ARN =
       "arn:aws:ecs:eu-west-1:123456789012:cluster/worker-cluster";
 

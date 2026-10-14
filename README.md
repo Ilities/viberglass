@@ -108,6 +108,7 @@ The backend reads its environment from `docker-compose.yml`; optional settings g
 | `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email                 |
 | `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset             |
 | `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`) |
+| `VIBERATOR_WORKER_IMAGE_TAG`                              | Tag of the worker images (default `latest`); a release tag or commit sha pins them |
 | `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`) |
 | `S3_ENDPOINT`, `S3_BUCKET` and the other `S3_*` settings  | S3-compatible storage for Files spaces, artifacts and media; the dev compose runs MinIO |
 | `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`                      | The separate address artifact previews are served from          |
@@ -151,8 +152,8 @@ Three Pulumi stacks in [`infra/`](infra/README.md), deployed in order:
 pulumi login s3://viberglass-pulumi-state
 
 cd infra/base && npm install && pulumi stack select dev && pulumi up       # VPC, KMS, logging
-cd infra/platform && npm install && pulumi stack select dev && pulumi up   # ECS backend, RDS, S3, Amplify frontend
 cd infra/workers && npm install && pulumi stack select dev && pulumi up    # Lambda and ECS workers
+cd infra/platform && npm install && pulumi stack select dev && pulumi up   # ECS backend, RDS, S3, Amplify frontend
 ```
 
 Runners on ECS or Lambda are created under Settings → Agents; the platform creates the task definition or function, with networking from the stack outputs.
@@ -161,8 +162,9 @@ Runners on ECS or Lambda are created under Settings → Agents; the platform cre
 
 Every agent runs in a worker image: a shared base plus one harness.
 
-- Docker and Kubernetes use the public images on GHCR (`ghcr.io/ilities/viberator-worker-<agent>`, `linux/amd64` and `linux/arm64`), published by `publish-worker-images` on pushes to `main` and on releases. The backend and frontend images (`viberglass-backend`, `viberglass-frontend`) are published the same way by `publish-platform-images`. Set `VIBERATOR_WORKER_REGISTRY` empty to use images you built locally.
-- AWS pulls from ECR. The `deploy-viberators` workflow pushes them, or by hand:
+- Docker, Kubernetes and ECS use the public images on GHCR (`ghcr.io/ilities/viberator-worker-<agent>`, `linux/amd64` and `linux/arm64`), published by `publish-worker-images` on pushes to `main` and on releases, tagged `latest`, the commit sha and the release tag. The backend and frontend images (`viberglass-backend`, `viberglass-frontend`) are published the same way by `publish-platform-images`. Set `VIBERATOR_WORKER_REGISTRY` empty to use images you built locally, and `VIBERATOR_WORKER_IMAGE_TAG` to pin a tag.
+- Lambda pulls from ECR. The `deploy-viberators` workflow pushes the Lambda image there on pushes to `main`, tagged `latest` and the commit sha.
+- On AWS, ECS runners can pull from your own ECR instead: set `viberglass:workerImageRegistry: ecr` (and optionally `viberglass:workerImageTag`) in the platform stack, push the harness images, then `pulumi up` in `infra/platform` and deploy the backend. Push them with the `deploy-viberators` workflow (harness `all`) or by hand:
 
 ```bash
 ./infra/workers/scripts/setup-harness-images.sh dev multi-agent   # one image with every harness
@@ -171,15 +173,13 @@ Every agent runs in a worker image: a shared base plus one harness.
 
 ### Database migrations
 
-The backend migrates on startup. To run them yourself:
+The backend migrates on startup (on Kubernetes, a migration Job runs on each Helm revision). To run them yourself:
 
 ```bash
-npm run migrate -w @viberglass/platform-backend                    # development
-./apps/platform-backend/scripts/run-migrations.sh prod --dry-run   # staging / production
-./apps/platform-backend/scripts/run-migrations.sh prod
+npm run platform-backend:migrate   # against the database in DB_* or DATABASE_URL
 ```
 
-Check that a database backup exists before migrating production.
+Check that a database backup exists before migrating production. [Database migrations](docs/operations/database-migrations.md) covers running them against AWS, safety rules and rollback.
 
 ---
 

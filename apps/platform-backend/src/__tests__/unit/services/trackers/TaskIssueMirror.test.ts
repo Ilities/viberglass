@@ -63,6 +63,25 @@ describe("TaskIssueMirror", () => {
     expect(posted(commenter)[1]).toContain("**Done.**");
   });
 
+  it("posts the artifacts a Files turn made, linked to their versions", async () => {
+    const { commenter, deps, mirror } = setup({ produced: [] });
+    deps.turns.getByJobId.mockResolvedValue({
+      id: "turn-1",
+      agent: { id: "a", name: "Claude" },
+      outcome: { reply: "Made the deck.", produced: [], artifacts: [{ artifactId: "art-1", versionId: "ver-1", title: "Q4 deck", number: 1, format: "html" }] },
+    });
+    const frontendUrl = process.env.PLATFORM_FRONTEND_URL;
+    process.env.PLATFORM_FRONTEND_URL = "https://vg.example";
+    try {
+      await mirror.onActivity(finished);
+    } finally {
+      process.env.PLATFORM_FRONTEND_URL = frontendUrl;
+    }
+
+    expect(posted(commenter)).toHaveLength(1);
+    expect(posted(commenter)[0]).toContain("**Artifact:** [Q4 deck](https://vg.example/spaces/web/artifacts/art-1?version=ver-1) v1");
+  });
+
   it("posts done when the task was finished in Viberglass, but not when closing the issue finished it", async () => {
     const { commenter, mirror } = setup();
 

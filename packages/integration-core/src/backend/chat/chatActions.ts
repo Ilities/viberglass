@@ -9,6 +9,8 @@ export const MAX_OPTION_BUTTONS = 5;
  */
 export const CHAT_ACTION = {
   ask: "task_ask",
+  /** Its value is the task's id. */
+  markDone: "task_mark_done",
   answers: Array.from({ length: MAX_OPTION_BUTTONS }, (_, index) => `question_answer_${index}`),
 } as const;
 

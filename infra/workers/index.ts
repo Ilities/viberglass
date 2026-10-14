@@ -9,7 +9,6 @@ import {getConfig} from "./config";
  *
  * This stack creates the worker infrastructure:
  * - ECR repository for worker container images
- * - SQS queue with dead letter queue
  * - Lambda worker for lightweight jobs
  * - ECS cluster with Fargate for heavier workloads
  *
@@ -210,36 +209,6 @@ for (const entry of harnessRepositoryEntries) {
 }
 
 // =============================================================================
-// SQS QUEUE
-// =============================================================================
-
-// Create dead letter queue for failed messages
-const deadLetterQueue = new aws.sqs.Queue(
-  `${config.environment}-viberglass-worker-dlq`,
-  {
-    visibilityTimeoutSeconds: 900, // 15 minutes
-    messageRetentionSeconds: 345600, // 4 days
-    tags: config.tags,
-  },
-);
-
-// Create main worker queue with redrive policy for DLQ
-const workerQueue = new aws.sqs.Queue(
-  `${config.environment}-viberglass-worker-queue`,
-  {
-    visibilityTimeoutSeconds: 900, // 15 minutes for Lambda max timeout
-    messageRetentionSeconds: 345600, // 4 days
-    redrivePolicy: deadLetterQueue.arn.apply((arn) =>
-      JSON.stringify({
-        deadLetterTargetArn: arn,
-        maxReceiveCount: 3,
-      }),
-    ),
-    tags: config.tags,
-  },
-);
-
-// =============================================================================
 // LAMBDA WORKER
 // =============================================================================
 
@@ -268,15 +237,6 @@ new aws.iam.RolePolicyAttachment(
   {
     role: lambdaRole.name,
     policyArn: aws.iam.ManagedPolicy.AWSLambdaBasicExecutionRole,
-  },
-);
-
-// Attach SQS execution role policy
-new aws.iam.RolePolicyAttachment(
-  `${config.environment}-viberglass-lambda-sqs-exec`,
-  {
-    role: lambdaRole.name,
-    policyArn: aws.iam.ManagedPolicy.AWSLambdaSQSQueueExecutionRole,
   },
 );
 
@@ -373,16 +333,6 @@ const workerLambda = new aws.lambda.Function(
   },
 );
 
-// Trigger Lambda from SQS
-const eventSourceMapping = new aws.lambda.EventSourceMapping(
-  `${config.environment}-viberglass-sqs-trigger`,
-  {
-    eventSourceArn: workerQueue.arn,
-    functionName: workerLambda.name,
-    batchSize: 1,
-  },
-);
-
 // =============================================================================
 // ECS WORKER CLUSTER
 // =============================================================================
@@ -404,11 +354,9 @@ const workerCluster = new aws.ecs.Cluster(
   },
 );
 
-// ECS worker image URI - from config or derived from catalog
+// Image of the reference task definition; runners register their own task definitions
 const ecsCatalogEntry = workerImageCatalog.find((e) => e.variant === "ecs");
-const ecsWorkerImageUri: pulumi.Output<string> = config.ecsImageUri
-  ? pulumi.output(config.ecsImageUri)
-  : ecsCatalogEntry
+const ecsWorkerImageUri: pulumi.Output<string> = ecsCatalogEntry
     ? getDefaultImageUri(ecsCatalogEntry.repositoryName)
     : getDefaultImageUri(`${config.environment}-viberglass-worker`);
 
@@ -641,13 +589,6 @@ export const workerRepositoryUrl = workerRepo.url;
 export const workerRepositoryArn = workerRepo.repository.arn;
 export const workerRepositoryId = workerRepo.repository.id;
 
-// SQS outputs
-export const queueUrl = workerQueue.url;
-export const queueArn = workerQueue.arn;
-export const queueId = workerQueue.id;
-export const deadLetterQueueArn = deadLetterQueue.arn;
-export const deadLetterQueueUrl = deadLetterQueue.url;
-
 // Lambda outputs
 export const lambdaArn = workerLambda.arn;
 export const lambdaName = workerLambda.name;
@@ -655,7 +596,6 @@ export const lambdaInvokeArn = workerLambda.invokeArn;
 export { lambdaWorkerImageUri as lambdaImageUri };
 export const lambdaRoleName = lambdaRole.name;
 export const lambdaRoleArn = lambdaRole.arn;
-export const eventSourceMappingId = eventSourceMapping.id;
 
 // ECS outputs
 export const ecsClusterArn = workerCluster.arn;
@@ -665,7 +605,6 @@ export const ecsTaskDefinitionFamily = workerTaskDefinition.family;
 export const ecsExecutionRoleArn = ecsTaskExecutionRole.arn;
 export const ecsTaskRoleArn = ecsTaskRole.arn;
 export const ecsTaskRoleName = ecsTaskRole.name;
-export const ecsImageUri = ecsWorkerImageUri;
 
 // Security group (from base stack, exported for convenience)
 export const workerSecurityGroup = workerSecurityGroupId;

@@ -1,6 +1,6 @@
 # Agents and models
 
-A runner is a configured agent: which coding agent runs a task, with which model and key, on which compute. Setup creates a default runner; add more under Settings → Agents & runners to offer other agents or models.
+A runner is a configured agent: which coding agent runs a task, with which model and key, on which compute. Setup creates a default runner; add more under Settings → Agents to offer other agents or models.
 
 ## Coding agents
 
@@ -11,33 +11,36 @@ Viberglass runs these coding agents, each in its own worker image:
 | Claude Code | Anthropic |
 | OpenAI Codex | OpenAI, with an API key or a ChatGPT sign-in |
 | Google Antigravity | Google Gemini |
-| Qwen Code CLI | Alibaba Cloud Model Studio, Alibaba Coding Plan |
+| Qwen CLI | Alibaba Cloud Model Studio, Alibaba Coding Plan |
 | Mistral Vibe | Mistral |
 | Kimi Code | Kimi Code, Moonshot AI |
 | OpenCode | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq, and workspace models |
-| Pi Coding Agent | Many providers, and workspace models |
+| Pi | Anthropic, workspace models, and providers set in its `models.json` |
+
+The agents on offer are the harness plugins listed in `viberglass.plugins.json` at the repository root, built into the backend and worker images. Adding or removing one means building your own images; see the [agent plugins README](https://github.com/Ilities/viberglass/blob/main/packages/agents/README.md).
 
 ## Create a runner
 
-Open Settings → Agents & runners and choose to create an agent runner.
+Open Settings → Agents and choose New agent.
 
 1. Name it after what you'll know it by, such as the account or team it belongs to.
 2. Pick the agent.
-3. Pick the provider and key, or a custom endpoint. Choose a key you've already added, or add one here; keys are shared across runners. The list only offers what the chosen agent can use.
+3. Pick the provider and key, or a custom endpoint. Choose a key you've already added, or add one here; keys are shared across runners. The list only offers what the chosen agent can use. Codex also asks what to sign in with: an API key or a ChatGPT account.
 4. Pick the model, or keep the agent's default.
 5. Create it.
 
 Under Advanced:
 
-- Compute: where its runs go. Docker on this host is the default on a Docker install. Kubernetes, ECS and Lambda are offered when the installation is set up for them, with their own resource and time limits.
-- Instructions and tools: an AGENTS.md file with instructions for every run, MCP servers the agent can call, and skills it can load.
+- Compute: where its runs go. Docker on this host is the default on a Docker install. Kubernetes, ECS and Lambda are offered when the installation is set up for them, with their own resource and time limits. On Docker, Image picks Published image, the default, which pulls the agent's worker image, or Build from source, which builds it from the source checkout the backend runs from, as in the Docker quick start. Build from source is only offered when the backend has that checkout, which the published backend image doesn't. To run your own worker images there, build them from a checkout of the repository with `./infra/workers/scripts/build-workers.sh all`, push them with `push-workers.sh all` to the registry in `VIBERATOR_WORKER_REGISTRY` (leave it empty to use images on the Docker host), and pick Published image. A runner saved to build from source on a backend without the checkout won't start; switch it to Published image.
+- Instructions: an AGENTS.md file with instructions for every run. OpenCode and Pi can also take their own config file, `opencode.json` or `models.json`, for example to add a model provider.
+- Tools: MCP servers the agent can call, and skills it can load.
 - Extra environment variables, each from a secret.
 
 <!-- screenshot: runner form with agent and provider chosen -->
 
 ## Can a runner take tasks?
 
-A runner's page shows Can take tasks, separately from its compute status:
+A runner's page shows by its name whether it can take tasks, separately from its compute status:
 
 - Ready: it can take tasks.
 - Needs a model key: no key is attached.
@@ -49,7 +52,7 @@ Only ready runners are picked when a task doesn't name an agent. The page also s
 
 ### ChatGPT sign-in for Codex
 
-A Codex runner can use a ChatGPT account instead of an API key. Start the runner, then use ChatGPT login on its page and follow the device sign-in. The login is stored encrypted for that runner and kept up to date by its runs.
+A Codex runner can use a ChatGPT account instead of an API key: choose ChatGPT account under Sign in with in the runner form. Save and start the runner, then choose Connect under ChatGPT account on its page and follow the device sign-in. The login is stored encrypted for that runner and kept up to date by its runs.
 
 ## Which agent takes a task
 
@@ -62,7 +65,7 @@ When someone asks without naming an agent, the task's next request goes to the f
 
 The line above a task's suggested actions shows which one and why. People can pick another agent by mentioning it with @ in the thread.
 
-To give a space its own default agent, open the space's Settings and choose one under Default agent. Its maintainers and workspace admins can change it. A space whose default can't run, for example because its key is missing, falls back to the workspace's default; if the space's default agent is deleted, the space goes back to using the workspace's default.
+To give a space its own default agent, open the space's Space settings → Task defaults and choose one under Default agent. Its maintainers and workspace admins can change it. A space whose default can't run, for example because its key is missing, falls back to the workspace's default; if the space's default agent is deleted, the space goes back to using the workspace's default.
 
 ## Connected models
 
@@ -71,7 +74,7 @@ Any OpenAI- or Anthropic-compatible API can serve as a model: a provider such as
 Add one under Settings → Models with Connect a model, or with Connect a model in the runner form. Either way, fill in:
 
 - Name and Base URL. For OpenAI formats include the API prefix, such as `/v1`; for Anthropic Messages leave it out, as Anthropic clients add it.
-- API format: Pi, Qwen Code, Kimi Code and Mistral Vibe take all three. OpenCode takes OpenAI Chat Completions, Codex takes OpenAI Responses, and Claude Code takes Anthropic Messages.
+- API format: Pi, Qwen CLI, Kimi Code and Mistral Vibe take all three. OpenCode takes OpenAI Chat Completions, Codex takes OpenAI Responses, and Claude Code takes Anthropic Messages.
 - Authentication: a bearer token, a custom header, or none, with the key kept as a shared secret.
 - Extra headers that aren't secret, as JSON.
 - May need time to wake up, for endpoints that scale to zero. Runs then wait, up to 15 minutes, for the endpoint to answer before the agent starts.

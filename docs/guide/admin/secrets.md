@@ -4,16 +4,16 @@ Model keys, access tokens and other credentials are workspace secrets. This page
 
 ## The Secrets page
 
-Settings → Secrets lists the workspace's secrets in groups: model keys, ChatGPT logins, cloud accounts for model deployments, and other secrets. Keys added in setup or in a runner form show up here too.
+Settings → Secrets lists the workspace's secrets in groups: model keys, agent logins such as a Codex runner's ChatGPT account, and other secrets, with cloud accounts for model deployments in a section of their own. Keys added in setup or in a runner form show up here too.
 
-Choose Add Secret to create one:
+Choose Add secret to create one:
 
 - Name: the name it goes by, usually the environment variable it becomes, such as `ANTHROPIC_API_KEY`.
 - Model key from: for an AI model key, the provider that issued it. Leave as none for other secrets.
-- Where it's stored:
+- Storage location:
   - Store the value (encrypted): kept encrypted in the Viberglass database. The default, and the one to use on Docker and Kubernetes.
   - Server environment variable (advanced): read from an environment variable that's already set on the Viberglass server.
-  - AWS SSM Parameter Store: stored in SSM as a SecureString, where ECS and Lambda workers read it.
+  - AWS SSM Parameter Store: stored in SSM as a SecureString, where ECS and Lambda workers read it. It's kept at `/viberator/secrets/<secret id>`; a custom path, under Advanced, is for a parameter that already exists, and workers can't read one outside that prefix.
 
 Editing a secret leaves its value as it is unless you enter a new one.
 

@@ -49,8 +49,7 @@ export function buildDefaultTaskDefinition(
     config.executionRoleArn || process.env.VIBERATOR_ECS_EXECUTION_ROLE_ARN;
   const taskRoleArn =
     config.taskRoleArn || process.env.VIBERATOR_ECS_TASK_ROLE_ARN;
-  const containerImage =
-    config.containerImage || process.env.VIBERATOR_ECS_CONTAINER_IMAGE;
+  const containerImage = config.containerImage;
   const logGroup =
     config.logGroup ||
     process.env.VIBERATOR_ECS_LOG_GROUP ||

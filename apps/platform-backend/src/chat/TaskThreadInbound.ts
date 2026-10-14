@@ -7,6 +7,7 @@ import { UserDAO } from "../persistence/user/UserDAO";
 import { isTaskAskPolicyError } from "../services/errors/TaskAskPolicyError";
 import type { AgentQuestionAnswerService } from "../services/questions/AgentQuestionAnswerService";
 import { TaskDiscussionService } from "../services/tasks/TaskDiscussionService";
+import { TaskDoneService } from "../services/tasks/TaskDoneService";
 import type { TaskTurnService } from "../services/taskTurns/TaskTurnService";
 
 /** What someone without a linked account is told when they try to take part from chat. */
@@ -22,11 +23,12 @@ export interface ChatServiceOf {
 
 interface Dependencies {
   identities: Pick<ChatIdentityDAO, "findActiveUserId">;
-  users: Pick<UserDAO, "getContact">;
+  users: Pick<UserDAO, "getContact" | "findById">;
   questions: Pick<AgentQuestionDAO, "listOpenForTasks" | "getById">;
   answers: Pick<AgentQuestionAnswerService, "answer">;
   turns: Pick<TaskTurnService, "ask">;
   discussion: Pick<TaskDiscussionService, "create">;
+  done: Pick<TaskDoneService, "markDone">;
 }
 
 /**
@@ -47,6 +49,7 @@ export class TaskThreadInbound {
       users: new UserDAO(),
       questions: new AgentQuestionDAO(),
       discussion: new TaskDiscussionService(),
+      done: new TaskDoneService(),
       ...deps,
     };
   }
@@ -90,6 +93,19 @@ export class TaskThreadInbound {
     await runAsActor({ userId: actorId, chat: this.actor(input.chatUserId) }, () =>
       this.deps.answers.answer(question.ticketId, question.id, actorId, answer),
     );
+  }
+
+  /** The task's Mark done button. */
+  async markDone(input: { ticketId: string; chatUserId: string }): Promise<void> {
+    const user = await this.deps.users.findById(await this.linkedPerson(input.chatUserId));
+    if (!user) throw new Error(linkAccountMessage(this.service.label));
+    await runAsActor({ userId: user.id, chat: this.actor(input.chatUserId) }, () =>
+      this.deps.done.markDone(input.ticketId, { id: user.id, role: user.role }),
+    );
+  }
+
+  async unlinkedAccountMessage(chatUserId: string): Promise<string | null> {
+    return (await this.personOf(chatUserId)) ? null : linkAccountMessage(this.service.label);
   }
 
   private actor(chatUserId: string) {

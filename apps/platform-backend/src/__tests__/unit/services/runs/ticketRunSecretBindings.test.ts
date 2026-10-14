@@ -54,7 +54,7 @@ const runner: Clanker = {
 
 function prepare(
   additionalSecretBindings = [{ envVar: "NOTION_TOKEN", secretId: "template-notion" }],
-  files?: { allowFiles?: boolean; env?: Record<string, string>; strategy?: string },
+  files?: { env?: Record<string, string>; strategy?: string },
 ) {
   const scmConfigs = jest.fn(async () => scmConfig);
   const space: Project = files ? { ...project, backingKind: "files" } : project;
@@ -62,7 +62,7 @@ function prepare(
     ? { ...runner, deploymentConfig: { ...runner.deploymentConfig!, strategy: { type: files.strategy } } as Clanker["deploymentConfig"] }
     : runner;
   return prepareTicketRunContext(
-    { projectId: "project-1", clankerId: "clanker-1", jobId: "job-1", additionalSecretBindings, allowFiles: files?.allowFiles },
+    { projectId: "project-1", clankerId: "clanker-1", jobId: "job-1", additionalSecretBindings },
     {
       storageEnvironment: () => files?.env ?? {},
       projectDAO: { getProject: jest.fn(async () => space) },
@@ -140,22 +140,18 @@ describe("a run in a Files space", () => {
   const STORAGE = { S3_BUCKET: "files" };
 
   it("works on the space's files without a repository or its token", async () => {
-    const context = await prepare([], { allowFiles: true, env: STORAGE });
+    const context = await prepare([], { env: STORAGE });
 
     expect(context.sourceRepository).toBe("");
     expect(context.scmConfig).toBeNull();
     expect(context.executionClanker.secretBindings.map((binding) => binding.envVar)).not.toContain(SCM_TOKEN_ENV_VAR);
   });
 
-  it("isn't available to schedules yet", async () => {
-    await expect(prepare([], { env: STORAGE })).rejects.toMatchObject({ code: "FILES_EXECUTION_UNAVAILABLE" });
-  });
-
   it("needs file storage to save the agent's files", async () => {
-    await expect(prepare([], { allowFiles: true })).rejects.toMatchObject({ code: "FILES_STORAGE_UNAVAILABLE", statusCode: 409 });
+    await expect(prepare([], {})).rejects.toMatchObject({ code: "FILES_STORAGE_UNAVAILABLE", statusCode: 409 });
   });
 
   it("refuses runners on Lambda", async () => {
-    await expect(prepare([], { allowFiles: true, env: STORAGE, strategy: "lambda" })).rejects.toMatchObject({ code: "FILES_RUNNER_UNSUPPORTED" });
+    await expect(prepare([], { env: STORAGE, strategy: "lambda" })).rejects.toMatchObject({ code: "FILES_RUNNER_UNSUPPORTED" });
   });
 });

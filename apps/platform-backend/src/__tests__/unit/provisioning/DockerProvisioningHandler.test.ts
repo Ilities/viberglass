@@ -1,4 +1,6 @@
+import path from "path";
 import { isObjectRecord } from "@viberglass/types";
+import { SOURCE_BUILD_UNAVAILABLE_MESSAGE } from "../../../provisioning/shared/sourceBuild";
 import type { DockerClientPort } from "../../../provisioning/ports/DockerClientPort";
 import { DockerProvisioningHandler } from "../../../provisioning/strategies/DockerProvisioningHandler";
 import { buildClanker } from "./testUtils";
@@ -45,10 +47,26 @@ describe("DockerProvisioningHandler", () => {
 
   const missingImage = { statusCode: 404, message: "No such image" };
 
-  it("returns null preflight error", () => {
+  it("has no preflight error for a published image", () => {
+    const { client } = buildDockerClient();
+    const handler = new DockerProvisioningHandler(client, { repoRoot: "/tmp" });
+
+    expect(handler.getPreflightError(prebuiltClanker())).toBeNull();
+  });
+
+  it("refuses to build from source without a source checkout", () => {
+    const { client } = buildDockerClient();
+    const handler = new DockerProvisioningHandler(client, { repoRoot: "/tmp" });
+
+    expect(handler.getPreflightError(buildClanker("docker", null))).toBe(
+      SOURCE_BUILD_UNAVAILABLE_MESSAGE,
+    );
+  });
+
+  it("builds from source when the repository is checked out", () => {
     const { client } = buildDockerClient();
     const handler = new DockerProvisioningHandler(client, {
-      repoRoot: "/tmp",
+      repoRoot: path.resolve(__dirname, "../../../../../.."),
     });
 
     expect(handler.getPreflightError(buildClanker("docker", null))).toBeNull();

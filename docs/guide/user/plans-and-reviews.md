@@ -42,7 +42,7 @@ Specific comments work best: "Keep the exact string Welcome to Acme without punc
 
 Once there are open comments, the suggested actions include "Revise the plan with N comments". It sends the agent every comment made since the plan's latest version. Read the new version rather than assuming each comment was applied.
 
-You can also ask for a change in the thread: type @, pick the agent, write the change, and choose Post. If you're allowed to edit the plan, you can also edit it directly.
+You can also ask for a change in the thread: type @, pick the agent, write the change, and choose Send. If you're allowed to edit the plan, you can also edit it directly.
 
 ## Versions
 
@@ -51,7 +51,7 @@ Each revision of the plan is a version. A link to an older version opens it read
 ## Bringing people in
 
 - Add reviewers under People on the task. They're sent a review request by Slack DM if they've linked Slack, and the task shows on their Home when it's their move.
-- Mention someone: type @, pick the person, and post. The mention shows on their Home until they reply or choose Acknowledge mention.
+- Mention someone: type @, pick the person, and send. The mention shows on their Home until they reply or choose Acknowledge mention.
 - Watchers follow the task and can take part in the conversation.
 
 A space can add default reviewers to every new task; ask your space's maintainer.

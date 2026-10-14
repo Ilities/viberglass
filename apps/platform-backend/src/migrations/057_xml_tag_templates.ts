@@ -214,7 +214,7 @@ IMPORTANT: After completing your work, you MUST output pull request metadata fil
 
 Please proceed.`;
 
-const CLAW_SCHEDULED_TASK_TEMPLATE = `You are an expert software engineer. Complete the scheduled task described below.
+export const CLAW_SCHEDULED_TASK_TEMPLATE = `You are an expert software engineer. Complete the scheduled task described below.
 
 <task-instructions>
 {{taskInstructions}}

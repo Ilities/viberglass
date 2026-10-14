@@ -47,7 +47,7 @@ Expect: no errors in the compose output that look alarming to a newcomer; the pa
 ### CLEAN-02 · First admin and setup
 1. Create the administrator.
 2. Model key: use a provider from the free or coding-plan tiers. Paste a wrong key first, then the right one.
-3. Repository: the disposable repository. Use Create a token with the right permissions and accept GitHub's form as prefilled.
+3. Space backing: Git repository, then the disposable repository. Use Create a token with the right permissions and accept GitHub's form as prefilled.
 4. Space, default agent.
 
 Expect: each step explains itself; the wrong key gets a plain-language error; the token from the prefilled form is accepted on the first try; the default agent shows Ready. Record how long the agent took to become ready (it pulls a worker image).
@@ -95,29 +95,30 @@ Expect: at least four of five reach a mergeable PR, with no step that needs a wo
 
 ## One server with Docker Compose (CLEAN-15 – CLEAN-19)
 
-Follow only the README and [Install with Docker → On a server](../../guide/admin/install-docker.md#on-a-server), with [Upgrades and backups](../../guide/admin/upgrades-and-backups.md#docker-on-a-server) for CLEAN-18. Needs: a fresh Linux VM from a cloud provider (2 vCPU, 4 GB RAM, 40 GB disk is a fair small-team size), a domain or subdomain you can point at it, and a published release of the images (`viberglass-backend`, `viberglass-frontend` and the workers on GHCR, public).
+Follow only the README and [Install with Docker → On a server](../../guide/admin/install-docker.md#on-a-server), with [Upgrades and backups](../../guide/admin/upgrades-and-backups.md#docker-on-a-server) for CLEAN-18. Needs: a fresh Linux VM from a cloud provider (2 vCPU, 4 GB RAM, 40 GB disk is a fair small-team size), a domain or subdomain you can point at it plus a second hostname for artifact previews, an S3-compatible bucket for Files spaces (optional), and a published release of the images (`viberglass-backend`, `viberglass-frontend` and the workers on GHCR, public).
 
 ### CLEAN-15 · Install with HTTPS
-1. Point the domain's A record at the VM. Install Docker Engine and Compose v2 the way the docs say, and nothing else.
-2. `git clone`, `cp .env.production.example .env`, fill in the required values (generate the three secrets as the file says), set `VIBERGLASS_VERSION` to the release.
+1. Point the domain's and the preview hostname's A records at the VM. Install Docker Engine and Compose v2 the way the docs say, and nothing else.
+2. `git clone`, `cp .env.production.example .env`, fill in the required values (generate the three secrets as the file says), set `VIBERGLASS_VERSION` to the release, `VIBERGLASS_PREVIEW_URL` and `VIBERGLASS_PREVIEW_DOMAIN`, and the `S3_*` settings if you have a bucket.
 3. `docker compose -f docker-compose.prod.yml --profile https up -d`.
 
-Expect: every required value is explained where you fill it in; a value left empty stops `up` with a message naming it; Caddy gets a certificate on the first request; https://your-domain loads with a valid certificate. Record the time from `git clone` to the sign-in page, and the image download size.
+Expect: every required value is explained where you fill it in; a value left empty stops `up` with a message naming it; Caddy gets certificates for both hostnames; https://your-domain loads with a valid certificate. Record the time from `git clone` to the sign-in page, and the image download size.
 
 ### CLEAN-16 · Setup and a pull request on the server
 1. CLEAN-02 – CLEAN-04 on the server: first admin, model key, repository, space, default agent, a task to a plan, then a PR.
 2. While the build runs, `docker ps` on the server.
+3. With a bucket configured: create a Files space and ask for an HTML artifact (FILES-07); preview it.
 
-Expect: as on a laptop. The agent's container is on the same host and reaches the backend on the bridge address without any setting changed. If `ip addr show docker0` shows something other than `172.17.0.1`, record whether the docs led you to `VIBERGLASS_WORKER_API_BIND`.
+Expect: as on a laptop. The agent's container is on the same host and reaches the backend on the bridge address without any setting changed. If `ip addr show docker0` shows something other than `172.17.0.1`, record whether the docs led you to `VIBERGLASS_WORKER_API_BIND`. (3) The agent's container reaches the bucket at `S3_WORKER_ENDPOINT` (or `S3_ENDPOINT`); the preview loads from the preview hostname over HTTPS. Without a bucket, Files spaces say file storage isn't configured.
 
 ### CLEAN-17 · It's only reachable as intended
-1. From another machine: `curl -I http://your-domain` (should redirect to HTTPS), and try the server's IP on ports 3000, 5432, 8080 and 8888.
+1. From another machine: `curl -I http://your-domain` (should redirect to HTTPS), and try the server's IP on ports 3000, 5432, 8080, 8888 and 8890.
 2. Sign in from a second browser and invite a member; with `SMTP_URL` set, check the invite email arrives.
 
 Expect: only 80 and 443 answer from outside; plain HTTP redirects; sign-in works over HTTPS. Record any other port that answers, and whether email setup was clear from `.env.production.example`.
 
 ### CLEAN-18 · Back up, upgrade, restore
-1. Take the backup the docs describe: the database dump, the data directory and `.env`.
+1. Take the backup the docs describe: the database dump, the data directory and `.env`, and the bucket if Files spaces use one.
 2. Upgrade to a newer release (or `latest`) as documented.
 3. On a second fresh VM, restore from the backup alone, following the docs.
 
@@ -131,7 +132,7 @@ Expect: after the reboot everything comes back on its own, including HTTPS and t
 
 ## Kubernetes (CLEAN-20 – CLEAN-23)
 
-Follow only [local-kubernetes.md](../../local-kubernetes.md) and [kubernetes-deployment.md](../../kubernetes-deployment.md). The detailed checks are in [06-kubernetes.md](06-kubernetes.md); here, the question is whether the docs alone get a newcomer there.
+Follow only [local-kubernetes.md](../../local-kubernetes.md), [Install on Kubernetes](../../guide/admin/install-kubernetes.md) and [kubernetes-deployment.md](../../kubernetes-deployment.md). The detailed checks are in [06-kubernetes.md](06-kubernetes.md); here, the question is whether the docs alone get a newcomer there.
 
 ### CLEAN-20 · kind from the README
 1. Run `python3 infra/kubernetes/scripts/local.py` on a clean machine with only the stated prerequisites.
@@ -156,11 +157,11 @@ Expect: nothing left billable a day later.
 
 ## AWS (CLEAN-30 – CLEAN-32)
 
-Follow only the README's AWS section, [infra/README.md](../../../infra/README.md) and what they link. Details are in [05-aws.md](05-aws.md).
+Follow only the README's AWS section, [Install on AWS](../../guide/admin/install-aws.md), [infra/README.md](../../../infra/README.md) and what they link. Details are in [05-aws.md](05-aws.md).
 
 ### CLEAN-30 · Deploy from nothing
 1. A fresh AWS account (or one with no Viberglass stacks), a domain you control.
-2. Pulumi state, base, platform, worker images, workers, as documented.
+2. Pulumi state, then the base, workers and platform stacks in that order, as documented; the Lambda worker image only if you test Lambda (CLEAN-31).
 
 Expect: HTTPS sign-in and setup on ECS. Record the time, every guessed value, and the stack outputs you had to copy by hand.
 

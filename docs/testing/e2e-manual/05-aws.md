@@ -1,6 +1,6 @@
 # 05 · AWS deployment
 
-Deploys the three Pulumi stacks (base, platform, workers) to a dev environment in eu-west-1, then exercises the product on ECS and Lambda compute.
+Deploys the three Pulumi stacks (base, workers, platform, in that order) to a dev environment in eu-west-1, then exercises the product on ECS and Lambda compute.
 
 ## Contents
 
@@ -8,7 +8,7 @@ Deploys the three Pulumi stacks (base, platform, workers) to a dev environment i
 - [Before you deploy (AWS-00)](#before-you-deploy-aws-00)
 - [Infrastructure (AWS-01 – AWS-05)](#infrastructure-aws-01--aws-05)
 - [Delivery (AWS-06 – AWS-08)](#delivery-aws-06--aws-08)
-- [Product on AWS (AWS-10 – AWS-22)](#product-on-aws-aws-10--aws-22)
+- [Product on AWS (AWS-10 – AWS-23)](#product-on-aws-aws-10--aws-23)
 - [Teardown (AWS-30)](#teardown-aws-30)
 
 ## Known issues
@@ -24,7 +24,7 @@ Found in the code on 2026-10-05. Record whether each still happens.
 | K7 | Prod S3 lifecycle moves objects to Glacier/Deep Archive after 90/180 days; old media and session state become unreadable | Prod only |
 | K8 | `deploy-backend-prod.yml` smoke steps read a missing SSM key and probe `/api/projects` and `/api/version` | Prod only |
 | K9 | Alarms, SNS and the logging component exist but aren't wired; `enableAlarms`/`enableSpot`/autoscaling settings do nothing | AWS-03 |
-| K10 | The SQS queue and worker Lambda in the workers stack are unused legacy | AWS-04 |
+| K10 | The worker Lambda in the workers stack is unused legacy | AWS-04 |
 | K11 | Docs with stale names: `DEPLOYMENT_SECRETS.md` (`/viberator/{env}` paths), `database-migrations.md` (cluster names), the `aws logs tail` group name | Wherever you follow them |
 
 ## Before you deploy (AWS-00)
@@ -32,39 +32,41 @@ Found in the code on 2026-10-05. Record whether each still happens.
 1. Tools: AWS CLI v2 signed in to the target account, Pulumi CLI, Node 24, Docker with buildx (amd64 builds).
 2. A Route53 hosted zone; choose `api.dev.<domain>` and `app.dev.<domain>` under one registrable domain (K3).
 3. Pulumi state: run `infra/setup-pulumi-state.sh`, then `pulumi login s3://viberglass-pulumi-state`.
-4. Create `infra/platform/Pulumi.dev.yaml` from the example; set `viberglass:baseStack`, `apiDomain`, `appDomain`, `route53ZoneId`, optionally `emailDomain`/`emailFrom`, and `amplifyGithubAccessToken` (secret).
+4. Create `infra/platform/Pulumi.dev.yaml` from the example; set `viberglass:baseStack`, `workerStack` (`<org>/viberglass-workers/dev`), `apiDomain`, `appDomain`, `route53ZoneId`, `previewDomain` (e.g. `preview.dev.<domain>`, for artifact previews), optionally `emailDomain`/`emailFrom`, and `amplifyGithubAccessToken` (secret).
 5. Create the GitHub deploy role and OIDC provider per [../../operations/github-actions-role.md](../../operations/github-actions-role.md); set `AWS_ROLE_ARN` in the GitHub `dev` environment.
 
 Expect: `pulumi whoami` shows the S3 backend; stack config files ready.
 
 ## Infrastructure (AWS-01 – AWS-05)
 
+The stacks deploy in the order base → workers → platform, as CI does: the platform stack reads the workers stack through `workerStack`. Run the tests in that order: AWS-01, AWS-04, AWS-02, AWS-05, then AWS-03 if you test Lambda runners.
+
 ### AWS-01 · Base stack
 1. `cd infra/base && npm install && pulumi stack select dev && pulumi up`.
 
 Expect: VPC with 2 public + 2 private subnets, NAT (enterprise mode), security groups, KMS alias `alias/viberglass-dev-ssm`, log groups `/ecs/viberglass-dev-backend`, `/ecs/viberglass-dev-worker`.
 
-### AWS-02 · Platform stack (first pass)
-1. `cd infra/platform && pulumi stack select dev && pulumi up`.
-2. In the console check: RDS `dev-viberglass-db` (Postgres 18), ECR `dev-viberglass-repo`, S3 `dev-viberglass-uploads`, ALB with HTTPS listener and certificate, Amplify app `dev-viberglass-frontend`, SSM parameters under `/viberglass/dev/`, SES identity with DKIM records (if email configured).
-
-Expect: all resources present; the ALB target group is unhealthy until a backend image exists.
-
-### AWS-03 · Worker images to ECR
-1. GitHub → Actions → **deploy-viberators** → Run workflow: environment `dev`, harness `all` (or at least `multi-agent`, `opencode`, `lambda`). Or locally: `infra/workers/scripts/setup-harness-images.sh dev all`.
-
-Expect: `viberator-worker-*`, `viberator-base-worker` and `viberator-lambda-worker` repositories with fresh `latest` tags.
-
 ### AWS-04 · Workers stack
-1. `cd infra/workers && pulumi stack select dev && pulumi up` (set `tenantIds` to avoid wildcard SSM grants).
+1. `cd infra/workers && npm install && pulumi stack select dev && pulumi up` (set `tenantIds` to avoid wildcard SSM grants).
 
 Expect: ECS worker cluster, worker roles, reference task definition `dev-viberglass-worker`; outputs `ecsClusterArn`, `ecsTaskRoleArn`, `workerSubnets`, `workerSecurityGroup`.
 
-### AWS-05 · Platform stack (second pass)
-1. `pulumi config set viberglass:workerStack <org>/viberglass-workers/dev` in `infra/platform`; `pulumi up`.
-2. `aws ecs describe-task-definition` on the backend family: check the `VIBERATOR_ECS_*`, `VIBERATOR_WORKER_REGISTRY`, `VIBERATOR_LAMBDA_*` variables.
+### AWS-02 · Platform stack
+1. With `viberglass:workerStack` set to `<org>/viberglass-workers/dev` in `Pulumi.dev.yaml` (AWS-00): `cd infra/platform && npm install && pulumi stack select dev && pulumi up`.
+2. In the console check: RDS `dev-viberglass-db` (Postgres 18), ECR `dev-viberglass-repo`, S3 `dev-viberglass-uploads`, ALB with HTTPS listener and certificate, Amplify app `dev-viberglass-frontend`, SSM parameters under `/viberglass/dev/`, SES identity with DKIM records (if email configured). With `previewDomain` set: its certificate, DNS alias and ALB rule to the backend's port 8890.
 
-Expect: variables present, per [../../../infra/platform/DEPLOY_WORKER_INTEGRATION.md](../../../infra/platform/DEPLOY_WORKER_INTEGRATION.md).
+Expect: all resources present in one pass; the ALB target group is unhealthy until a backend image exists.
+
+### AWS-05 · Backend worker settings
+1. After the first backend deploy (AWS-06), `aws ecs describe-task-definition` on the backend family: check the `VIBERATOR_ECS_*`, `VIBERATOR_WORKER_REGISTRY`, `VIBERATOR_WORKER_IMAGE_TAG`, `VIBERATOR_LAMBDA_*` variables. `VIBERATOR_WORKER_REGISTRY` is `ghcr.io/ilities`, or the ECR host with `workerImageRegistry: ecr`.
+
+Expect: variables present, per [../../../infra/platform/DEPLOY_WORKER_INTEGRATION.md](../../../infra/platform/DEPLOY_WORKER_INTEGRATION.md). Without `workerStack` they're missing, and ECS and Lambda runners need a cluster, roles and images entered by hand.
+
+### AWS-03 · Lambda worker image to ECR
+ECS runners pull the published worker images from `ghcr.io/ilities` unless `workerImageRegistry: ecr` is set; then push them all with `setup-harness-images.sh dev all`. Lambda runners always need their image in ECR.
+1. `infra/workers/scripts/setup-harness-images.sh dev lambda`, or GitHub → Actions → **deploy-viberators** → Run workflow with environment `dev` and harness `lambda`.
+
+Expect: the `viberator-lambda-worker` repository with a fresh `latest` tag.
 
 ## Delivery (AWS-06 – AWS-08)
 
@@ -86,29 +88,29 @@ Expect: the app loads and calls the API over HTTPS; the session survives reload 
 
 Expect: the worker keeps running; its result is recorded once the new backend is up.
 
-## Product on AWS (AWS-10 – AWS-22)
+## Product on AWS (AWS-10 – AWS-23)
 
 ### AWS-10 · Setup on ECS
 1. Run first-run setup (model key, repository, space).
 
-Expect: the agent step reports ECS compute; Agents & runners shows the default agent on AWS ECS, Ready.
+Expect: the agent step reports ECS compute; Settings → Agents shows the default agent on AWS ECS, Ready.
 
 ### AWS-11 · Secrets in SSM
-1. Workspace settings → Secrets: check the storage default is SSM. Create a secret.
+1. Settings → Secrets: check the storage default is SSM. Create a secret.
 2. `aws ssm get-parameter --name /viberator/secrets/<NAME> --with-decryption`.
 
 Expect: stored as a SecureString at `/viberator/secrets/<NAME>`; the UI never shows the value; a database-stored secret on an ECS runner is reported as unusable.
 
 ### AWS-12 · An ECS run
-1. Ask for research.
+1. Ask for a plan.
 2. In ECS, find the worker task (family `viberator-worker-<slug>`); open its logs in `/ecs/viberglass-dev-worker`.
 
-Expect: the task starts in the private subnets (K5 in standard mode), calls back to `PLATFORM_API_URL`, the research appears; logs stream in the task's run detail too.
+Expect: the task starts in the private subnets (K5 in standard mode), calls back to `PLATFORM_API_URL`, the plan appears; logs stream in the task's run detail too.
 
 ### AWS-13 · Session continuity
 1. Ask a follow-up on the same task.
 
-Expect: "continued its session" and an object under `s3://dev-viberglass-uploads/conversation-state/`. If it starts fresh, record K4.
+Expect: "resumed session" and an object under `s3://dev-viberglass-uploads/conversation-state/`. If it starts fresh, record K4.
 
 ### AWS-14 · Media on S3
 1. Upload a screenshot to a task; open it from Media; open its link in a private window after it expires.
@@ -127,19 +129,19 @@ Expect: a PR opened from the ECS worker; GH-05 merge detection works on AWS.
 
 ### AWS-17 · Lambda runner
 1. New agent runner with the Lambda strategy (managed); start it.
-2. Run a short research turn; cancel another.
+2. Ask for a plan in a short turn; cancel another.
 
-Expect: function `viberator-<runner>` created; the research arrives; cancel can't stop Lambda, and its late result is refused. Turns longer than 15 minutes fail by design.
+Expect: function `viberator-<runner>` created; the plan arrives; cancel can't stop Lambda, and its late result is refused. Turns longer than 15 minutes fail by design.
 
 ### AWS-18 · Email through SES
 1. Verify the SES identity and DKIM (`pulumi stack output emailSetupSteps`); in the SES sandbox, verify your recipient address.
-2. Your settings → Notifications → **Send a test email**; invite someone.
+2. Settings → Notifications → **Send test email**; invite someone.
 
 Expect: emails delivered from `EMAIL_FROM`; first real run of SES.
 
 ### AWS-19 · Webhooks and Slack on AWS
 1. Repeat GH-07 against the deployed backend (`https://api.dev.<domain>/api/webhooks/github/<webhook id>`).
-2. Set the Slack signing secret and bot token in SSM (`/viberglass/dev/backend/slack-*`), redeploy, run SLACK-02 to SLACK-04.
+2. Run SLACK-01 with `api.dev.<domain>` as the Backend host (the Slack app is configured in the UI; nothing goes in SSM and no redeploy is needed), then SLACK-02 to SLACK-04.
 
 Expect: same results as locally.
 
@@ -158,9 +160,17 @@ Expect: same results as locally.
 
 Expect: K8 on the smoke step; otherwise the same as dev.
 
+### AWS-23 · Files spaces and previews on AWS
+Needs: `previewDomain` set (AWS-00).
+1. Create a Files space; run FILES-04 and FILES-07 in it with the ECS runner.
+2. Cancel a turn while the agent is writing files.
+3. Ask the Lambda runner in the same space.
+
+Expect: (1) each ECS task restores the space's files from S3 and saves them back; the presentation previews from `https://<previewDomain>`. (2) ECS gives the task 60 seconds after SIGTERM; record whether it saved partial files. (3) Refused: "<runner> runs on AWS Lambda, which can't work in Files spaces yet. Choose an agent that runs on Docker, ECS or Kubernetes."
+
 ## Teardown (AWS-30)
 
-1. Destroy in reverse: `pulumi destroy` in platform, workers, then base. Delete the leftover managed task definitions and `viberator-*` Lambda functions created by runners.
+1. Destroy in reverse order: `pulumi destroy` in platform, then workers, then base. Delete the leftover managed task definitions and `viberator-*` Lambda functions created by runners.
 2. Check for leftover ECR images, the S3 bucket and log groups.
 
 Expect: nothing billing remains, apart from what you keep on purpose.

@@ -20,6 +20,8 @@ export interface DeploymentStrategy {
   description?: string | null
   configSchema?: Record<string, unknown> | null
   createdAt: string
+  /** Docker only: whether the backend has the source checkout a "build from source" image needs. */
+  canBuildFromSource?: boolean
 }
 
 // Config file entity

@@ -1,9 +1,10 @@
-import type { PartRange, TaskTurnAction } from '@viberglass/types'
+import type { PartRange, SpaceBackingKind, TaskTurnAction } from '@viberglass/types'
 import type { Thread } from 'chat'
 
 export interface ChatSpaceSummary {
   id: string
   name: string
+  backingKind: SpaceBackingKind
 }
 
 export interface ChatAgentSummary {
@@ -18,6 +19,8 @@ export interface ChatAgentSummary {
  * `chatUserId` is the person's id on the chat service.
  */
 export interface ChatHandlerServices {
+  /** What to tell someone whose chat account isn't linked to a Viberglass account; null once it is. */
+  unlinkedAccountMessage(chatUserId: string): Promise<string | null>
   /** The spaces the person's linked account can see; every space for an unlinked account. */
   listProjects(chatUserId: string): Promise<ChatSpaceSummary[]>
   listClankers(): Promise<ChatAgentSummary[]>
@@ -36,4 +39,6 @@ export interface ChatHandlerServices {
   askAgent(params: { ticketId: string; chatUserId: string; action: TaskTurnAction; agentId?: string; parts?: PartRange }): Promise<void>
   /** Answers the agent's question with one of its options. */
   answerQuestion(params: { questionId: string; option: number; chatUserId: string }): Promise<void>
+  /** Marks the task done, as the web's Mark done does, for whoever may change it. */
+  markDone(params: { ticketId: string; chatUserId: string }): Promise<void>
 }

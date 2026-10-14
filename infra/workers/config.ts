@@ -21,8 +21,6 @@ export interface WorkersInfrastructureConfig {
   ticketMediaS3Prefix: string;
   /** ECR image URI for Lambda worker (optional - derived from catalog if not set) */
   lambdaImageUri?: string;
-  /** ECR image URI for ECS worker (optional - derived from catalog if not set) */
-  ecsImageUri?: string;
   /**
    * Tenant IDs this stack serves. When set, worker SSM read grants are written
    * per-tenant instead of `tenants/*`, so a compromised worker cannot decrypt
@@ -54,7 +52,6 @@ export function getConfig(): WorkersInfrastructureConfig {
     config.get("uploadsBucketName") || `${environment}-viberglass-uploads`;
   const ticketMediaS3Prefix = config.get("ticketMediaS3Prefix") || "ticket-media";
   const lambdaImageUri = config.get("lambdaImageUri");
-  const ecsImageUri = config.get("ecsImageUri");
   const tenantIds = config.getObject<string[]>("tenantIds");
 
   if (tenantIds) {
@@ -76,7 +73,6 @@ export function getConfig(): WorkersInfrastructureConfig {
     uploadsBucketName,
     ticketMediaS3Prefix,
     lambdaImageUri,
-    ecsImageUri,
     tenantIds: tenantIds && tenantIds.length > 0 ? tenantIds : undefined,
     tags: {
       Environment: environment,

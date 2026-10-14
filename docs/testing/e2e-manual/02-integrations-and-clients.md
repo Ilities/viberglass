@@ -23,20 +23,20 @@ Everything that talks to Viberglass from outside the browser: GitHub, trackers, 
 Use a **disposable** repository: these tests push branches, open and merge PRs.
 
 ### GH-01 · Connection and token
-1. Workspace settings → Connections → GitHub → add it with the read/write fine-grained token. **Test connection**.
+1. Settings → Connections → GitHub → add it with the read/write fine-grained token. **Test connection**.
 2. Add a second credential with an expiry date; mark one default.
 
 Expect: test passes; the connection shows under In use; credentials list both, with expiry.
 
 ### GH-02 · Link to a space
-1. Space settings: code host = the GitHub connection, repository address, default branch, access token = the read/write credential. Save.
+1. Space settings → Repository: code host = the GitHub connection, repository address, default branch, access token = the read/write credential. Save.
 2. Check the space readiness banner disappears.
 
 Expect: readiness all green; Advanced shows the branch-name example.
 
 ### GH-03 · Code turn → pull request
 Needs: GH-02; a ready runner.
-1. In a task, ask for research, then **Build it**.
+1. In a task, ask for a plan (**Write the plan**), then **Build it**.
 2. Open the PR on GitHub; open the Code tab in the task.
 
 Expect: branch named by the space template; one commit with the changes; a PR with title and description from the agent; the Code tab shows the PR panel with status and changed files.
@@ -44,16 +44,16 @@ Expect: branch named by the space template; one commit with the changes; a PR wi
 ### GH-04 · Review comments → revision
 Needs: GH-03.
 1. On GitHub, leave a review comment on the PR.
-2. In the task, ask the agent to address the review (the build panel offers it).
+2. Check the Code tab lists the comment under "Open review comments"; in the composer, ask the agent to address the review.
 
 Expect: the agent's next code turn pushes a new commit to the same PR addressing the comment.
 
 ### GH-05 · Merge → task done
 Needs: GH-03.
 1. Merge the PR on GitHub.
-2. Wait up to 15 minutes (the PR outcome sweeper interval).
+2. Wait up to about 75 minutes: the PR outcome sweep runs every 15 minutes and checks each open PR at most once an hour. GitHub webhooks don't report merges.
 
-Expect: the task becomes Done, "merged by <you>"; owners get a task-done notification; Overview counts it under Done this week.
+Expect: the task becomes Done, "Merged by <you>"; owners get a task-done notification; Overview counts it under Done this week.
 
 ### GH-06 · Take over with real commits
 Needs: GH-03, CLI-01.
@@ -66,7 +66,7 @@ Needs: TUNNEL; GH-01.
 1. Connection → Webhook → Set up the webhook. Copy the URL and secret into the repository's webhook settings (events: Issues, Issue comments). The space using the repository needs no setup.
 2. Open an issue on GitHub; comment on it.
 3. Send a delivery with a wrong secret (edit the GitHub webhook secret).
-4. In the space's settings → Incoming issues, turn on Write the plan for new issues; open another issue.
+4. In the space's settings → Incoming issues, turn on Automatically write a plan; open another issue.
 5. Narrow the space to issues labelled `ready`; open an issue without it, then add the label.
 
 Expect: (2) a task appears with the issue content; the comment lands in its thread. (3) The delivery is rejected and listed as failed; **Retry** works after fixing. (4) The agent writes the plan on its own. (5) The unlabelled issue is listed as ignored with the reason; adding the label creates the task.
@@ -94,25 +94,28 @@ Not available yet (stubs). Confirm Connections lists them as not available, with
 
 ## Slack (SLACK)
 
-Follow [../../operations/slack-integration.md](../../operations/slack-integration.md) to create the app. Enter the bot token and signing secret on the Slack connection screen and save; the request URL is `<tunnel>/api/webhooks/slack`.
+Slack is set up entirely in the app: Settings → Connections → Slack shows a manifest to create the Slack app from, and takes the bot token and signing secret. No environment variables or restart. Background: [../../operations/slack-integration.md](../../operations/slack-integration.md).
 
 ### SLACK-01 · Install and status
-1. Workspace settings → Connections → Slack: follow the install instructions, enter the bot token and signing secret, save.
+1. Settings → Connections → Slack: enter the tunnel host under Backend host, copy the manifest and create the app from it at api.slack.com/apps (Create New App → From a manifest); install it to the workspace. Paste the Bot User OAuth Token and Signing Secret; save.
 2. Save a wrong bot token, then the right one again; remove the connection.
 
-Expect: (1) Slack shows as connected and "Bot active" without a backend restart. (2) "Credentials rejected" with Slack's reason, then active again; after removal Slack shows as not set up and the webhook answers 503.
+Expect: (1) the manifest's slash command, interactivity and event URLs are all `https://<tunnel host>/api/webhooks/slack`; Slack verifies the event URL; Slack shows "Bot active" without a backend restart. (2) "Credentials rejected" with Slack's reason, then active again; after removal the badge says "Not configured" and the webhook answers 503.
 
 ### SLACK-02 · Link your account and DMs
-1. Your settings → Notifications → **Link Slack**.
+1. Settings → Notifications → **Link Slack**.
 2. Trigger a mention and an agent question for yourself.
 
 Expect: DMs for the mention and question, with links back to the task.
 
 ### SLACK-03 · Slash command and modal
-1. In Slack: `/viberglass` → the modal; pick a space you can see; describe a task; submit.
-2. As a Slack user not linked to a Viberglass account, try the same.
+1. `/invite @Viberglass` in a channel. Run `/viberglass`: the "Ask the agent" form. Pick a space you can see, an agent, Start with **A plan**, a title and a message; **Ask**.
+2. Repeat with Start with **The build**.
+3. Under the finished plan in the Slack thread, press **Build it**.
+4. As a Slack user not linked to a Viberglass account, try step 1.
+5. Submit the form with Space or Message left empty.
 
-Expect: (1) a task created with you as requester; a thread posted with its link. (2) A message saying to link the account first.
+Expect: (1) a task created with you as requester; a "Task:" message with its link starts the thread, followed by your message; the agent writes the plan, which arrives in the thread as a file. (2) The agent builds straight away. (3) The build starts. (4) The form doesn't open; only you see "Link your Slack account in Viberglass (Settings → Notifications) to take part in tasks from Slack." No task is created. (5) "Required" under the empty fields.
 
 ### SLACK-04 · Thread mirroring
 1. Reply in the task's Slack thread; mention someone.
@@ -126,7 +129,7 @@ Expect: Slack replies appear in the task thread attributed to you; activity mirr
 Needs: an API token (AUTH-06) of a member.
 1. Point an MCP client at `http://localhost:9088/api/mcp` (or the dev port) with `Authorization: Bearer <token>`. MCP Inspector: `npx @modelcontextprotocol/inspector`.
 2. Call `space_list`, `task_list`, `task_get`, `agent_list`.
-3. `task_create` in a space; `task_trigger` research; `task_review` and `task_review_comment` on the research.
+3. `task_create` in a space; `task_trigger` planning; `task_review` and `task_review_comment` on the plan.
 4. Repeat with a viewer's token; with a session cookie instead of a token.
 
 Expect: (2) only spaces the user can see. (3) Visible in the UI as that user, with a real agent turn. (4) Viewer refused; session auth refused.

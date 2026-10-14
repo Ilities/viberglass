@@ -6,6 +6,7 @@ import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
 import { TaskAskPolicyService } from "../taskTurns/TaskAskPolicyService";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "./TaskActivityRecorder";
+import { TaskDoneService } from "./TaskDoneService";
 import { TaskPartsService } from "./TaskPartsService";
 
 interface Dependencies {
@@ -16,6 +17,7 @@ interface Dependencies {
   pullRequests: Pick<TaskPullRequestDAO, "discardUnopened">;
   activity: Pick<TaskActivityRecorder, "record">;
   lifecycle: Pick<TicketLifecycleStatusService, "synchronize">;
+  done: Pick<TaskDoneService, "finish">;
 }
 
 /**
@@ -36,6 +38,7 @@ export class TaskPartMarksService {
       pullRequests: new TaskPullRequestDAO(),
       activity: new TaskActivityRecorder(),
       lifecycle: new TicketLifecycleStatusService(),
+      done: new TaskDoneService(),
       ...deps,
     };
   }
@@ -51,9 +54,8 @@ export class TaskPartMarksService {
     await this.deps.activity.record(taskId, { type: "human", userId: actorId }, "part_marked", { part: partNumber, mark });
 
     const after = await this.deps.parts.read(ticket);
-    if (ticket.status !== TICKET_STATUS.RESOLVED && after.state.parts.every((candidate) => isPartFinished(candidate.status))) {
-      await this.deps.tickets.updateTicket(taskId, { status: TICKET_STATUS.RESOLVED });
-      await this.deps.activity.record(taskId, { type: "human", userId: actorId }, "task_done");
+    if (after.state.parts.every((candidate) => isPartFinished(candidate.status))) {
+      await this.deps.done.finish(taskId, { type: "human", userId: actorId });
     }
   }
 

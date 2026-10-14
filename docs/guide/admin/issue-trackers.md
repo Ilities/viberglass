@@ -33,8 +33,8 @@ A space then chooses to take the issues of its repository; see [Choose which iss
 Adding the webhook in Jira needs a Jira administrator.
 
 1. Create an API token for the bot account at id.atlassian.com → Security → API tokens. Note the account's ID too: it's the last part of the address of its Jira profile.
-2. In Viberglass, open Settings → Connections → Jira. Enter the Site URL, such as `https://acme.atlassian.net`, and the bot account's email, and choose Save Configuration.
-3. Under Credentials on the same page, add the API token, then choose Test Connection.
+2. In Viberglass, open Settings → Connections → Jira and choose Create connection. Under Settings, enter the Site URL, such as `https://acme.atlassian.net`, and the bot account's email as Account email, and choose Save.
+3. Under Credentials on the same page, add the API token, then choose Test connection.
 
 ![The Jira connection's site URL and account email](../images/tracker-jira-connection.png)
 
@@ -51,21 +51,21 @@ On Jira Data Center, set the bot account to the bot's username instead of an acc
 ### Shortcut
 
 1. Create an API token for the bot member under Settings → Your Account → API Tokens in Shortcut. Note the member's mention name.
-2. In Viberglass, open Settings → Connections → Shortcut and add the token under Credentials.
+2. In Viberglass, open Settings → Connections → Shortcut, choose Create connection, and add the token under Credentials.
 3. Under Webhook, choose Set up the webhook, and copy the URL and the secret.
 4. Set the bot account to the mention name, without the @, and choose Save.
 5. In Shortcut, open Settings → Integrations → Webhooks, add a webhook, and paste the URL and the secret. Shortcut sends story and comment changes to it.
 
 ## Choose which issues a space takes
 
-Open the space's Space settings → Incoming issues. There's a card for each connected tracker.
+Open the space's Space settings → Incoming issues. There's a row for each tracker connection; choose Edit on one to change it.
 
 ![A space's Incoming issues: labels for Jira and Shortcut, and its repository for GitHub](../images/incoming-issues.png)
 
-- Choose None, Every issue, or Only issues with one of these labels. A space takes nothing from a tracker until it chooses.
+- Under Create tasks for, choose None, All issues (All stories for Shortcut), or Matching labels. A space takes nothing from a tracker until it chooses.
 - Labels are separated by commas, and case doesn't matter. For Jira and Shortcut, an issue with one of them from any project in the Jira site or Shortcut workspace becomes the space's task.
 - GitHub issues belong to a repository, so a space only ever takes those in its own repository. Spaces that share a repository each choose for themselves.
-- Write the plan for new issues has the agent start on the plan as soon as an issue arrives. With it off, the task waits until someone asks the agent, in Viberglass or by mentioning the bot on the issue. Nothing is built before there's a plan.
+- Automatically write a plan has the agent start on the plan as soon as an issue arrives. With it off, the task waits until someone asks the agent, in Viberglass or by mentioning the bot on the issue. Nothing is built before there's a plan.
 
 Choose Save after a change. On the connection's page, Spaces taking its issues lists the spaces that have set what they take.
 
@@ -79,6 +79,7 @@ A few things to know:
 
 - A new issue creates a task in each space that takes it. The person who opened it becomes the task's requester when their email matches a Viberglass account.
 - Editing the issue's title or description updates its tasks.
+- Closing the issue marks its tasks done, and reopening it reopens them. In Jira that's resolving the issue or moving it to a done status, and clearing the resolution; in Shortcut, completing or archiving the story and moving it out of a done state.
 - A comment on the issue appears in the task's thread, as the Viberglass person whose email matches the commenter, or otherwise under the commenter's name and where they wrote, such as "Pat · on Jira". Jira Cloud often hides people's email, so expect names there.
 - A comment that mentions the bot account asks the agent, like mentioning it in the thread. A reply from the person the agent asked answers its question.
 - Viberglass comments on the issue when the plan is ready, with a short summary and a link, when the agent asks a question, when it opens the pull request, and when the task is done. When the agent was asked from the issue, its reply is posted there too. Messages written in Viberglass stay in Viberglass, and Viberglass never reads its own comments back as new messages.

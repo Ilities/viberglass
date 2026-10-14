@@ -2,7 +2,7 @@ import type { Chat } from "chat";
 import { CHAT_ACTION, parseAskValue, parseButtonValue } from "@viberglass/integration-core";
 import type { ChatHandlerServices } from "@viberglass/integration-core";
 
-/** The buttons in a task's thread: ask the agent for the next step, or answer its question. */
+/** The buttons in a task's thread: ask the agent for the next step, mark the task done, or answer its question. */
 export function registerButtonActionHandlers(bot: Chat, services: ChatHandlerServices): void {
   bot.onAction([CHAT_ACTION.ask], async (event) => {
     const ask = event.value ? parseAskValue(event.value) : null;
@@ -11,6 +11,15 @@ export function registerButtonActionHandlers(bot: Chat, services: ChatHandlerSer
       await services.askAgent({ ...ask, chatUserId: event.user.userId });
     } catch (err) {
       await event.thread?.post(`_${err instanceof Error ? err.message : "Couldn't ask the agent."}_`);
+    }
+  });
+
+  bot.onAction([CHAT_ACTION.markDone], async (event) => {
+    if (!event.value) return;
+    try {
+      await services.markDone({ ticketId: event.value, chatUserId: event.user.userId });
+    } catch (err) {
+      await event.thread?.post(`_${err instanceof Error ? err.message : "Couldn't mark the task done."}_`);
     }
   });
 

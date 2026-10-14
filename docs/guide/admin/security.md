@@ -6,7 +6,7 @@ Agents run code from your repositories with your credentials, on instructions th
 
 Viberglass is self-hosted: its database, files and secrets stay in infrastructure you control. Two things leave it:
 
-- Code and task text go to the model provider. Every run sends the agent's prompt, including the task, its thread and parts of your repository, to the provider or endpoint its runner uses. If code must not leave your network, use a model you host yourself, through a [custom endpoint](agents-and-models.md#custom-endpoints).
+- Code and task text go to the model provider. Every run sends the agent's prompt, including the task, its thread and parts of your repository, to the provider or endpoint its runner uses. If code must not leave your network, use a model you host yourself, through a [connected model](agents-and-models.md#connected-models).
 - Branches and pull requests go to GitHub, and Slack posts go to Slack, when those are connected.
 
 ## How a run is isolated
@@ -15,6 +15,8 @@ Viberglass is self-hosted: its database, files and secrets stay in infrastructur
 - The coding agent inside runs without asking for permission for its commands. Treat it like a script that runs whatever the task, the repository and the thread lead it to.
 - The agent's environment is filtered: it gets what it needs to reach its model, and the runner's declared extra variables. Repository tokens, private keys, passwords and client secrets are withheld, even if a runner declares them. The worker clones, pushes and opens pull requests itself.
 - On Kubernetes, workers run in their own namespace with no service account token, and network policies limit where they can connect. Network policies need a network plugin that enforces them.
+- In Files spaces, workers fetch and save the space's files through short-lived signed URLs for that run only, and get no storage credentials.
+- Artifact previews run the agent's HTML and scripts. They're served from a host of their own, where the app's sign-in cookies never go, in a sandbox, through signed links that work for an hour.
 
 ## Credentials
 
@@ -32,7 +34,7 @@ Viberglass is self-hosted: its database, files and secrets stay in infrastructur
 ## Your part as the host
 
 - Set strong, random `SECRETS_ENCRYPTION_KEY` and `WEBHOOK_SECRET_ENCRYPTION_KEY` values, and back them up. Never expose the Docker quick start to a network.
-- Serve the app and API over HTTPS.
+- Serve the app, the API and the preview host over HTTPS. Give the preview host a hostname that isn't the app's.
 - Give each runner the narrowest model key and each space the narrowest repository token that work.
 - Protect your default branches on GitHub with required reviews, so an agent's pull request is reviewed like anyone's.
 - Keep Viberglass and its worker images up to date. See [Upgrades and backups](upgrades-and-backups.md).

@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: dev
-      url: ${{ steps.amplify.outputs.appUrl }}
+      url: ${{ steps.get-url.outputs.appUrl }}
 
     steps:
       - name: Checkout repository
@@ -80,6 +80,21 @@ jobs:
         run: npm run build -w @viberglass/frontend
         env:
           VITE_API_URL: ${{ steps.get-config.outputs.backendUrl }}
+
+      - name: Get Amplify app URL
+        id: get-url
+        run: |
+          APP_ID=$(aws ssm get-parameter \
+            --name "/viberglass/dev/amplify/appId" \
+            --query Parameter.Value \
+            --output text)
+
+          APP_DOMAIN=$(aws amplify get-app \
+            --app-id "$APP_ID" \
+            --query 'app.defaultDomain' \
+            --output text)
+
+          echo "appUrl=https://$APP_DOMAIN" >> $GITHUB_OUTPUT
 
       - name: Deployment summary
         run: |

@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import {
   isObjectRecord,
+  JOB_KIND,
   type FilesCheckpointRequest,
   type FilesCheckpointResult,
   type FilesStorageGrant,
@@ -154,10 +155,10 @@ export class SpaceFilesRunService {
       throw new InvalidSpaceArchive("The uploaded files don't match what the run reported");
     }
 
-    // Only a run asked for an artifact keeps one; its files are saved either way.
+    // Only a run that makes artifacts keeps one; its files are saved either way.
     let versions: NewArtifactVersion[] = [];
     let artifactError: string | null = null;
-    if (!partial && payload.turnAction === "code") {
+    if (!partial && makesArtifacts(payload, request)) {
       if (request.artifactManifestError) {
         artifactError = request.artifactManifestError;
       } else {
@@ -305,6 +306,12 @@ export class SpaceFilesRunService {
     }
     return { run, payload: bootstrap.payload ?? {}, stopped };
   }
+}
+
+/** A build turn was asked for an artifact and must declare one; a scheduled run keeps one only when it declares it. */
+function makesArtifacts(payload: Record<string, unknown>, request: FilesCheckpointRequest): boolean {
+  if (payload.turnAction === "code") return true;
+  return payload.jobKind === JOB_KIND.CLAW && (request.artifactManifest != null || Boolean(request.artifactManifestError));
 }
 
 function ticketIdOf(payload: Record<string, unknown>): string | null {

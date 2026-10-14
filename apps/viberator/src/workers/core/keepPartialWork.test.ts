@@ -62,4 +62,11 @@ describe("keepPartialWork", () => {
     await keepPartialWork(stopped, { repoDir: dir, snapshot: materializeArtifacts(dir, {}), taskBranch: { name: "b", continued: true } });
     expect(stopped.sent).not.toHaveBeenCalled();
   });
+
+  it("reports a stopped Files run that saved its files, so the platform records them", async () => {
+    const dir = repo();
+    const stopped = run(true);
+    await keepPartialWork(stopped, { repoDir: dir, snapshot: materializeArtifacts(dir, {}), taskBranch: undefined, filesSaved: true });
+    expect(stopped.sent).toHaveBeenCalledWith("job-1", "tenant", { documents: {}, commitHash: undefined, branch: undefined });
+  });
 });

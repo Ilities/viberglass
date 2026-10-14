@@ -39,6 +39,22 @@ export type SpaceFilesSnapshotSummary = {
   createdAt: string
 }
 
+/**
+ * What a Files turn saved: "Saved files · 2 added, 1 changed · 14 files", or
+ * that it changed nothing. A partial save says whether the run failed or was stopped.
+ */
+export function savedFilesLine(files: SpaceFilesSnapshotSummary, how: 'failed' | 'stopped' = 'failed'): string {
+  const { added, changed, removed } = files.changes
+  const counts = [added && `${added} added`, changed && `${changed} changed`, removed && `${removed} removed`].filter(Boolean)
+  const partialLead = how === 'stopped' ? 'Saved the files as they were when the run stopped' : 'Saved partial files after the run failed'
+  const lead = files.partial ? partialLead : 'Saved files'
+  const fileCount = `${files.fileCount} file${files.fileCount === 1 ? '' : 's'}`
+  return [lead, counts.length > 0 ? counts.join(', ') : 'no changes', fileCount].join(' · ')
+}
+
+/** Said of a stopped Files turn that saved nothing, so the space's files are unchanged. */
+export const NOTHING_SAVED_WHEN_STOPPED = "Nothing from this run was saved, so the space's files are as they were before it."
+
 /** What a Files run receives: the files to start from and where to save its own. */
 export interface FilesWorkspacePayload {
   spaceId: string

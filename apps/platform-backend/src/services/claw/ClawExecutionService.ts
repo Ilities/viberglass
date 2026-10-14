@@ -12,8 +12,10 @@ import {
 } from "../errors/ClawServiceError";
 
 export class ClawExecutionService {
-  private executionDAO = new ClawExecutionDAO();
-  private scheduleDAO = new ClawScheduleDAO();
+  constructor(
+    private readonly executionDAO = new ClawExecutionDAO(),
+    private readonly scheduleDAO = new ClawScheduleDAO(),
+  ) {}
 
   async createExecution(scheduleId: string): Promise<ClawExecution> {
     const schedule = await this.scheduleDAO.getSchedule(scheduleId);
@@ -79,64 +81,38 @@ export class ClawExecutionService {
     };
   }
 
-  async linkExecutionToJob(
-    executionId: string,
-    jobId: string,
-  ): Promise<ClawExecution> {
-    const execution = await this.executionDAO.getExecution(executionId);
-    if (!execution) {
-      throw new ClawServiceError(
-        CLAW_SERVICE_ERROR_CODE.EXECUTION_NOT_FOUND,
-        "Execution not found",
-      );
-    }
-
-    return this.executionDAO.updateExecution(executionId, {
-      status: "running",
-      jobId,
-      startedAt: new Date(),
-    });
+  async linkExecutionToJob(executionId: string, jobId: string): Promise<void> {
+    await this.executionDAO.startExecution(executionId, jobId);
   }
 
+  /**
+   * Ends the execution and counts it on its schedule: every run counts as a
+   * run, and failed ones also as failures. Null when it had already ended.
+   */
   async recordExecutionResult(
     executionId: string,
     result: {
       status: "completed" | "failed" | "cancelled";
+      jobId?: string;
       result?: Record<string, unknown>;
       errorMessage?: string;
     },
-  ): Promise<ClawExecution> {
-    const execution = await this.executionDAO.getExecution(executionId);
-    if (!execution) {
-      throw new ClawServiceError(
-        CLAW_SERVICE_ERROR_CODE.EXECUTION_NOT_FOUND,
-        "Execution not found",
-      );
-    }
+  ): Promise<ClawExecution | null> {
+    const finished = await this.executionDAO.finishExecution(executionId, result);
+    if (!finished) return null;
 
-    const updatedExecution = await this.executionDAO.updateExecution(
-      executionId,
-      {
-        status: result.status,
-        completedAt: new Date(),
-        result: result.result ?? null,
-        errorMessage: result.errorMessage ?? null,
-      },
-    );
-
-    if (result.status === "completed") {
-      await this.scheduleDAO.incrementRunCount(execution.scheduleId);
-    } else if (result.status === "failed") {
-      await this.scheduleDAO.incrementFailureCount(execution.scheduleId);
+    await this.scheduleDAO.incrementRunCount(finished.scheduleId);
+    if (result.status === "failed") {
+      await this.scheduleDAO.incrementFailureCount(finished.scheduleId);
     }
 
     logger.info("Claw execution completed", {
       executionId,
-      scheduleId: execution.scheduleId,
+      scheduleId: finished.scheduleId,
       status: result.status,
     });
 
-    return updatedExecution;
+    return finished;
   }
 
   async updateWebhookDeliveryStatus(

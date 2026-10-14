@@ -1,7 +1,18 @@
 import { linkAccountMessage, TaskThreadInbound } from "../../../chat/TaskThreadInbound";
+import type { PublicUser } from "../../../persistence/user/UserDAO";
 import { fakeChatProvider } from "../../helpers/fakeChatProvider";
 
 const MARIA = "11111111-1111-4111-8111-111111111111";
+const MARIA_USER: PublicUser = {
+  id: MARIA,
+  email: "m@example.com",
+  name: "Maria",
+  avatarUrl: null,
+  role: "member",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deactivatedAt: null,
+};
 
 function setup(open: Array<{ id: string; askedOf: { id: string; name: string } | null }> = []) {
   const deps = {
@@ -10,6 +21,7 @@ function setup(open: Array<{ id: string; askedOf: { id: string; name: string } |
     },
     users: {
       getContact: jest.fn(async (userId: string) => (userId === MARIA ? { name: "Maria", email: "m@example.com", deactivated: false } : null)),
+      findById: jest.fn(async (userId: string) => (userId === MARIA ? MARIA_USER : null)),
     },
     questions: {
       listOpenForTasks: jest.fn().mockResolvedValue(new Map([["t-1", open]])),
@@ -18,6 +30,7 @@ function setup(open: Array<{ id: string; askedOf: { id: string; name: string } |
     answers: { answer: jest.fn().mockResolvedValue(undefined) },
     turns: { ask: jest.fn().mockResolvedValue(undefined) },
     discussion: { create: jest.fn().mockResolvedValue("m-1") },
+    done: { markDone: jest.fn().mockResolvedValue(undefined) },
   };
   return { deps, inbound: new TaskThreadInbound({ label: "Slack", provider: fakeChatProvider() }, deps) };
 }
@@ -62,5 +75,19 @@ describe("TaskThreadInbound", () => {
     );
     await inbound.ask({ ticketId: "t-1", chatUserId: "USTRANGER", action: "plan" });
     expect(deps.turns.ask).toHaveBeenCalledWith("t-1", null, { message: "", action: "plan", agentId: undefined });
+  });
+
+  it("marks the task done as the linked person, and refuses someone without a linked account", async () => {
+    const { deps, inbound } = setup();
+    await inbound.markDone({ ticketId: "t-1", chatUserId: "UMARIA" });
+    expect(deps.done.markDone).toHaveBeenCalledWith("t-1", { id: MARIA, role: "member" });
+    await expect(inbound.markDone({ ticketId: "t-1", chatUserId: "USTRANGER" })).rejects.toThrow(linkAccountMessage("Slack"));
+    expect(deps.done.markDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells someone without a linked account to link it, and nobody else", async () => {
+    const { inbound } = setup();
+    await expect(inbound.unlinkedAccountMessage("USTRANGER")).resolves.toBe(linkAccountMessage("Slack"));
+    await expect(inbound.unlinkedAccountMessage("UMARIA")).resolves.toBeNull();
   });
 });

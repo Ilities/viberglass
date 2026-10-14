@@ -77,9 +77,6 @@ export class EcsProvisioningHandler implements ProvisioningStrategyHandler {
     const taskRoleArn =
       getNonEmptyString(config.taskRoleArn) ||
       getNonEmptyString(process.env.VIBERATOR_ECS_TASK_ROLE_ARN);
-    const containerImage =
-      getNonEmptyString(config.containerImage) ||
-      getNonEmptyString(process.env.VIBERATOR_ECS_CONTAINER_IMAGE);
 
     const missing: string[] = [];
     if (!executionRoleArn) {
@@ -87,9 +84,6 @@ export class EcsProvisioningHandler implements ProvisioningStrategyHandler {
     }
     if (!taskRoleArn) {
       missing.push("taskRoleArn (or VIBERATOR_ECS_TASK_ROLE_ARN)");
-    }
-    if (!containerImage) {
-      missing.push("containerImage (or VIBERATOR_ECS_CONTAINER_IMAGE)");
     }
     if (!clusterArn) {
       missing.push("clusterArn (or VIBERATOR_ECS_CLUSTER_ARN)");

@@ -1,6 +1,6 @@
 # Testing Structure
 
-This document describes the testing setup for the Viberator monorepo.
+This document describes the testing setup for the Viberglass monorepo.
 
 ## Overview
 
@@ -13,38 +13,31 @@ The project has three layers of tests:
 ## Project Structure
 
 ```
-viberator/
+viberglass/
 ├── apps/viberator/
 │   ├── src/
-│   │   ├── agents/
-│   │   │   ├── AgentFactory.ts
-│   │   │   └── AgentFactory.test.ts      # Unit tests co-located
 │   │   ├── services/
 │   │   │   ├── GitService.ts
-│   │   │   └── GitService.test.ts        # Unit tests co-located
-│   │   └── __tests__/
-│   │       └── integration/              # Integration tests only
+│   │   │   └── GitService.branch.test.ts  # Unit tests co-located
+│   │   └── workers/core/*.test.ts
 │   └── jest.config.js
 ├── apps/platform-backend/
 │   ├── src/
-│   │   ├── services/
-│   │   │   ├── UserService.ts
-│   │   │   └── UserService.test.ts       # Unit tests co-located
 │   │   └── __tests__/
-│   │       ├── integration/              # Integration tests only
-│   │       └── helpers/                  # Test utilities
-│   ├── jest.config.js
-│   └── jest.integration.config.js
+│   │       ├── unit/                     # Unit tests, mirroring src/
+│   │       ├── integration/              # Integration tests (testcontainers)
+│   │       └── helpers/                  # Test database, test server, fakes
+│   └── jest.config.js
 ├── apps/platform-frontend/
 │   ├── src/
 │   │   └── pages/
-│   │       └── SomePage.tsx
+│   │       ├── SomePage.tsx
 │   │       └── SomePage.test.tsx         # Unit tests co-located
-│   ├── components/
-│   │   ├── Button.tsx
-│   │   └── Button.test.tsx               # Unit tests co-located
-│   ├── jest.config.js
-│   └── jest.setup.js
+│   └── jest.config.js
+│   └── jest.setup.ts
+├── packages/agents/agent-*/test/         # Plugin package tests
+├── packages/integrations/integration-*/test/
+├── packages/cli/test/
 └── tests/e2e/                            # Separate E2E test package
     ├── tests/smoke/                      # The smoke journeys (default run)
     ├── tests/<feature>/                  # Quarantined legacy specs (opt-in)
@@ -62,16 +55,17 @@ viberator/
 
 ## Test Location Rules
 
-- **Unit Tests**: Place next to the file being tested (co-located)
-  - Pattern: `Filename.test.ts` or `Filename.test.tsx`
-  - Example: `UserService.ts` → `UserService.test.ts`
+- **Unit Tests**
+  - Backend: `apps/platform-backend/src/__tests__/unit/`, in the folder matching the source (`services/Foo.ts` → `__tests__/unit/services/Foo.test.ts`)
+  - Frontend and worker: next to the file being tested, `Filename.test.ts` or `Filename.test.tsx`
+  - Plugin packages and the CLI: the package's `test/` folder
 
-- **Integration Tests**: Place in `src/__tests__/integration/` directory
+- **Integration Tests**: `apps/platform-backend/src/__tests__/integration/`
   - Pattern: `*.integration.test.ts`
   - Test database operations, API endpoints with testcontainers
 
-- **E2E Tests**: Place in separate `tests/e2e/tests/` package
-  - Pattern: `FeatureName.e2e.test.ts`
+- **E2E Tests**: `tests/e2e/tests/smoke/`
+  - Pattern: `feature-name.e2e.test.ts`
   - Test full user flows across the stack
 
 ## Unit Tests
@@ -80,8 +74,14 @@ Unit tests use Jest and test individual pieces of code in isolation.
 
 ### Running Unit Tests
 
+Run one suite at a time, and cap Jest's workers; the backend suite in particular is heavy:
+
 ```bash
-# Run all unit tests
+(cd apps/platform-backend && npx jest --maxWorkers=2 src/__tests__/unit)
+```
+
+```bash
+# Run all unit tests (every workspace in turn)
 npm run test:unit
 
 # Run unit tests for a specific package
@@ -98,7 +98,7 @@ npm run test:coverage -w @viberglass/platform-backend
 
 ### Writing Unit Tests
 
-Unit tests should be placed in `__tests__/unit/` directories and named with the pattern `*.unit.test.ts` or `*.unit.test.tsx`.
+See [Test Location Rules](#test-location-rules) for where they go. Test files are named `*.test.ts` or `*.test.tsx`.
 
 #### Backend (Node.js/Express)
 
@@ -213,6 +213,14 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's plan appears | `first-run-setup.e2e.test.ts` |
 | A new admin explores the demo workspace (sample tasks, a readable failure), removes it, and lands back in setup | `first-run-setup.e2e.test.ts` |
 | Workspace plumbing sits under Settings → Advanced, for admins only | `member-permissions.e2e.test.ts` |
+| An invite link works once and a revoked one not at all; a viewer reads but changes nothing; deactivating someone ends their session | `invites-and-roles.e2e.test.ts` |
+| Viewers and guests are offered no action they can't take | `role-aware-actions.e2e.test.ts` |
+| A private space and its tasks stay hidden until you're added; only maintainers change a space's settings; a guest sees only their space | `space-visibility.e2e.test.ts` |
+| A space's connections page lists the connection linked to it | `space-connections.e2e.test.ts` |
+| Only a task's requester and owner, maintainers and admins change it; only admins delete it | `task-changes.e2e.test.ts` |
+| Tasks get distinct keys per space, a requester and an owner, open by key, and anyone can watch them | `task-keys-and-people.e2e.test.ts` |
+| A task's thread shows messages, document versions and events in order | `task-thread.e2e.test.ts` |
+| An issue a webhook builds on its own becomes a task whose build is a turn in its thread | `webhook-build.e2e.test.ts` |
 
 ### One-time setup
 
@@ -294,9 +302,9 @@ test("...", async ({ adminApi, adminPage: page, workspace }) => {
 ### Jest Configuration Files
 
 - `apps/viberator/jest.config.js` - Orchestrator unit tests
-- `apps/platform-backend/jest.config.js` - Backend unit tests
-- `apps/platform-backend/jest.integration.config.js` - Backend integration tests
+- `apps/platform-backend/jest.config.js` - Backend tests; `test:unit` and `test:integration` select by path
 - `apps/platform-frontend/jest.config.js` - Frontend unit tests
+- `jest.config.js` in each plugin package, `packages/cli`, `packages/telemetry` and `packages/agent-core`
 
 ### Playwright Configuration
 
@@ -336,7 +344,7 @@ test("...", async ({ adminApi, adminPage: page, workspace }) => {
 - Test critical user flows
 - Don't test every edge case (use unit/integration tests)
 - Keep tests maintainable
-- Use page objects for complex interactions
+- Share setup through the helpers in `tests/e2e/playwright/`
 
 ## Troubleshooting
 
@@ -379,23 +387,4 @@ docker ps
 
 ## CI/CD Integration
 
-Add to your CI pipeline:
-
-```yaml
-# Example GitHub Actions
-- name: Run unit tests
-  run: npm run test:unit
-
-- name: Run integration tests
-  run: npm run test:integration
-
-- name: Setup E2E stack
-  run: npm run test:e2e:setup
-
-- name: Run E2E tests
-  run: npm run test:e2e
-
-- name: Teardown E2E stack
-  if: always()
-  run: npm run test:e2e:teardown
-```
+`backend-ci.yml` and `frontend-ci.yml` run on pull requests: the backend's unit tests, build and a startup smoke check, and the frontend's lint, unit tests and build. Integration and E2E tests aren't run in CI; run them locally before changes that need them.

@@ -1,114 +1,103 @@
 # GitHub Deployment Quick Reference
 
-**Purpose:** Quick reference for deploying Viberator to all environments (dev, staging, prod).
+Quick reference for the GitHub Actions workflows that deploy Viberglass to AWS (dev and prod) and publish its images and packages.
 
-For comprehensive secret management documentation, see [docs/DEPLOYMENT_SECRETS.md](../docs/DEPLOYMENT_SECRETS.md).
+For secret management in depth, see [docs/DEPLOYMENT_SECRETS.md](../docs/DEPLOYMENT_SECRETS.md).
 
 ---
 
-## Quick Start by Environment
+## Workflows
 
-| Environment | Trigger | Approval | Auto-deploy |
-|-------------|---------|-----------|------------|
-| **Dev** | Push to `main` branch | No | Yes (on backend/frontend changes) |
-| **Staging** | Manual workflow dispatch | No | Manual only |
-| **Prod** | Manual workflow dispatch | Yes | Manual only |
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `backend-ci.yml`, `frontend-ci.yml` | Pull requests touching the app or its packages | Unit tests and build (frontend also lints; backend also runs a startup smoke check) |
+| `deploy-backend-dev.yml` | Push to `main` (backend paths) | Builds the backend image to ECR and rolls the dev ECS service |
+| `deploy-frontend-dev.yml` | Push to `main` (frontend paths) | Validates the build; Amplify builds and deploys from git |
+| `deploy-backend-prod.yml` | Manual, input `confirm=YES`, `prod` environment | Same as dev, plus health and API checks after the rollout |
+| `deploy-frontend-prod.yml` | Manual, `prod` environment | Validates, then waits for Amplify's deployment and checks the pages load |
+| `pulumi-preview.yml` | Pull requests touching `infra/` | `pulumi preview` of the stacks |
+| `pulumi-deploy-dev.yml` | Push to `main` (`infra/` paths) or manual | `pulumi up` on dev: base, workers, platform |
+| `pulumi-deploy-prod.yml` | Manual, `prod` environment | `pulumi up` on prod |
+| `deploy-viberators.yml` | Push to `main` (worker paths) or manual | Builds the Lambda worker image (on push) or the chosen harness images (manual, `all` for every one) and pushes them to ECR as `latest` and the commit sha |
+| `publish-worker-images.yml` | Push to `main` (worker paths), releases | Worker images to GHCR, amd64 and arm64 |
+| `publish-platform-images.yml` | Push to `main` (app paths), releases | `viberglass-backend` and `viberglass-frontend` images to GHCR, used by `docker-compose.prod.yml` and the Helm chart |
+| `publish-cli.yml` | `v*` tags or manual | Publishes the `viberglass` CLI to npm |
+| `release-chrome-extension.yml` | `v*` tags | Attaches the built Chrome extension to the release |
 
 ### Dev Deployment
 
-**Automatic:** Push to `main` branch
+Automatic on push to `main`. Backend deploys on changes to:
 
-```bash
-# Backend deploys on these paths:
+```
 apps/platform-backend/**
 packages/types/**
-.github/workflows/deploy-backend-dev.yml
+packages/model-hosting-verda/**
 apps/platform-backend/Dockerfile.prod
+.github/workflows/deploy-backend-dev.yml
+```
 
-# Frontend deploys on these paths:
+Frontend deploys on changes to:
+
+```
 apps/platform-frontend/**
 packages/types/**
+packages/platform-ui/**
+packages/integration-core/**
+packages/integrations/**
 .github/workflows/deploy-frontend-dev.yml
 ```
 
-**Manual trigger (if needed):**
+Manual trigger (if needed):
 ```bash
 gh workflow run deploy-backend-dev.yml
 gh workflow run deploy-frontend-dev.yml
 ```
 
-### Staging Deployment
-
-**Manual only:**
-
-```bash
-# Backend staging
-gh workflow run deploy-backend-staging.yml
-
-# Frontend staging
-gh workflow run deploy-frontend-staging.yml
-```
-
-**Monitor deployment:**
-```bash
-gh run list --workflow=deploy-backend-staging.yml
-gh run view --log
-```
-
 ### Production Deployment
 
-**Manual with approval:**
+Manual, with approval:
 
 ```bash
-# Backend production
-gh workflow run deploy-backend-prod.yml
-
-# Frontend production
-gh workflow run deploy-frontend-prod.yml
+gh workflow run deploy-backend-prod.yml -f confirm=YES
+gh workflow run deploy-frontend-prod.yml -f reason="..."
+gh workflow run pulumi-deploy-prod.yml -f reason="..."
 ```
 
-**Approve in GitHub UI:**
-1. Go to **Actions** tab
-2. Click on the latest `deploy-backend-prod` or `deploy-frontend-prod` run
-3. Click **Review deployments**
+Approve in the GitHub UI:
+1. Go to the Actions tab
+2. Open the waiting run
+3. Click Review deployments
 4. Approve the `prod` environment
 
 ---
 
 ## Prerequisites Checklist
 
-Before deploying, ensure:
+### GitHub Environments
 
-### GitHub Environments Created
+- [ ] Settings → Environments: create `dev` and `prod`
+- [ ] For `prod`, enable Required reviewers
 
-- [ ] Go to **Settings** → **Environments**
-- [ ] Create environments: `dev`, `staging`, `prod`
-- [ ] For `prod`, enable **Required reviewers**
+### GitHub Secrets
 
-### GitHub Environment Secrets Configured
-
-For each environment (`dev`, `staging`, `prod`):
-
-- [ ] Go to **Settings** → **Environments** → `{environment}` → **Secrets**
-- [ ] Add secrets:
-  - [ ] `AWS_ROLE_ARN` - OIDC role for GitHub Actions authentication
-  - [ ] `AMPLIFY_APP_ID` - Amplify app ID for frontend deployment
-  - [ ] `AMPLIFY_BRANCH` - Branch name (optional, defaults to environment name)
+- [ ] `AWS_ROLE_ARN` in each environment (and at repository level for `pulumi-preview.yml`)
+- [ ] `PULUMI_CONFIG_PASSPHRASE`, `PULUMI_PLATFORM_CONFIG_DEV`, `PULUMI_PLATFORM_CONFIG_PROD` for the Pulumi workflows
+- [ ] `NPM_TOKEN` for `publish-cli.yml`
 
 ### SSM Parameters Created via Pulumi
 
-- [ ] Run `pulumi up` for the environment stack
+- [ ] Run `pulumi up` for the platform stack
 - [ ] Verify parameters exist:
   ```bash
-  aws ssm get-parameters-by-path --path "/viberator/dev" --recursive
+  aws ssm get-parameters-by-path --path "/viberglass/dev" --recursive --query 'Parameters[].Name'
   ```
 
-### OIDC Role Configured
+### OIDC Role
 
-- [ ] IAM role exists: `ViberatorDeployRole` (or environment-specific)
-- [ ] Trust relationship includes your GitHub repository
-- [ ] Role has `ssm:GetParameter` permissions
-- [ ] Role has ECS/ECR/Amplify permissions
+- [ ] An IAM role GitHub Actions can assume through OIDC, trusting your repository
+- [ ] It can read the SSM parameters below, push to ECR, update ECS, query Amplify, and run the Pulumi stacks
+
+The platform stack creates a role for the Amplify steps (output `amplifyOidcRoleArn`), but it only allows the Amplify calls and `ssm:GetParameter`. The backend, worker and Pulumi workflows need a role with more; [docs/operations/github-actions-role.md](../docs/operations/github-actions-role.md) has the policy.
 
 ### Artifact Preview Host (optional)
 
@@ -124,64 +113,50 @@ HTML, image and PDF artifacts preview from a host of their own, so the agent's s
 
 ## Secret Requirements
 
-### GitHub Environment Secrets
+### GitHub Secrets
 
-| Secret | Environment | Example Value | Source |
-|--------|-------------|---------------|--------|
-| `AWS_ROLE_ARN` | dev/staging/prod | `arn:aws:iam::111111111111:role/ViberatorDeployRole` | IAM role creation (via Pulumi or AWS Console) |
-| `AMPLIFY_APP_ID` | dev/staging/prod | `d1234567890abc` | AWS Amplify Console → App → General Settings |
-| `AMPLIFY_BRANCH` | dev/staging/prod | `main` | Amplify branch listing (optional, defaults to environment name) |
+| Secret | Scope | Example Value | Source |
+|--------|-------|---------------|--------|
+| `AWS_ROLE_ARN` | `dev`/`prod` environments, repository | `arn:aws:iam::111111111111:role/ViberglassDeployRole` | The OIDC role above |
 | `PULUMI_CONFIG_PASSPHRASE` | repository | the stacks' passphrase | The passphrase the stacks were created with (`encryptionsalt` in `Pulumi.<stack>.yaml`) |
 | `PULUMI_PLATFORM_CONFIG_DEV`, `PULUMI_PLATFORM_CONFIG_PROD` | repository | contents of `infra/platform/Pulumi.<stack>.yaml` | The platform stack's config, which isn't committed |
+| `NPM_TOKEN` | repository | npm automation token | npmjs.com |
 
 The Pulumi workflows (`pulumi-preview.yml`, `pulumi-deploy-dev.yml`, `pulumi-deploy-prod.yml`) use the S3 state backend, `s3://viberglass-pulumi-state` unless the repository variable `PULUMI_BACKEND_URL` names another.
 
-**Getting AWS_ROLE_ARN:**
-
-```bash
-# From Pulumi (recommended)
-pulumi stack output oidcRoleArn
-
-# Or from AWS Console
-aws iam get-role --role-name ViberatorDeployRole --query Role.Arn --output text
-```
-
-**Getting AMPLIFY_APP_ID:**
-
-```bash
-# From AWS Console
-# Amplify → App → General Settings → App ARN
-# Extract ID from: arn:aws:amplify:eu-west-1:111111111111:apps/d1234567890abc
-```
-
 ### SSM Parameters
 
-| Parameter | Type | Example Value |
-|-----------|------|---------------|
-| `/viberator/{env}/database/url` | SecureString | `postgresql://user:pass@db.xxx.eu-west-1.rds.amazonaws.com:5432/viberator` |
-| `/viberator/{env}/database/host` | SecureString | `dev-db.xxx.eu-west-1.rds.amazonaws.com` |
-| `/viberator/{env}/frontend/apiUrl` | String | `https://dev-api.viberator.com` |
-| `/viberator/{env}/amplify/appId` | String | `d1234567890abc` |
-| `/viberator/{env}/amplify/branch` | String | `main` |
-| `/viberator/{env}/ecs/cluster` | String | `dev-viberator-cluster` |
-| `/viberator/{env}/ecs/service` | String | `dev-viberator-backend` |
-| `/viberator/{env}/deployment/region` | String | `eu-west-1` |
-| `/viberator/{env}/deployment/oidcRoleArn` | SecureString | `arn:aws:iam::111111111111:role/ViberatorDeployRole` |
-| `/viberator/{env}/deployment/ecrRepository` | String | `viberator-backend` |
+Written by the platform stack and read by the deploy workflows.
 
-**Verifying SSM parameters:**
+| Parameter | Type |
+|-----------|------|
+| `/viberglass/{env}/database/url` | SecureString |
+| `/viberglass/{env}/database/host` | String |
+| `/viberglass/{env}/database/username` | String |
+| `/viberglass/{env}/database/password` | SecureString |
+| `/viberglass/{env}/frontend/apiUrl` | String |
+| `/viberglass/{env}/amplify/appId` | String |
+| `/viberglass/{env}/amplify/branchName` | String |
+| `/viberglass/{env}/amplify/region` | String |
+| `/viberglass/{env}/ecs/cluster` | String |
+| `/viberglass/{env}/ecs/service` | String |
+| `/viberglass/{env}/deployment/region` | String |
+| `/viberglass/{env}/deployment/oidcRoleArn` | SecureString |
+| `/viberglass/{env}/deployment/ecrRepository` | String |
+
+Verifying SSM parameters:
 
 ```bash
 # List all parameters for environment
 aws ssm get-parameters-by-path \
-  --path "/viberator/dev" \
+  --path "/viberglass/dev" \
   --recursive \
   --query 'Parameters[].Name' \
   --output text
 
 # Get specific parameter (decrypted)
 aws ssm get-parameter \
-  --name "/viberator/dev/database/url" \
+  --name "/viberglass/dev/database/url" \
   --with-decryption \
   --query Parameter.Value \
   --output text
@@ -189,189 +164,74 @@ aws ssm get-parameter \
 
 ---
 
-## Deployment Commands
-
-### Manual Deployment Triggers
-
-```bash
-# Backend deployments
-gh workflow run deploy-backend-dev.yml
-gh workflow run deploy-backend-staging.yml
-gh workflow run deploy-backend-prod.yml
-
-# Frontend deployments
-gh workflow run deploy-frontend-dev.yml
-gh workflow run deploy-frontend-staging.yml
-gh workflow run deploy-frontend-prod.yml
-```
-
-### Checking Deployment Status
+## Checking Deployment Status
 
 ```bash
 # List recent runs for a workflow
 gh run list --workflow=deploy-backend-prod.yml
-
-# View latest run details
-gh run list --workflow=deploy-backend-prod.yml --limit 1 --json databaseId,status,conclusion,displayTitle
 
 # View logs for a run
 gh run view --log
 
 # Watch logs in real-time
 gh run watch
-```
 
-### Canceling Deployments
-
-```bash
-# Cancel latest run
-gh run cancel
-
-# Cancel specific run
+# Cancel a run
 gh run cancel <run-id>
-```
-
-### Approving Production Deployments
-
-```bash
-# List pending deployments awaiting approval
-gh run list --workflow=deploy-backend-prod.yml --json databaseId,status --jq '.[] | select(.status == "queued")'
-
-# Approve via UI (recommended for security)
-# Go to Actions tab → Click run → Review deployments → Approve
 ```
 
 ---
 
 ## Deployment Flow
 
-### Backend Deployment Flow
+### Backend
 
-1. **Build Docker image**
-   - Buildx cache from GitHub Actions cache
-   - Push to ECR with `sha` and `latest` tags
+1. Build the Docker image (`apps/platform-backend/Dockerfile.prod`) with the GitHub Actions cache and push it to ECR with `sha` and `latest` tags
+2. Register a new task definition with the new image, copied from the latest revision, so settings Pulumi added there (such as the preview port) ship with it
+3. Update the ECS service and wait for it to stabilize
+4. Prod only: check `/health` and a few API endpoints, and the running task count
 
-2. **Run database migrations**
-   - Fetch `DATABASE_URL` from SSM
-   - Run `npm run migrate:latest`
+Migrations run when the new backend starts (`RUN_MIGRATIONS_ON_STARTUP=true` in the task definition).
 
-3. **Update ECS task definition**
-   - Register new task definition with new image, copied from the latest revision, so settings Pulumi added there (such as the preview port) ship with it
-   - Update ECS service with new task definition
-   - Wait for service stability
+### Frontend
 
-4. **Verification**
-   - ECS service reaches steady state
-   - Health checks pass
-   - Deployment summary in GitHub Actions log
-
-### Frontend Deployment Flow
-
-1. **Fetch Amplify configuration from SSM**
-   - Get `AMPLIFY_APP_ID`
-   - Get `AMPLIFY_BRANCH`
-   - Get AWS region
-
-2. **Build and deploy via Amplify CLI**
-   - Start deployment job
-   - Poll for completion (max 10 minutes)
-   - Verify deployment status
-
-3. **Verification**
-   - Amplify deployment succeeds
-   - Frontend accessible via CloudFront CDN
+Amplify builds and deploys the frontend from git (`amplify.yml`). The workflows build it once as validation; the prod one also waits for Amplify's job and checks the deployed pages.
 
 ---
 
 ## Troubleshooting
 
-### Workflow Fails Immediately
+### Workflow fails immediately
 
-**Check:**
-1. GitHub environment secrets are set (`AWS_ROLE_ARN`, `AMPLIFY_APP_ID`)
-2. OIDC role trust relationship includes your repository
-3. Run `gh auth status` to verify GitHub CLI authentication
+1. `AWS_ROLE_ARN` is set for the environment
+2. The OIDC role's trust relationship includes your repository
+3. For Pulumi workflows, `PULUMI_CONFIG_PASSPHRASE` and the platform config secret are set
 
-### "ParameterNotFound" Error
+### "ParameterNotFound"
 
-**Cause:** SSM parameters don't exist.
+The SSM parameters don't exist yet. Run `pulumi up` in `infra/platform` for that stack and check again with `aws ssm get-parameters-by-path --path "/viberglass/dev" --recursive`.
 
-**Solution:**
-```bash
-# Run Pulumi up to create parameters
-pulumi stack select dev
-pulumi up
+### ECS deployment fails
 
-# Verify parameters exist
-aws ssm get-parameters-by-path --path "/viberator/dev" --recursive
-```
-
-### "AccessDenied" When Fetching SSM
-
-**Cause:** IAM role lacks SSM permissions.
-
-**Solution:**
-```bash
-# Check role permissions
-aws iam get-role --role-name ViberatorDeployRole --query Role.Arn
-
-# Verify SSM policy attached
-aws iam list-attached-role-policies --role-name ViberatorDeployRole
-```
-
-### ECS Deployment Fails
-
-**Check:**
 1. ECR repository exists and is accessible
 2. Docker image built successfully (check build step logs)
-3. ECS task definition references correct image URI
-4. Database is accessible from ECS tasks (security groups)
+3. Database is reachable from the ECS tasks (security groups)
+4. The backend logs, in `/ecs/viberglass-{env}-backend`
 
-### Amplify Deployment Fails
+### Deployment stuck "In Progress"
 
-**Check:**
-1. Amplify app ID is correct for environment
-2. Branch exists in Amplify console
-3. Amplify build role has SSM permissions
-4. Frontend build succeeds locally
-
-### Deployment Stuck "In Progress"
-
-**Check:**
 ```bash
-# View ECS events
 aws ecs describe-services \
-  --cluster dev-viberator-cluster \
-  --services dev-viberator-backend \
+  --cluster "$(aws ssm get-parameter --name /viberglass/dev/ecs/cluster --query Parameter.Value --output text)" \
+  --services dev-viberglass-backend \
   --query 'services[0].events'
-
-# View Amplify job status
-aws amplify get-job \
-  --app-id d1234567890abc \
-  --branch-name main \
-  --job-id <job-id>
 ```
-
----
-
-## Full Documentation
-
-For comprehensive documentation on:
-
-- SSM Parameter Store setup
-- GitHub environment configuration
-- Pulumi integration
-- Security best practices
-- Detailed troubleshooting
-
-See: **[docs/DEPLOYMENT_SECRETS.md](../docs/DEPLOYMENT_SECRETS.md)**
 
 ---
 
 ## Related Documentation
 
-- **[Deployment Secrets Management](../docs/DEPLOYMENT_SECRETS.md)** - Complete secret setup guide
-- **[Infrastructure README](../infra/README.md)** - Pulumi infrastructure components
-- **[AWS ECS Setup Guide](../docs/AWS_ECS_SETUP.md)** - Backend infrastructure details
-- **[Local Development Guide](../docs/LOCAL_DEVELOPMENT.md)** - Local setup instructions
-- **[Phase 12: Secret Management](../.planning/phases/12-secret-management/)** - Implementation details
+- [Deployment Secrets Management](../docs/DEPLOYMENT_SECRETS.md)
+- [Infrastructure README](../infra/README.md)
+- [AWS install guide](../docs/guide/admin/install-aws.md)
+- [Local development](../docs/local-development.md)

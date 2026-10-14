@@ -13,6 +13,7 @@ import {
 import {
   JOB_KIND,
   TICKET_STATUS,
+  type TaskTurnAction,
   type TicketLifecycleStatus,
 } from "@viberglass/types";
 import { describeJobFailure } from "./job/describeJobFailure";
@@ -20,6 +21,7 @@ import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 import { currentActorId } from "../api/auth/requestActor";
 import { releaseSpaceFiles } from "./spaceFiles/releaseSpaceFiles";
 import { spaceFilesRuns, type SpaceFilesRunService } from "./spaceFiles/SpaceFilesRunService";
+import { ClawRunCompletion } from "./claw/ClawRunCompletion";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -34,6 +36,8 @@ function generateCallbackToken(): string {
 export interface SubmitJobOptions {
   ticketId?: string;
   clankerId?: string;
+  /** For a task's turn: what was asked, so the run's Activity can say what it does. */
+  turnAction?: TaskTurnAction;
 }
 
 export class JobService {
@@ -43,7 +47,7 @@ export class JobService {
   private readonly pullRequests = new TaskPullRequestDAO();
   private readonly spaceFiles: Pick<SpaceFilesRunService, "release"> = spaceFilesRuns;
 
-  constructor() {
+  constructor(private readonly scheduledRuns: Pick<ClawRunCompletion, "finish"> = new ClawRunCompletion()) {
     this.ticketDAO = new TicketDAO();
     this.lifecycleStatusService = new TicketLifecycleStatusService();
   }
@@ -90,7 +94,7 @@ export class JobService {
         options.ticketId,
         startedBy ? { type: "human", userId: startedBy } : { type: "system" },
         "run_started",
-        { jobId, step: data.jobKind },
+        { jobId, step: data.jobKind, ...(options.turnAction ? { action: options.turnAction } : {}) },
       );
     }
 
@@ -184,9 +188,17 @@ export class JobService {
     if (status === "active" || status === "completed" || status === "failed") {
       const job = await db
         .selectFrom("jobs")
-        .select(["id", "ticket_id", "repository", "status", "job_kind"])
+        .select(["id", "ticket_id", "repository", "status", "job_kind", "context"])
         .where("id", "=", jobId)
         .executeTakeFirst();
+
+      if (job && status !== "active") {
+        await this.scheduledRuns.finish(job, {
+          status,
+          result: updates.result ? { ...updates.result } : undefined,
+          errorMessage: updates.errorMessage,
+        });
+      }
 
       if (job?.ticket_id && status !== "active") {
         await this.activity.record(job.ticket_id, { type: "agent" }, status === "completed" ? "run_finished" : "run_failed", {

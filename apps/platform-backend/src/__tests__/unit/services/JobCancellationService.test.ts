@@ -165,6 +165,20 @@ describe("JobCancellationService", () => {
       await expect(serviceWith().stopJob("job-1")).resolves.toBe("cancelled");
     });
 
+    it("ends a scheduled run's execution when its job is cancelled", async () => {
+      const context = { clawExecutionId: "exec-1" };
+      executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null, context });
+      const scheduledRuns = { finish: jest.fn() };
+      const service = new JobCancellationService(undefined, undefined, undefined, [], mockTicketStatus, undefined, scheduledRuns);
+
+      await expect(service.stopJob("job-1")).resolves.toBe("cancelled");
+
+      expect(scheduledRuns.finish).toHaveBeenCalledWith(
+        { id: "job-1", context },
+        { status: "cancelled", errorMessage: "Run cancelled by user" },
+      );
+    });
+
     it("reports a missing run as not found", async () => {
       executeTakeFirst.mockResolvedValue(undefined);
 

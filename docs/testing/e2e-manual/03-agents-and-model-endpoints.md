@@ -13,12 +13,13 @@ Every harness with whatever credentials are available, and workspace model endpo
 For each row, run the **harness script** below on a fresh task and record each step's result in the log as `HARN-<row>.<step>`.
 
 **Harness script**
-1. **Research:** ask the runner for research (mention it once so it's on the task, then **Write the research**). A Research version appears.
-2. **Continue:** ask a follow-up. The turn says "continued its session" where the harness supports resuming.
+1. **Plan:** ask the runner for a plan (mention it once so it's on the task, then **Write the plan**). A Plan version appears.
+2. **Continue:** ask a follow-up. The turn says "resumed session" where the harness supports resuming, "fresh session" where it doesn't.
 3. **Question:** ask it to use ask_human (blocking); answer; it carries on.
 4. **Code:** **Build it** on a writable repo (or expect "Couldn't push changes" on the L-REV fixture).
 5. **Cancel:** start a turn and cancel it. The container stops and partial work is kept.
 6. **Records:** Run records shows harness, requested model, and reported model or "model not reported".
+7. **Usage:** the turn's footer shows the session and context (TASK-15); Run details shows input and output tokens, or leaves them out where the harness doesn't report them.
 
 | Row | Harness | Credentials and configuration | Notes from the v1 review |
 |---|---|---|---|
@@ -39,18 +40,18 @@ For each row, run the **harness script** below on a fresh task and record each s
 
 ## Model endpoints (EP)
 
-Endpoints are created under Settings → Models (Connect a model), from the runner form's Connect a model (every agent except Antigravity), or in first-run setup (SETUP-02).
+Endpoints are created under Settings → Models (Connect a model), from the runner form's Connect a model (every agent except Antigravity, which runs only on its own providers), or in first-run setup (SETUP-02). Which runners are offered an endpoint depends on its API format: Chat Completions goes to OpenCode, Pi, Qwen, Kimi and Mistral Vibe; Responses to Codex, Pi, Qwen, Kimi and Mistral Vibe; Anthropic Messages to Claude Code, Pi, Qwen, Kimi and Mistral Vibe.
 
 ### EP-01 · Create and discover
 1. Runner form → OpenCode → Connect a model: name, base URL, API Chat Completions, bearer auth, new key, **Check**.
 
-Expect: models discovered from `GET /models`; saved; offered to any OpenCode or Pi runner.
+Expect: "Connected. Found N models."; saved; offered to OpenCode, Pi, Qwen, Kimi and Mistral Vibe runners, not to Claude Code or Codex.
 
 ### EP-02 · No model listing
 Needs: a server without `/models` (or a proxy returning 404 there).
 1. Check, then type the model ID by hand and save.
 
-Expect: "Model discovery is unavailable" and the typed model kept.
+Expect: the check says the endpoint lists no models and to enter the model IDs; the typed model is kept.
 
 ### EP-03 · Wrong key, redirect
 1. Check with a wrong key.
@@ -64,10 +65,10 @@ Expect: (1) rejected with the HTTP status. (2) Refused (redirects are never foll
 Expect: the key arrives in the named header; the extra header is sent; the auth header wins over an extra header of the same name.
 
 ### EP-05 · Format compatibility
-1. Create an Anthropic Messages endpoint.
-2. Open an OpenCode runner, then a Pi runner, then a Claude Code runner.
+1. Create an Anthropic Messages endpoint (e.g. z.ai's `https://api.z.ai/api/anthropic`).
+2. Open an OpenCode, a Pi, a Claude Code, a Codex and an Antigravity runner; then run the harness script steps 1–2 on Claude Code with the endpoint.
 
-Expect: only Pi offers it; Claude Code says it uses only its own providers.
+Expect: Pi and Claude Code offer it, OpenCode and Codex don't; Antigravity says it runs only on its own providers and can't use workspace models yet. Claude Code works through the endpoint.
 
 ### EP-06 · In-use protection and stale readiness
 1. Try deleting an endpoint a runner uses, and its secret.

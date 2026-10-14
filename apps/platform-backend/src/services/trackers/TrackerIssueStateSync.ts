@@ -1,12 +1,8 @@
-import { TICKET_STATUS, type InboundIssueStateChange } from "@viberglass/types";
-import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
-import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
+import type { InboundIssueStateChange } from "@viberglass/types";
+import { TaskDoneService } from "../tasks/TaskDoneService";
 
 interface Dependencies {
-  tickets: Pick<TicketDAO, "getTicket" | "updateTicket">;
-  lifecycle: Pick<TicketLifecycleStatusService, "synchronize">;
-  activity: Pick<TaskActivityRecorder, "record">;
+  done: Pick<TaskDoneService, "finish" | "reopen">;
 }
 
 /**
@@ -19,26 +15,15 @@ export class TrackerIssueStateSync {
 
   constructor(deps: Partial<Dependencies> = {}) {
     this.deps = {
-      tickets: new TicketDAO(),
-      lifecycle: new TicketLifecycleStatusService(),
-      activity: new TaskActivityRecorder(),
+      done: new TaskDoneService(),
       ...deps,
     };
   }
 
   async apply(provider: string, ticketIds: string[], change: InboundIssueStateChange): Promise<void> {
     for (const ticketId of ticketIds) {
-      const ticket = await this.deps.tickets.getTicket(ticketId);
-      if (!ticket) continue;
-      const done = ticket.status === TICKET_STATUS.RESOLVED;
-      if (change === "closed" && !done) {
-        await this.deps.tickets.updateTicket(ticketId, { status: TICKET_STATUS.RESOLVED });
-        await this.deps.activity.record(ticketId, { type: "system" }, "task_done", { source: provider });
-      } else if (change === "reopened" && done) {
-        await this.deps.tickets.updateTicket(ticketId, { status: TICKET_STATUS.OPEN });
-        await this.deps.lifecycle.synchronize(ticketId);
-        await this.deps.activity.record(ticketId, { type: "system" }, "task_reopened", { source: provider });
-      }
+      if (change === "closed") await this.deps.done.finish(ticketId, { type: "system" }, { source: provider });
+      else if (change === "reopened") await this.deps.done.reopen(ticketId, { type: "system" }, { source: provider });
     }
   }
 }

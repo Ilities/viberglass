@@ -1,5 +1,7 @@
 # Worker Harness Images CI/CD Workflow
-# Automatically builds and pushes worker harness images when Dockerfiles change
+# Pushes to main rebuild the Lambda worker image in ECR. ECS, Docker and Kubernetes
+# runners use the public GHCR images unless the platform sets workerImageRegistry: ecr;
+# then publish the harness images here by hand ("all" or one harness).
 name: Deploy Viberator Worker Images
 
 on:
@@ -46,9 +48,9 @@ on:
           - opencode
           - pi
       image_tag:
-        description: 'Image tag (default: latest)'
+        description: 'Tag pushed alongside latest (default: the commit sha)'
         required: false
-        default: 'latest'
+        default: ''
         type: string
 
 permissions:
@@ -91,8 +93,8 @@ jobs:
       - name: Build and push viberator images
         env:
           ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
-          HARNESS: ${{ github.event.inputs.harness || 'all' }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+          HARNESS: ${{ github.event.inputs.harness || 'lambda' }}
         run: |
           ./infra/workers/scripts/setup-harness-images.sh dev "$HARNESS"
 
@@ -128,7 +130,7 @@ jobs:
       - name: Build and push viberator images
         env:
           ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
-          HARNESS: ${{ github.event.inputs.harness || 'all' }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+          HARNESS: ${{ github.event.inputs.harness || 'lambda' }}
         run: |
           ./infra/workers/scripts/setup-harness-images.sh prod "$HARNESS"

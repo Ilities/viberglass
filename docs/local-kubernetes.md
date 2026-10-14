@@ -55,7 +55,7 @@ Local installs use `<namespace>-workers` by default to retain existing installat
 - Workers run in `viberglass-workers`, with no Kubernetes service account token. The backend has namespaced Job permissions.
 - Model/Git credentials stay in the encrypted database and are delivered through authenticated bootstrap. Each worker mounts its own callback-token Secret; worker Pods receive no shared object-storage credentials.
 - `S3_ENDPOINT` is reachable from Pods. `S3_PUBLIC_ENDPOINT` is the browser-reachable signing endpoint; locally it is `http://localhost:39000`. Worker media links use the internal endpoint.
-- Instructions, task media, phase documents, and archived conversation state use object storage. Restarts retain data while the cluster/PVCs exist.
+- Instructions, task media, phase documents, Files space snapshots and artifacts, and archived conversation state use object storage. Restarts retain data while the cluster/PVCs exist.
 - Resource requests and limits consume cluster capacity. A worker namespace quota limits concurrency; requests exceeding quota fail admission.
 - Workers request short-lived URLs for their instructions/media and assigned session archive. Pod scheduling, image-pull and admission diagnostics appear in the existing run log. Silent agent steps send a heartbeat every minute, so a healthy long run is not stopped at thirty minutes.
 - The chart includes network policies. Local validation does not certify policy enforcement. Use a NetworkPolicy-capable CNI in a production cluster and test private Git/storage egress rules.
@@ -153,29 +153,9 @@ python3 infra/kubernetes/scripts/platformSmoke.py
 
 Run it against a disposable installation with both port forwards active. It creates a test administrator if the database is empty, a fake-agent credential/runner, and test spaces/tasks. It retains synthetic login credentials in `/tmp/viberglass-platform-smoke-credentials.json` with mode 0600; pass `--credentials` pointing to an existing credentials JSON (`email`, `password`) if the app already has an administrator. It removes its temporary Git Pod/Service/ConfigMap/egress policy on exit. App test data remains until the disposable cluster is removed.
 
-The check validates strategy activation, credential bootstrap, media upload/download, research result persistence, session continuation in a different Pod, and cancellation during execution and dispatch. It needs no paid model key and does not push to external repositories. Paid-model and real-cloud behavior remain separate validation gates.
+The check validates strategy activation, credential bootstrap, media upload/download, plan persistence, session continuation in a different Pod, and cancellation during execution and dispatch. It needs no paid model key and does not push to external repositories. Paid-model and real-cloud behavior remain separate validation gates.
 
-### Updating an earlier experimental installation
-
-The Kubernetes strategy migration is `101_kubernetes_deployment_strategy`, after upstream migrations through 100. If a disposable installation already applied it under an earlier name (`088_` or `099_kubernetes_deployment_strategy`), recreate its cluster before installing this version. Its migration history predates this merge and cannot accept the newly inserted upstream migrations in order. Do not recreate a cluster containing data you need; export its database and arrange a migration-history reconciliation first.
-
-## Earlier validation on main
-
-- Fresh backend/frontend/worker images and a clean kind installation, including all migrations through 101.
-- Backend unit suite: 171 suites / 1,188 tests; frontend suite: 53 suites / 256 tests; worker suite: 26 suites / 130 tests.
-- Real PostgreSQL/MinIO integration: encrypted run credentials, terminal status guards, Codex refresh, instructions, signed media, deletion, and session archives.
-- Installed app: activation, scoped credential/instruction bootstrap, browser media downloads, research documents, a resumed conversation in a separate Pod, and cancellation with worker Job deletion.
-- A running worker completed across backend/frontend rolling restarts.
-- PostgreSQL and MinIO Pod restarts retained login, stored credentials, documents and session state; the same conversation continued on turn 3.
-- Kubernetes create/edit forms checked in an authenticated browser.
-
-OVHcloud provisioning, provider storage/networking, paid-model behavior, network policy enforcement, and backup restoration have not been certified by these local checks.
-
-## Completion worktree validation, 2026-10-08
-
-The `feat/kubernetes-completion` worktree passed 219 backend suites / 1,464 tests and 33 worker suites / 151 tests, backend type checking, worker/backend builds, and targeted backend lint. The disposable PostgreSQL/MinIO smoke verified scoped storage and session restoration, denied foreign-object and terminal-run access, and preserved a healthy run older than thirty minutes.
-
-A disposable kind v0.33.0 / Kubernetes v1.37.0 cluster passed mounted callback-token authentication, Job-owned Secret cleanup, result callbacks, duplicate submission, cancellation, image failure detection and scheduling diagnostics. Its worker image overlaid newly compiled code on a cached worker base. A fresh image build, clean chart installation and database upgrade from this revision remain to be validated.
+These local checks don't cover OVHcloud provisioning, provider storage and networking, paid models, network policy enforcement or backup restoration.
 
 ## Installer and upgrade regression checks
 

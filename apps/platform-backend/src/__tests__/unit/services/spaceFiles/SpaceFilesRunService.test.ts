@@ -153,6 +153,36 @@ describe("SpaceFilesRunService", () => {
     expect(registrar.fromDeclaration).not.toHaveBeenCalled();
   });
 
+  it("keeps the artifacts a scheduled run declared, as the space's rather than a task's", async () => {
+    const { service, registrar, bootstraps } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { jobKind: "claw", context: { clawScheduleId: "s-1" } } });
+    const manifest = { artifacts: [{ title: "Weekly report", entrypoint: "report.html" }] };
+
+    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: manifest });
+
+    expect(registrar.fromDeclaration).toHaveBeenCalledWith(manifest, [], expect.objectContaining({ ticketId: null, jobId: "job-1" }));
+  });
+
+  it("reports an unreadable declaration from a scheduled run", async () => {
+    const { service, registrar, bootstraps } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { jobKind: "claw" } });
+
+    const saved = await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifestError: "artifacts.json isn't valid JSON" });
+
+    expect(registrar.fromDeclaration).not.toHaveBeenCalled();
+    expect(saved).toMatchObject({ artifactError: "artifacts.json isn't valid JSON" });
+  });
+
+  it("saves a scheduled run's files without an artifact when it declared none", async () => {
+    const { service, registrar, bootstraps } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { jobKind: "claw" } });
+
+    const saved = await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: null });
+
+    expect(registrar.fromDeclaration).not.toHaveBeenCalled();
+    expect(saved).toMatchObject({ artifacts: [], artifactError: null });
+  });
+
   it("refuses an archive that differs from what the run reported", async () => {
     const { dao, service } = setup();
     await expect(service.checkpoint("job-1", "api-server", { sha256: "0".repeat(64), archiveBytes: EMPTY.length, partial: false })).rejects.toBeInstanceOf(InvalidSpaceArchive);

@@ -70,6 +70,7 @@ export function getWorkerImageForClanker(
     return undefined;
   }
 
-  return buildImageUrl(registry, imagePrefix, repositoryName,
-    strategy === "kubernetes" ? process.env.KUBERNETES_WORKER_IMAGE_TAG || "latest" : "latest");
+  const tag =
+    strategy === "lambda" ? "latest" : process.env.VIBERATOR_WORKER_IMAGE_TAG || "latest";
+  return buildImageUrl(registry, imagePrefix, repositoryName, tag);
 }

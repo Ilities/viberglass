@@ -95,7 +95,7 @@ The package lists `@viberglass/types` as a peer dependency.
 
 **Extension packages:** `packages/integrations/integration-<name>`, listed in `viberglass.plugins.json`.
 - `src/manifest.ts` — plain data (`IntegrationManifest` from `@viberglass/types`) that the backend and frontend entries both spread: label, description, category, config fields, `credentialUse`, `receivesWebhooks`.
-- `src/backend/plugin.ts` — the manifest plus capabilities: `createIntegration`, `createCommenter` for trackers, `webhook` (a `WebhookReceiver`) when it receives webhooks, `repository` (a `RepositoryHost`) for a code host.
+- `src/backend/plugin.ts` — the manifest plus capabilities: `checkConnection`, `createCommenter` for trackers, `webhook` (a `WebhookReceiver`) when it receives webhooks, `repository` (a `RepositoryHost`) for a code host, `chat` (a `ChatProvider`) for a chat service.
 - `src/frontend/plugin.ts` — the manifest plus `Icon` and optional slots (`trackerWebhook`, `AuthSetupSection`).
 
 **Generic infrastructure:** the webhook pipeline (`webhooks/WebhookService.ts`, `InboundEventHandler.ts`, one `/api/webhooks/:provider/:configId` route) finds the receiver by provider and acts on what it reads: an issue, a comment, a task, or ignored. It never names a provider. The same goes for repositories: the platform finds the space's code host by its connection and calls its `RepositoryHost`; the worker only runs git, with the username the job carries, and asks the platform to open pull requests.
@@ -106,19 +106,21 @@ The package lists `@viberglass/types` as a peer dependency.
 
 Agents are plugin packages under `packages/agents/`, listed in `viberglass.plugins.json`. An agent id is an open string checked against the generated agent catalog. A harness's settings are declared as fields on its plugin (`settings`), and the runner form, the backend normalizer and the worker handle them generically.
 
-**Adding Agent-X:** run `npm run new:agent agent-x`; see `packages/agents/README.md`.
+**Adding Agent-X:** run `npm run new:agent x` (it creates `packages/agents/agent-x`); see `packages/agents/README.md`.
 
-### Secret Management
+### Credential storage
 
-Secret providers (AWS SSM, Vault, environment variables) follow the same structure:
-- `SecretProviderServices` interface in a `packages/secrets-*` package: `get(key): Promise<string | null>`, `set(key, value): Promise<void>`
-- Composition root wires the correct provider based on `process.env.SECRET_BACKEND`
+Credential providers live in the backend, not in packages, but keep the same split: the `CredentialProvider` interface (`apps/platform-backend/src/credentials/CredentialProvider.ts`: `get`, `put`, `delete` per tenant, `isAvailable`), one class per backend in `credentials/providers/` (environment, file, AWS SSM), and `CredentialProviderFactory` choosing them from configuration in a fixed fallback order. A new backend is a new provider class plus a config switch in the factory.
 
 ---
 
 ## Monorepo Setup Checklist
 
 When creating a new extension package:
+
+For a harness or an integration, use `npm run new:agent <name>` or `npm run new:integration <name>`: they scaffold the package, add it to `viberglass.plugins.json` and run `npm run generate:plugins`, which adds the dependency to the consuming apps. `packages/agents/*` and `packages/integrations/*` are already in the root `workspaces`. Then run `npm install` and build the package.
+
+For any other extension package:
 
 - [ ] `packages/<name>/package.json` — name `@viberglass/<name>`, declare `@viberglass/types` and host SDK as peer dependencies
 - [ ] `packages/<name>/tsconfig.json` — copy from `packages/types/tsconfig.json`

@@ -19,7 +19,7 @@ corpus. That imposes three constraints ordinary app tracing does not:
    usage. Backfilling from a per-plugin cost constant makes an estimate
    indistinguishable from a measurement.
 3. **Context must cross a non-HTTP boundary.** The backend dispatches to
-   Lambda, ECS and Docker. There is no request to hang headers on.
+   Lambda, ECS, Docker and Kubernetes. There is no request to hang headers on.
 
 ## Configuration
 
@@ -68,7 +68,7 @@ exfiltrating it.
 ## Trace shape
 
 ```
-HTTP POST /api/tasks/:id/run          SERVER    (backend)
+HTTP POST /api/tasks/:id/messages     SERVER    (backend)
 └── job.dispatch                        INTERNAL  ← traceparent injected here
     └── worker.invoke                   PRODUCER
         ╎ (process boundary — W3C carrier in the bootstrap payload)
@@ -159,7 +159,7 @@ and correct parenting; if the carrier is broken they arrive as two traces.
 `injectTraceContext()` returns a `{traceparent, tracestate}` carrier;
 `withRemoteTraceContext(carrier, fn)` runs `fn` under it. The carrier is added
 to the bootstrap payload under the `telemetry` key, which is **persisted** —
-ECS and Docker workers launched with `--job-ref` re-fetch the stored payload,
+ECS, Docker and Kubernetes workers launched with `--job-ref` re-fetch the stored payload,
 so a carrier attached only to the in-memory copy would never reach them.
 
 A missing or malformed carrier is not an error: the worker starts its own
@@ -170,7 +170,7 @@ trace. Payloads written before this existed still run.
 Spans are batched. Both worker entrypoints exit the process as soon as the
 result callback returns, so they must flush first:
 
-- CLI/ECS/Docker: `shutdownTelemetryAndExit(code)` — flush, shut down, exit.
+- CLI/ECS/Docker/Kubernetes: `shutdownTelemetryAndExit(code)` — flush, shut down, exit.
 - Lambda: `flushTelemetryBeforeFreeze()` — flush only; the frozen container is
   reused, so the provider must survive.
 - Backend: flushed in the `SIGTERM`/`SIGINT` handler.

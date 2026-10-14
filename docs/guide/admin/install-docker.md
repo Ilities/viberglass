@@ -7,9 +7,9 @@ There are two ways to run it with Docker. The first, below, is for trying Viberg
 ## Requirements
 
 - Docker Engine 20.10 or newer, with Docker Compose v2.
-- Free ports 3000 (the app), 8888 (the API) and 5432 (PostgreSQL).
+- Free ports 3000 (the app), 8888 (the API), 8890 (artifact previews), 5432 (PostgreSQL), and 9000 and 9001 (object storage).
 - A model key from an AI provider, or the address of a compatible model endpoint.
-- A GitHub repository, and a fine-grained access token for it.
+- A GitHub repository, and a fine-grained access token for it. Not needed if your first space is a Files space.
 
 ## Start it
 
@@ -26,10 +26,10 @@ The first start builds the backend and frontend, so it takes a few minutes. The 
 The first visit asks you to create the administrator account: your name, email and password. Setup then walks through the rest.
 
 1. Connect an AI model. Pick the provider that issued your key and paste it; setup checks it with the provider. Or choose Custom endpoint for a provider such as z.ai or a model you run yourself: enter the API base URL, the API it speaks, the endpoint's key and a model (Find models lists them). See [Agents and models](agents-and-models.md).
-2. Point at your repository. Enter the GitHub repository and an access token. "Create a token with the right permissions" opens GitHub's fine-grained token form with what the agent needs filled in: write access to Contents and Pull requests. Setup checks the token with GitHub.
+2. Choose your space backing. Git repository is for code: enter the GitHub repository and an access token. "Create a token with the right permissions" opens GitHub's fine-grained token form with what the agent needs filled in: write access to Contents and Pull requests. Setup checks the token with GitHub. Files is for documents, presentations and other artifacts, and needs no repository. A space's backing can't be changed later.
 3. Name your first space.
 4. Getting your agent ready. Setup creates a default agent for your key and starts it on Docker. The first time, this downloads the agent's image and takes a couple of minutes.
-5. Try your first task. Setup suggests a starter task that only reads your code; choose Write the plan to run it.
+5. Try your first task. Setup suggests a starter task: in a repository it only reads your code and writes a plan, and in a Files space the agent writes a one-page brief. Choose Start the task to run it.
 
 To look around before connecting anything, choose Explore a demo workspace on setup's first screen. It loads a sample space with tasks in different states. Its tasks don't run agents. Remove demo, in the demo's banner, deletes exactly what it added.
 
@@ -37,7 +37,11 @@ To look around before connecting anything, choose Explore a demo workspace on se
 
 ## Worker images
 
-Agents run in worker images pulled from `ghcr.io/ilities`, one per coding agent. To use images you built yourself, set `VIBERATOR_WORKER_REGISTRY` to empty in a `.env` file in the repository root, and restart the backend.
+Agents run in worker images pulled from `ghcr.io/ilities`, one per coding agent, tagged `latest` unless you set `VIBERATOR_WORKER_IMAGE_TAG`. To use images you built yourself, set `VIBERATOR_WORKER_REGISTRY` to empty in a `.env` file in the repository root, and restart the backend.
+
+## Files spaces and previews
+
+The quick start runs MinIO as its object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-storage-data` volume, and its console is at http://localhost:9001. Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
 
 ## Optional services
 
@@ -98,7 +102,7 @@ What else to know:
 
 - Agents run as containers on the same server. The backend starts them through the Docker socket, so treat access to the backend container as root access to the server.
 - Agent containers call the backend back on the Docker bridge address, `172.17.0.1:8888`, which isn't reachable from outside the server. If `ip addr show docker0` shows another address, set `VIBERGLASS_WORKER_API_BIND` in `.env`.
-- Task media, saved agent sessions, instruction files and skills are kept in `/var/lib/viberglass` (`VIBERGLASS_DATA_DIR`), and the database in the `viberglass_postgres-data` volume. Back up both, and `.env`.
+- Task media, saved agent sessions, instruction files and skills are kept in `/var/lib/viberglass` (`VIBERGLASS_DATA_DIR`), and the database in the `viberglass_postgres-data` volume. Back up both, and `.env`. With a bucket set, task media and plan documents are kept in it instead, alongside the Files spaces, so back it up too.
 - Optional email and trace settings are in `.env.production.example`.
 
 To upgrade, set `VIBERGLASS_VERSION` to the new release in `.env`, then run `docker compose -f docker-compose.prod.yml --profile https pull` and `docker compose -f docker-compose.prod.yml --profile https up -d`. Back up the database first; see [Upgrades and backups](upgrades-and-backups.md).

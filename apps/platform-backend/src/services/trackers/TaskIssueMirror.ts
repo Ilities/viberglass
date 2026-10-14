@@ -1,6 +1,6 @@
 import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import { withViberglassMark } from "@viberglass/integration-core";
-import { ticketUrl } from "../../chat/platformLinks";
+import { artifactsMarkdown, ticketUrl } from "../../chat/platformLinks";
 import { createChildLogger } from "../../config/logger";
 import { AgentQuestionDAO, publicQuestion } from "../../persistence/agentSession/AgentQuestionDAO";
 import { TaskAgentTurnDAO } from "../../persistence/agentSession/TaskAgentTurnDAO";
@@ -29,7 +29,7 @@ const text = (value: unknown): string | null => (typeof value === "string" ? val
 
 /**
  * Posts a task's milestones to the tracker issue it's linked to: the plan,
- * the agent's questions, the pull request and done. The agent's reply goes
+ * the agent's questions, the pull request or artifacts, and done. The agent's reply goes
  * too when it was asked from the issue. Hears the task's Activity, like the
  * chat mirror, so it doesn't matter where a change started.
  */
@@ -86,7 +86,7 @@ export class TaskIssueMirror implements ActivityListener {
     }
   }
 
-  /** The agent's reply when it was asked from the issue, then the plan it wrote or the pull request it opened. */
+  /** The agent's reply when it was asked from the issue, then the plan it wrote, the pull request it opened or the artifacts it made. */
   private async turnPosts(ticketId: string, jobId: string | null, link: TaskIssueLink): Promise<string[]> {
     const turn = jobId ? await this.deps.turns.getByJobId(jobId) : null;
     if (!turn?.outcome) return [];
@@ -98,10 +98,10 @@ export class TaskIssueMirror implements ActivityListener {
       const plan = await this.deps.documents.getOrCreateDocument(ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
       posts.push(planReadyPost(plan.content, taskLink));
     }
-    if (turn.outcome.produced.includes("code")) {
-      const pullRequestUrl = (await this.deps.tickets.getSummary(ticketId))?.pullRequestUrl;
-      if (pullRequestUrl) posts.push(pullRequestPost(pullRequestUrl));
-    }
+    const task = await this.deps.tickets.getSummary(ticketId);
+    if (turn.outcome.produced.includes("code") && task?.pullRequestUrl) posts.push(pullRequestPost(task.pullRequestUrl));
+    const artifacts = task ? artifactsMarkdown(task.spaceSlug, turn.outcome.artifacts ?? []) : null;
+    if (artifacts) posts.push(artifacts);
     return posts;
   }
 

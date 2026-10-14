@@ -3,6 +3,7 @@ import { mergeProvisionedStrategyIntoConfig } from "../../clanker-config/mergePr
 import type { ProvisioningStrategyHandler } from "../ProvisioningStrategyHandler";
 import type { DockerClientPort } from "../ports/DockerClientPort";
 import { resolveRepoRoot } from "../shared/repoRoot";
+import { canBuildWorkerFromSource, SOURCE_BUILD_UNAVAILABLE_MESSAGE } from "../shared/sourceBuild";
 import {
   getDockerStrategyConfig,
 } from "../shared/configHelpers";
@@ -26,6 +27,7 @@ const DEFAULT_LOCAL_DOCKER_IMAGE = "viberator-worker:local";
 export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
   private readonly imageBuilder: DockerImageBuilder;
   private readonly imagePuller: DockerImagePuller;
+  private readonly repoRoot: string;
 
   constructor(
     private readonly dockerClient: DockerClientPort,
@@ -35,14 +37,17 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
       imagePuller?: DockerImagePuller;
     },
   ) {
+    this.repoRoot = options?.repoRoot || resolveRepoRoot();
     this.imageBuilder =
-      options?.imageBuilder ||
-      new DockerImageBuilder(dockerClient, options?.repoRoot || resolveRepoRoot());
+      options?.imageBuilder || new DockerImageBuilder(dockerClient, this.repoRoot);
     this.imagePuller = options?.imagePuller || new DockerImagePuller(dockerClient);
   }
 
-  getPreflightError(_clanker: Clanker): string | null {
-    return null;
+  getPreflightError(clanker: Clanker): string | null {
+    const managed = getDockerStrategyConfig(clanker).provisioningMode !== "prebuilt";
+    return managed && !canBuildWorkerFromSource(this.repoRoot)
+      ? SOURCE_BUILD_UNAVAILABLE_MESSAGE
+      : null;
   }
 
   async provision(

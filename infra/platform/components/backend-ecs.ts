@@ -66,11 +66,12 @@ export interface BackendEcsOptions {
   uploadsBucketName?: pulumi.Input<string>;
   /** S3 key prefix for ticket media objects */
   ticketMediaS3Prefix?: pulumi.Input<string>;
-  /** Worker infrastructure values for clanker ECS provisioning (optional) */
-  worker?: {
+  /** Worker images and infrastructure values for runner provisioning */
+  worker: {
+    imageRegistry: pulumi.Input<string>;
+    imageTag: pulumi.Input<string>;
     executionRoleArn?: pulumi.Input<string>;
     taskRoleArn?: pulumi.Input<string>;
-    imageUri?: pulumi.Input<string>;
     lambdaImageUri?: pulumi.Input<string>;
     lambdaRoleArn?: pulumi.Input<string>;
     clusterArn?: pulumi.Input<string>;
@@ -264,8 +265,8 @@ export function createBackendEcs(
       role: backendTaskRole.name,
       policy: pulumi
         .all([
-          options.worker?.executionRoleArn ?? "",
-          options.worker?.taskRoleArn ?? "",
+          options.worker.executionRoleArn ?? "",
+          options.worker.taskRoleArn ?? "",
         ])
         .apply(([execRoleArn, taskRoleArn]) => {
           const passRoleResources: string[] = [];
@@ -386,15 +387,16 @@ export function createBackendEcs(
           platformApiUrl: options.platformApiUrl ?? "",
           platformFrontendUrl: options.platformFrontendUrl ?? "",
           previewPublicUrl: options.preview?.publicUrl ?? "",
-          workerExecRole: options.worker?.executionRoleArn ?? "",
-          workerTaskRole: options.worker?.taskRoleArn ?? "",
-          workerImage: options.worker?.imageUri ?? "",
-          workerLambdaImage: options.worker?.lambdaImageUri ?? "",
-          workerLambdaRole: options.worker?.lambdaRoleArn ?? "",
-          workerCluster: options.worker?.clusterArn ?? "",
-          workerSubnets: options.worker?.subnetIds ?? [],
-          workerSecurityGroup: options.worker?.securityGroupId ?? "",
-          workerLogGroup: options.worker?.logGroupName ?? "",
+          workerExecRole: options.worker.executionRoleArn ?? "",
+          workerTaskRole: options.worker.taskRoleArn ?? "",
+          workerImageRegistry: options.worker.imageRegistry,
+          workerImageTag: options.worker.imageTag,
+          workerLambdaImage: options.worker.lambdaImageUri ?? "",
+          workerLambdaRole: options.worker.lambdaRoleArn ?? "",
+          workerCluster: options.worker.clusterArn ?? "",
+          workerSubnets: options.worker.subnetIds ?? [],
+          workerSecurityGroup: options.worker.securityGroupId ?? "",
+          workerLogGroup: options.worker.logGroupName ?? "",
           uploadsBucketName: options.uploadsBucketName ?? "",
           ticketMediaS3Prefix: options.ticketMediaS3Prefix ?? "ticket-media",
         })
@@ -411,7 +413,8 @@ export function createBackendEcs(
             previewPublicUrl,
             workerExecRole,
             workerTaskRole,
-            workerImage,
+            workerImageRegistry,
+            workerImageTag,
             workerLambdaImage,
             workerLambdaRole,
             workerCluster,
@@ -421,9 +424,6 @@ export function createBackendEcs(
             uploadsBucketName,
             ticketMediaS3Prefix,
           }) => {
-            const normalizedWorkerImage = Array.isArray(workerImage)
-              ? workerImage[0]
-              : workerImage;
             const normalizedWorkerSubnets = Array.isArray(workerSubnets)
               ? workerSubnets
               : [];
@@ -435,7 +435,8 @@ export function createBackendEcs(
               { name: "NODE_ENV", value: "production" },
               { name: "PORT", value: containerPort.toString() },
               { name: "AWS_REGION", value: options.config.awsRegion },
-              { name: "VIBERATOR_WORKER_REGISTRY", value: "ghcr.io/ilities" },
+              { name: "VIBERATOR_WORKER_REGISTRY", value: workerImageRegistry },
+              { name: "VIBERATOR_WORKER_IMAGE_TAG", value: workerImageTag },
               { name: "DB_SSL", value: "true" },
               { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
               {
@@ -494,12 +495,6 @@ export function createBackendEcs(
               envVars.push({
                 name: "VIBERATOR_ECS_TASK_ROLE_ARN",
                 value: workerTaskRole,
-              });
-            }
-            if (workerImage) {
-              envVars.push({
-                name: "VIBERATOR_ECS_CONTAINER_IMAGE",
-                value: normalizedWorkerImage,
               });
             }
             if (workerLambdaImage) {
@@ -618,7 +613,7 @@ export function createBackendEcs(
  * components together.
  */
 export function createBackendService(
-  options: BackendEcsOptions & {
+  options: Omit<BackendEcsOptions, "worker"> & {
     taskDefinitionArn: pulumi.Input<string>;
     clusterArn: pulumi.Input<string>;
     clusterName: pulumi.Input<string>;

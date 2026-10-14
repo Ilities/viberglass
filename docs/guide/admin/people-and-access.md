@@ -38,15 +38,11 @@ Deactivate on Settings → Members stops someone signing in. Their history stays
 
 A space holds the tasks for one product or repository. Members and admins create spaces with New space in the sidebar.
 
-In a space's Space settings → Members:
+In a space's Space settings:
 
-- Private space: open spaces are visible to every member and viewer, and membership sets defaults and notifications. A private space is visible only to its members and admins.
-- People in this space, each with a space role. Maintainers manage the space's settings, members and defaults, and can steer its tasks. Members belong to it.
-- Default owner of new tasks: with nobody chosen, whoever creates a task owns it.
-- Default reviewers, added to every new task.
-- Unanswered questions: remind people about the agent's unanswered questions after a while.
-
-General settings name the space, pick its default agent (see [Which agent takes a task](agents-and-models.md#which-agent-takes-a-task)), set its task keys, and archive or delete it.
+- General: the space's name, and Private space. Open spaces are visible to every member and viewer, and membership sets defaults and notifications. A private space is visible only to its members and admins. General also shows the space's backing, Git repository or Files, and archives or deletes the space.
+- Members: the people in the space, each with a space role, and Add someone. Maintainers manage the space's settings, members and defaults, and can steer its tasks. Members belong to it.
+- Task defaults: the space's default agent (see [Which agent takes a task](agents-and-models.md#which-agent-takes-a-task)); the default owner of new tasks, whoever creates a task unless you pick someone; default reviewers, added to every new task; and Unanswered questions, which reminds people about the agent's unanswered questions after a while.
 
 ## Auditing
 

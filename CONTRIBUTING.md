@@ -41,18 +41,11 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to keep our com
 # Install dependencies
 npm install
 
-# Copy environment files
-cp .env.development.example .env.local
-cp apps/platform-backend/.env.example apps/platform-backend/.env
-
-# Start the development stack
-docker compose up -d
-
-# Run the development servers
-npm run dev
+# Start Postgres, MinIO, the backend and the frontend (http://localhost:3000)
+docker compose up
 ```
 
-For more detailed setup instructions, see [README.md](README.md).
+The backend and frontend run in compose with hot reload, and the backend migrates on start. Optional settings go in a `.env` in the repository root. To run the backend outside compose instead, see [docs/local-development.md](docs/local-development.md).
 
 ## How to Contribute
 
@@ -103,15 +96,13 @@ Feature suggestions are tracked as GitHub issues. When creating a feature sugges
 ### Code Organization
 
 - One primary class per file
-- Keep files under 350 lines
-- Keep service classes under 200 lines
-- Place unit tests next to the code they test (`*.test.ts`)
+- Keep files under 350 lines, classes under 150 and service classes under 200; split by responsibility when they grow past that
 
 ### Naming Conventions
 
-- Classes: `PascalCase` (e.g., `TicketService.ts`)
-- Utilities/functions: `camelCase` (e.g., `formatDate.ts`)
-- Types/interfaces: `PascalCase` (e.g., `Ticket.ts`)
+- Class files: `PascalCase`, matching the class (e.g., `TicketService.ts`)
+- Utility/function-only files: `camelCase` (e.g., `formatDate.ts`)
+- Type/interface-only files: `camelCase` (e.g., `taskHandoff.ts`)
 
 ### Architecture Principles
 
@@ -138,9 +129,11 @@ npm run test:e2e
 
 ### Writing Tests
 
-- **Unit tests**: Co-located with source files (`*.test.ts`)
-- **Integration tests**: In `src/__tests__/integration/` directories
-- **E2E tests**: In `tests/e2e/tests/` directory
+- **Unit tests**: `apps/platform-backend/src/__tests__/unit/`; next to the source in the frontend and the worker (`*.test.ts`, `*.test.tsx`); in `test/` in the plugin packages and the CLI
+- **Integration tests**: `apps/platform-backend/src/__tests__/integration/`
+- **E2E tests**: `tests/e2e/tests/` (Playwright)
+
+See [TESTING.md](TESTING.md) for how to run each suite.
 
 ## Commit Guidelines
 
@@ -194,7 +187,8 @@ Viberglass consists of:
 - **Platform Backend** (`apps/platform-backend`): Express.js API server
 - **Platform Frontend** (`apps/platform-frontend`): React SPA (Vite)
 - **Viberator Worker** (`apps/viberator`): AI agent execution engine
-- **Infrastructure** (`infra/`): Pulumi-based AWS deployment
+- **Packages** (`packages/`): shared types, agent harness and integration plugins, the MCP server, telemetry and the `viberglass` CLI
+- **Infrastructure** (`infra/`): Pulumi stacks for AWS, the Helm chart for Kubernetes, and the worker Dockerfiles
 
 For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

@@ -285,6 +285,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
                 strategyName={selectedStrategy?.name}
                 provisioningMode={provisioningMode}
                 onProvisioningModeChange={setProvisioningMode}
+                canBuildFromSource={selectedStrategy?.canBuildFromSource === true}
                 defaults={initialForm}
               />
             </FieldGroup>

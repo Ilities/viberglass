@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { isTaskParticipantRole, type TaskParticipantRole, type TicketLifecycleStatus } from "@viberglass/types";
+import { isTaskParticipantRole, type SpaceBackingKind, type TaskParticipantRole, type TicketLifecycleStatus } from "@viberglass/types";
 import db from "../config/database";
 import { latestPullRequestUrl } from "./latestPullRequestUrl";
 
@@ -88,5 +88,17 @@ export class TaskThreadListDAO {
       .limit(limit)
       .execute();
     return rows.map(toRow);
+  }
+
+  /** Each task's space backing, keyed by task id. */
+  async backingKinds(ticketIds: string[]): Promise<Map<string, SpaceBackingKind>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("tickets as t")
+      .innerJoin("projects as p", "p.id", "t.project_id")
+      .select(["t.id", "p.backing_kind"])
+      .where("t.id", "in", ticketIds)
+      .execute();
+    return new Map(rows.map((row) => [row.id, row.backing_kind]));
   }
 }

@@ -1,9 +1,9 @@
 import { Theme } from '@radix-ui/themes'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { SpaceFilesSnapshotSummary, TaskTimelineEntry, TaskTurnOutcome } from '@viberglass/types'
+import { savedFilesLine, type SpaceFilesSnapshotSummary, type TaskTimelineEntry, type TaskTurnOutcome } from '@viberglass/types'
 import type { JobListItem } from '@/service/api/job-api'
-import { AgentTurnEntry, filesLine } from './agent-turn-entry'
+import { AgentTurnEntry } from './agent-turn-entry'
 
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', name: 'Me', role: 'member' } }) }))
 
@@ -49,19 +49,27 @@ function renderEntry(entry: Extract<TaskTimelineEntry, { kind: 'agent_turn' }>, 
   )
 }
 
-describe('filesLine', () => {
+describe('savedFilesLine', () => {
   it('counts what the turn changed and the files the space has', () => {
-    expect(filesLine(FILES)).toBe('Saved files · 2 added, 1 changed · 14 files')
+    expect(savedFilesLine(FILES)).toBe('Saved files · 2 added, 1 changed · 14 files')
   })
 
   it('says when nothing changed', () => {
-    expect(filesLine({ ...FILES, fileCount: 1, changes: { added: 0, changed: 0, removed: 0 } })).toBe('Saved files · no changes · 1 file')
+    expect(savedFilesLine({ ...FILES, fileCount: 1, changes: { added: 0, changed: 0, removed: 0 } })).toBe('Saved files · no changes · 1 file')
   })
 
   it('marks files saved after a failure as partial', () => {
-    expect(filesLine({ ...FILES, partial: true, changes: { added: 0, changed: 0, removed: 3 } })).toBe(
+    expect(savedFilesLine({ ...FILES, partial: true, changes: { added: 0, changed: 0, removed: 3 } })).toBe(
       'Saved partial files after the run failed · 3 removed · 14 files'
     )
+    expect(savedFilesLine({ ...FILES, partial: true }, 'failed')).toBe('Saved partial files after the run failed · 2 added, 1 changed · 14 files')
+  })
+
+  it('says partial files from a stopped run are as they were when it stopped', () => {
+    expect(savedFilesLine({ ...FILES, partial: true }, 'stopped')).toBe(
+      'Saved the files as they were when the run stopped · 2 added, 1 changed · 14 files'
+    )
+    expect(savedFilesLine(FILES, 'stopped')).toBe('Saved files · 2 added, 1 changed · 14 files')
   })
 })
 
@@ -97,6 +105,16 @@ describe('AgentTurnEntry in a Files space', () => {
   it('shows a started run as working', () => {
     renderEntry(turn({ status: 'running', outcome: null }), { status: 'active' })
     expect(screen.getByText(/Working on it/)).toBeInTheDocument()
+  })
+
+  it('says what a stopped run saved, or that it saved nothing', () => {
+    renderEntry(turn({ status: 'cancelled', outcome: { ...OUTCOME, files: { ...FILES, partial: true } } }))
+    expect(screen.getByText('Saved the files as they were when the run stopped · 2 added, 1 changed · 14 files')).toBeInTheDocument()
+  })
+
+  it('says a stopped run that saved nothing left the files as they were', () => {
+    renderEntry(turn({ status: 'cancelled', outcome: null }))
+    expect(screen.getByText("Nothing from this run was saved, so the space's files are as they were before it.")).toBeInTheDocument()
   })
 
   it('keeps a queued run in a Git space as working', () => {

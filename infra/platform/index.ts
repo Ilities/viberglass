@@ -102,7 +102,7 @@ const backendAssignPublicIp = networkMode.apply(
 // If workerStack is not configured, clankers will need manual ECS/Lambda configuration
 let workerExecutionRoleArn: pulumi.Output<string> | undefined;
 let workerTaskRoleArn: pulumi.Output<string> | undefined;
-let workerImageUri: pulumi.Output<string> | undefined;
+let workerImageRegistry: pulumi.Input<string> = config.workerImageRegistry;
 let workerLambdaImageUri: pulumi.Output<string> | undefined;
 let workerLambdaRoleArn: pulumi.Output<string> | undefined;
 let workerClusterArn: pulumi.Output<string> | undefined;
@@ -125,9 +125,11 @@ if (!config.workerStack) {
     workerTaskRoleArn = workerStack.getOutput(
       "ecsTaskRoleArn",
     ) as pulumi.Output<string>;
-    workerImageUri = workerStack.getOutput(
-      "ecsImageUri",
-    ) as pulumi.Output<string>;
+    if (config.workerImageRegistry === "ecr") {
+      workerImageRegistry = workerStack
+        .getOutput("workerRepositoryUrl")
+        .apply((url: string) => url.split("/").slice(0, -1).join("/"));
+    }
     workerLambdaImageUri = workerStack.getOutput(
       "lambdaImageUri",
     ) as pulumi.Output<string>;
@@ -144,6 +146,9 @@ if (!config.workerStack) {
       "workerSecurityGroup",
     ) as pulumi.Output<string>;
   } catch (error) {
+    if (config.workerImageRegistry === "ecr") {
+      throw error;
+    }
     const message = error instanceof Error ? error.message : String(error);
     pulumi.log.warn(
       `Failed to initialize worker stack reference '${config.workerStack}'. Managed clanker ECS/Lambda provisioning defaults will be unavailable until this reference resolves. Error: ${message}`,
@@ -352,20 +357,18 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   ticketMediaS3Prefix: "ticket-media",
   preview: previewOrigin,
   // Pass worker infrastructure values for clanker managed provisioning
-  worker:
-    workerExecutionRoleArn || workerLambdaImageUri || workerLambdaRoleArn
-    ? {
-        executionRoleArn: workerExecutionRoleArn,
-        taskRoleArn: workerTaskRoleArn,
-        imageUri: workerImageUri,
-        lambdaImageUri: workerLambdaImageUri,
-        lambdaRoleArn: workerLambdaRoleArn,
-        clusterArn: workerClusterArn,
-        subnetIds: workerSubnetIds,
-        securityGroupId: workerSecurityGroupId,
-        logGroupName: ecsWorkerLogGroupName,
-      }
-    : undefined,
+  worker: {
+    imageRegistry: workerImageRegistry,
+    imageTag: config.workerImageTag,
+    executionRoleArn: workerExecutionRoleArn,
+    taskRoleArn: workerTaskRoleArn,
+    lambdaImageUri: workerLambdaImageUri,
+    lambdaRoleArn: workerLambdaRoleArn,
+    clusterArn: workerClusterArn,
+    subnetIds: workerSubnetIds,
+    securityGroupId: workerSecurityGroupId,
+    logGroupName: ecsWorkerLogGroupName,
+  },
 });
 
 // Create backend ECS service

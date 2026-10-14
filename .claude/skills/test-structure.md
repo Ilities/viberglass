@@ -4,64 +4,58 @@ Follow this test structure convention when creating or moving tests in this code
 
 ## Test Location Rules
 
-1. **Unit Tests** - Place next to the file being tested (co-located)
-2. **Integration Tests** - Place in `__tests__/integration/` directory within the package
-3. **E2E Tests** - Place in the separate `tests/e2e/` package
+1. **Unit Tests**
+   - Backend (`apps/platform-backend`): in `src/__tests__/unit/`, in the folder that mirrors the source. `npm run test:unit` there selects tests by the `unit` path, so a test next to its source won't run with it.
+   - Frontend, worker (`apps/viberator`), `packages/telemetry`: next to the file being tested (co-located)
+   - Plugin packages (`packages/agents/*`, `packages/integrations/*`) and `packages/cli`: in the package's `test/` folder
+2. **Integration Tests** - Place in `apps/platform-backend/src/__tests__/integration/`
+3. **E2E Tests** - Place in the separate `tests/e2e/` package, under `tests/smoke/`
 
 ## File Naming Conventions
 
 - Unit tests: `Filename.test.ts` (same name as source file)
 - Integration tests: `Filename.integration.test.ts`
-- E2E tests: `FeatureName.e2e.test.ts`
+- E2E tests: `feature-name.e2e.test.ts`
 
 ## Examples
 
-### Unit Test (Co-located)
+### Unit Test (Co-located: frontend, worker)
 ```
-src/
-  services/
-    UserService.ts
-    UserService.test.ts        # Unit test next to source
-    EmailService.ts
-    EmailService.test.ts       # Unit test next to source
-  __tests__/
-    integration/               # Integration tests only
-      api.integration.test.ts
+apps/platform-frontend/src/
+  pages/
+    SomePage.tsx
+    SomePage.test.tsx          # Unit test next to source
 ```
 
-### Integration Test
+### Backend Unit and Integration Tests
 ```
 apps/platform-backend/
   src/
     services/
       UserService.ts
-      UserService.test.ts     # Unit test co-located
     __tests__/
+      unit/
+        services/
+          UserService.test.ts        # Unit test, mirroring src/
       integration/
-        users.integration.test.ts  # Integration test
-        database.integration.test.ts
+        database.integration.test.ts # Integration test
+      helpers/                       # Test database, test server, fakes
 ```
 
 ### E2E Test
 ```
 tests/e2e/
   tests/
-    auth.e2e.test.ts
-    workflows.e2e.test.ts
+    smoke/
+      sign-in.e2e.test.ts
+      cancel-run.e2e.test.ts
 ```
 
 ## When Adding Tests
 
-1. **Creating unit tests**: Place the `.test.ts` file next to the source file
-2. **Creating integration tests**: Place in `__tests__/integration/` directory
-3. **Creating E2E tests**: Place in `tests/e2e/tests/` directory
-
-## Moving Existing Tests
-
-If you encounter tests in the wrong location:
-- Move unit tests from `__tests__/unit/` to be co-located with their source files
-- Ensure integration tests are in `__tests__/integration/`
-- E2E tests should already be in `tests/e2e/`
+1. **Creating unit tests**: Follow the package's existing layout (see above)
+2. **Creating integration tests**: Place in `apps/platform-backend/src/__tests__/integration/`
+3. **Creating E2E tests**: Place in `tests/e2e/tests/smoke/`; the other specs under `tests/e2e/tests/` are quarantined legacy specs
 
 ## Test Type Guidelines
 

@@ -64,6 +64,7 @@ services:
       CLANKER_INSTRUCTION_FILES_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/instructions
       SKILL_FILES_ROOT: ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}/skills
       VIBERATOR_WORKER_REGISTRY: ${VIBERATOR_WORKER_REGISTRY-ghcr.io/ilities}
+      VIBERATOR_WORKER_IMAGE_TAG: ${VIBERATOR_WORKER_IMAGE_TAG:-latest}
       # Artifact previews, served from their own host so the app's cookies never reach them.
       # Empty VIBERGLASS_PREVIEW_URL turns HTML, image and PDF previews off.
       PREVIEW_PORT: 8890

@@ -133,9 +133,10 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-}
       SMTP_URL: ${SMTP_URL:-}
       # Where pre-built worker images come from (publish-worker-images.yml). Runners
-      # without an explicit image pull `<registry>/viberator-worker-<agent>:latest`.
-      # Set it empty to use images built locally under their bare names instead.
+      # without an explicit image pull `<registry>/viberator-worker-<agent>:<tag>`.
+      # Set the registry empty to use images built locally under their bare names instead.
       VIBERATOR_WORKER_REGISTRY: ${VIBERATOR_WORKER_REGISTRY-ghcr.io/ilities}
+      VIBERATOR_WORKER_IMAGE_TAG: ${VIBERATOR_WORKER_IMAGE_TAG:-latest}
       # OpenTelemetry. Empty means unset; tracing is off unless one is set.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
@@ -188,6 +189,9 @@ services:
         condition: service_healthy
       storage:
         condition: service_healthy
+    # Lets the backend reach services on the host, such as a local OTLP collector, on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - viberglass-dev-network
     restart: unless-stopped

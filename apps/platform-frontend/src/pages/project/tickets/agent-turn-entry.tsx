@@ -7,7 +7,7 @@ import { cancelJob, type JobListItem } from '@/service/api/job-api'
 import { formatJobStatus } from '@/data'
 import { formatRunDuration } from '../jobs/run-facts'
 import { CheckCircledIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
-import type { SpaceFilesSnapshotSummary, TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
+import { NOTHING_SAVED_WHEN_STOPPED, savedFilesLine, type TaskTimelineEntry, type TaskTurnAction, type TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -64,16 +64,6 @@ export function resultLine(produced: TaskTurnProduct[]): string | null {
   return `${[first, ...more.map((line) => line.replace(/^Wrote /, '').replace(/^Pushed /, 'pushed '))].join(', ')}.`
 }
 
-const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
-
-/** What a Files turn saved: "Saved files · 2 added, 1 changed · 14 files", or that it changed nothing. */
-export function filesLine(files: SpaceFilesSnapshotSummary): string {
-  const { added, changed, removed } = files.changes
-  const counts = [added && `${added} added`, changed && `${changed} changed`, removed && `${removed} removed`].filter(Boolean)
-  const lead = files.partial ? 'Saved partial files after the run failed' : 'Saved files'
-  return [lead, counts.length > 0 ? counts.join(', ') : 'no changes', plural(files.fileCount, 'file')].join(' · ')
-}
-
 /** What a stopped turn kept, in a sentence. */
 function keptWork(produced: TaskTurnProduct[]): string {
   return joinNames(produced.map((product) => KEPT[product]))
@@ -119,6 +109,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
+  const stopped = entry.status === 'cancelled'
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
   // Guests and viewers see the turn in the thread, without its technical details.
@@ -197,7 +188,13 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
       )}
       {space &&
         outcome?.artifacts?.map((artifact) => <TurnArtifactCard key={artifact.versionId} artifact={artifact} space={space} />)}
-      {outcome?.files && <p className="text-xs text-[var(--gray-10)]">{filesLine(outcome.files)}</p>}
+      {outcome?.files && (
+        <p className="text-xs text-[var(--gray-10)]">{savedFilesLine(outcome.files, stopped ? 'stopped' : 'failed')}</p>
+      )}
+      {/* A stopped run's save can arrive up to a minute later; the thread updates when it does. */}
+      {filesSpace && stopped && !outcome?.files && (
+        <p className="text-xs text-[var(--gray-10)]">{NOTHING_SAVED_WHEN_STOPPED}</p>
+      )}
       {outcome?.mentioned && outcome.mentioned.length > 0 && (
         <p className="text-xs text-[var(--gray-10)]">
           Asked{' '}

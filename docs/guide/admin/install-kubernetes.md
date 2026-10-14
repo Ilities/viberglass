@@ -40,20 +40,20 @@ git checkout YOUR_RELEASE_OR_COMMIT
 
 Replace `YOUR_RELEASE_OR_COMMIT` with the revision you intend to deploy. Use the chart and backend/frontend/worker images from that revision. The publish workflows target `ghcr.io/ilities` on releases and relevant changes to `main`; check that all required images exist under your chosen tag. The chart is installed from this checkout, rather than a Helm repository.
 
-**For unpublished changes, including the Kubernetes completion work before its release, use [your own image builds](#build-your-own-images).** An older published worker does not support the new mounted-token and scoped-storage flow. Use immutable tags instead of `latest`.
+For unpublished changes, use [your own image builds](#build-your-own-images). Backend and worker images must come from the same revision: an older worker doesn't support the mounted-token and scoped-storage flow. Use immutable tags instead of `latest`.
 
 Worker image names come from the [image catalog](../../../packages/types/src/workerImageCatalog.json):
 
 | Agent | Image repository under `ghcr.io/ilities` |
 | --- | --- |
 | OpenCode | `viberator-worker-opencode` |
-| Codex | `viberator-worker-codex` |
+| OpenAI Codex | `viberator-worker-codex` |
 | Claude Code | `viberator-worker-multi-agent` |
 | Google Antigravity | `viberator-worker-antigravity` |
 | Kimi Code | `viberator-worker-kimi` |
 | Mistral Vibe | `viberator-worker-mistral` |
 | Pi | `viberator-worker-pi` |
-| Qwen Code | `viberator-worker-qwen` |
+| Qwen CLI | `viberator-worker-qwen` |
 
 With Docker/buildx available, verify the tag and node architecture before installing; repeat the worker check for each agent you will use:
 
@@ -82,7 +82,7 @@ The worker namespace belongs to this Helm release. Its ownership metadata lets H
 
 ## 3. Create application Secrets
 
-Use your secret manager to supply the following Secrets in the **app namespace only**, or follow the file-based commands below.
+Use your secret manager to supply the following Secrets in the app namespace only, or follow the file-based commands below.
 
 | Secret | Required keys |
 | --- | --- |
@@ -139,6 +139,7 @@ Edit this [non-secret example](../../../infra/kubernetes/chart/values-production
 | `storage.workerEndpoint` | Optional. The storage address worker Pods use for a Files space's files, when it isn't `storage.endpoint`. |
 | `preview.publicUrl`, `ingress.tls[].hosts` | The HTTPS address of the artifact preview host, on a hostname of its own, and that hostname in the TLS hosts. Empty turns HTML, image and PDF previews off. |
 | `ingress.className`, `ingress.tls[].secretName` | Your installed ingress class and TLS Secret in the app namespace. |
+| `workers.envSecret` | Optional. A Secret in the worker namespace whose `OTEL_EXPORTER_OTLP_HEADERS` key is passed to worker Pods, for sending traces to a collector that needs headers. Workers read no other key from it, and run without the headers if the Secret or key is missing. You create this Secret yourself; the chart doesn't. |
 | `workers.quota` | Optional overrides of the [chart defaults](../../../infra/kubernetes/chart/values.yaml) for concurrent Pods and CPU/memory/disk. Quotas do not add node capacity. |
 
 Use a storage endpoint without embedded credentials. The backend and worker Pods use `storage.endpoint`; browsers download media using signed URLs at `storage.publicEndpoint`. Workers in Files spaces fetch and save the space's files through signed URLs, too. When worker Pods reach storage at another address than the backend does, set it in `storage.workerEndpoint`, and the backend signs those URLs for that address. Task media and saved sessions are still signed for `storage.endpoint`, so worker Pods need to reach that as well. If both can use the same HTTPS endpoint, set both to it. Configure bucket CORS for your `publicUrl` if required by browser requests to your provider; confirm media downloads during verification. The bucket stays private.
@@ -174,7 +175,7 @@ Alternatively, have your existing certificate controller create `viberglass-tls`
 
 Artifact previews run the agent's HTML and scripts, so they load from a host of their own, where the app's sign-in cookies never go. Point the preview hostname, such as `preview.viberglass.example.com`, at the ingress controller too, and include it in the certificate. The chart adds an Ingress rule that sends it to port 8890 of the backend Service, and its network policy lets the ingress controller reach that port; it serves only files named by a signed preview link. The chart refuses a `preview.publicUrl` on the app's own host. Links are signed with `SECRETS_ENCRYPTION_KEY`, or with a `PREVIEW_SIGNING_KEY` you add to `viberglass-app`.
 
-For a private registry, create a [pull Secret](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) in **both** namespaces. With a Docker config already containing the registry login:
+For a private registry, create a [pull Secret](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) in both namespaces. With a Docker config already containing the registry login:
 
 ```bash
 kubectl -n viberglass create secret generic registry-pull --type=kubernetes.io/dockerconfigjson --from-file=.dockerconfigjson=/path/to/registry-config.json
@@ -302,4 +303,4 @@ docker buildx build --platform "$VIBERGLASS_PLATFORM" --push \
   -t "$VIBERGLASS_REGISTRY/viberator-worker-opencode:$VIBERGLASS_TAG" .
 ```
 
-Then set `backend.image` and `frontend.image` to those full references, `workers.registry` to `registry.example.com/team`, and `workers.imageTag` to your build tag. Build additional worker images using their catalog `dockerfilePath` and `repositoryName`; Claude Code uses `infra/workers/docker/viberator-worker-multi-agent.Dockerfile`, rather than a generated `claude-code.Dockerfile`. Configure pull Secrets if the registry is private, then continue at [namespace creation](#2-create-namespaces).
+Then set `backend.image` and `frontend.image` to those full references, `workers.registry` to `registry.example.com/team`, and `workers.imageTag` to your build tag. Build additional worker images using their catalog `dockerfilePath` and `repositoryName`; Claude Code uses `infra/workers/docker/viberator-worker-multi-agent.Dockerfile`, rather than the generated `claude.Dockerfile`. Configure pull Secrets if the registry is private, then continue at [namespace creation](#2-create-namespaces).

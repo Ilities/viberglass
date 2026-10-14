@@ -2,6 +2,7 @@ import { TICKET_WORKFLOW_PHASE, type TaskTurnProduct } from "@viberglass/types";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { PHASE_DOCUMENT_REVISION_SOURCE } from "../../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
+import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
 import { AGENT_TURN_STATUS } from "../../types/agentSession";
 import { AGENT_SESSION_SERVICE_ERROR_CODE, AgentSessionServiceError } from "../errors/AgentSessionServiceError";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
@@ -16,12 +17,14 @@ interface Dependencies {
   turns: Pick<AgentTurnDAO, "getByJobId" | "update">;
   sessions: Pick<AgentSessionDAO, "getById">;
   documents: Pick<TicketPhaseDocumentService, "saveDocument">;
+  files: Pick<SpaceFilesRunService, "summaryForJob">;
 }
 
 /**
  * Keeps what a stopped turn had done: each document it had written becomes a
- * version, and its work-in-progress commit is on the task's branch. The turn
- * stays cancelled; the thread says it stopped partway and what it kept.
+ * version, its work-in-progress commit is on the task's branch, and in a
+ * Files space the files it had are saved. The turn stays cancelled; the
+ * thread says it stopped partway and what it kept.
  */
 export class PartialTurnService {
   private readonly deps: Dependencies;
@@ -31,6 +34,7 @@ export class PartialTurnService {
       turns: new AgentTurnDAO(),
       sessions: new AgentSessionDAO(),
       documents: new TicketPhaseDocumentService(),
+      files: spaceFilesRuns,
       ...deps,
     };
   }
@@ -52,6 +56,7 @@ export class PartialTurnService {
       kept.push("plan");
     }
     if (work.commitHash) kept.push("code");
+    const files = await this.deps.files.summaryForJob(jobId);
     await this.deps.turns.update(turn.id, {
       contentJson: {
         intent: "Stopped partway",
@@ -61,6 +66,7 @@ export class PartialTurnService {
         resumed: null,
         commit: work.commitHash ?? null,
         stoppedPartway: true,
+        ...(files ? { files } : {}),
       },
     });
     return kept;

@@ -19,11 +19,11 @@ The automated Playwright smoke suite (`npm run test:e2e`, specs in `tests/e2e/te
 | File | Covers |
 |---|---|
 | [00-clean-machine.md](00-clean-machine.md) | A stranger's first hour from the public docs: local install, first PRs on real repositories, Kubernetes and AWS from nothing, a cold user session |
-| [01-local-core.md](01-local-core.md) | Accounts and people, first-run setup, spaces, tasks and the agent conversation, steering, runners, tools, admin pages, schedules, notifications, resilience |
+| [01-local-core.md](01-local-core.md) | Accounts and people, first-run setup, spaces, tasks and the agent conversation, plans in parts, steering, Files spaces and artifacts, runners, tools, admin pages, schedules, notifications, resilience |
 | [02-integrations-and-clients.md](02-integrations-and-clients.md) | GitHub (PRs, reviews, merge, webhooks), Jira/Shortcut/custom webhooks, Slack, MCP endpoint, CLI, Chrome extension, run-record export |
 | [03-agents-and-model-endpoints.md](03-agents-and-model-endpoints.md) | Every harness with the credentials available; workspace model endpoints, auth schemes, discovery, cold start |
 | [04-gpu-rented-models.md](04-gpu-rented-models.md) | An open-weight model served by vLLM on a rented GPU, used as a model endpoint; Bedrock API keys |
-| [05-aws.md](05-aws.md) | Pulumi deploy of base/platform/workers, backend and frontend delivery, ECS and Lambda runners, SSM, S3, SES, logs, teardown |
+| [05-aws.md](05-aws.md) | Pulumi deploy of base, workers and platform, backend and frontend delivery, ECS and Lambda runners, SSM, S3, SES, logs, teardown |
 | [06-kubernetes.md](06-kubernetes.md) | The Helm chart on kind and on a real cluster, the Kubernetes runner, reconciliation, network policy, upgrades |
 | [07-cross-cutting.md](07-cross-cutting.md) | Permissions matrix, secret hygiene, accessibility, responsive and themes, browsers, upgrades and migrations, backup and restore |
 
@@ -33,14 +33,14 @@ The automated Playwright smoke suite (`npm run test:e2e`, specs in `tests/e2e/te
 |---|---|---|
 | **L-REV** | Local review instance with fixtures (people, spaces, tasks, 14 runners) | http://localhost:3200; `python3 tests/manual-harness/instance.py status\|restart` |
 | **L-NEW** | Local empty instance (no users) | http://localhost:3201; `python3 .tmp/ux-fresh/instance.py status\|restart`; reset steps in [tests/manual-harness](../../../tests/manual-harness/README.md#starting-the-empty-instance-over) |
-| **L-DEV** | The docker compose dev stack | `docker compose up -d` → http://localhost:3000, API :8888; see [../local-development.md](../../local-development.md) |
-| **TUNNEL** | A public HTTPS URL to a local backend, for webhooks and Slack | `cloudflared tunnel --url http://localhost:8888` (or ngrok); set `PLATFORM_API_URL`/webhook URLs to it |
+| **L-DEV** | The docker compose dev stack, with MinIO object storage and the artifact preview server, so the only local environment for Files spaces | `docker compose up -d` → http://localhost:3000, API :8888, MinIO :9000, previews http://127.0.0.1:8890; see [../local-development.md](../../local-development.md) |
+| **TUNNEL** | A public HTTPS URL to a local backend, for webhooks and Slack | `cloudflared tunnel --url http://localhost:8888` (or ngrok); point webhook and Slack app URLs at it |
 | **AWS-DEV** | The AWS dev deployment | [05-aws.md](05-aws.md) |
 | **K8S-KIND** | The Helm chart on a local kind cluster | [06-kubernetes.md](06-kubernetes.md) |
 | **K8S-CLOUD** | The Helm chart on a managed cluster (e.g. OVHcloud MKS) | [06-kubernetes.md](06-kubernetes.md) |
 | **GPU** | A rented GPU running vLLM | [04-gpu-rented-models.md](04-gpu-rented-models.md) |
 
-Local mail for L-REV/L-NEW lands in http://localhost:8125. L-DEV has Mailpit under the `mail` compose profile.
+Local mail for L-REV/L-NEW lands in http://localhost:8125. L-DEV has Mailpit under the `mail` compose profile, at http://localhost:8025.
 
 ## Accounts and credentials
 
@@ -74,7 +74,7 @@ Gather these first; tests list which they need. Keep keys outside the repo where
 ## Suggested order
 
 0. 00 before a release, on clean machines and accounts.
-1. 01 on L-NEW and L-REV (one to two days with real models).
+1. 01 on L-NEW and L-REV (one to two days with real models), and its FILES tests on L-DEV.
 2. 03 on L-REV (harness matrix, endpoints), then 04 if a GPU is available.
 3. 02 on L-DEV + TUNNEL (needs the GitHub test repo and Slack app).
 4. 07 alongside the above.
@@ -87,13 +87,14 @@ Gather these first; tests list which they need. Keep keys outside the repo where
 
 Found while reading the code for this suite (2026-10-05). Check them first; several stop a deployment test outright.
 
-- **Kubernetes** support was merged into `main` on 2026-10-05 (the merge commit may still be pending); its migration is now `101_kubernetes_deployment_strategy`. Clusters installed from the old branch must be recreated. See [06-kubernetes.md](06-kubernetes.md#k8s-00-merge-gate).
+- **Kubernetes** support is in `main`; its migration is `101_kubernetes_deployment_strategy`. Clusters installed from the old branch must be recreated. The automated platform smoke (K8S-02) still asks for the removed research step. See [06-kubernetes.md](06-kubernetes.md#k8s-00-merge-gate).
 - **OVH GPU deployments created by Viberglass** and **Bedrock role auth** are not built. Verda deployments work (tested 2026-10-08).
 - **AWS**:
   - Login over HTTPS likely needs `apiDomain` + `appDomain` + `route53ZoneId`.
   - Managed ECS workers don't get `AWS_S3_BUCKET`, so conversation state may not survive between turns.
   - Details are in [05-aws.md](05-aws.md#known-issues).
 - **Password reset email**: `/forgot-password` only logs the request; resets are admin-issued links.
+- Files spaces need object storage. L-REV and L-NEW have none, so Files runs there fail with "File storage isn't configured"; use L-DEV. Publishing artifacts isn't built yet.
 
 ## Results log
 

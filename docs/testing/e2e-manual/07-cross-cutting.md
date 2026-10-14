@@ -25,16 +25,17 @@ For each person, try each action in the UI, and for refusals also by API (copy t
 | Delete a space | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Create a task | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
 | Post in a task | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
-| Ask for research/plan | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Ask for a plan | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
 | Ask for code | ✓ | on task | ✓ | ✓ | ✗ | ✗ |
 | Pause / take over | ✓ | as owner | ✓ | as owner | ✗ | ✗ |
 | Edit / finish a task | ✓ | requester/owner | ✓ | requester/owner | ✗ | ✗ |
 | Delete a task | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Upload, edit or delete a Files space's files | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
 | Runners, secrets, connections, members, audit log | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Runs and schedules pages | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
 | API tokens | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
 
-Expect: matches the table. A private-space read by a non-member returns 404, not 403.
+Expect: matches the table. A private-space read by a non-member returns 404, not 403. Anyone who can see a Files space can list and download its files and preview its artifacts.
 
 ## Secret hygiene (SEC)
 
@@ -59,7 +60,7 @@ Expect: both sessions end.
 ## Accessibility (A11Y)
 
 ### A11Y-01 · Automated scan
-1. Run axe (browser extension or `@axe-core/playwright`) on Home, Overview, a space, a task, Notifications, Agents & runners, Space settings, setup, in light and dark.
+1. Run axe (browser extension or `@axe-core/playwright`) on Home, Overview, a space, a task, Notifications, Settings → Agents, Space settings, a Files space's Files and Artifacts pages, setup, in light and dark.
 
 Expect: no violations (the v1 review baseline is zero on the first five routes).
 
@@ -76,7 +77,7 @@ Expect: errors announced with their field; tabs announced as tabs with their sta
 ## Layout, themes and browsers (UI)
 
 ### UI-01 · Viewports
-1. At 1440, 1280, 768 and 390 px wide: Home, a space, a task, setup, runner form.
+1. At 1440, 1280, 768 and 390 px wide: Home, a space, a task, setup, runner form, a Files space's Files page and an artifact preview.
 
 Expect: no sideways scrolling; on phones the task shows Conversation/Artifacts and Write a reply.
 
@@ -99,8 +100,9 @@ Expect: migrations apply in order; existing tasks, documents and runners still w
 
 ### DATA-02 · Backup and restore (local)
 1. `pg_dump` the database; restore into a new database; start an instance on it with the same encryption keys; then with different keys.
+2. On L-DEV with a Files space, copy the object storage bucket along with the dump and restore both.
 
-Expect: works with the same keys; with different keys, secrets fail clearly (not silently wrong).
+Expect: works with the same keys; with different keys, secrets fail clearly (not silently wrong). (2) The space's files restore on the next run and its artifacts preview; record what happens when only the database is restored.
 
 ### DATA-03 · Large data
 1. Create a space with 200+ tasks (script via the API or MCP) and a task with a 200-entry thread.

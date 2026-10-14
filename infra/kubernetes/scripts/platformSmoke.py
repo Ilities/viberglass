@@ -38,7 +38,7 @@ def task_with_media(project_id):
  content=base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jQ24AAAAASUVORK5CYII=")
  boundary="viberglass-smoke-"+secrets.token_hex(8)
  chunks=[]
- for name,value in {"projectId":project_id,"title":"Kubernetes research smoke","description":"Explain greeting.js. Write RESEARCH.md."}.items():
+ for name,value in {"projectId":project_id,"title":"Kubernetes plan smoke","description":"Explain greeting.js. Write PLAN.md."}.items():
   chunks.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
  chunks.append(f'--{boundary}\r\nContent-Disposition: form-data; name="screenshot"; filename="smoke.png"\r\nContent-Type: image/png\r\n\r\n'.encode()+content+f'\r\n--{boundary}--\r\n'.encode())
  request=urllib.request.Request(base+"/api/tasks",data=b"".join(chunks),headers={"Content-Type":"multipart/form-data; boundary="+boundary,"Authorization":"Bearer "+token},method="POST")
@@ -93,17 +93,17 @@ with git_fixture() as repository_url:
  entity('PUT',f"/api/spaces/{space['id']}/scm-config",{'integrationId':integration['id'],'sourceRepository':repository_url,'baseBranch':'main'})
  task=task_with_media(space["id"])
 
- def ask(task,body): return api('POST',f"/api/tasks/{task['id']}/messages",{'action':'research','body':body,'agentId':runner['id']})['turn']
+ def ask(task,body): return api('POST',f"/api/tasks/{task['id']}/messages",{'action':'plan','body':body,'agentId':runner['id']})['turn']
  def waitjob(id):
   for i in range(150):
    status=api('GET',f'/api/jobs/{id}')
    if status['status'] in ['completed','failed','cancelled']: return status
    time.sleep(2)
   raise RuntimeError('Run did not complete')
- turn=ask(task,'Write the research')
+ turn=ask(task,'Write the plan')
  result=waitjob(turn['jobId'])
  if result['status']!='completed': raise RuntimeError(json.dumps(result))
- doc=entity('GET',f"/api/tasks/{task['id']}/phases/research")
+ doc=entity('GET',f"/api/tasks/{task['id']}/plan")
  assert 'turn 1' in doc['document']['content'],doc
 
  worker_job="viberglass-"+hashlib.sha256(turn["jobId"].encode()).hexdigest()[:32]
@@ -114,15 +114,15 @@ with git_fixture() as repository_url:
   except json.JSONDecodeError: continue
   if isinstance(entry,dict): bootstrap.append(entry)
  assert any(entry.get("instructionFilesLoaded")==1 and entry.get("credentialsFetched")==1 for entry in bootstrap)
- print('First research task and persisted document passed',flush=True)
- turn2=ask(task,'Revise RESEARCH.md with a second observation')
+ print('First plan and persisted document passed',flush=True)
+ turn2=ask(task,'Revise PLAN.md with a second observation')
  result=waitjob(turn2['jobId'])
  if result['status']!='completed': raise RuntimeError(json.dumps(result))
- doc=entity('GET',f"/api/tasks/{task['id']}/phases/research")
+ doc=entity('GET',f"/api/tasks/{task['id']}/plan")
  assert 'turn 2' in doc['document']['content'],doc
  print('Session resumed in a new worker Pod and wrote turn 2',flush=True)
- cancelTask=entity('POST','/api/tasks',{'projectId':space['id'],'title':'Cancel Kubernetes worker','description':'Write RESEARCH.md. [fake:sleep=60]'})
- cancel=ask(cancelTask,'Write research')
+ cancelTask=entity('POST','/api/tasks',{'projectId':space['id'],'title':'Cancel Kubernetes worker','description':'Write PLAN.md. [fake:sleep=60]'})
+ cancel=ask(cancelTask,'Write the plan')
  for i in range(60):
   status=api('GET',f"/api/jobs/{cancel['jobId']}")
   if status['status']=='active' and status.get('progress',{}).get('step') in ['clone', 'execute', 'prompt', 'initialize']: break
@@ -131,8 +131,8 @@ with git_fixture() as repository_url:
  assert api('GET',f"/api/jobs/{cancel['jobId']}")['status']=='cancelled'
  time.sleep(1)
  assert api('GET',f"/api/jobs/{cancel['jobId']}")['status']=='cancelled'
- immediateTask=entity('POST','/api/tasks',{'projectId':space['id'],'title':'Cancel during dispatch','description':'Write RESEARCH.md. [fake:sleep=60]'})
- immediate=ask(immediateTask,'Write research')
+ immediateTask=entity('POST','/api/tasks',{'projectId':space['id'],'title':'Cancel during dispatch','description':'Write PLAN.md. [fake:sleep=60]'})
+ immediate=ask(immediateTask,'Write the plan')
  api('POST',f"/api/jobs/{immediate['jobId']}/cancel",{})
  time.sleep(2)
  assert api('GET',f"/api/jobs/{immediate['jobId']}")['status']=='cancelled'
@@ -141,4 +141,4 @@ with git_fixture() as repository_url:
   name="viberglass-"+hashlib.sha256(run["jobId"].encode()).hexdigest()[:32]
   stopped=subprocess.run(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.worker_namespace,"get","job",name],capture_output=True,text=True)
   assert stopped.returncode!=0 and "NotFound" in stopped.stderr, "Cancelled worker Job still exists"
- print('Platform smoke passed: activation, bootstrap, research, persisted document, session restore, cancellation', flush=True)
+ print('Platform smoke passed: activation, bootstrap, plan, persisted document, session restore, cancellation', flush=True)

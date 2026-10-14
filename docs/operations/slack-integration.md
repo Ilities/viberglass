@@ -36,6 +36,8 @@ A task works in two steps: the agent writes a plan, then it writes the code. You
 
 ### Option A: From Manifest (Recommended)
 
+The Slack connection screen (Settings → Connections → Slack) shows this manifest with your backend host filled in and a copy button, so you can skip steps 4 and 5 by copying it from there.
+
 1. Go to [api.slack.com/apps](https://api.slack.com/apps).
 2. Click **Create New App** > **From a manifest**.
 3. Select your workspace.
@@ -90,8 +92,9 @@ Each person links their Slack account in Viberglass under **Settings → Notific
 What a linked account allows:
 
 - Messages, mentions, answers and option buttons in a task's thread are done as that Viberglass user. Someone without a linked account gets this reply instead: "Link your Slack account in Viberglass (Settings → Notifications) to take part in tasks from Slack."
-- The `/viberglass` form lists only the spaces the linked user can see, and the new task's requester is that user. For someone not linked, the form lists every space and the task has no requester.
-- Asking the agent for code needs a linked account, so the run can be credited to someone. Someone not linked can still start a task with a plan.
+- `/viberglass` needs a linked account: for someone not linked it doesn't open the form and replies with the same message, so no task or thread is created. The form lists only the spaces the linked user can see, and the new task's requester is that user.
+- Asking the agent for code needs a linked account, so the run can be credited to someone.
+- Mark done in a Files task's thread needs a linked account with the same rights as Actions → Mark done on the web.
 - The usual task permissions apply: only the task's people can ask the agent, and only the task's people, the space's maintainers or a workspace admin can ask it to build.
 
 ## Usage
@@ -203,7 +206,7 @@ A task has at most one Slack thread, stored in `chat_ticket_threads` (task, thre
 - Check that the slash command URL matches your backend host and is HTTPS.
 - Check the backend logs for "Slack webhook error".
 
-### The form says there are no projects or clankers
+### `/viberglass` says "No spaces yet" or "No agents yet"
 
 - Create a space and an agent in Viberglass first.
 - If your Slack account is linked, the form lists only the spaces you can see in Viberglass.

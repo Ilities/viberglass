@@ -3,8 +3,9 @@ import * as path from "path";
 import { ExecutionContext } from "../../types";
 import { JobResult } from "./types";
 import { JobRunnerParams, filesRunOf, setupJob } from "./jobPipeline";
-import { saveFilesWorkspace, type FilesRun } from "../files/filesWorkspace";
-import { unmaterialize, type MaterializedFile } from "../runtime/InstructionFileManager";
+import { saveFilesWorkspace } from "../files/filesWorkspace";
+import { savePartialFiles } from "../files/savePartialFiles";
+import { unmaterialize } from "../runtime/InstructionFileManager";
 import { executeAgentWithRetry } from "./agentExecution";
 import { withJobLifecycle } from "./jobLifecycle";
 import { captureAndStore, retrieveAndRestore } from "../runtime/SessionStateManager";
@@ -84,8 +85,8 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     };
     const stopped = onStop(async () => {
       // A stopped Files run's space waits briefly for this save, so it goes first.
-      if (files) await savePartialFiles(files, repoDir, setup.materializedFiles, logger);
-      await keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch });
+      const filesSaved = files ? await savePartialFiles(files, repoDir, setup.materializedFiles, logger) : false;
+      await keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch, filesSaved });
     });
     await sendProgress("execute", "Running ACP agent turn");
     const relay = new QuestionRelay(
@@ -151,21 +152,6 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     });
     return { ...turn, ...delivered };
   });
-}
-
-/** Saves what a failed agent left in a Files space, marked partial; failing to is only logged. */
-async function savePartialFiles(
-  files: FilesRun,
-  repoDir: string,
-  materialized: MaterializedFile[],
-  logger: JobRunnerParams["logger"],
-): Promise<void> {
-  try {
-    await unmaterialize(materialized);
-    await saveFilesWorkspace(files, repoDir, { partial: true });
-  } catch (error) {
-    logger.warn("Couldn't save the failed run's files", { error: error instanceof Error ? error.message : String(error) });
-  }
 }
 
 /** The worker's bundle puts the MCP server next to its entry point. */

@@ -25,6 +25,7 @@ import { JobLaunchDAO, type QueuedJobRecord } from "../../persistence/job/JobLau
 import type { SpaceFileRun } from "../../persistence/spaceFiles/SpaceFilesDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
+import { claimSpaceFiles, withoutRepository } from "../spaceFiles/filesRunBootstrap";
 
 export interface DispatchTurnInput {
   session: AgentSession;
@@ -67,11 +68,6 @@ function jobDataFor(action: TaskTurnAction, base: Omit<BaseJobData, "jobKind">, 
   }
 }
 
-/** A Files run gets no repository, branch or SCM credential: its files come from the space. */
-function withoutRepository(bootstrap: Record<string, unknown>): void {
-  for (const key of ["repository", "branch", "baseBranch", "scm", "taskBranch", "lastAgentCommit"]) delete bootstrap[key];
-}
-
 /** Submits a turn's job and starts its worker. The worker clones the repository and runs one ACP turn. */
 export class TaskTurnJobDispatcher {
   private readonly runContextDeps = {
@@ -108,7 +104,7 @@ export class TaskTurnJobDispatcher {
     const { session, ticket, action, prompts } = input;
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const prepared = await prepareTicketRunContext(
-      { projectId: session.projectId, clankerId: session.clankerId, jobId, allowFiles: true },
+      { projectId: session.projectId, clankerId: session.clankerId, jobId },
       this.runContextDeps,
     );
     const files = prepared.project.backingKind === "files";
@@ -143,7 +139,7 @@ export class TaskTurnJobDispatcher {
       },
     );
 
-    const submitted = await this.jobService.submitJob(jobData, { ticketId: ticket.id, clankerId: session.clankerId });
+    const submitted = await this.jobService.submitJob(jobData, { ticketId: ticket.id, clankerId: session.clankerId, turnAction: action });
     jobData.callbackToken = submitted.callbackToken;
     const bootstrap: Record<string, unknown> = {
       ...buildBootstrapPayload({
@@ -192,18 +188,18 @@ export class TaskTurnJobDispatcher {
     await this.bootstraps.saveBootstrapPayload(jobId, bootstrap);
     await onSubmitted({ id: jobId, prompt: task });
 
-    if (files) {
-      // One run at a time changes a space's files; this one may wait for another to save.
-      const run = await this.spaceFiles.enqueue(jobId, prepared.project.id);
-      if (!run) return { id: jobId, status: "queued" };
-      bootstrap.files = this.spaceFiles.payloadFor(run);
-      await this.bootstraps.saveBootstrapPayload(jobId, bootstrap);
+    // One run at a time changes a space's files; this one may wait for another to save.
+    if (files && !(await claimSpaceFiles(this.spaceFiles, this.bootstraps, { jobId, projectId: prepared.project.id, bootstrap }))) {
+      return { id: jobId, status: "queued" };
     }
     this.invoke(jobData, prepared.executionClanker, prepared.project, session.id);
     return { id: jobId, status: "pending" };
   }
 
-  /** Starts the worker of a Files run that waited for its space, from what was saved when it was submitted. */
+  /**
+   * Starts the worker of a Files run that waited for its space, from what was
+   * saved when it was submitted. Scheduled runs wait here too; they have no task.
+   */
   async launchWaiting(run: SpaceFileRun): Promise<void> {
     const job = await this.launches.getQueued(run.jobId);
     if (!job?.clankerId) throw new Error(`Job ${run.jobId} can no longer start`);
@@ -221,12 +217,12 @@ export class TaskTurnJobDispatcher {
 
   private async startWaiting(run: SpaceFileRun, job: QueuedJobRecord & { clankerId: string }): Promise<void> {
     const prepared = await prepareTicketRunContext(
-      { projectId: run.projectId, clankerId: job.clankerId, jobId: job.id, allowFiles: true },
+      { projectId: run.projectId, clankerId: job.clankerId, jobId: job.id },
       this.runContextDeps,
     );
     const ticket = job.ticketId ? await this.tickets.getTicket(job.ticketId) : null;
-    if (!ticket) throw new Error(`Job ${run.jobId} has no task to run`);
-    const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker);
+    if (job.ticketId && !ticket) throw new Error(`Job ${run.jobId} has no task to run`);
+    const ticketMedia = ticket ? await this.media.prepareForExecution(ticket, prepared.executionClanker) : { mounts: [] };
     const bootstrap: Record<string, unknown> = { ...job.bootstrapPayload, files: this.spaceFiles.payloadFor(run) };
     await this.bootstraps.saveBootstrapPayload(job.id, bootstrap);
     const jobData = {

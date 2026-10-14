@@ -46,6 +46,7 @@ function handlerServices({ system, label, provider }: ChatService): ChatHandlerS
   const { adapterName } = provider;
   const inbound = new TaskThreadInbound({ label, provider }, { turns: taskTurns, answers });
   return {
+    unlinkedAccountMessage: (chatUserId) => inbound.unlinkedAccountMessage(chatUserId),
     listProjects: async (chatUserId) => {
       const userId = await identities.findActiveUserId(adapterName, chatUserId);
       const user = userId ? await userDAO.findById(userId) : null;
@@ -88,6 +89,7 @@ function handlerServices({ system, label, provider }: ChatService): ChatHandlerS
     receiveThreadMessage: (params) => inbound.receive(params),
     askAgent: (params) => inbound.ask(params),
     answerQuestion: (params) => inbound.answer(params),
+    markDone: (params) => inbound.markDone(params),
   };
 }
 

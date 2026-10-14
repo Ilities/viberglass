@@ -6,8 +6,8 @@ The Helm chart (`infra/kubernetes/chart/`) and the Kubernetes runner strategy, f
 
 - [K8S-00 · Merge gate](#k8s-00-merge-gate)
 - [Known issues](#known-issues)
-- [Local kind cluster (K8S-01 – K8S-15)](#local-kind-cluster-k8s-01--k8s-15)
-- [Managed cluster (K8S-20 – K8S-32)](#managed-cluster-k8s-20--k8s-32)
+- [Local kind cluster (K8S-01 – K8S-17)](#local-kind-cluster-k8s-01--k8s-17)
+- [Managed cluster (K8S-20 – K8S-33)](#managed-cluster-k8s-20--k8s-33)
 
 ## K8S-00 · Merge gate
 
@@ -27,31 +27,31 @@ K1 and K2 have regression fixes: the installer uses catalog Dockerfiles/image na
 
 K3–K5 are implemented: Pod state/events are persisted in the run log, startup failures reconcile after a short grace period, callback tokens are mounted from run-owned Secrets, and workers receive scoped storage URLs instead of bucket credentials. The deployment intentionally uses one backend replica.
 
-## Local kind cluster (K8S-01 – K8S-15)
+## Local kind cluster (K8S-01 – K8S-17)
 
-Needs: Docker 28.1+, kind, kubectl, Helm 3, Python 3, ~40 GB free, ports 3100 and 39000 free.
+Needs: Docker 28.1+, kind, kubectl, Helm 3, Python 3, ~40 GB free, ports 3100, 39000 and 38890 free. Run K8S-16 and K8S-17 before K8S-15's cleanup.
 
 ### K8S-01 · Install
 1. `python3 infra/kubernetes/scripts/local.py --agent opencode` (builds images, creates kind cluster `viberglass-local`, installs with `values-local.yaml`).
 2. `export KUBECONFIG=/tmp/viberglass-local.kubeconfig`; `kubectl get pods -A`.
-3. Port-forward `svc/viberglass-frontend 3100:80` and `svc/viberglass-minio 39000:9000` in the app namespace.
+3. Port-forward `svc/viberglass-frontend 3100:80`, `svc/viberglass-minio 39000:9000` and `svc/viberglass-backend 38890:8890` (artifact previews) in the app namespace, as the installer prints.
 
 Expect: backend, frontend, Postgres, MinIO running; migration Job completed; http://localhost:3100 opens registration.
 
 ### K8S-02 · Automated platform smoke
 1. With both port-forwards up: `python3 infra/kubernetes/scripts/platformSmoke.py`.
 
-Expect: activation, media upload and signed download, a research turn, a resumed second turn in a new Pod, two cancellations with their Jobs deleted, all pass.
+Expect: activation, media upload and signed download, a first turn, a resumed second turn in a new Pod, two cancellations with their Jobs deleted, all pass.
 
 ### K8S-03 · First-run setup on Kubernetes
 1. Register, run setup with a real key (SETUP-01/02), using a repository reachable from the cluster (public GitHub).
 
-Expect: the agent step reports Kubernetes compute; Agents & runners shows the default agent on Kubernetes, Ready.
+Expect: the agent step reports Kubernetes compute; Settings → Agents shows the default agent on Kubernetes, Ready.
 
 ### K8S-04 · A run as a Job
-1. Ask for research; `kubectl get jobs,pods -n <worker-ns> -w`.
+1. Ask for a plan; `kubectl get jobs,pods -n <worker-ns> -w`.
 
-Expect: Job `viberglass-<hash>` with `restartPolicy: Never`, no service-account token, requests = limits; callbacks arrive; research appears.
+Expect: Job `viberglass-<hash>` with `restartPolicy: Never`, no service-account token, requests = limits (1 CPU and 4Gi memory unless the runner sets others), `terminationGracePeriodSeconds: 60`; callbacks arrive; the plan appears.
 
 ### K8S-05 · Credentials by bootstrap
 1. `kubectl logs job/<name> -n <worker-ns>` for the run.
@@ -62,7 +62,7 @@ Expect: logs show credentials fetched once from bootstrap; the Job spec holds no
 ### K8S-06 · Session continuity across Pods
 1. Ask a follow-up.
 
-Expect: a new Pod; "continued its session"; the archive is in MinIO.
+Expect: a new Pod; "resumed session"; the archive is in MinIO.
 
 ### K8S-07 · Media through S3
 1. Upload a screenshot; open it.
@@ -104,28 +104,40 @@ Expect: the running Job survives; its result is recorded by the new backend.
 
 Expect: same results as locally.
 
+### K8S-16 · Files space on Kubernetes
+1. Create a Files space; run FILES-04 and FILES-07 in it with the Kubernetes runner.
+2. Cancel a turn while the agent is writing files.
+
+Expect: each turn is a Job that restores the space's files and saves them back to MinIO; the presentation previews from http://127.0.0.1:38890. (2) The Pod gets 60 seconds after SIGTERM; record whether it saved partial files and freed the space.
+
+### K8S-17 · Out of memory
+1. Set a runner's Memory to `256Mi`; ask it for a plan.
+2. As an admin, read the failed turn.
+
+Expect: the run fails as "Worker ran out of memory", with a "Give <runner> more memory" link to the runner; the Memory field says it defaults to 4Gi.
+
 ### K8S-15 · Cleanup
 1. `kind delete cluster --name viberglass-local`.
 
-## Managed cluster (K8S-20 – K8S-32)
+## Managed cluster (K8S-20 – K8S-33)
 
-Needs: a managed Kubernetes cluster (e.g. OVHcloud MKS) with an ingress controller and a CNI that enforces NetworkPolicy, a container registry, managed Postgres, S3-compatible object storage with a pre-created bucket, a DNS name and a TLS Secret.
+Needs: a managed Kubernetes cluster (e.g. OVHcloud MKS) with an ingress controller and a CNI that enforces NetworkPolicy, a container registry, managed Postgres, S3-compatible object storage with a pre-created bucket, DNS names for the app and for artifact previews, and a TLS Secret covering both. The install steps are in [Install on Kubernetes](../../guide/admin/install-kubernetes.md).
 
 ### K8S-20 · Images
-1. Build and push backend (`apps/platform-backend/Dockerfile.prod`), frontend (`apps/platform-frontend/Dockerfile.prod`), the worker base and per-agent workers (`infra/workers/docker/generated/<agent>.Dockerfile --build-arg BASE_IMAGE=…`) to the registry.
+1. Use the published images (`ghcr.io/ilities/viberglass-backend`, `viberglass-frontend`, `viberator-worker-<agent>`), or build and push backend (`apps/platform-backend/Dockerfile.prod`), frontend (`apps/platform-frontend/Dockerfile.prod`), the worker base and per-agent workers (`infra/workers/docker/generated/<agent>.Dockerfile --build-arg BASE_IMAGE=…`) to your registry.
 
-Expect: images in the registry with one tag.
+Expect: images available with one tag.
 
 ### K8S-21 · Namespaces and Secrets
 1. Create the app and worker namespaces (worker namespace with Helm ownership labels/annotations).
-2. Create `viberglass-app` (DB password, two encryption keys) and `viberglass-storage` (S3 keys) in the application namespace, and registry pull secrets in both namespaces.
+2. Create `viberglass-app` (DB password, two encryption keys) and `viberglass-storage` (S3 keys) in the application namespace; for a private registry, pull secrets in both namespaces (the published images need none).
 
 Expect: Secrets present; nothing secret in values files.
 
 ### K8S-22 · Install
-1. `helm upgrade --install viberglass infra/kubernetes/chart -n viberglass -f production-values.yaml --wait --wait-for-jobs --timeout 10m` with images, `publicUrl`, database, storage, workers, ingress and TLS values.
+1. `helm upgrade --install viberglass infra/kubernetes/chart -n viberglass -f production-values.yaml --wait --wait-for-jobs --timeout 10m` with images, `publicUrl`, `preview.publicUrl`, database, storage, workers, ingress and TLS values.
 
-Expect: migration Job completes; backend ready (its init container waited for all migrations in the backend image); ingress serves `https://<host>`.
+Expect: migration Job completes; backend ready (its init container waited for all migrations in the backend image); ingress serves `https://<host>` and the preview host.
 
 ### K8S-23 · TLS and CORS
 1. Open the app over HTTPS; sign in; upload media.
@@ -143,7 +155,7 @@ Expect: same as kind.
 Expect: delivered.
 
 ### K8S-26 · Webhooks and Slack
-1. GH-07 and SLACK-02 to SLACK-04 against the ingress URL.
+1. GH-07 and SLACK-01 to SLACK-04 against the ingress URL.
 
 Expect: same as locally.
 
@@ -177,3 +189,9 @@ Expect: tasks, documents, media and secrets usable after restore (the same encry
 1. Run the README's smoke subset; run one turn longer than 30 minutes.
 
 Expect: smoke passes; a healthy run continues past thirty minutes. Silent agent steps still send heartbeats. Stale workers fail after the inactivity grace period; the Kubernetes Job deadline remains effective.
+
+### K8S-33 · Files and previews on the cluster
+1. K8S-16 on the managed cluster, with workers saving files to the provider's object storage.
+2. Open an HTML artifact's preview; check the frame's address and certificate.
+
+Expect: as on kind; workers reach the storage through `storage.workerEndpoint` (or the endpoint) without bucket credentials; the preview loads from `https://<preview host>` with a valid certificate, and the app's cookies aren't sent to it.

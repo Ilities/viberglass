@@ -1,4 +1,5 @@
 import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
+import { TaskDoneService } from "../../../../services/tasks/TaskDoneService";
 import { TrackerIssueStateSync } from "../../../../services/trackers/TrackerIssueStateSync";
 
 function setup(statuses: Record<string, TicketLifecycleStatus>) {
@@ -10,7 +11,7 @@ function setup(statuses: Record<string, TicketLifecycleStatus>) {
     lifecycle: { synchronize: jest.fn() },
     activity: { record: jest.fn() },
   };
-  return { deps, sync: new TrackerIssueStateSync(deps) };
+  return { deps, sync: new TrackerIssueStateSync({ done: new TaskDoneService(deps) }) };
 }
 
 describe("TrackerIssueStateSync", () => {

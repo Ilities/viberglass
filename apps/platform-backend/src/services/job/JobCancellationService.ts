@@ -15,6 +15,7 @@ import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { stopSpaceFiles } from "../spaceFiles/stopSpaceFiles";
 import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
+import { ClawRunCompletion } from "../claw/ClawRunCompletion";
 
 interface TicketStatusSynchronizer {
   synchronize(ticketId: string): Promise<unknown>;
@@ -34,6 +35,7 @@ export class JobCancellationService {
     private readonly workerStoppers: WorkerStopper[] = configuredWorkerStoppers(),
     private readonly ticketStatus: TicketStatusSynchronizer = new TicketLifecycleStatusService(),
     private readonly activity: Pick<TaskActivityRecorder, "record"> = new TaskActivityRecorder(),
+    private readonly scheduledRuns: Pick<ClawRunCompletion, "finish"> = new ClawRunCompletion(),
   ) {}
 
   /**
@@ -78,6 +80,7 @@ export class JobCancellationService {
       .execute();
 
     await stopSpaceFiles(this.spaceFiles, jobId);
+    await this.scheduledRuns.finish({ id: jobId, context: job.context }, { status: "cancelled", errorMessage: "Run cancelled by user" });
     await beforeWorkerStops?.();
     await new WorkerStopperChain(this.workerStoppers).stop(jobId, "cancelled");
     if (job.ticket_id) await this.synchronizeTicketStatus(job.ticket_id);
@@ -104,7 +107,7 @@ export class JobCancellationService {
   private async getJob(jobId: string) {
     return db
       .selectFrom("jobs")
-      .select(["status", "ticket_id"])
+      .select(["status", "ticket_id", "context"])
       .where("id", "=", jobId)
       .executeTakeFirst();
   }

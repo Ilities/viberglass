@@ -1,6 +1,6 @@
 # GitHub Actions IAM role
 
-The `deploy-viberators` workflow authenticates to AWS via OIDC (no long-lived credentials). The role it assumes needs the following policy attached.
+The AWS workflows authenticate via OIDC (no long-lived credentials) by assuming the role in the `AWS_ROLE_ARN` secret: `deploy-backend-dev`, `deploy-backend-prod`, `deploy-frontend-dev`, `deploy-frontend-prod`, `deploy-viberators`, `pulumi-preview`, `pulumi-deploy-dev` and `pulumi-deploy-prod`. The policy below covers the deploy workflows. The Pulumi workflows run `pulumi preview` and `pulumi up` on the base, workers and platform stacks, so their role also needs to manage every resource those stacks create and to read and write the Pulumi state bucket (`s3://viberglass-pulumi-state` unless `PULUMI_BACKEND_URL` says otherwise); that policy isn't listed here.
 
 Replace `<ACCOUNT_ID>` with your AWS account ID and `<REGION>` with the region where your infrastructure is deployed (e.g. `eu-west-1`).
 
@@ -19,15 +19,13 @@ Replace `<ACCOUNT_ID>` with your AWS account ID and `<REGION>` with the region w
             "Resource": [
                 "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/deployment/*",
                 "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/ecs/*",
-                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/database/url",
                 "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/frontend/apiUrl",
-                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/amplify/appId",
-                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/amplify/branchName",
-                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/amplify/region",
                 "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/deployment/*",
                 "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/ecs/*",
-                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/database/url",
-                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/frontend/apiUrl"
+                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/frontend/apiUrl",
+                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/dev/amplify/appId",
+                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/amplify/appId",
+                "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/viberglass/prod/amplify/region"
             ]
         },
         {
@@ -75,6 +73,7 @@ Replace `<ACCOUNT_ID>` with your AWS account ID and `<REGION>` with the region w
                 "arn:aws:ecr:*:<ACCOUNT_ID>:repository/dev-viberglass-repo",
                 "arn:aws:ecr:*:<ACCOUNT_ID>:repository/prod-viberglass-repo",
                 "arn:aws:ecr:*:<ACCOUNT_ID>:repository/viberator-base-worker",
+                "arn:aws:ecr:*:<ACCOUNT_ID>:repository/viberator-worker",
                 "arn:aws:ecr:*:<ACCOUNT_ID>:repository/viberator-worker-*",
                 "arn:aws:ecr:*:<ACCOUNT_ID>:repository/viberator-lambda-worker"
             ]
@@ -120,11 +119,11 @@ Replace `<ACCOUNT_ID>` with your AWS account ID and `<REGION>` with the region w
             }
         },
         {
-            "Sid": "AmplifyDeploy",
+            "Sid": "AmplifyStatus",
             "Effect": "Allow",
             "Action": [
-                "amplify:StartDeployment",
-                "amplify:GetApp"
+                "amplify:GetApp",
+                "amplify:ListJobs"
             ],
             "Resource": "arn:aws:amplify:<REGION>:<ACCOUNT_ID>:apps/*"
         }
@@ -136,14 +135,14 @@ Replace `<ACCOUNT_ID>` with your AWS account ID and `<REGION>` with the region w
 
 | Sid                    | Purpose                                                                                                                                                                               |
 |------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ReadDeploymentParams` | Reads SSM parameters the workflow needs: DB URL, ECS cluster name, Amplify app ID, etc. Scoped to `viberglass/dev/*` and `viberglass/prod/*` paths.                                   |
+| `ReadDeploymentParams` | Reads the SSM parameters the workflows need: region, ECR repository, ECS cluster and service, the API URL, the Amplify app IDs and the production Amplify region.                                |
 | `DecryptSecureStrings` | Allows KMS decryption of SSM SecureString parameters, but only when the request comes from SSM and only for the viberglass parameter paths.                                           |
 | `ECRLogin`             | Gets a temporary ECR auth token. Required before any push or pull.                                                                                                                    |
-| `ECRPushPull`          | Push and pull access for the specific repositories the workflow writes to: the platform repos, the base worker image, all `viberator-worker-*` harness images, and the lambda worker. |
+| `ECRPushPull`          | Push and pull access for the specific repositories the workflows write to: the backend repos, the base worker image, the harness images (`viberator-worker` for Claude Code, `viberator-worker-*` for the rest), and the lambda worker. |
 | `ECRCreateRepository`  | Lets the `setup-harness-images.sh` script create new ECR repositories on first push (also sets lifecycle policy). Scoped to `viberator-worker*` repos only.                           |
 | `ECSDeploy`            | Registers new ECS task definitions and updates services during platform deploys. Uses `*` resource because `RegisterTaskDefinition` doesn't support resource-level restrictions.      |
 | `PassECSRoles`         | Allows the workflow to pass the backend task execution and task roles when registering task definitions. Restricted to `ecs-tasks.amazonaws.com` as the receiving service.            |
-| `AmplifyDeploy`        | Triggers frontend deployments via Amplify.                                                                                                                                            |
+| `AmplifyStatus`        | Reads the Amplify app and its build jobs. Amplify builds the frontend itself from Git; `deploy-frontend-prod` waits for that build, and both frontend workflows report the app's address.                          |
 
 ## Trust policy
 
@@ -175,4 +174,4 @@ The role's trust policy allows GitHub Actions to assume it via OIDC. Note the tw
 }
 ```
 
-The OIDC provider (`token.actions.githubusercontent.com`) must exist in your AWS account before this trust policy will work. Create it once per account via IAM → Identity providers → Add provider.
+The OIDC provider (`token.actions.githubusercontent.com`) must exist in your AWS account before this trust policy will work. The platform stack creates one (`<env>-viberglass-github-oidc`), together with a narrower role that can only read Amplify and SSM, exported as `amplifyOidcRoleArn`. That role isn't enough for these workflows; the role described here is created separately.

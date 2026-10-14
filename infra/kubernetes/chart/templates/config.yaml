@@ -35,7 +35,7 @@ data:
   ALLOWED_ORIGINS: {{ .Values.publicUrl | quote }}
   VIBERATOR_WORKER_REGISTRY: {{ .Values.workers.registry | quote }}
   KUBERNETES_WORKER_IMAGE_PULL_SECRETS: {{ join "," .Values.workers.imagePullSecrets | quote }}
-  KUBERNETES_WORKER_IMAGE_TAG: {{ .Values.workers.imageTag | quote }}
+  VIBERATOR_WORKER_IMAGE_TAG: {{ .Values.workers.imageTag | quote }}
   {{- range $key, $value := .Values.backend.env }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

@@ -23,6 +23,14 @@ config:
   # If you deploy workers after platform, set this and re-run `pulumi up` in infra/platform.
   # viberglass:workerStack: organization/viberglass-workers/dev
 
+  # Agent worker images for ECS, Docker and Kubernetes runners (Lambda uses the workers stack's image).
+  # Defaults to the public images at ghcr.io/ilities. "ecr" pulls from the workers stack's
+  # ECR registry (needs workerStack); push the images first with
+  # infra/workers/scripts/setup-harness-images.sh dev all.
+  # viberglass:workerImageRegistry: ecr
+  # Tag of the worker images (default latest); a release tag or commit sha pins them.
+  # viberglass:workerImageTag: latest
+
   # Enable Fargate Spot for cost savings (70% discount)
   # Workers may be interrupted with 2-minute notice
   viberglass:enableSpot: "true"

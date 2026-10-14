@@ -119,6 +119,14 @@ describe("TaskTurnJobDispatcher's branch", () => {
     expect(branches.nameFor).toHaveBeenCalledWith("t-1", expect.any(String), null);
   });
 
+  it("tells the job what the turn asks for, so its Activity can say what the run does", async () => {
+    const { dispatcher, jobs } = setup();
+
+    await dispatcher.dispatch(input("plan"), jest.fn());
+
+    expect(jobs.submitJob).toHaveBeenCalledWith(expect.anything(), { ticketId: "t-1", clankerId: "c-1", turnAction: "plan" });
+  });
+
   it.each(["plan", "reply", "summarise"] as const)("reads the latest branch for a %s turn and never names one", async (action) => {
     const { dispatcher, bootstraps, branches } = setup();
 
@@ -179,6 +187,19 @@ describe("TaskTurnJobDispatcher in a Files space", () => {
 
     expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith("job", expect.objectContaining({ agentSessionId: "s-1", files: expect.objectContaining({ checkpointSnapshotId: "snap-2" }) }));
     expect(workers.executeJob).toHaveBeenCalledWith(expect.objectContaining({ id: "job", callbackToken: "token" }), expect.anything(), expect.anything());
+  });
+
+  it("starts a waiting scheduled run, which has no task", async () => {
+    const { dispatcher, bootstraps, workers, launches } = setup();
+    launches.getQueued.mockResolvedValue({
+      id: "job", tenantId: "p-1", jobKind: "claw", task: "Write the weekly report", ticketId: null, clankerId: "c-1",
+      callbackToken: "token", context: { clawScheduleId: "sched-1" }, settings: {}, bootstrapPayload: { task: "Write the weekly report" },
+    });
+
+    await dispatcher.launchWaiting(RUN);
+
+    expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith("job", expect.objectContaining({ files: expect.objectContaining({ checkpointSnapshotId: "snap-2" }) }));
+    expect(workers.executeJob).toHaveBeenCalledWith(expect.objectContaining({ id: "job", jobKind: "claw" }), expect.anything(), expect.anything());
   });
 
   it("fails a waiting run that can no longer start", async () => {

@@ -1,5 +1,4 @@
-import type { PartRange, TaskPlanParts, TaskPlanPartStatus } from '@viberglass/types'
-import { buildSuggestions, countNewComments, retrySuggestion, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
+import { countNewComments, retrySuggestion, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
 
 const doc = (content: string) => ({ content })
 
@@ -41,6 +40,11 @@ describe('suggestTaskActions', () => {
     ])
     expect(labels({ capabilities: coder, plan: doc('# P'), filesSpace: true, hasArtifacts: true })).toEqual(['Revise artifact'])
     expect(labels({ plan: doc('# P'), filesSpace: true })).toEqual([])
+  })
+
+  it('offers the artifact before the plan in a Files space', () => {
+    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false }
+    expect(labels({ capabilities: coder, filesSpace: true })).toEqual(['Create artifact', 'Write the plan'])
   })
 
   it('offers nothing to someone who may not ask, and no build retry to someone who may not ask for code', () => {
@@ -98,41 +102,5 @@ describe('countNewComments', () => {
 
   it('offers no summary while the agent works', () => {
     expect(labels({ agentWorking: true, sinceSummary: { finishedTurns: 9, messages: 30 } })).toEqual([])
-  })
-})
-
-describe('buildSuggestions', () => {
-  const part = (number: number, status: TaskPlanPartStatus) => ({ number, title: `Part ${number}`, status, pullRequestUrl: null })
-  const plan = (statuses: TaskPlanPartStatus[], open: PartRange | null = null): TaskPlanParts => {
-    const parts = statuses.map((status, index) => part(index + 1, status))
-    return { parts, open, addable: null, next: open ? null : (parts.find((entry) => entry.status === 'not_built')?.number ?? null) }
-  }
-
-  it('builds a plan in one part, or none, as a whole', () => {
-    expect(buildSuggestions(null)).toEqual([{ action: 'code', label: 'Build it' }])
-    expect(buildSuggestions(plan(['not_built']))).toEqual([{ action: 'code', label: 'Build it' }])
-  })
-
-  it('offers the first part on its own, or the whole plan in one pull request', () => {
-    expect(buildSuggestions(plan(['not_built', 'not_built', 'not_built']))).toEqual([
-      { action: 'code', label: 'Build part 1', parts: { first: 1, last: 1 } },
-      { action: 'code', label: 'Build it', parts: { first: 1, last: null } },
-    ])
-  })
-
-  it('offers the next part, or the rest, once the earlier parts are merged', () => {
-    expect(buildSuggestions(plan(['merged', 'not_built', 'not_built'])).map((suggestion) => suggestion.label)).toEqual(['Build part 2', 'Build the rest'])
-    expect(buildSuggestions(plan(['merged', 'merged', 'not_built'])).map((suggestion) => suggestion.label)).toEqual(['Build part 3'])
-  })
-
-  it('offers no new part while a part’s pull request is open, or once every part is built', () => {
-    expect(buildSuggestions(plan(['open', 'not_built'], { first: 1, last: 1 }))).toEqual([])
-    expect(buildSuggestions(plan(['merged', 'merged']))).toEqual([])
-  })
-
-  it('offers a build that never opened its pull request again, without the rest', () => {
-    expect(buildSuggestions(plan(['merged', 'building', 'not_built', 'not_built'], { first: 2, last: 2 }))).toEqual([
-      { action: 'code', label: 'Build part 2 again', parts: { first: 2, last: 2 } },
-    ])
   })
 })

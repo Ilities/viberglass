@@ -1,4 +1,6 @@
 import type { JobFailureCategory } from './job'
+import { turnRunLabel } from './nextWork'
+import type { SpaceBackingKind } from './spaceBacking'
 import type { TicketLifecycleStatus } from './ticket'
 import type { TaskTurnAction } from './taskTurn'
 
@@ -40,6 +42,8 @@ export type TaskSituationArtifact = 'plan' | 'code'
 /** What a task's situation is worked out from; the server gathers it per task. */
 export interface TaskSituationInput {
   status: TicketLifecycleStatus
+  /** The task's space backing; a Files task's code turn makes an artifact, not a build. */
+  backing: SpaceBackingKind
   createdAt: string
   /** Who drives the task when nobody else is asked: its owner, else its requester. */
   owner: TaskPerson | null
@@ -73,13 +77,6 @@ export interface SituationViewer {
 }
 
 const ARTIFACT_NAME: Record<TaskSituationArtifact, string> = { plan: 'Plan', code: 'Code' }
-
-const WORKING: Record<TaskTurnAction, string> = {
-  plan: 'writing the plan',
-  code: 'building',
-  reply: 'replying',
-  summarise: 'summarising',
-}
 
 const REVISING: Partial<Record<TaskTurnAction, string>> = { plan: 'revising the plan', code: 'updating the code' }
 
@@ -131,7 +128,8 @@ function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
   if (input.runningTurn) {
     const { action, since } = input.runningTurn
     const revising = artifact && ARTIFACT_OF_ACTION[action] === artifact.kind ? REVISING[action] : undefined
-    return { state: 'agent_working', label: `Agent ${revising ?? WORKING[action]}`, waitingOn: { kind: 'agent' }, since }
+    const doing = turnRunLabel(action, input.backing).doing
+    return { state: 'agent_working', label: `Agent ${revising ?? doing}`, waitingOn: { kind: 'agent' }, since }
   }
 
   if (input.takenOver) {

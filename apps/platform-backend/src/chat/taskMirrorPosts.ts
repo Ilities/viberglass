@@ -1,27 +1,21 @@
 import { Actions, Button, Card, CardText } from "chat";
 import { CHAT_ACTION, MAX_OPTION_BUTTONS, answerValue, askValue } from "@viberglass/integration-core";
-import { withPlainMentions, type AgentQuestion, type PartRange } from "@viberglass/types";
+import { savedFilesLine, withPlainMentions, type AgentQuestion, type SpaceFilesSnapshotSummary, type TurnRunLabel, type WorkOffer } from "@viberglass/types";
 
 /** Under the shortest message limit of the chat services posted to (Slack takes about 4,000 characters); long replies end with a link to the rest. */
 const REPLY_LIMIT = 3_000;
-
-const DOING: Record<string, string> = {
-  planning: "writing the plan",
-  execution: "building",
-  reply: "replying",
-};
 
 export function messagePost(author: string, body: string): { markdown: string } {
   return { markdown: `**${author}:** ${withPlainMentions(body)}` };
 }
 
-export function runStartedPost(step: string): { markdown: string } {
-  return { markdown: `_The agent is ${DOING[step] ?? "working"}…_` };
+/** Without a label, the run isn't a task's turn, so it isn't known what it does. */
+export function runStartedPost(label: TurnRunLabel | null): { markdown: string } {
+  return { markdown: `_The agent is ${label?.doing ?? "working"}…_` };
 }
 
-export function runFailedPost(step: string, reason: string | null): { markdown: string } {
-  const what = step === "execution" ? "build" : step === "planning" ? "plan" : step;
-  return { markdown: `**The ${what} run failed**${reason ? `: ${reason}` : "."}` };
+export function runFailedPost(label: TurnRunLabel | null, reason: string | null): { markdown: string } {
+  return { markdown: `**The ${label ? `${label.run} run` : "run"} failed**${reason ? `: ${reason}` : "."}` };
 }
 
 /** What the agent said in its turn, with a link to the task when it had more to say than fits. */
@@ -38,13 +32,26 @@ export function documentPost(content: string, version: number | null): { markdow
   };
 }
 
-/** The build to ask for next, as a button: after a plan, or once a part's pull request is merged. */
-export function nextBuildCard(ticketId: string, build: { label: string; parts?: PartRange }, intro = "Reply here to discuss it, mention me to ask for changes, or:") {
+/** What a Files turn saved, in a line. */
+export function savedFilesPost(files: SpaceFilesSnapshotSummary): { markdown: string } {
+  return { markdown: `_${savedFilesLine(files)}_` };
+}
+
+/**
+ * The work to ask for next, as buttons: after a plan, an artifact, or once a
+ * part's pull request is merged. A Files task can be marked done from it too.
+ */
+export function nextWorkCard(
+  ticketId: string,
+  offers: WorkOffer[],
+  options: { intro?: string; markDone?: boolean } = {},
+) {
+  const buttons = offers.map((offer, index) =>
+    Button({ id: CHAT_ACTION.ask, label: offer.label, style: index === 0 ? "primary" : undefined, value: askValue(ticketId, offer.action, offer.parts) }),
+  );
+  if (options.markDone) buttons.push(Button({ id: CHAT_ACTION.markDone, label: "Mark done", value: ticketId }));
   return Card({
-    children: [
-      CardText(intro),
-      Actions([Button({ id: CHAT_ACTION.ask, label: build.label, style: "primary", value: askValue(ticketId, "code", build.parts) })]),
-    ],
+    children: [CardText(options.intro ?? "Reply here to discuss it, mention me to ask for changes, or:"), Actions(buttons)],
   });
 }
 
