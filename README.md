@@ -21,9 +21,18 @@ Coding agents are good at writing code. They're bad at knowing what your company
 
 An engineer can step in at any point: pause the agent, take over its branch locally with `viberglass checkout` (`npm install -g viberglass`), and hand it back.
 
+## Spaces without a repository
+
+For work that isn't code, a space can be backed by Files instead of a Git repository: a shared set of files the space's tasks and people work on, kept between runs in S3-compatible storage. People can upload files and edit Markdown and text in the app and agents restore the files at the start of each run and save them at the end.
+
+Files backed spaces support "artifacts" where an agent makes a deliverable such as a document, a report or an HTML presentation. These artifacts are versioned by Viberglass. Web pages, presentations, images and PDFs preview in the app from a separate, sandboxed address. These artifacts can be iterated on and asking an agent for a new revision makes the next version. A Files task is finished when someone marks it done.
+
 ## Features
 
 - One thread per task: people's messages, the agent's questions, plan revisions, comments, runs and PRs, in order, for everyone on the task.
+- Large plans can be built in parts, a pull request per part, with ways around the order. Add a part to the open pull request, mark a part done or skip it, or build a stopped part again.
+- Files spaces for documents, presentations and other artifacts, with versions and previews.
+- Issue trackers as linked threads: a new issue in GitHub Issues, Jira or Shortcut becomes a task, comments flow both ways, and closing the issue finishes the task.
 - Home shows whose move it is: a question from the agent, a review request, a mention, a failed run. Notifications reach you in Slack or by email.
 - Roles that fit a company: members, guests and read-only viewers; open or private spaces; owners, reviewers and watchers per task. Not everyone who can comment can ask for code.
 - Slack as a front door: start tasks, answer the agent's questions, discuss the plan and start the build from a Slack thread that stays in step with the task.
@@ -45,7 +54,7 @@ An engineer can step in at any point: pause the agent, take over its branch loca
 | [OpenCode](https://github.com/opencode-ai/opencode)           | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq and custom endpoints |
 | [Pi](https://pi.dev)                                          | Many providers and custom endpoints                               |
 
-Custom model endpoints: add a URL, an API format and a key under the runner form, and OpenCode and Pi runners can use it. This covers hosted open-weight models and anything you serve yourself.
+Custom model endpoints: add a URL, an API format and a key in the runner form, and every agent can use it. This covers hosted open-weight models and anything you serve yourself.
 
 Model deployments (experimental): Viberglass can create a GPU container on [Verda](https://verda.com) running vLLM, scale it to zero when idle and wake it when a run needs it.
 
@@ -54,7 +63,7 @@ Model deployments (experimental): Viberglass can create a GPU container on [Verd
 |                   |                                                 |
 |-------------------|-------------------------------------------------|
 | Pull requests     | GitHub                                          |
-| Task sources      | GitHub Issues, Shortcut, custom webhooks        |
+| Task sources      | GitHub Issues, Jira, Shortcut, custom webhooks  |
 | Chat              | Slack                                           |
 | Compute           | Docker, Kubernetes, AWS ECS Fargate, AWS Lambda |
 
@@ -73,8 +82,8 @@ docker compose up
 Open http://localhost:3000. The first visit creates the administrator account, then setup walks you through:
 
 1. A model key: pick a provider and paste a key, or point at a custom endpoint.
-2. A repository: a GitHub repository and a fine-grained token that can push a branch and open a pull request. Setup links to GitHub's token form with the permissions filled in.
-3. A space for the repository's tasks.
+2. The space's backing: a Git repository, with a GitHub repository and a fine-grained token that can push a branch and open a pull request (setup links to GitHub's token form with the permissions filled in), or Files, for documents and presentations.
+3. A name for the space.
 4. A default agent, created for you and run on your local Docker using the published worker images.
 5. A first task.
 
@@ -100,8 +109,10 @@ The backend reads its environment from `docker-compose.yml`; optional settings g
 | `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset             |
 | `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`) |
 | `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`) |
+| `S3_ENDPOINT`, `S3_BUCKET` and the other `S3_*` settings  | S3-compatible storage for Files spaces, artifacts and media; the dev compose runs MinIO |
+| `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`                      | The separate address artifact previews are served from          |
 
-Agent credentials are stored as workspace secrets (encrypted in the database, or in AWS SSM) and attached to runners in Settings → Agents & runners. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
+Agent credentials are stored as workspace secrets (encrypted in the database, or in AWS SSM) and attached to runners in Settings → Agents. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
 
 ---
 
@@ -144,7 +155,7 @@ cd infra/platform && npm install && pulumi stack select dev && pulumi up   # ECS
 cd infra/workers && npm install && pulumi stack select dev && pulumi up    # Lambda and ECS workers
 ```
 
-Runners on ECS or Lambda are created under Settings → Agents & runners; the platform creates the task definition or function, with networking from the stack outputs.
+Runners on ECS or Lambda are created under Settings → Agents; the platform creates the task definition or function, with networking from the stack outputs.
 
 ### Worker images
 
