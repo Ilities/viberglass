@@ -91,7 +91,7 @@ describe('AgentTurnEntry in a Files space', () => {
       })
     )
     const card = screen.getByLabelText('Artifact Q4 roadmap deck')
-    expect(card).toHaveTextContent('Version 2 · Web page')
+    expect(card).toHaveTextContent('Version 2 · HTML')
     expect(screen.getByRole('link', { name: 'Preview' })).toHaveAttribute('href', '/spaces/deck/artifacts/art-1?version=ver-2')
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument()
     expect(screen.getByText(/asked for an artifact/)).toBeInTheDocument()

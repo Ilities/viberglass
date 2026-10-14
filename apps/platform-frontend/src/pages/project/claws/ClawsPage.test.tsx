@@ -6,6 +6,7 @@ import { useProject } from '@/context/project-context'
 import { ClawsPage } from './ClawsPage'
 
 jest.mock('@/context/project-context', () => ({ useProject: jest.fn() }))
+jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', role: 'member' } }) }))
 jest.mock('@/service/api/claw-api', () => ({
   getClawSchedules: jest.fn(async () => []),
   getClawTaskTemplates: jest.fn(async () => []),

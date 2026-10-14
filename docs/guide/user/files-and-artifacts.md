@@ -21,7 +21,7 @@ The `.viberglass` folder is kept for Viberglass, so you can't put files there.
 
 If someone else saved a file while you were editing it, your save is refused rather than overwriting their change. Your text stays in the editor: copy what you need, then choose Load their version.
 
-<!-- screenshot: Files page with a folder and the text editor open -->
+![The Files page with a Markdown file open in the editor above the notes and research folders](../images/files-editor.png)
 
 ### While a run has the files
 
@@ -60,4 +60,4 @@ When an artifact has more than one version, pick one from the list above the pre
 
 Previews open from a separate address with no access to Viberglass or your sign-in, and they can't load anything from the internet. A web page or presentation the agent makes has its scripts, styles, fonts and images beside it for that reason. If an installation hasn't set up previews, artifacts can still be downloaded.
 
-<!-- screenshot: an artifact page previewing a presentation -->
+![An artifact page previewing a slide presentation, with Full screen and Download](../images/artifact-preview.png)

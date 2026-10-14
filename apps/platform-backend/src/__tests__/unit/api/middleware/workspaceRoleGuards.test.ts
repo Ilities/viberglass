@@ -1,10 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 
 jest.mock("../../../../api/middleware/authentication", () => ({
-  requireRole: (required: string | string[]) => {
+  requireRole: (required: string | string[], options?: { forbiddenMessage?: string }) => {
     const roles = Array.isArray(required) ? required : [required];
     return (req: Request, res: Response, next: NextFunction) =>
-      roles.includes(String(req.headers["x-role"])) ? next() : res.status(403).json({ error: "Forbidden" });
+      roles.includes(String(req.headers["x-role"]))
+        ? next()
+        : res.status(403).json({ error: options?.forbiddenMessage ?? "Forbidden" });
   },
 }));
 
@@ -14,6 +16,7 @@ import { isWorkspaceRole, type WorkspaceRole } from "@viberglass/types";
 import type { AuthContext } from "../../../../api/auth/context";
 import {
   refuseViewerChanges,
+  requireRunnerRole,
   runnerOnlyChanges,
 } from "../../../../api/middleware/workspaceRoleGuards";
 
@@ -66,5 +69,18 @@ describe("runnerOnlyChanges", () => {
     await request(app).get("/api/spaces").set("x-role", "guest").expect(200);
     await request(app).post("/api/spaces").set("x-role", "guest").expect(403);
     await request(app).post("/api/spaces").set("x-role", "member").expect(200);
+  });
+});
+
+describe("requireRunnerRole", () => {
+  it("lets admins and members through and tells others who can", async () => {
+    const app = express();
+    app.use("/api/claw", requireRunnerRole, (_req, res) => res.json({ ok: true }));
+    await request(app).get("/api/claw/schedules").set("x-role", "member").expect(200);
+    await request(app).get("/api/claw/schedules").set("x-role", "admin").expect(200);
+    for (const role of ["guest", "viewer"]) {
+      const res = await request(app).get("/api/claw/schedules").set("x-role", role).expect(403);
+      expect(res.body.error).toBe("Only admins and members can do this.");
+    }
   });
 });

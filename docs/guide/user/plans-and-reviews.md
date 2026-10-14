@@ -29,14 +29,14 @@ Open the Plan tab and read the plan against what was asked.
 To comment on part of it:
 
 1. Select the text you want to comment on.
-2. Choose Comment, write what should change and why, and choose Add comment.
-3. For exact replacement wording, choose Suggest a change instead and write the new text.
+2. Choose Comment or suggest. On the Comment tab, write what should change and why, and choose Add comment.
+3. For exact replacement wording, switch to the Suggest a change tab and write the new text.
 
 Open comments are highlighted in the plan; click one to read it. A suggestion can be applied with Apply suggestion while its text is still in the plan. Resolve closes a comment, and Reopen opens it again. Each comment also appears in the thread with a short quote of the text it's on, its state, and Open in comments.
 
 Specific comments work best: "Keep the exact string Welcome to Acme without punctuation, and add a test that asserts it."
 
-<!-- screenshot: plan with a selected passage and the comment composer -->
+![A plan with the comment composer open on a selected passage](../images/plan-comment.png)
 
 ## Asking for a revision
 

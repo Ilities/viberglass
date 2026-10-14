@@ -35,9 +35,9 @@ export class ClawScheduleService {
       );
     }
 
-    // Validate template exists
+    // A template from another space is treated as missing, so its existence isn't revealed.
     const template = await this.templateDAO.getTemplate(request.taskTemplateId);
-    if (!template) {
+    if (!template || template.projectId !== request.projectId) {
       throw new ClawServiceError(
         CLAW_SERVICE_ERROR_CODE.TEMPLATE_NOT_FOUND,
         "Task template not found",

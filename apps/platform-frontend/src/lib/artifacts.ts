@@ -8,7 +8,7 @@ const FORMAT_LABEL: Record<ArtifactFormat, string> = {
   image: 'Image',
   pdf: 'PDF',
   svg: 'SVG',
-  html: 'Web page',
+  html: 'HTML',
   other: 'File',
 }
 

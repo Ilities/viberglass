@@ -2,12 +2,13 @@ import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/dialog'
 import { EmptyState } from '@/components/empty-state'
-import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
+import { Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { Textarea } from '@/components/textarea'
 import { Timestamp } from '@/components/timestamp'
+import { useAuth } from '@/context/auth-context'
 import type { Clanker } from '@/service/api/clanker-api'
 import { getClankers } from '@/service/api/clanker-api'
 import {
@@ -22,9 +23,10 @@ import { listAllSecrets } from '@/service/api/secret-api'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import type { ClawTaskTemplateSummary, SecretBinding } from '@viberglass/types'
 import { describeBindingsProblem } from '@/pages/clankers/config/agentSecrets'
-import { SecretBindingsField } from '@/pages/clankers/config/secret-bindings-field'
+import { taskAgents } from '@/pages/project/tickets/task-agents'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { TemplateCredentialsField } from './template-credentials-field'
 
 type TemplateForm = {
   name: string
@@ -44,6 +46,7 @@ interface Props {
 }
 
 export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Props) {
+  const isAdmin = useAuth().user?.role === 'admin'
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
@@ -59,7 +62,11 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [t, c, s] = await Promise.all([getClawTaskTemplates(projectId), getClankers(100), listAllSecrets()])
+      const [t, c, s] = await Promise.all([
+        getClawTaskTemplates(projectId),
+        getClankers(100),
+        isAdmin ? listAllSecrets() : Promise.resolve([]),
+      ])
       setTemplates(t)
       setClankers(c)
       setSecrets(s)
@@ -68,7 +75,9 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
     } finally {
       setLoading(false)
     }
-  }, [projectId])
+  }, [projectId, isAdmin])
+
+  const agentChoices = taskAgents(clankers, [])
 
   useEffect(() => {
     void loadData()
@@ -77,7 +86,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
   const openCreate = () => {
     setDialogMode('create')
     setActiveTemplate(null)
-    setForm({ ...emptyForm, clankerId: clankers[0]?.id ?? '' })
+    setForm({ ...emptyForm, clankerId: agentChoices[0]?.id ?? '' })
     setDialogOpen(true)
   }
 
@@ -136,7 +145,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
           description: form.description.trim() || null,
           clankerId: form.clankerId,
           taskInstructions: form.taskInstructions,
-          secretBindings: form.secretBindings,
+          ...(isAdmin && { secretBindings: form.secretBindings }),
         })
         toast.success('Template created')
       } else if (activeTemplate) {
@@ -144,7 +153,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
           name: form.name.trim(),
           description: form.description.trim() || null,
           clankerId: form.clankerId,
-          secretBindings: form.secretBindings,
+          ...(isAdmin && { secretBindings: form.secretBindings }),
         }
         if (form.taskInstructions.trim()) updates.taskInstructions = form.taskInstructions
         await updateClawTaskTemplate(activeTemplate.id, updates)
@@ -231,12 +240,13 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
                 <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={t.updatedAt} /></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    <Button plain onClick={() => openEdit(t)}>
+                    <Button plain aria-label={`Edit ${t.name}`} onClick={() => openEdit(t)}>
                       <Pencil1Icon className="h-4 w-4" />
                     </Button>
                     <Button
                       surface
                       color="red"
+                      aria-label={`Delete ${t.name}`}
                       onClick={() => {
                         setToDelete(t)
                         setDeleteOpen(true)
@@ -280,10 +290,10 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
                   <Select
                     value={form.clankerId}
                     onChange={(v) => setForm((p) => ({ ...p, clankerId: v }))}
-                    disabled={clankers.length === 0}
+                    disabled={agentChoices.length === 0}
                     placeholder="No agents yet"
                   >
-                    {clankers.map((c) => (
+                    {agentChoices.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
@@ -299,18 +309,13 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
                     rows={6}
                   />
                 </Field>
-                <Field>
-                  <Label>Credentials</Label>
-                  <Description>Secrets the agent gets on top of its own.</Description>
-                  <SecretBindingsField
-                    secrets={secrets}
-                    selectable={secrets.filter((secret) => !secret.purpose)}
-                    bindings={form.secretBindings}
-                    onChange={(secretBindings) => setForm((p) => ({ ...p, secretBindings }))}
-                    agent={clankers.find((c) => c.id === form.clankerId)?.agent}
-                    emptyMessage="No secrets configured. Add secrets in the Secrets section."
-                  />
-                </Field>
+                <TemplateCredentialsField
+                  canChoose={isAdmin}
+                  secrets={secrets}
+                  bindings={form.secretBindings}
+                  onChange={(secretBindings) => setForm((p) => ({ ...p, secretBindings }))}
+                  agent={clankers.find((c) => c.id === form.clankerId)?.agent}
+                />
               </FieldGroup>
             </Fieldset>
           </DialogBody>

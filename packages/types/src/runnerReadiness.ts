@@ -10,9 +10,9 @@ import { JOB_FAILURE_CODE } from './job'
  */
 export type RunnerReadinessState = 'ready' | 'needs_key' | 'needs_login' | 'not_running' | 'credential_rejected'
 
-/** The runner's latest finished run, the evidence that its credential works. */
+/** One of the runner's finished runs: how it ended, and when. */
 export interface RunnerLastRun {
-  status: 'completed' | 'failed'
+  status: 'completed' | 'failed' | 'cancelled'
   failureCode: string | null
   /** The failure in a few words, as the run recorded it. */
   failureTitle: string | null

@@ -21,8 +21,10 @@ export function refuseViewerChanges(req: Request, res: Response, next: NextFunct
   res.status(403).json({ error: "Viewers can see everything but can't make changes." });
 }
 
+const RUNNER_ONLY = "Only admins and members can do this.";
+
 /** Admins and members only: running agents and changing spaces (not guests or viewers). */
-export const requireRunnerRole = requireRole([...RUNNER_ROLES]);
+export const requireRunnerRole = requireRole([...RUNNER_ROLES], { forbiddenMessage: RUNNER_ONLY });
 
 /**
  * For routes authenticated some other way (API tokens): the role check
@@ -34,7 +36,7 @@ export function refuseNonRunnerRoles(req: Request, res: Response, next: NextFunc
     next();
     return;
   }
-  res.status(403).json({ error: "Only admins and members can do this." });
+  res.status(403).json({ error: RUNNER_ONLY });
 }
 
 /** Anyone signed in may read; only runner roles may change anything. */

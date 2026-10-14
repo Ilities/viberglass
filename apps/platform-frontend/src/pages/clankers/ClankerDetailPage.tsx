@@ -21,17 +21,7 @@ import { AgentLoginCard } from './agent-login-card'
 import { summarizeRunner } from './config/runnerSummary'
 import { RunnerReadinessBadge } from '@/components/runner-readiness-badge'
 import { Timestamp } from '@/components/timestamp'
-
-/** The latest run is what shows the credential works: nothing proves it until one finishes. */
-function LastRun({ readiness }: { readiness: Clanker['readiness'] }) {
-  const lastRun = readiness?.lastRun
-  if (!lastRun) return <span className="text-[var(--gray-10)]">None yet. The first task run checks the key and model.</span>
-  return (
-    <>
-      {lastRun.status === 'completed' ? 'Succeeded' : `Failed${lastRun.failureTitle ? `: ${lastRun.failureTitle}` : ''}`} · <Timestamp date={lastRun.at} />
-    </>
-  )
-}
+import { LastRun } from './last-run'
 
 function formatAgent(agent?: Clanker['agent'] | null): string {
   return getAgentLabel(agent)

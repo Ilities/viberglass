@@ -99,6 +99,20 @@ describe("ClankerReadinessService", () => {
     expect(endpointChanged.readiness?.state).toBe("ready");
   });
 
+  it("shows a stopped run as the latest while readiness still goes by the last run that ended on its own", async () => {
+    const stopped: RunnerLastRun = { status: "cancelled", failureCode: null, failureTitle: null, at: "2026-10-04T00:00:00Z" };
+    const { deps, service } = setup();
+    deps.runs.latestFinishedByClanker
+      .mockResolvedValueOnce(new Map([["c-1", stopped]]))
+      .mockResolvedValueOnce(new Map([["c-1", REJECTED]]));
+
+    const [withReadiness] = await service.withReadiness([runner()]);
+
+    expect(deps.runs.latestFinishedByClanker).toHaveBeenNthCalledWith(1, ["c-1"]);
+    expect(deps.runs.latestFinishedByClanker).toHaveBeenNthCalledWith(2, ["c-1"], ["completed", "failed"]);
+    expect(withReadiness.readiness).toMatchObject({ state: "credential_rejected", lastRun: stopped });
+  });
+
   it("forgets a rejected key once the key or the runner changed after that run", async () => {
     const { service } = setup("2026-10-03T00:00:00Z");
     const [keyReplaced] = await service.withReadiness([runner()]);

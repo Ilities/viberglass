@@ -2,16 +2,16 @@
 
 Schedules run agent work on a timer, such as updating dependencies every Monday or checking for security patches each night. Each space has its own task templates and schedules.
 
-Open a space and choose Schedules in the sidebar. Members and admins can use it. The page has two tabs, Schedules and Task templates.
+Open a space and choose Schedules in the sidebar. Members and admins create, edit, pause and delete templates and schedules; guests and viewers don't see Schedules. The page has two tabs, Schedules and Task templates.
 
 ## Task templates
 
 A task template is the work a schedule runs. Under Task templates, choose New template and fill in:
 
 - Name, and an optional description.
-- Agent: the agent that does the work.
+- Agent: the agent that does the work. The list shows the agents that can run, the same ones you can ask on a task.
 - Task instructions: what the agent should do each time.
-- Credentials: extra secrets the run needs, on top of the runner's own.
+- Credentials: extra secrets the run needs, on top of the runner's own. Only admins choose them; members see which ones a template uses.
 
 A template can be used by several schedules.
 
@@ -32,4 +32,4 @@ In a Files space there's no repository and no pull request. The run starts from 
 
 To keep something the run makes, such as a weekly report, ask for it in the task instructions. The agent declares it, and each run that does adds a new artifact to the space's Artifacts page. A run's page shows what it saved and the artifacts it made. Runners on AWS Lambda can't work in Files spaces; choose an agent that runs on Docker, ECS or Kubernetes.
 
-<!-- screenshot: Schedules tab with one active schedule -->
+![The Schedules tab with one active weekly schedule](../images/schedules.png)

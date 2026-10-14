@@ -309,15 +309,21 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    <Button plain onClick={() => openEdit(s)}>
+                    <Button plain aria-label={`Edit ${s.name}`} onClick={() => openEdit(s)}>
                       <Pencil1Icon className="h-4 w-4" />
                     </Button>
-                    <Button plain onClick={() => toggleActive(s)} title={s.isActive ? 'Pause' : 'Resume'}>
+                    <Button
+                      plain
+                      onClick={() => toggleActive(s)}
+                      aria-label={`${s.isActive ? 'Pause' : 'Resume'} ${s.name}`}
+                      title={s.isActive ? 'Pause' : 'Resume'}
+                    >
                       {s.isActive ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
                     </Button>
                     <Button
                       surface
                       color="red"
+                      aria-label={`Delete ${s.name}`}
                       onClick={() => {
                         setToDelete(s)
                         setDeleteOpen(true)

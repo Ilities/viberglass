@@ -192,10 +192,14 @@ function authenticateWithApiToken() {
 
 export const requireApiToken = authenticateWithApiToken();
 
-export function requireRole(required: UserRole | UserRole[]) {
+export function requireRole(
+  required: UserRole | UserRole[],
+  options?: { forbiddenMessage?: string },
+) {
   const roles = Array.isArray(required) ? required : [required];
   return authenticateRequest({
     required: true,
+    forbiddenMessage: options?.forbiddenMessage,
     check: (context) => roles.some((role) => context.roles.includes(role)),
   });
 }

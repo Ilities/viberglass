@@ -14,7 +14,7 @@ The task opens. You're its owner unless the space sets a different default owner
 
 A good description is concrete. "Make the welcome text say Welcome to Acme, without punctuation. Keep the existing function signature. Add a test for the exact text." gives the agent and your reviewers the same target.
 
-<!-- screenshot: Create task form -->
+![The Create task form with a title, a description and the optional details open](../images/create-task.png)
 
 ## Other ways tasks start
 

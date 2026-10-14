@@ -26,7 +26,7 @@ Open Settings → Agents and choose New agent.
 1. Name it after what you'll know it by, such as the account or team it belongs to.
 2. Pick the agent.
 3. Pick the provider and key, or a custom endpoint. Choose a key you've already added, or add one here; keys are shared across runners. The list only offers what the chosen agent can use. Codex also asks what to sign in with: an API key or a ChatGPT account.
-4. Pick the model, or keep the agent's default.
+4. Set the model. With a workspace model, pick it from the endpoint's list. OpenCode, Kimi and Antigravity have a model field, filled in with the provider's default; type another model name to change it. The other agents run their own default model.
 5. Create it.
 
 Under Advanced:
@@ -36,7 +36,7 @@ Under Advanced:
 - Tools: MCP servers the agent can call, and skills it can load.
 - Extra environment variables, each from a secret.
 
-<!-- screenshot: runner form with agent and provider chosen -->
+![The new agent form with OpenCode chosen, the OpenCode Go provider and a key](../images/runner-form.png)
 
 ## Can a runner take tasks?
 

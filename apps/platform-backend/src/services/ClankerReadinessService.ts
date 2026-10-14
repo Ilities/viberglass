@@ -29,18 +29,22 @@ export class ClankerReadinessService {
       ...clankers.flatMap((clanker) => clanker.secretBindings.map((binding) => binding.secretId)),
       ...Array.from(endpoints.values()).flatMap((endpoint) => endpoint?.secretId ? [endpoint.secretId] : []),
     ])];
-    const [secrets, lastRuns] = await Promise.all([
+    const clankerIds = clankers.map((clanker) => clanker.id);
+    const [secrets, lastRuns, lastOutcomes] = await Promise.all([
       this.deps.secrets.getSecretsByIds(secretIds),
-      this.deps.runs.latestFinishedByClanker(clankers.map((clanker) => clanker.id)),
+      this.deps.runs.latestFinishedByClanker(clankerIds),
+      // A run someone stopped says nothing about the credential, so readiness goes by the latest one that ended on its own.
+      this.deps.runs.latestFinishedByClanker(clankerIds, ["completed", "failed"]),
     ]);
     const existing = new Set(secrets.map((secret) => secret.id));
     const secretChangedAt = new Map(secrets.map((secret) => [secret.id, secret.updatedAt.getTime()]));
 
     return clankers.map((clanker) => {
       const lastRun = lastRuns.get(clanker.id) ?? null;
+      const lastOutcome = lastOutcomes.get(clanker.id) ?? null;
       const endpoint = clanker.modelEndpoint ? endpoints.get(clanker.modelEndpoint.endpointId) : null;
-      const changed = lastRun ? this.changedSince(clanker, secretChangedAt, Date.parse(lastRun.at), endpoint) : false;
-      const readiness = runnerReadiness(clanker, existing, changed ? null : lastRun);
+      const changed = lastOutcome ? this.changedSince(clanker, secretChangedAt, Date.parse(lastOutcome.at), endpoint) : false;
+      const readiness = runnerReadiness(clanker, existing, changed ? null : lastOutcome);
       return { ...clanker, readiness: { ...readiness, lastRun } };
     });
   }

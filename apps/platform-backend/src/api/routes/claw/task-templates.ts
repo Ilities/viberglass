@@ -7,6 +7,7 @@ import {
   validateUpdateClawTaskTemplate,
 } from "../../middleware/validation";
 import { resolveClawServiceError } from "./routeErrors";
+import { templateCredentialsGuard } from "./templateCredentialsGuard";
 
 interface ClawTaskTemplateRouteDependencies {
   clawTaskTemplateService: ClawTaskTemplateService;
@@ -19,6 +20,7 @@ export function registerClawTaskTemplateRoutes(
   router.post(
     "/task-templates",
     validateCreateClawTaskTemplate,
+    templateCredentialsGuard,
     async (req, res) => {
       try {
         const template = await clawTaskTemplateService.createTemplate(req.body);
@@ -122,6 +124,7 @@ export function registerClawTaskTemplateRoutes(
     "/task-templates/:id",
     validateUuidParam("id"),
     validateUpdateClawTaskTemplate,
+    templateCredentialsGuard,
     async (req, res) => {
       try {
         const template = await clawTaskTemplateService.updateTemplate(

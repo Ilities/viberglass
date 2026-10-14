@@ -24,7 +24,7 @@ Being on a task as its owner, a reviewer or a watcher is what lets a member or g
 
 Use Copy link and send it to them. With email set up, it's emailed too. The person opens it, enters their name and a password, and joins. Pending invites are listed until they're used; Revoke cancels one.
 
-<!-- screenshot: Members page with the invite form -->
+![The Members page with the invite form filled in and the list of people](../images/members-invite.png)
 
 ## Passwords
 

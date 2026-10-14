@@ -30,7 +30,7 @@ When the agent has a branch for the task, you can work on it yourself. Tasks in 
 4. Optionally write a note for the agent: what you changed and what it should do next.
 5. Choose Hand back. The agent carries on from your commits, reading what you pushed first.
 
-<!-- screenshot: Taken over card with checkout commands -->
+![The Taken over card with the commands to get the branch, a note for the agent and Hand back](../images/taken-over.png)
 
 ### The viberglass command
 
