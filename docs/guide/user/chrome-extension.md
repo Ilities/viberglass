@@ -23,4 +23,4 @@ In the extension's settings, enter your workspace's address and its API address.
 5. Leave Ask the agent to write the plan on to have the agent start on the plan as soon as the task exists. When the workspace has more than one agent you can pick which one; otherwise the space's default agent writes it.
 6. Create the task. The extension links to it in Viberglass.
 
-<!-- screenshot: extension popup with a captured screenshot -->
+![The extension popup with a captured screenshot of a page, and the space, agent, title, description and severity filled in](../images/chrome-extension-popup.png)

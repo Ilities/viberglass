@@ -10,7 +10,7 @@ Who can ask for code depends on the workspace role and the task: members on task
 
 Engineers review the pull request on GitHub like any other. The Code tab shows the pull request's open review comments. To have the agent address them, ask it in the thread: the open review comments go with your request, and its next build adds commits to the same pull request.
 
-<!-- screenshot: Code tab with an open pull request -->
+![The Code tab with the task's open pull request, its branch and changes, and an open review comment](../images/code-tab-pull-request.png)
 
 ## Plans in parts
 
