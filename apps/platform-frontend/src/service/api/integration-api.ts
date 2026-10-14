@@ -24,12 +24,8 @@ import type {
  * Get all integrations (optionally filtered by system)
  */
 export async function getIntegrations(system?: TicketSystem): Promise<Integration[]> {
-  const url = new URL(`${API_BASE_URL}/api/integrations`)
-  if (system) {
-    url.searchParams.append('system', system)
-  }
-
-  const response = await apiFetch(url.toString())
+  const query = system ? `?${new URLSearchParams({ system })}` : ''
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations${query}`)
   if (!response.ok) {
     throw new Error('Failed to fetch integrations')
   }
@@ -407,7 +403,8 @@ export interface IntegrationInboundWebhookConfig {
 
 function toAbsoluteWebhookUrl(webhookUrl: string): string {
   try {
-    return new URL(webhookUrl, API_BASE_URL).toString()
+    // Production builds call the API on the app's own origin, so API_BASE_URL is empty there.
+    return new URL(webhookUrl, API_BASE_URL || window.location.origin).toString()
   } catch {
     return webhookUrl
   }

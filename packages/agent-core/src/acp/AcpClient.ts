@@ -205,7 +205,8 @@ export class AcpClient {
   private async prompt(text: string): Promise<void> {
     this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
     const result = await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text }] });
-    this.contextUsage = promptUsageOf(result) ?? this.contextUsage;
+    // The harness's own context report is the better measure; a turn's usage is the fallback.
+    this.contextUsage = this.contextUsage ?? promptUsageOf(result) ?? undefined;
     this.turnUsage.notePromptResult(result);
   }
 

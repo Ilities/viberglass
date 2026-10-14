@@ -7,11 +7,11 @@ export function KubernetesStrategyFields({ defaults }: { defaults: ClankerConfig
     <Field><Label>Container Image</Label><Description>Use a prebuilt worker image. Leave empty to use this agent's default image.</Description>
       <Input name="containerImage" defaultValue={defaults.containerImage} placeholder="ghcr.io/myorg/worker:1" />
     </Field>
-    <Field><Label>CPU</Label><Description>CPU requested and limited per worker, for example 500m or 1.</Description>
-      <Input name="kubernetesCpu" defaultValue={defaults.kubernetesCpu} placeholder="500m" />
+    <Field><Label>CPU</Label><Description>CPU requested and limited per worker, for example 500m or 2. Defaults to 1.</Description>
+      <Input name="kubernetesCpu" defaultValue={defaults.kubernetesCpu} placeholder="1" />
     </Field>
-    <Field><Label>Memory</Label><Description>Memory requested and limited per worker.</Description>
-      <Input name="kubernetesMemory" defaultValue={defaults.kubernetesMemory} placeholder="1Gi" />
+    <Field><Label>Memory</Label><Description>Memory requested and limited per worker. Defaults to 4Gi; an agent with less can be killed partway.</Description>
+      <Input name="kubernetesMemory" defaultValue={defaults.kubernetesMemory} placeholder="4Gi" />
     </Field>
     <Field><Label>Temporary Storage</Label><Description>Disk space for the repository and the agent's working directory.</Description>
       <Input name="kubernetesStorage" defaultValue={defaults.kubernetesStorage} placeholder="2Gi" />

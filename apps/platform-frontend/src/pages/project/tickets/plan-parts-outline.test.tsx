@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Theme } from '@radix-ui/themes'
+import userEvent from '@testing-library/user-event'
 import type { TaskPlanParts } from '@viberglass/types'
 import { PlanPartsOutline } from './plan-parts-outline'
 
@@ -30,7 +31,7 @@ function outline(props: Partial<Parameters<typeof PlanPartsOutline>[0]> = {}) {
   const onChanged = jest.fn()
   render(
     <Theme>
-      <PlanPartsOutline plan={PLAN} state={PART_ONE_MERGED} ticketId="t-1" canBuild canChange={false} onChanged={onChanged} {...props} />
+      <PlanPartsOutline plan={PLAN} state={PART_ONE_MERGED} ticketId="t-1" canBuild canChange={false} agentWorking={false} onChanged={onChanged} {...props} />
     </Theme>
   )
   return onChanged
@@ -77,13 +78,50 @@ describe('PlanPartsOutline', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
+  it('says a build without its pull request is building while the agent works, and stopped after', () => {
+    const stopped: TaskPlanParts = {
+      ...PART_ONE_MERGED,
+      parts: PART_ONE_MERGED.parts.map((part) => (part.number === 2 ? { ...part, status: 'building' } : part)),
+      open: { first: 2, last: 2 },
+      next: null,
+    }
+    outline({ state: stopped, agentWorking: true, canBuild: false })
+    expect(screen.getAllByRole('listitem')[1]).toHaveTextContent('Building')
+    cleanup()
+    outline({ state: stopped })
+    expect(screen.getAllByRole('listitem')[1]).toHaveTextContent('Stopped')
+    expect(screen.getByRole('button', { name: 'Build part 2 again' })).toBeInTheDocument()
+  })
+
+  it('asks before discarding a build that stopped before its pull request', async () => {
+    mockDiscard.mockResolvedValue(undefined)
+    const stopped: TaskPlanParts = {
+      ...PART_ONE_MERGED,
+      parts: PART_ONE_MERGED.parts.map((part) => (part.number === 2 ? { ...part, status: 'building' } : part)),
+      open: { first: 2, last: 2 },
+      next: null,
+    }
+    const onChanged = outline({ state: stopped, canChange: true })
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: "Part 2's options" }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Discard this build' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Discarding it puts part 2 back to not built')
+    expect(mockDiscard).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Discard build' }))
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith('t-1'))
+    await waitFor(() => expect(onChanged).toHaveBeenCalled())
+  })
+
   it('offers no build to someone who may not ask for code', () => {
     outline({ canBuild: false })
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('shows nothing for a plan that is one part', () => {
-    const { container } = render(<PlanPartsOutline plan={'# Plan\n\n1. Fix the rounding.'} state={null} ticketId="t-1" canBuild canChange onChanged={jest.fn()} />)
+    const { container } = render(<PlanPartsOutline plan={'# Plan\n\n1. Fix the rounding.'} state={null} ticketId="t-1" canBuild canChange agentWorking={false} onChanged={jest.fn()} />)
     expect(container).toBeEmptyDOMElement()
   })
 

@@ -90,6 +90,12 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "setup",
     retryable: true,
   },
+  [JOB_FAILURE_CODE.RUNNER_OUT_OF_MEMORY]: {
+    title: "Worker ran out of memory",
+    summary: "The agent's worker used more memory than its runner allows and was stopped. Give the runner more memory, then try again.",
+    category: "setup",
+    retryable: false,
+  },
   [JOB_FAILURE_CODE.RUN_LOST]: {
     title: "Agent stopped responding",
     summary: "The agent stopped reporting progress, so the run was given up.",

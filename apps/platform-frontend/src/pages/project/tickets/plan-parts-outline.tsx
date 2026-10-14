@@ -1,5 +1,6 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { Dialog, DialogActions, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { discardBuild, markPlanPart, unmarkPlanPart } from '@/service/api/build-api'
 import { askAgent } from '@/service/api/discussion-api'
@@ -25,6 +26,9 @@ const STATUS: Record<TaskPlanPartStatus, { label: string; color: 'zinc' | 'blue'
   skipped: { label: 'Skipped', color: 'zinc' },
 }
 
+/** A build that stopped, or failed, before it opened its pull request. */
+const STOPPED = { label: 'Stopped', color: 'zinc' } as const
+
 /**
  * The parts a plan is built in, usually one pull request each, with where each stands
  * and a build for the next one; nothing for a plan that's one part. Past the
@@ -37,6 +41,7 @@ export function PlanPartsOutline({
   ticketId,
   canBuild,
   canChange,
+  agentWorking,
   onChanged,
 }: {
   plan: string
@@ -47,10 +52,13 @@ export function PlanPartsOutline({
   canBuild: boolean
   /** May mark parts and discard a build: whoever may ask for code. */
   canChange: boolean
+  /** Whether the agent is working on the task, so a build without its pull request is still going. */
+  agentWorking: boolean
   /** Someone asked for a build or changed where a part stands. */
   onChanged: () => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const parts = planParts(plan)
   if (parts.length < 2) return null
   const statusOf = (number: number) => state?.parts.find((part) => part.number === number)
@@ -83,7 +91,7 @@ export function PlanPartsOutline({
       <ol className="mt-2 space-y-2 text-sm text-[var(--gray-11)]">
         {parts.map((part) => {
           const status = statusOf(part.number)
-          const shown = status ? STATUS[status.status] : null
+          const shown = !status ? null : status.status === 'building' && !agentWorking ? STOPPED : STATUS[status.status]
           const open = state?.open ?? null
           // Discarded from the first part of the build that never opened its pull request.
           const discardable = canBuild && open && open.first === part.number && status?.status === 'building'
@@ -122,7 +130,7 @@ export function PlanPartsOutline({
                     busy={busy}
                     onMark={(mark) => void run(() => markPlanPart(ticketId, part.number, mark), "Couldn't mark the part")}
                     onUnmark={() => void run(() => unmarkPlanPart(ticketId, part.number), "Couldn't take the mark back")}
-                    onDiscard={discardable ? () => void run(() => discardBuild(ticketId), "Couldn't discard the build") : undefined}
+                    onDiscard={discardable ? () => setConfirmingDiscard(true) : undefined}
                   />
                 )}
               </span>
@@ -130,7 +138,48 @@ export function PlanPartsOutline({
           )
         })}
       </ol>
+      <DiscardBuildDialog
+        open={confirmingDiscard}
+        parts={state?.open ? partRangeName(state.open) : 'the parts'}
+        busy={busy}
+        onClose={() => setConfirmingDiscard(false)}
+        onDiscard={() => void run(() => discardBuild(ticketId), "Couldn't discard the build").then(() => setConfirmingDiscard(false))}
+      />
     </nav>
+  )
+}
+
+/** Discarding drops what a stopped build did, so it's confirmed first. */
+function DiscardBuildDialog({
+  open,
+  parts,
+  busy,
+  onClose,
+  onDiscard,
+}: {
+  open: boolean
+  /** The parts the build was for, as "part 2". */
+  parts: string
+  busy: boolean
+  onClose: () => void
+  onDiscard: () => void
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} size="md">
+      <DialogTitle>Discard this build?</DialogTitle>
+      <DialogDescription>
+        The build of {parts} stopped before it opened its pull request. Discarding it puts {parts} back to not built, and the next build
+        starts over instead of carrying on from what this one did.
+      </DialogDescription>
+      <DialogActions>
+        <Button outline onClick={onClose} disabled={busy}>
+          Keep it
+        </Button>
+        <Button color="red" onClick={onDiscard} disabled={busy}>
+          {busy ? 'Discarding…' : 'Discard build'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 

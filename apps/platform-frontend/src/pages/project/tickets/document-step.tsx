@@ -87,7 +87,7 @@ export function DocumentStep({
     // Read-only people are told who can make it and where to follow it, never to do what they can't.
     const canAsk = Boolean(data.capabilities?.canAsk)
     const empty =
-      move.kind === 'working'
+      move.kind === 'working' && move.writesPlan !== false
         ? `The agent is writing the ${noun}. It appears here when it's done.`
         : move.kind === 'failed'
           ? `No ${noun} yet: the last run failed before writing it.`
@@ -127,6 +127,7 @@ export function DocumentStep({
         ticketId={data.ticket.id}
         canBuild={Boolean(data.capabilities?.canAskForCode) && move.kind !== 'working'}
         canChange={Boolean(data.capabilities?.canAskForCode)}
+        agentWorking={move.kind === 'working'}
         onChanged={onAsked}
       />
       <CommentableDocument

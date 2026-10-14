@@ -36,7 +36,7 @@ function sessionLine(resumed: boolean | null): string | null {
 export function contextLine(usage: { used: number; size: number | null } | null | undefined): string | null {
   if (!usage) return null
   if (usage.size) return `Context ${Math.round((usage.used / usage.size) * 100)}% full`
-  return `${Math.round(usage.used / 1000)}k tokens in context`
+  return usage.used < 1000 ? 'under 1k tokens in context' : `${Math.round(usage.used / 1000)}k tokens in context`
 }
 
 /** "Tomi", "Tomi and Aino", "Tomi, Aino and Maria". */

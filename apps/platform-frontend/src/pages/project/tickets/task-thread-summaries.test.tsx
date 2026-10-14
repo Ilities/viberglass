@@ -134,6 +134,7 @@ describe('summaryFacts and contextLine', () => {
 
   it('reads tokens when the harness gave no size', () => {
     expect(contextLine({ used: 150_000, size: null })).toBe('150k tokens in context')
+    expect(contextLine({ used: 312, size: null })).toBe('under 1k tokens in context')
     expect(contextLine(null)).toBeNull()
   })
 })

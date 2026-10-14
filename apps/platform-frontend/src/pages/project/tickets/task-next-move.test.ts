@@ -22,7 +22,7 @@ describe('decideTaskNextMove', () => {
 
   it('leaves the move with the agent while a run or a session turn is working', () => {
     expect(decideTaskNextMove(input({ runs: [run('planning', 'active', 'job-1')] }))).toEqual({
-      kind: 'working', step: 'planning', runId: 'job-1', sessionId: null,
+      kind: 'working', step: 'planning', runId: 'job-1', sessionId: null, writesPlan: true,
     })
     expect(decideTaskNextMove(input({ workingSession: { id: 'sess-1' } }))).toEqual({
       kind: 'working', step: 'planning', runId: null, sessionId: 'sess-1',
@@ -31,10 +31,11 @@ describe('decideTaskNextMove', () => {
 
   it("counts any running turn as the agent's move: a build asked for early, or a reply", () => {
     expect(decideTaskNextMove(input({ runs: [run('execution', 'queued', 'job-b')] }))).toEqual({
-      kind: 'working', step: 'execution', runId: 'job-b', sessionId: null,
+      kind: 'working', step: 'execution', runId: 'job-b', sessionId: null, writesPlan: false,
     })
     expect(decideTaskNextMove(input({ runs: [run('reply', 'active', 'job-r')] }))).toEqual({
-      kind: 'working', step: 'planning', runId: 'job-r', sessionId: null,
+      // A reply, such as an artifact run, isn't writing the plan.
+      kind: 'working', step: 'planning', runId: 'job-r', sessionId: null, writesPlan: false,
     })
   })
 

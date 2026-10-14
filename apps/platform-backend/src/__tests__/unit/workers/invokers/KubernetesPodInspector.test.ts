@@ -44,7 +44,8 @@ it("retains termination details instead of a generic Job failure", async () => {
     name: "worker", image: "worker:tag", imageID: "id", ready: false, restartCount: 0,
     state: { terminated: { exitCode: 137, reason: "OOMKilled" } },
   }] } }]);
-  expect(result.startupFailure).toContain("OOMKilled (exit 137)");
+  expect(result.outOfMemory).toContain("OOMKilled (exit 137)");
+  expect(result.startupFailure).toBeUndefined();
 });
 
 it("allows running Pods and ordinary image downloads to continue", async () => {

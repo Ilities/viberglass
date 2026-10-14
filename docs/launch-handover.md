@@ -28,6 +28,20 @@ Also late on 2026-10-08, uncommitted with the above:
 - Clean-machine tests CLEAN-15 – CLEAN-19 for the one-server compose install.
 - `CLA.md` drafted, with a placeholder for the Project Owner's legal name; CONTRIBUTING asks for it.
 
+## Tested on 2026-10-13: a local Kubernetes install with real agents
+
+A kind cluster from `infra/kubernetes/scripts/local.py`, OpenCode with an OpenCode Go key, GitHub through a personal token. Everything below ran on Kubernetes workers.
+
+- First-time setup: model, backing, first space, agent and starter task, with no manual steps.
+- Files: a Files space made a 10-slide HTML presentation about Viberglass from an uploaded brief, which previewed on the separate preview origin with click and keyboard navigation. A revision made version 2. An edit to the brief while the revision ran waited and was saved straight after the run. Cancelling a later revision saved its partial files.
+- token.observer (TO-1, a plan in three parts): the agent asked where the docs should live and the answer went through; part 1 opened PR #100, adding part 2 pushed onto the same pull request, part 3 was skipped, marking parts 1 and 2 done finished the task, and taking a mark back reopened it.
+- token.observer (TO-2): a build stopped before its pull request offered "Build part 1 again" and "Discard this build"; discarding put the part back, and building again carried on from the stopped run's commit into PR #101.
+- local-ctx: plan, a question about what "running" means, the answer, a revised plan, and PR #37 with a title and description the agent wrote. Take over and hand back also worked.
+
+Fixed on the way: the Create space page and webhook addresses failed on production builds (a `URL` built from the empty API base); Kubernetes workers defaulted to 1 GiB and were killed running OpenCode, so the default is now 1 CPU and 4 GiB, and a worker killed for memory now says so instead of "Agent couldn't start"; pull requests and commits were titled "fix:" (commits "fix: fix:") and signed "Viberator", with bug-fix wording in the description, so builds now write PR_TITLE.md and PR_DESCRIPTION.md (migration 125) and the fallback is neutral; a stopped build's part read "Building" and offered "Add to part 1's pull request" with no pull request; failure cards squeezed their text in the task thread; the plan panel said the agent was writing the plan during artifact runs.
+
+Fixed on 2026-10-14: the artifact preview frame shows "Loading the preview…" until the deck loads; "Discard this build" asks first; OpenCode runs counted only uncached input tokens as the context ("0k tokens in context"), and now count cached tokens too and prefer the harness's own context report. Left: on Kubernetes the Docker stopper logs "Failed to stop worker" on every cancel. The test PRs (#100 and #101 on token.observer, #37 on local-ctx) are still open.
+
 ## Done on 2026-10-08: spaces choose their tracker issues
 
 Testing GitHub against `Ilities/token.observer` worked once a case bug was fixed, and led to [ADR 0012](adr/0012-spaces-choose-their-tracker-issues.md):
@@ -77,8 +91,8 @@ Trackers as linked threads ([ADR 0011](adr/0011-tracker-issues-are-linked-thread
 
 ## Start here
 
-1. Finish trying the parts work on a real build in token.observer: add part 2 to part 1's pull request and check the agent pushes to the same one, mark a part done and check the task finishes and that taking the mark back reopens it, then a failed build, "Build part N again" and Discard.
-2. Fix whichever of the known gaps below matter after that.
+1. Record the demo videos from `docs/marketing/demo-videos.md` on a freshly seeded install.
+2. Try the tracker changes with real GitHub, Jira and Shortcut events.
 3. Then the manual steps below and the rest of launch-todo.
 
 The dev stack is `docker compose up -d` (app on :3000, API on :8888). After changing `packages/types`, run its build and touch a backend file so nodemon restarts; the dev backend runs new migrations on start. Integration packages are baked into the dev frontend image: after changing a package's frontend code, rebuild the package and run `docker compose up -d --build frontend`. A tracker needs a tunnel to reach the webhook URL (`ngrok http 8888`); the GitHub connection's webhook is `497130fc-…`.

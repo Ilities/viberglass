@@ -75,7 +75,7 @@ describe("GitService.checkoutRemoteBranch", () => {
     await gitService.pushBranch(repoDir, "viberglass/task-1");
 
     expect(git(remote, "log", "--format=%s", "viberglass/task-1").split("\n")).toEqual([
-      "fix: build run 2",
+      "build run 2",
       "build run 1",
       "base",
     ]);

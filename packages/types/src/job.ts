@@ -48,6 +48,8 @@ export const JOB_FAILURE_CODE = {
   ARTIFACT_INVALID: 'ARTIFACT_INVALID',
   /** No worker could be started for the run. */
   RUNNER_UNAVAILABLE: 'RUNNER_UNAVAILABLE',
+  /** The worker used more memory than its runner allows and was killed. */
+  RUNNER_OUT_OF_MEMORY: 'RUNNER_OUT_OF_MEMORY',
   /** The worker stopped reporting and was given up on. */
   RUN_LOST: 'RUN_LOST',
   /** Anything not classified above; most likely a Viberglass bug. */

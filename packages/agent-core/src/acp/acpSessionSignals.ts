@@ -37,13 +37,20 @@ export function contextUsageOf(params: unknown): AcpContextUsage | null {
 
 /**
  * Per-turn usage some harnesses return with the prompt's result instead (the
- * Z.ai GLM agent): its input tokens are what the context held.
+ * Z.ai GLM agent): its input tokens, cached ones included, are what the
+ * context held. Providers that cache count most of the context as cached.
  */
 export function promptUsageOf(result: unknown): AcpContextUsage | null {
   const usage = isRecord(result) && isRecord(result.usage) ? result.usage : null;
   if (!usage) return null;
-  const used = positive(usage.inputTokens) ?? positive(usage.input_tokens) ?? positive(usage.totalTokens);
-  return used === null ? null : { used, size: null };
+  const input = positive(usage.inputTokens) ?? positive(usage.input_tokens);
+  if (input === null) {
+    const total = positive(usage.totalTokens);
+    return total === null ? null : { used: total, size: null };
+  }
+  const cached = (positive(usage.cachedReadTokens) ?? positive(usage.cache_read_input_tokens) ?? 0) +
+    (positive(usage.cachedWriteTokens) ?? positive(usage.cache_creation_input_tokens) ?? 0);
+  return { used: input + cached, size: null };
 }
 
 /** The harness's compact command, as `/name`, when its command list has one. */

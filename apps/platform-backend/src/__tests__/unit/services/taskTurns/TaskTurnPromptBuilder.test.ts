@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/123_files_change_between_turns";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/125_build_writes_pull_request_text";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -144,6 +144,7 @@ describe("TaskTurnPromptBuilder", () => {
     );
 
     expect(prompt).toContain("Build it: make the change in the code");
+    expect(prompt).toContain("write PR_TITLE.md");
     expect(prompt).toContain("This continues the task's branch and pull request (https://github.com/acme/app/pull/7)");
     expect(prompt).toContain('<comment kind="thread" author="rev" path="a.ts" line="3">\nRename this\n</comment>');
     expect(prompt).toContain("Change the code as needed.");

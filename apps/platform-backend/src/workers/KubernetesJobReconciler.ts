@@ -53,6 +53,7 @@ export class KubernetesJobReconciler {
         Date.now() - job.started_at.getTime() >= this.gracePeriodMs;
       let reason: string | undefined;
       let startupFailure: string | undefined;
+      let outOfMemory: string | undefined;
       let failureCode: string = JOB_FAILURE_CODE.RUN_LOST;
       try {
         const execution = await client.readNamespacedJob({
@@ -62,6 +63,7 @@ export class KubernetesJobReconciler {
         try {
           const inspection = await this.pods.inspect(namespace, execution);
           startupFailure = inspection.startupFailure;
+          outOfMemory = inspection.outOfMemory;
           await this.diagnostics.record(job.id, "kubernetes", inspection.diagnostics);
           if (olderThanGrace && inspection.startupFailure) {
             reason = inspection.startupFailure;
@@ -74,6 +76,10 @@ export class KubernetesJobReconciler {
           const condition = execution.status.conditions.find(condition => condition.type === "Failed" && condition.status === "True");
           reason = reason ?? startupFailure ?? `Kubernetes worker Job failed${condition?.reason ? `: ${condition.reason}` : ""}${condition?.message ? `: ${condition.message}` : ""}`;
           if (startupFailure) failureCode = JOB_FAILURE_CODE.RUNNER_UNAVAILABLE;
+          if (outOfMemory) {
+            reason = outOfMemory;
+            failureCode = JOB_FAILURE_CODE.RUNNER_OUT_OF_MEMORY;
+          }
         } else if ((execution.status?.succeeded ?? 0) > 0 && execution.status?.completionTime &&
           Date.now() - execution.status.completionTime.getTime() >= this.gracePeriodMs) {
           reason = "Kubernetes worker Job finished without a result callback";

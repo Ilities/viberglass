@@ -28,8 +28,9 @@ export function taskPlanParts(plan: string, pullRequests: TaskPullRequestRow[], 
   const openPullRequest = live.filter((pullRequest) => pullRequest.state !== "merged" && unfinished(pullRequest)).at(-1) ?? null;
   const open = openPullRequest ? rangeOf(openPullRequest) : null;
   const next = open ? null : (parts.find((part) => part.status === "not_built")?.number ?? null);
-  // An open pull request through the plan's end has nothing left to take.
-  const openEnd = open?.last ?? null;
+  // An open pull request through the plan's end has nothing left to take, and a build that
+  // never opened its pull request has nothing to add to yet.
+  const openEnd = openPullRequest?.url ? (open?.last ?? null) : null;
   const addable = openEnd === null ? null : (parts.find((part) => part.number > openEnd && part.status === "not_built")?.number ?? null);
   return { parts, open, addable, next };
 }

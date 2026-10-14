@@ -32,6 +32,10 @@ function setupFixFor(code: string, project: string, runner?: FailedRunner): { la
       return runner
         ? { label: `Check ${runner.name}'s model`, href: `/settings/agents/${runner.slug}` }
         : { label: 'Check agent runners', href: '/settings/agents' }
+    case JOB_FAILURE_CODE.RUNNER_OUT_OF_MEMORY:
+      return runner
+        ? { label: `Give ${runner.name} more memory`, href: `/settings/agents/${runner.slug}` }
+        : { label: 'Check agent runners', href: '/settings/agents' }
     case JOB_FAILURE_CODE.RUNNER_UNAVAILABLE:
       return runner ? { label: `Check ${runner.name}`, href: `/settings/agents/${runner.slug}` } : { label: 'Check agent runners', href: '/settings/agents' }
     default:

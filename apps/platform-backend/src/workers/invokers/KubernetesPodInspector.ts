@@ -15,6 +15,8 @@ export interface KubernetesDiagnostic {
 export interface KubernetesInspection {
   diagnostics: KubernetesDiagnostic[];
   startupFailure?: string;
+  /** A worker container killed for going over its memory limit. */
+  outOfMemory?: string;
 }
 
 export class KubernetesPodInspector {
@@ -25,6 +27,7 @@ export class KubernetesPodInspector {
     const pods = await client.listNamespacedPod({ namespace, labelSelector: `job-name=${job.metadata?.name}` });
     const diagnostics: KubernetesDiagnostic[] = [];
     let startupFailure: string | undefined;
+    let outOfMemory: string | undefined;
     const objects = [job.metadata, ...pods.items.map(pod => pod.metadata)].filter(metadata => metadata?.uid);
     for (const metadata of objects) {
       const events = await client.listNamespacedEvent({ namespace, fieldSelector: `involvedObject.uid=${metadata?.uid}` });
@@ -52,10 +55,12 @@ export class KubernetesPodInspector {
         if (terminated && terminated.exitCode !== 0) {
           const message = `${name}/${container.name}: ${terminated.reason ?? "Worker exited"} (exit ${terminated.exitCode}): ${terminated.message ?? ""}`;
           diagnostics.push({ level: "error", message });
-          startupFailure = message;
+          // A worker killed for its memory limit did start; its runner needs more memory.
+          if (terminated.reason === "OOMKilled") outOfMemory = message;
+          else startupFailure = message;
         }
       }
     }
-    return { diagnostics, startupFailure };
+    return { diagnostics, startupFailure, outOfMemory };
   }
 }

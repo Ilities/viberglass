@@ -24,27 +24,31 @@ interface HandoffCardProps {
 /** The card a run ends on: whose move it is next, and the move itself. */
 export function HandoffCard({ owner, eyebrow, title, children, actions }: HandoffCardProps) {
   const style = OWNER_STYLE[owner]
-  const moves = Children.toArray(isValidElement<{ children?: ReactNode }>(actions) && actions.type === Fragment ? actions.props.children : actions)
+  const moves = Children.toArray(
+    isValidElement<{ children?: ReactNode }>(actions) && actions.type === Fragment ? actions.props.children : actions
+  )
   const hasMoves = moves.length > 0
   return (
-    <section
-      aria-label={eyebrow}
-      className={clsx(
-        'grid overflow-hidden rounded-lg border border-l-4 border-[var(--gray-6)] bg-[var(--gray-1)]',
-        style.rule,
-        hasMoves && 'md:grid-cols-[minmax(0,1fr)_15rem]'
-      )}
-    >
-      <div className="min-w-0 p-5">
-        <p className={clsx('text-[11px] font-semibold tracking-[0.12em] uppercase', style.eyebrow)}>{eyebrow}</p>
-        <h2 className="mt-1.5 text-base font-semibold text-[var(--gray-12)]">{title}</h2>
-        {children && <div className="mt-3 text-sm text-[var(--gray-11)]">{children}</div>}
-      </div>
-      {hasMoves && (
-        <div className="flex flex-col justify-center gap-2 border-t border-[var(--gray-6)] bg-[var(--gray-2)] p-5 md:border-t-0 md:border-l">
-          {moves}
+    // Sized by where it sits, not the window: in a task's narrow thread the moves go below.
+    <section aria-label={eyebrow} className="@container">
+      <div
+        className={clsx(
+          'grid overflow-hidden rounded-lg border border-l-4 border-[var(--gray-6)] bg-[var(--gray-1)]',
+          style.rule,
+          hasMoves && '@xl:grid-cols-[minmax(0,1fr)_15rem]'
+        )}
+      >
+        <div className="min-w-0 p-5">
+          <p className={clsx('text-[11px] font-semibold tracking-[0.12em] uppercase', style.eyebrow)}>{eyebrow}</p>
+          <h2 className="mt-1.5 text-base font-semibold text-[var(--gray-12)]">{title}</h2>
+          {children && <div className="mt-3 text-sm text-[var(--gray-11)]">{children}</div>}
         </div>
-      )}
+        {hasMoves && (
+          <div className="flex flex-col justify-center gap-2 border-t border-[var(--gray-6)] bg-[var(--gray-2)] p-5 @xl:border-t-0 @xl:border-l">
+            {moves}
+          </div>
+        )}
+      </div>
     </section>
   )
 }

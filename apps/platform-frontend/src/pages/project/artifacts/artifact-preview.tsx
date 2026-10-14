@@ -32,6 +32,8 @@ export function ArtifactPreviewView({
   const [error, setError] = useState<string | null>(null)
   const retried = useRef(false)
   const frame = useRef<HTMLIFrameElement>(null)
+  /** The frame's address that has finished loading, so a new one shows as loading again. */
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -118,6 +120,11 @@ export function ArtifactPreviewView({
         </Button>
       </div>
       <div className="relative aspect-video w-full overflow-hidden rounded-md border border-[var(--gray-5)] bg-white">
+        {loadedUrl !== preview.url && (
+          <p role="status" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white text-sm text-[var(--gray-10)]">
+            Loading the preview…
+          </p>
+        )}
         <iframe
           ref={frame}
           key={preview.url}
@@ -128,6 +135,7 @@ export function ArtifactPreviewView({
           allowFullScreen
           referrerPolicy="no-referrer"
           className="absolute inset-0 size-full"
+          onLoad={() => setLoadedUrl(preview.url)}
           onError={() => {
             // One fresh address, in case this one expired while the page was open.
             if (retried.current) return

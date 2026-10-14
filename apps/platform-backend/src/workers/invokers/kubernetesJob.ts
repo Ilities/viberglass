@@ -8,6 +8,9 @@ export function kubernetesJobName(jobId: string): string {
 
 /** Seconds a stopped worker gets to save its work (files, commits, documents) before it's killed. */
 const WORKER_TERMINATION_GRACE_SECONDS = 60;
+// A coding agent, its tools and a checkout need a few gigabytes; less gets workers killed partway.
+const DEFAULT_WORKER_CPU = "1";
+const DEFAULT_WORKER_MEMORY = "4Gi";
 
 export interface KubernetesJobOptions {
   jobId: string;
@@ -63,13 +66,13 @@ export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
             volumeMounts: [{ name: "run-auth", mountPath: "/run/viberglass-auth", readOnly: true }],
             resources: {
               requests: {
-                cpu: options.config.cpu ?? "500m",
-                memory: options.config.memory ?? "1Gi",
+                cpu: options.config.cpu ?? DEFAULT_WORKER_CPU,
+                memory: options.config.memory ?? DEFAULT_WORKER_MEMORY,
                 "ephemeral-storage": options.config.ephemeralStorage ?? "2Gi",
               },
               limits: {
-                cpu: options.config.cpu ?? "500m",
-                memory: options.config.memory ?? "1Gi",
+                cpu: options.config.cpu ?? DEFAULT_WORKER_CPU,
+                memory: options.config.memory ?? DEFAULT_WORKER_MEMORY,
                 "ephemeral-storage": options.config.ephemeralStorage ?? "2Gi",
               },
             },

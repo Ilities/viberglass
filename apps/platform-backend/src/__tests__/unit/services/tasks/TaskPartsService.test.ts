@@ -76,6 +76,8 @@ describe("taskPlanParts with parts marked done or skipped", () => {
     expect(taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: 1 })]).addable).toBe(2);
     expect(taskPlanParts(PLAN, [pullRequest({ url: "u1", firstPart: 1, lastPart: null })]).addable).toBeNull();
     expect(taskPlanParts(PLAN, []).addable).toBeNull();
+    // A build that stopped before opening its pull request has none to add to.
+    expect(taskPlanParts(PLAN, [pullRequest({ url: null, firstPart: 1, lastPart: 1, state: null })]).addable).toBeNull();
   });
 });
 

@@ -7,7 +7,7 @@ export type TaskStep = TicketWorkflowPhase
 /** Where a task's artifacts stand, from its runs: what the artifact bar and the failure notice show. */
 export type TaskNextMove =
   | { kind: 'start'; step: TaskStep }
-  | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null }
+  | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null; writesPlan?: boolean }
   /** A written document, waiting on people to read it and say what's next. */
   | { kind: 'ready'; step: 'planning' }
   | { kind: 'failed'; step: TaskStep; runId: string; failure: JobFailure | null }
@@ -39,7 +39,16 @@ export function decideTaskNextMove({ ticket, runs, plan, workingSession }: TaskN
   const step = ticket.workflowPhase
   // Any turn running is the agent's move, whatever it was asked for.
   const running = runs.find((run) => RUNNING.includes(run.status))
-  if (running) return { kind: 'working', step: isTaskStep(running.jobKind) ? running.jobKind : step, runId: running.jobId, sessionId: null }
+  if (running) {
+    return {
+      kind: 'working',
+      step: isTaskStep(running.jobKind) ? running.jobKind : step,
+      runId: running.jobId,
+      sessionId: null,
+      // A reply or an artifact run doesn't write the plan, whatever step the task is on.
+      writesPlan: running.jobKind === 'planning',
+    }
+  }
   if (workingSession) return { kind: 'working', step, runId: null, sessionId: workingSession.id }
 
   const latest = runs.find((run) => run.jobKind === step)

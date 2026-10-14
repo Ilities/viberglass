@@ -28,7 +28,7 @@ The examples use Helm release `viberglass`, app namespace `viberglass`, and work
 | Networking | An installed [Ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/), a DNS name and a certificate for it. A second DNS name for artifact previews, covered by the same or another certificate, if you want previews. Set up a [NetworkPolicy-capable CNI](https://kubernetes.io/docs/concepts/services-networking/network-policies/) to enforce the chart's policies. |
 | First task | A supported model API key or compatible model endpoint, and a GitHub repository/access token. SMTP is optional for email invitations and notifications. |
 
-The chart does not provision the cluster, database, external bucket, ingress controller, DNS or certificates. External storage bucket creation is your responsibility. A default worker requests and limits 500m CPU, 1 GiB memory and 2 GiB ephemeral storage; adjust runner settings and the namespace quota to fit your tasks and available nodes. Keep `backend.replicas: 1`.
+The chart does not provision the cluster, database, external bucket, ingress controller, DNS or certificates. External storage bucket creation is your responsibility. A default worker requests and limits 1 CPU, 4 GiB memory and 2 GiB ephemeral storage; adjust runner settings and the namespace quota to fit your tasks and available nodes. Keep `backend.replicas: 1`.
 
 ## 1. Choose the source and images
 

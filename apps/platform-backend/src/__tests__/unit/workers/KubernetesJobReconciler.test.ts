@@ -37,6 +37,18 @@ describe("KubernetesJobReconciler", () => {
     expect(stop).toHaveBeenCalledWith("job-123", "Kubernetes Job ended");
   });
 
+  it("says a worker killed for its memory limit ran out of memory, not that it couldn't start", async () => {
+    const { reconciler, client, updateJobStatus, inspect } = setup();
+    client.readNamespacedJob.mockResolvedValue({ status: { failed: 1, conditions: [{ type: "Failed", status: "True" }] } });
+    inspect.mockResolvedValue({ diagnostics: [], outOfMemory: "worker-1/worker: OOMKilled (exit 137): " });
+
+    await reconciler.sweep();
+    expect(updateJobStatus).toHaveBeenCalledWith("job-123", "failed", expect.objectContaining({
+      errorMessage: "worker-1/worker: OOMKilled (exit 137): ",
+      failureCode: "RUNNER_OUT_OF_MEMORY",
+    }));
+  });
+
   it("waits before treating a missing Job as lost", async () => {
     const { reconciler, client, updateJobStatus } = setup(new Date());
     client.readNamespacedJob.mockRejectedValue(Object.assign(new Error("missing"), { code: 404 }));
