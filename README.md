@@ -46,7 +46,7 @@ Files backed spaces support "artifacts" where an agent makes a deliverable such 
 | Harness                                                       | Models                                                            |
 |---------------------------------------------------------------|-------------------------------------------------------------------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic                                                         |
-| [OpenAI Codex](https://github.com/openai/codex)               | OpenAI, including ChatGPT sign-in                                 |
+| [OpenAI Codex](https://github.com/openai/codex)               | OpenAI, including ChatGPT subscription sign-in                    |
 | [Google Antigravity](https://antigravity.google)              | Google                                                            |
 | [Qwen Code](https://github.com/QwenLM/qwen-code)              | Alibaba                                                           |
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe)     | Mistral                                                           |
