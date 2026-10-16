@@ -207,10 +207,10 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | The owner takes the work over, a commit is pushed to the task's branch, and after handing back the agent's next turn is told about the commit | `take-over-and-hand-back.e2e.test.ts` |
 | Asking again while the agent works joins its turn instead of starting another run; the next turn answers both asks | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |
-| Failures read by cause: agent failures offer *Try again* in the thread (a new run), a plan turn that writes no document is an answer rather than a failure, a setup failure sends admins to the fix and tells members an admin is needed, and pauses the agent until an admin fixes it and retries every paused run | `failure-copy.e2e.test.ts` |
+| Failures read by cause: agent failures show on the failed turn with *Try again* (a new run), a plan turn that writes no document has failed and can be tried again, a setup failure sends admins to the fix and tells members an admin is needed, and pauses the agent until an admin fixes it and retries every paused run | `failure-copy.e2e.test.ts` |
 | Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
 | A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
-| On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's plan appears | `first-run-setup.e2e.test.ts` |
+| On an empty workspace, the first admin goes through setup (a wrong key is explained; key → backing → space → agent) and the agent answers the first task in its thread | `first-run-setup.e2e.test.ts` |
 | A new admin explores the demo workspace (sample tasks, a readable failure), removes it, and lands back in setup | `first-run-setup.e2e.test.ts` |
 | Workspace plumbing sits under Settings → Advanced, for admins only | `member-permissions.e2e.test.ts` |
 | An invite link works once and a revoked one not at all; a viewer reads but changes nothing; deactivating someone ends their session | `invites-and-roles.e2e.test.ts` |
@@ -220,7 +220,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Only a task's requester and owner, maintainers and admins change it; only admins delete it | `task-changes.e2e.test.ts` |
 | Tasks get distinct keys per space, a requester and an owner, open by key, and anyone can watch them | `task-keys-and-people.e2e.test.ts` |
 | A task's thread shows messages, document versions and events in order | `task-thread.e2e.test.ts` |
-| An issue a webhook builds on its own becomes a task whose build is a turn in its thread | `webhook-build.e2e.test.ts` |
+| A GitHub issue a space takes, through its connection's webhook and the space's incoming-issue rule, becomes a task whose plan is a turn in its thread | `webhook-plan.e2e.test.ts` |
 
 ### One-time setup
 

@@ -16,6 +16,16 @@ async function openFailure(page: Page, projectSlug: string, taskId: string, titl
   return notice;
 }
 
+/** Opens the task and returns the agent's failed turn, where failures worth retrying are shown. */
+async function openFailedTurn(page: Page, projectSlug: string, taskId: string, title: string) {
+  const turn = page.getByRole("region", { name: "Conversation" }).getByRole("listitem", { name: "Fake Agent's turn" });
+  await expect(async () => {
+    await page.goto(`/spaces/${projectSlug}/tasks/${taskId}`);
+    await expect(turn).toContainText(title, { timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
+  return turn;
+}
+
 /** The task's newest run. */
 async function latestRunId(api: APIRequestContext, taskId: string): Promise<string> {
   const body = await (await api.get(`/api/jobs?ticketId=${taskId}&limit=1`)).json();
@@ -56,13 +66,15 @@ test("an agent failure invites a retry instead of a setup fix", async ({
   const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
-  const notice = await openFailure(page, workspace.projectSlug, task.id, "Agent failed");
-  await expect(notice).toContainText("The agent stopped with an error before finishing.");
-  // The task offers a retry, not a setup fix (the task page's readiness banner is separate).
-  await expect(notice.getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
+  const turn = await openFailedTurn(page, workspace.projectSlug, task.id, "Agent failed");
+  await expect(turn).toContainText("Fake agent failed on request");
+  // The turn offers a retry, not a setup fix, and no setup notice joins it.
+  const thread = page.getByRole("region", { name: "Conversation" });
+  await expect(thread.getByRole("region", { name: /^The plan failed/ })).toHaveCount(0);
+  await expect(thread.getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
 
-  // Trying again is offered in the task's thread: it asks the agent again, in a new run.
-  await page.getByRole("region", { name: "Conversation" }).getByRole("button", { name: "Try again" }).click();
+  // Trying again asks the agent again, in a new run.
+  await turn.getByRole("button", { name: "Try again" }).click();
   await expect.poll(() => latestRunId(adminApi, task.id)).not.toBe(jobId);
   const retryJobId = await latestRunId(adminApi, task.id);
   await expect.poll(() => runStatus(adminApi, retryJobId), { timeout: 90_000 }).toBe("failed");
@@ -83,11 +95,9 @@ test("an agent asked for the plan that writes none has failed, and can be asked 
   const jobId = await startPlan(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
-  await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
-  const thread = page.getByRole("region", { name: "Conversation" });
-  await expect(thread.getByRole("region", { name: "The plan failed" })).toContainText("No document written");
-  await expect(thread.getByText("Plan v1")).toHaveCount(0);
-  await expect(thread.getByRole("button", { name: "Try again" })).toBeVisible();
+  const turn = await openFailedTurn(page, workspace.projectSlug, task.id, "No document written");
+  await expect(page.getByRole("region", { name: "Conversation" }).getByText("Plan v1")).toHaveCount(0);
+  await expect(turn.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
 test("a setup failure sends admins to the fix and tells members an admin is needed", async ({

@@ -35,6 +35,6 @@ test("admins see who changed what across the workspace; secret values never reac
   await expect(page.getByRole("cell", { name: /E2E Admin changed someone's workspace role/ }).first()).toBeVisible();
   await page.getByRole("combobox", { name: "Area" }).click();
   await page.getByRole("option", { name: "Secrets" }).click();
-  await expect(page.getByRole("cell", { name: /E2E Admin added a secret/ })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "E2E Admin added a secret “AUDIT_E2E_TOKEN”" })).toBeVisible();
   await expect(page.getByRole("cell", { name: /workspace role/ })).toHaveCount(0);
 });

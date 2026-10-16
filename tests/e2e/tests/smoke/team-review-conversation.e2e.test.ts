@@ -51,7 +51,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   await expect.poll(() => needsYou(designer.api)).toContain(`${task.title}: Discussing`);
   await designer.page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
   await designer.page.getByRole("combobox", { name: "Write a message" }).fill("Warm and short. No exclamation marks.");
-  await designer.page.getByRole("button", { name: "Post" }).click();
+  await designer.page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(designer.page.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   // Replying answers the mention, so it's no longer the designer's move.
   await expect.poll(() => needsYou(designer.api)).not.toContain(`${task.title}: Discussing`);

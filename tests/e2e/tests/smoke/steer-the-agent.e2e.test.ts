@@ -26,7 +26,7 @@ test("the owner interrupts the agent with a new instruction, then pauses it and 
   await expect.poll(() => isWorkerContainerRunning(first.jobId), { timeout: 30_000 }).toBe(true);
   await openTask(page, url, thread.getByRole("button", { name: "Pause the agent" }));
   await thread.getByRole("combobox", { name: "Write a message" }).fill("Cover the farewell function too.");
-  await thread.getByRole("button", { name: "Interrupt with this" }).click();
+  await thread.getByRole("button", { name: "Send now and interrupt" }).click();
 
   await expect.poll(() => runStatus(adminApi, first.jobId)).toBe("cancelled");
   await expect(thread.getByText("Plan v1")).toBeVisible({ timeout: 120_000 });

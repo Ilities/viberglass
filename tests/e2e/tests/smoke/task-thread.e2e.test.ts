@@ -30,7 +30,7 @@ test("a task's thread shows what was said, each document version and what happen
   const thread = memberPage.getByRole("region", { name: "Conversation" });
   await expect(thread.getByText(`@${member.name}`)).toBeVisible();
   await thread.getByRole("combobox", { name: "Write a message" }).fill("The darker amber, it passes contrast.");
-  await thread.getByRole("button", { name: "Post" }).click();
+  await thread.getByRole("button", { name: "Send", exact: true }).click();
   await expect(thread.getByText("The darker amber, it passes contrast.")).toBeVisible();
 
   // Everything is in one thread, oldest first. The thread polls, so read it until it has caught up.

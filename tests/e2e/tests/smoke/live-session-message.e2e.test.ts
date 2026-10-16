@@ -32,7 +32,7 @@ test("a message to the agent during its turn reaches it in its next turn", async
   await composer.fill("@");
   await thread.getByRole("option", { name: /Fake Agent/ }).click();
   await composer.fill(`${await composer.inputValue()}${note}`);
-  await thread.getByRole("button", { name: "Post" }).click();
+  await thread.getByRole("button", { name: "Send after this turn" }).click();
   await expect(thread.getByText(note)).toBeVisible();
 
   // The running turn ends, a follow-up turn delivers the note, then it's the person's move.

@@ -76,7 +76,11 @@ export class GitFixtureServer {
     this.root = root;
 
     this.server = createServer((req, res) => {
-      const requestPath = normalize(decodeURIComponent(req.url?.split("?")[0] ?? "/"));
+      // `/<owner>/fixture.git` serves the same repository, for spaces that need an `owner/repo` address.
+      const requestPath = normalize(decodeURIComponent(req.url?.split("?")[0] ?? "/")).replace(
+        /^\/[^/]+\/(fixture\.git\/)/,
+        "/$1",
+      );
       const filePath = join(root, requestPath);
       if (!filePath.startsWith(root)) {
         res.writeHead(403).end();

@@ -3,7 +3,7 @@ import { FirstRunScenario } from "../../playwright/firstRunScenario";
 import { SETUP_STUB, SetupStubServer } from "../../playwright/setupStubServer";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-test("a product leader sets up an empty workspace alone and gets a first plan", async ({ page }) => {
+test("a product leader sets up an empty workspace alone and gets a first answer", async ({ page }) => {
   test.setTimeout(240_000);
   const stub = new SetupStubServer();
   await stub.start();
@@ -34,8 +34,9 @@ test("a product leader sets up an empty workspace alone and gets a first plan", 
     await page.getByLabel("API key").fill(SETUP_STUB.modelKey);
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // 2. Repository: the token is checked with GitHub.
-    await expect(page.getByRole("heading", { name: "Point at your repository" })).toBeVisible();
+    // 2. Backing: a Git repository by default, whose token is checked with GitHub.
+    await expect(page.getByRole("heading", { name: "Choose your space backing" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Space backing" })).toContainText("Git repository");
     await page.getByRole("textbox", { name: "Repository" }).fill(SETUP_STUB.repository);
     await page.getByLabel("Access token").fill(SETUP_STUB.gitHubToken);
     await page.getByRole("button", { name: "Continue" }).click();
@@ -51,14 +52,18 @@ test("a product leader sets up an empty workspace alone and gets a first plan", 
     await page.getByRole("button", { name: "Start the task" }).click();
     await expect(page).toHaveURL(/\/tasks\/[A-Z][A-Z0-9]*-[0-9]+$/);
 
-    // The plan runs on the fake agent against the fixture repository, and its document appears on the task.
-    const planDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();
+    // The starter asks for an answer, not a plan: the fake agent reads the fixture repository and replies in the thread.
+    const answer = page
+      .getByRole("region", { name: "Conversation" })
+      .getByRole("listitem", { name: "Default agent's turn" })
+      .filter({ hasText: "Answering: fake agent, turn 1." })
+      .filter({ hasText: "Completed" });
     await expect
       .poll(
         async () => {
           // Reload: the container start can abort a load (ERR_NETWORK_CHANGED). Then give the page time to fetch.
           await page.reload();
-          return planDocument.waitFor({ timeout: 5_000 }).then(
+          return answer.waitFor({ timeout: 5_000 }).then(
             () => true,
             () => false,
           );

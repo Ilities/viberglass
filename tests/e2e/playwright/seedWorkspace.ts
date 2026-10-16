@@ -57,13 +57,23 @@ async function waitForClankerActive(
   );
 }
 
-/** A runner on the fake agent image, started and active. */
+/** A secret stored in the database, for keys and tokens the fake agent and the git fixture don't check. */
+async function createSecret(api: APIRequestContext, name: string, value: string): Promise<string> {
+  return readId(
+    await api.post("/api/secrets", { data: { name, secretLocation: "database", secretValue: value } }),
+    `Creating the secret ${name}`,
+  );
+}
+
+/** A runner on the fake agent image, with a model key, started and active. */
 export async function createFakeRunner(api: APIRequestContext, name: string): Promise<string> {
+  const modelKeyId = await createSecret(api, `${name} key`, "fake-model-key");
   const clankerId = await readId(
     await api.post("/api/clankers", {
       data: {
         name,
         agent: "fake",
+        secretBindings: [{ envVar: "FAKE_API_KEY", secretId: modelKeyId }],
         deploymentStrategyId: await findDockerStrategyId(api),
         deploymentConfig: {
           version: 1,
@@ -110,8 +120,8 @@ export async function signIn(account: {
 
 /**
  * Seeds an empty database through the public API, the same way a first user
- * would: first admin, a member, a fake-agent runner and a project whose
- * repository is the local git fixture.
+ * would: first admin, a member, a fake-agent runner with a model key and a
+ * project whose repository is the local git fixture, with a token.
  */
 export async function seedWorkspace(): Promise<SeededWorkspace> {
   const api = await request.newContext({ baseURL: E2E.backendUrl });
@@ -143,6 +153,12 @@ export async function seedWorkspace(): Promise<SeededWorkspace> {
     }),
     "Creating the SCM integration",
   );
+  const credentialId = await readId(
+    await api.post(`/api/integrations/${integrationId}/credentials`, {
+      data: { name: "Fixture token", secretLocation: "database", secretValue: "fixture-token", isDefault: true },
+    }),
+    "Creating the SCM credential",
+  );
 
   const project = await readEntity(
     await api.post("/api/spaces", { data: { name: "E2E Space" } }),
@@ -160,6 +176,7 @@ export async function seedWorkspace(): Promise<SeededWorkspace> {
     await api.put(`/api/spaces/${projectId}/scm-config`, {
       data: {
         integrationId,
+        integrationCredentialId: credentialId,
         sourceRepository: E2E.workerReachableRepositoryUrl,
         baseBranch: "main",
       },

@@ -27,7 +27,7 @@ test("a turn that writes no document leaves it the person's move, who can reply 
   await composer.fill("@");
   await thread.getByRole("option", { name: /Fake Agent/ }).click();
   await composer.fill(`${await composer.inputValue()}Thanks, now write it up in PLAN.md.`);
-  await thread.getByRole("button", { name: "Post" }).click();
+  await thread.getByRole("button", { name: "Send", exact: true }).click();
 
   await expect.poll(() => planDocument(adminApi, task.id), { timeout: 90_000 }).toContain("now write it up");
   await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 10_000 }).toBe("waiting_on_user");

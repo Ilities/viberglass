@@ -10,7 +10,7 @@ const mention = (name: string, id: string, text: string) => `@[${name}](user:${i
 async function reply(page: Page, slug: string, taskId: string, text: string) {
   await page.goto(`/spaces/${slug}/tasks/${taskId}`);
   await page.getByRole("combobox", { name: "Write a message" }).fill(text);
-  await page.getByRole("button", { name: "Post" }).click();
+  await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByText(text)).toBeVisible();
 }
 
@@ -85,7 +85,7 @@ test("a viewer lands on Overview and sees the work in progress, with whose move 
   const { context, page } = await signedInPage(browser, viewer.session);
   await page.goto("/");
   await expect(page).toHaveURL(/\/overview$/);
-  await expect(page.getByRole("heading", { name: "Work across the workspace" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Work across your spaces" })).toBeVisible();
   const row = page.getByRole("region", { name: "Not started" }).getByRole("listitem", { name: task.title });
   await expect(row).toContainText("Not started · E2E's turn");
   await expect(page.getByRole("link", { name: "Home" })).toHaveCount(0);

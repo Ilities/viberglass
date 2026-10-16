@@ -49,6 +49,9 @@ test("a failed run shows as failed, and the task is no longer in progress", asyn
 
   const planHeader = await openTask(page, workspace.projectSlug, task.id);
   await expect(planHeader).toContainText("Failed");
-  await expect(page.getByRole("heading", { name: "Agent failed" })).toBeVisible();
+  await expect(page.getByLabel("Situation")).toContainText("Failed · Agent failed");
+  await expect(
+    page.getByRole("region", { name: "Conversation" }).getByRole("listitem", { name: "Fake Agent's turn" }),
+  ).toContainText("Agent failed");
   expect(await taskStatus(adminApi, task.id)).toBe("open");
 });

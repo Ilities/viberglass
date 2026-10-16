@@ -17,7 +17,7 @@ test("people and the agent work on a task in its thread: the plan, a comment and
   await composer.fill("@");
   await thread.getByRole("option", { name: /Fake Agent/ }).click();
   await composer.fill(`${await composer.inputValue()}please write up what you find in PLAN.md`);
-  await thread.getByRole("button", { name: "Post" }).click();
+  await thread.getByRole("button", { name: "Send", exact: true }).click();
   await expect(thread.getByText("Plan v1")).toBeVisible({ timeout: 120_000 });
   const firstTurn = thread.getByRole("listitem", { name: "Fake Agent's turn" }).first();
   await expect(firstTurn).toContainText("Writing the plan");

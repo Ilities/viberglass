@@ -8,7 +8,7 @@ test("creating a task through the form lands on it, in the plan step, with the p
 }) => {
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/new`);
   await expect(page.getByRole("heading", { name: "Create task" })).toBeVisible();
-  await expect(page.getByText("Every new task starts with a plan")).toBeVisible();
+  await expect(page.getByText(/choose Write the plan to have an agent read the codebase/)).toBeVisible();
 
   const title = `Checkout button ${Date.now()}`;
   await page.locator('input[name="title"]').fill(title);
