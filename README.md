@@ -11,6 +11,8 @@ Coding agents are good at writing code. They're bad at knowing what your company
 
 [Documentation](docs/) | [Architecture](docs/ARCHITECTURE.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md)
 
+[![Watch the intro video (1:45): a product change from the request, through the agent's question and the team's review, to a pull request](docs/guide/images/intro-video.jpg)](https://viberglass.io/#video)
+
 ## How a task works
 
 1. Someone asks for something. A PM, a support lead or an engineer creates a task in a space, from the web, Slack (`/viberglass`) or an issue tracker. They own it, and can bring in reviewers and watchers.
@@ -19,13 +21,47 @@ Coding agents are good at writing code. They're bad at knowing what your company
 4. The agent builds it and opens a GitHub pull request for engineering's usual review. Large plans can be built in parts, with a PR per part.
 5. The PR is merged and the task closes. Anyone can ask for another round on the same task; it keeps its conversation and its branch.
 
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/agent-question-dark.png"><img src="docs/guide/images/agent-question.png" alt="The agent's question card in a task thread, with answer options"></picture></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/plan-comment-dark.png"><img src="docs/guide/images/plan-comment.png" alt="A comment being added to a selected line of the agent's plan"></picture></td>
+</tr>
+<tr>
+<td>The agent asks the person it needs and waits for the answer.</td>
+<td>Reviewers comment on lines of the plan or suggest edits.</td>
+</tr>
+</table>
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/plan-version-compare-dark.png"><img src="docs/guide/images/plan-version-compare.png" alt="Two versions of a plan compared, with changes highlighted and struck through"></picture></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/task-thread-dark.png"><img src="docs/guide/images/task-thread.png" alt="A task's thread next to its plan, with a reviewer's comment on the plan"></picture></td>
+</tr>
+<tr>
+<td>Every plan version is kept and can be compared word by word.</td>
+<td>The thread and the plan side by side, for everyone on the task.</td>
+</tr>
+</table>
+
 An engineer can step in at any point: pause the agent, take over its branch locally with `viberglass checkout` (`npm install -g viberglass`), and hand it back.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/taken-over-dark.png"><img src="docs/guide/images/taken-over.png" alt="A task taken over by an engineer, with the checkout commands and the Hand back button"></picture>
 
 ## Spaces without a repository
 
 For work that isn't code, a space can be backed by Files instead of a Git repository: a shared set of files the space's tasks and people work on, kept between runs in S3-compatible storage. People can upload files and edit Markdown and text in the app and agents restore the files at the start of each run and save them at the end.
 
 Files backed spaces support "artifacts" where an agent makes a deliverable such as a document, a report or an HTML presentation. These artifacts are versioned by Viberglass. Web pages, presentations, images and PDFs preview in the app from a separate, sandboxed address. These artifacts can be iterated on and asking an agent for a new revision makes the next version. A Files task is finished when someone marks it done.
+
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/files-editor-dark.png"><img src="docs/guide/images/files-editor.png" alt="A Files space's files, with a Markdown file open in the editor"></picture></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/artifact-preview-dark.png"><img src="docs/guide/images/artifact-preview.png" alt="A presentation made by the agent, previewed in the app"></picture></td>
+</tr>
+<tr>
+<td>A Files space: upload files and edit Markdown and text in the app.</td>
+<td>A presentation the agent made, previewed in the app.</td>
+</tr>
+</table>
 
 ## Features
 
@@ -41,6 +77,17 @@ Files backed spaces support "artifacts" where an agent makes a deliverable such 
 - Workspace controls: shared secrets, MCP servers and skills for agents, agent instructions per space, API tokens and an audit log.
 - Schedules for recurring agent work.
 
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/home-needs-you-dark.png"><img src="docs/guide/images/home-needs-you.png" alt="Home, listing the tasks that need the signed-in person: an agent's question and mentions"></picture></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/run-details-dark.png"><img src="docs/guide/images/run-details.png" alt="Run details for an agent run: its steps, tool calls and usage"></picture></td>
+</tr>
+<tr>
+<td>Home lists what needs you: the agent's questions, review requests and mentions.</td>
+<td>Run details: what the agent did, its tool calls, and cost and tokens where reported.</td>
+</tr>
+</table>
+
 ## Agents and models
 
 | Harness                                                       | Models                                                            |
@@ -54,9 +101,12 @@ Files backed spaces support "artifacts" where an agent makes a deliverable such 
 | [OpenCode](https://github.com/opencode-ai/opencode)           | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq and custom endpoints |
 | [Pi](https://pi.dev)                                          | Many providers and custom endpoints                               |
 
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/agents-and-runners-dark.png"><img src="docs/guide/images/agents-and-runners.png" alt="Settings, Agents: runners with their harness, model and status"></picture></p>
+
+Custom harnesses can be introduced using the agent plugin system.
 Custom model endpoints: add a URL, an API format and a key in the runner form, and every agent can use it. This covers hosted open-weight models and anything you serve yourself.
 
-Model deployments (experimental): Viberglass can create a GPU container on [Verda](https://verda.com) running vLLM, scale it to zero when idle and wake it when a run needs it.
+Model deployments: Viberglass can create a GPU container on [Verda](https://verda.com) running vLLM, scale it to zero when idle and wake it when a run needs it.
 
 ## Integrations
 
@@ -99,19 +149,19 @@ The backend runs database migrations on startup. Optional services (Mailpit for 
 
 The backend reads its environment from `docker-compose.yml`; optional settings go in a `.env` file in the repository root. Running the backend outside compose, it reads `apps/platform-backend/.env` (start from `.env.example`).
 
-| Variable                                                  | Description                                                     |
-|-----------------------------------------------------------|-----------------------------------------------------------------|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL connection                                           |
-| `SECRETS_ENCRYPTION_KEY`                                  | Encrypts stored credentials at rest                             |
-| `WEBHOOK_SECRET_ENCRYPTION_KEY`                           | Encrypts webhook secrets                                        |
-| `PORT`                                                    | Backend port (default: `8888`)                                  |
-| `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email                 |
-| `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset             |
-| `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`) |
-| `VIBERATOR_WORKER_IMAGE_TAG`                              | Tag of the worker images (default `latest`); a release tag or commit sha pins them |
-| `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`) |
+| Variable                                                  | Description                                                                             |
+|-----------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL connection                                                                   |
+| `SECRETS_ENCRYPTION_KEY`                                  | Encrypts stored credentials at rest                                                     |
+| `WEBHOOK_SECRET_ENCRYPTION_KEY`                           | Encrypts webhook secrets                                                                |
+| `PORT`                                                    | Backend port (default: `8888`)                                                          |
+| `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email                                         |
+| `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset                                     |
+| `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`)                         |
+| `VIBERATOR_WORKER_IMAGE_TAG`                              | Tag of the worker images (default `latest`); a release tag or commit sha pins them      |
+| `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`)  |
 | `S3_ENDPOINT`, `S3_BUCKET` and the other `S3_*` settings  | S3-compatible storage for Files spaces, artifacts and media; the dev compose runs MinIO |
-| `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`                      | The separate address artifact previews are served from          |
+| `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`                      | The separate address artifact previews are served from                                  |
 
 Agent credentials are stored as workspace secrets (encrypted in the database, or in AWS SSM) and attached to runners in Settings → Agents. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
 
