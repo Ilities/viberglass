@@ -159,6 +159,7 @@ With compose, the backend's environment is set in the compose file, and optional
 | `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset                                     |
 | `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`)                         |
 | `VIBERATOR_WORKER_IMAGE_TAG`                              | Tag of the worker images (default `latest`); a release tag or commit sha pins them      |
+| `VIBERATOR_WORKER_NETWORK`                                | Docker network agent containers join when their runner sets none (default `bridge`)     |
 | `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`)  |
 | `S3_ENDPOINT`, `S3_BUCKET` and the other `S3_*` settings  | S3-compatible storage for Files spaces, artifacts and media; the local compose files run MinIO |
 | `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`                      | The separate address artifact previews are served from                                  |
