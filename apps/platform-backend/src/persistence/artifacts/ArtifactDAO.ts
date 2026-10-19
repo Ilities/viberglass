@@ -161,8 +161,11 @@ export class ArtifactDAO {
     return rows.map((row) => ({ artifactId: row.artifact_id, versionId: row.version_id, title: row.title, number: row.number, format: row.format }));
   }
 
-  async listForSpace(projectId: string): Promise<ArtifactSummary[]> {
-    const rows = await this.summaryQuery().where("artifacts.project_id", "=", projectId).orderBy("artifacts.updated_at", "desc").execute();
+  /** The space's artifacts, newest first; with `taskId`, only that task's. */
+  async listForSpace(projectId: string, taskId?: string): Promise<ArtifactSummary[]> {
+    let query = this.summaryQuery().where("artifacts.project_id", "=", projectId);
+    if (taskId) query = query.where("artifacts.ticket_id", "=", taskId);
+    const rows = await query.orderBy("artifacts.updated_at", "desc").execute();
     const current = await this.versionsById(rows.flatMap((row) => (row.current_version_id ? [row.current_version_id] : [])));
     return rows.map((row) => toSummary(row, row.current_version_id ? (current.get(row.current_version_id) ?? null) : null));
   }

@@ -31,7 +31,7 @@ At the top: the space and the task's key, the title, where the task stands, and 
 
 - People: one line with the owner, reviewers and watchers. Details next to it opens the key, severity, category, the linked issue if there is one, the created date, and the people on the task.
 - Description: what was asked for. Show more opens a long one.
-- Plan and Code: the task's artifacts, as tabs. Each shows where it stands, such as None yet, Agent working, Written or Pull request open. Either can be asked for at any time. A task in a Files space has only the plan here; its artifacts show in the thread.
+- Plan and Code: the task's artifacts, as tabs. Each shows where it stands, such as None yet, Agent working, Written or Pull request open. Either can be asked for at any time. A task in a Files space has Artifact and Plan here instead: Artifact previews the task's artifact, with Open and Download, and picks between them when there's more than one.
 - The thread: the conversation, newest at the bottom, with the composer and suggested next steps under it.
 
 On a phone, switch between Conversation and Artifacts at the top. Write a reply takes you to the composer.

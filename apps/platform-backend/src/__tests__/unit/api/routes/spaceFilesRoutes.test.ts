@@ -55,7 +55,7 @@ function setup() {
   spaces.use(spaceFilesRouter(files, artifacts, access));
   app.use("/api/spaces", spaces);
   app.use(applicationErrorHandler);
-  return { app, files };
+  return { app, files, artifacts };
 }
 
 describe("changing a Files space's files", () => {
@@ -111,5 +111,20 @@ describe("changing a Files space's files", () => {
     expect(files.saveText).not.toHaveBeenCalled();
     expect(files.remove).not.toHaveBeenCalled();
     expect(files.dismissChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("listing a Files space's artifacts", () => {
+  const TASK_ID = "33333333-3333-4333-8333-333333333333";
+
+  it("lists one task's artifacts when asked, and refuses a task that isn't an id", async () => {
+    const { app, artifacts } = setup();
+    artifacts.list.mockResolvedValue([]);
+
+    await request(app).get(`/api/spaces/${SPACE_ID}/artifacts?taskId=${TASK_ID}`).set("x-role", "viewer").expect(200);
+    await request(app).get(`/api/spaces/${SPACE_ID}/artifacts`).set("x-role", "viewer").expect(200);
+    await request(app).get(`/api/spaces/${SPACE_ID}/artifacts?taskId=TO-1`).set("x-role", "viewer").expect(400);
+
+    expect(artifacts.list.mock.calls).toEqual([[SPACE_ID, TASK_ID], [SPACE_ID, undefined]]);
   });
 });

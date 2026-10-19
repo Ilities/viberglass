@@ -2,7 +2,7 @@ import { onTabListKeyDown } from '@/components/tab-button'
 import { CheckIcon } from '@radix-ui/react-icons'
 import clsx from 'clsx'
 import { describeStep, STEP_NAME, TASK_STEPS, type TaskNextMove, type TaskStep } from './task-next-move'
-import { stepPanelId, stepTabId } from './task-step-view'
+import { stepPanelId, stepTabId } from './artifact-tab-ids'
 
 interface TaskStepperProps {
   currentStep: TaskStep

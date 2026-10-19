@@ -15,6 +15,7 @@ import { CopyTaskDialog } from './copy-task-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { TaskActionsMenu } from './task-actions-menu'
+import { artifactTabLabel, FilesTaskTabs, TaskArtifactView, useTaskArtifacts, type FilesTaskTab } from './task-artifact-view'
 import { runnableAgents, taskAgents } from './task-agents'
 import { runName } from './step-runs'
 import { TaskContextLine } from './task-context-line'
@@ -58,7 +59,7 @@ export function TicketDetailPage() {
   // Hidden panels stay mounted so switching preserves a draft and its scroll position.
   const wide = useMediaQuery('(min-width: 1280px)')
   const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
-    ['step', 'version'].some((key) => searchParams.has(key)) || searchParams.get('view') === 'comments' ? 'artifact' : 'conversation'
+    ['step', 'version', 'tab'].some((key) => searchParams.has(key)) || searchParams.get('view') === 'comments' ? 'artifact' : 'conversation'
   )
 
   const linkedRunId = searchParams.get('run')
@@ -84,6 +85,13 @@ export function TicketDetailPage() {
   }, [searchParams, setSearchParams])
 
   const filesSpace = space?.backingKind === 'files'
+  // A Files task delivers an artifact; it's loaded again as the task's runs change.
+  const artifacts = useTaskArtifacts(
+    space?.id,
+    data?.ticket.id ?? '',
+    filesSpace && Boolean(data),
+    data ? data.runs.map((run) => `${run.jobId}:${run.status}`).join('|') : ''
+  )
   const setDone = useCallback(
     async (done: boolean) => {
       if (!data) return
@@ -141,6 +149,20 @@ export function TicketDetailPage() {
   const shownStep: TaskStep = filesSpace ? 'planning' : isTaskStep(requestedStep) ? requestedStep : currentStep
   const requestedView = searchParams.get('view')
   const shownView: StepView = isStepView(requestedView) ? requestedView : 'document'
+
+  // A Files task shows its artifact unless the plan was asked for, or there's only a plan to show.
+  const requestedTab = searchParams.get('tab')
+  const planRequested =
+    requestedTab === 'plan' || searchParams.has('step') || searchParams.has('version') || searchParams.get('view') === 'comments'
+  const hasPlan = data.plan.content.trim().length > 0
+  const filesTab: FilesTaskTab =
+    requestedTab === 'artifact' ? 'artifact' : planRequested || (artifacts?.length === 0 && hasPlan) ? 'plan' : 'artifact'
+  const showFilesTab = (tab: FilesTaskTab) =>
+    setSearchParams({
+      ...(linkedRunId ? { run: linkedRunId } : {}),
+      ...(searchParams.get('runTab') ? { runTab: searchParams.get('runTab') ?? '' } : {}),
+      tab,
+    })
 
   // An earlier version of the shown document, opened from the thread.
   const requestedVersion = Number(searchParams.get('version'))
@@ -222,7 +244,14 @@ export function TicketDetailPage() {
             className="min-w-0 overflow-hidden rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
           >
             <div className="border-b border-[var(--gray-5)] bg-[var(--gray-2)] px-5 pt-4 pb-3">
-              {filesSpace ? <h2 className="text-sm font-semibold">Plan</h2> : <TaskStepper
+              {filesSpace ? (
+                <FilesTaskTabs
+                  shown={filesTab}
+                  artifactLabel={artifactTabLabel(artifacts)}
+                  planLabel={hasPlan ? 'Written' : 'None yet'}
+                  onShow={showFilesTab}
+                />
+              ) : <TaskStepper
                 currentStep={currentStep}
                 move={move}
                 shownStep={shownStep}
@@ -235,7 +264,9 @@ export function TicketDetailPage() {
               />}
             </div>
             <div className="px-6 py-5 max-sm:px-4">
-              <TaskStepView
+              {filesSpace && filesTab === 'artifact' && space ? (
+                <TaskArtifactView space={{ id: space.id, slug: project }} artifacts={artifacts} />
+              ) : <TaskStepView
                 step={shownStep}
                 view={shownView}
                 version={shownVersion}
@@ -248,7 +279,7 @@ export function TicketDetailPage() {
                 onNewComments={countNewComments}
                 onAsked={changed}
                 onCommentsChanged={commentsChanged}
-              />
+              />}
             </div>
           </section>
 

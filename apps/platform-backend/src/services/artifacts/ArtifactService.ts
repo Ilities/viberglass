@@ -24,8 +24,8 @@ export class ArtifactService {
     private readonly links: ArtifactPreviewLinks = new ArtifactPreviewLinks(),
   ) {}
 
-  list(projectId: string): Promise<ArtifactSummary[]> {
-    return this.dao.listForSpace(projectId);
+  list(projectId: string, taskId?: string): Promise<ArtifactSummary[]> {
+    return this.dao.listForSpace(projectId, taskId);
   }
 
   async detail(projectId: string, artifactId: string): Promise<ArtifactDetail> {

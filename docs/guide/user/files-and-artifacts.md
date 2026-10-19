@@ -39,7 +39,7 @@ The agent works in the space's files on every turn, whether it's replying, writi
 
 Most Files work doesn't need a plan, so Create artifact is the first suggestion under the thread. Write the plan is still offered next to it when you want to agree on the approach first. Once the task has an artifact, the suggestion is Revise artifact, and the agent's next version replaces it as the current one. A reply or plan can make the deliverable too, such as a presentation the task asked for, and it's kept as an artifact the same way; Create artifact is the turn that always makes one. Who can ask for an artifact is the same as who can ask for code; see [Getting started](getting-started.md#what-your-role-lets-you-do).
 
-There are no pull requests or plan parts in a Files space, and nothing to take over. The task's page shows the plan without a Code tab. When the work is finished, choose Actions → Mark done. Reopen task opens it again.
+There are no pull requests or plan parts in a Files space, and nothing to take over. Beside the thread, the task's page shows its artifact, previewed at its current version, with the plan in a tab next to it. When the work is finished, choose Actions → Mark done. Reopen task opens it again.
 
 A task started from Slack works the same way in its Slack thread. The thread shows what each turn saved and links to the artifact versions it made, and offers Create artifact or Revise artifact, with Mark done beside it. See [Slack](slack.md).
 

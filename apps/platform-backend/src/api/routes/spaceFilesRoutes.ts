@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import Joi from "joi";
 import multer from "multer";
 import { isObjectRecord, SPACE_UPLOAD_MAX_BYTES } from "@viberglass/types";
 import logger from "../../config/logger";
@@ -144,7 +145,11 @@ export function spaceFilesRouter(
 
   router.get("/:projectId/artifacts", validateUuidParam("projectId"), async (req, res) => {
     try {
-      return res.json({ success: true, data: await artifacts.list(req.params.projectId) });
+      const taskId = req.query.taskId;
+      if (taskId !== undefined && (typeof taskId !== "string" || Joi.string().uuid().validate(taskId).error)) {
+        return res.status(400).json({ error: "Invalid UUID format", field: "taskId" });
+      }
+      return res.json({ success: true, data: await artifacts.list(req.params.projectId, taskId) });
     } catch (error) {
       return fail(res, error, "list the artifacts");
     }

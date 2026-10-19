@@ -5,8 +5,10 @@ import { readSpaceData, saveDownload } from './space-files-api'
 
 const artifactsUrl = (projectId: string, suffix = '') => `${API_BASE_URL}/api/spaces/${projectId}/artifacts${suffix}`
 
-export async function getArtifacts(projectId: string): Promise<ArtifactSummary[]> {
-  return readSpaceData(await apiFetch(artifactsUrl(projectId)), "Couldn't load the artifacts")
+/** The space's artifacts, newest first; with `taskId`, only that task's. */
+export async function getArtifacts(projectId: string, taskId?: string): Promise<ArtifactSummary[]> {
+  const query = taskId ? `?taskId=${encodeURIComponent(taskId)}` : ''
+  return readSpaceData(await apiFetch(artifactsUrl(projectId, query)), "Couldn't load the artifacts")
 }
 
 export async function getArtifact(projectId: string, artifactId: string): Promise<ArtifactDetail> {

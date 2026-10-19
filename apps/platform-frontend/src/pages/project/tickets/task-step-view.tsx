@@ -6,6 +6,7 @@ import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentCo
 import { DocumentStep } from './document-step'
 import { DocumentVersion } from './document-version'
 import { type TaskNextMove, type TaskStep } from './task-next-move'
+import { stepPanelId, stepTabId } from './artifact-tab-ids'
 import { countNewComments } from './task-suggestions'
 import type { TaskPageData } from './use-task-page'
 
@@ -32,10 +33,6 @@ interface TaskStepViewProps {
   /** Someone added, resolved or reopened a comment here. */
   onCommentsChanged?: () => void
 }
-
-/** The artifact tabs (Plan, Code) and the panel they show. */
-export const stepTabId = (step: TaskStep) => `task-artifact-tab-${step}`
-export const stepPanelId = (step: TaskStep) => `task-artifact-panel-${step}`
 
 /** Puts a suggestion's wording in place of the text it was on, and resolves it. */
 function useApplySuggestion(
