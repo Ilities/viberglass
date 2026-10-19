@@ -40,7 +40,7 @@ A kind cluster from `infra/kubernetes/scripts/local.py`, OpenCode with an OpenCo
 
 Fixed on the way: the Create space page and webhook addresses failed on production builds (a `URL` built from the empty API base); Kubernetes workers defaulted to 1 GiB and were killed running OpenCode, so the default is now 1 CPU and 4 GiB, and a worker killed for memory now says so instead of "Agent couldn't start"; pull requests and commits were titled "fix:" (commits "fix: fix:") and signed "Viberator", with bug-fix wording in the description, so builds now write PR_TITLE.md and PR_DESCRIPTION.md (migration 125) and the fallback is neutral; a stopped build's part read "Building" and offered "Add to part 1's pull request" with no pull request; failure cards squeezed their text in the task thread; the plan panel said the agent was writing the plan during artifact runs.
 
-Fixed on 2026-10-14: the artifact preview frame shows "Loading the preview…" until the deck loads; "Discard this build" asks first; OpenCode runs counted only uncached input tokens as the context ("0k tokens in context"), and now count cached tokens too and prefer the harness's own context report. Left: on Kubernetes the Docker stopper logs "Failed to stop worker" on every cancel. The test PRs (#100 and #101 on token.observer, #37 on local-ctx) are still open.
+Fixed on 2026-10-14: the artifact preview frame shows "Loading the preview…" until the deck loads; "Discard this build" asks first; OpenCode runs counted only uncached input tokens as the context ("0k tokens in context"), and now count cached tokens too and prefer the harness's own context report.
 
 ## Done on 2026-10-08: spaces choose their tracker issues
 

@@ -8,8 +8,6 @@ import {
   AGENT_TURN_STATUS,
 } from "../../types/agentSession";
 import { createChildLogger } from "../../config/logger";
-import type { WorkerStopper } from "../../workers/WorkerStopper";
-import { configuredWorkerStoppers } from "../../workers/configuredWorkerStoppers";
 import { WorkerStopperChain } from "../../workers/WorkerStopperChain";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
@@ -32,7 +30,7 @@ export class JobCancellationService {
     private readonly sessionDAO = new AgentSessionDAO(),
     private readonly turnDAO = new AgentTurnDAO(),
     private readonly eventDAO = new AgentSessionEventDAO(),
-    private readonly workerStoppers: WorkerStopper[] = configuredWorkerStoppers(),
+    private readonly workers: Pick<WorkerStopperChain, "stop"> = new WorkerStopperChain(),
     private readonly ticketStatus: TicketStatusSynchronizer = new TicketLifecycleStatusService(),
     private readonly activity: Pick<TaskActivityRecorder, "record"> = new TaskActivityRecorder(),
     private readonly scheduledRuns: Pick<ClawRunCompletion, "finish"> = new ClawRunCompletion(),
@@ -82,7 +80,7 @@ export class JobCancellationService {
     await stopSpaceFiles(this.spaceFiles, jobId);
     await this.scheduledRuns.finish({ id: jobId, context: job.context }, { status: "cancelled", errorMessage: "Run cancelled by user" });
     await beforeWorkerStops?.();
-    await new WorkerStopperChain(this.workerStoppers).stop(jobId, "cancelled");
+    await this.workers.stop(jobId, "cancelled");
     if (job.ticket_id) await this.synchronizeTicketStatus(job.ticket_id);
     return "cancelled";
   }

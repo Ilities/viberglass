@@ -8,7 +8,7 @@ You sign it once, by commenting on your first pull request when the CLA Assistan
 
 "You" means the individual who signs this agreement, or the legal entity on whose behalf you sign it. If you sign for an entity, you confirm that you are authorized to do so.
 
-"Project Owner" means <PROJECT OWNER LEGAL NAME>, which maintains Viberglass at https://github.com/Ilities/viberglass, and its successors and assigns.
+"Project Owner" means Ilities.dev B.V., which maintains Viberglass at https://github.com/Ilities/viberglass, and its successors and assigns.
 
 "Contribution" means any work of authorship, including code, documentation, designs and other material, that you submit to the project, for example by pull request, issue or patch, and that you don't clearly mark in writing as "Not a Contribution" when you submit it.
 

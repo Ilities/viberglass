@@ -24,6 +24,7 @@ const STOP_GRACE_SECONDS = 20;
 /** Stops the container that DockerInvoker started for a job. */
 export class DockerWorkerStopper implements WorkerStopper {
   readonly name = "DockerWorkerStopper";
+  readonly workerType = "docker";
 
   constructor(
     private readonly docker: DockerContainerLookup = new Docker({

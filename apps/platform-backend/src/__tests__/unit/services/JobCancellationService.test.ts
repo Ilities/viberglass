@@ -36,14 +36,13 @@ jest.mock("../../../services/TicketLifecycleStatusService", () => ({
 }));
 
 import { JobCancellationService } from "../../../services/job/JobCancellationService";
-import type { WorkerStopper } from "../../../workers/WorkerStopper";
-
-function stopper(stop: WorkerStopper["stop"], name = "test-stopper"): WorkerStopper {
-  return { name, stop: jest.fn(stop) };
+/** The run's worker, stopped through the stopper chain, which never throws. */
+function workers() {
+  return { stop: jest.fn(async () => undefined) };
 }
 
-function serviceWith(...stoppers: WorkerStopper[]): JobCancellationService {
-  return new JobCancellationService(undefined, undefined, undefined, stoppers, mockTicketStatus);
+function serviceWith(chain = workers()): JobCancellationService {
+  return new JobCancellationService(undefined, undefined, undefined, chain, mockTicketStatus);
 }
 
 describe("JobCancellationService", () => {
@@ -81,13 +80,13 @@ describe("JobCancellationService", () => {
   it("ends the turn before stopping the worker, which keeps what it had done for a stopped turn, and records who cancelled", async () => {
     executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null });
     mockTurnDAO.getByJobId.mockResolvedValue({ id: "turn-1", sessionId: "session-1" });
-    const docker = stopper(async () => true);
+    const docker = workers();
 
     await serviceWith(docker).cancel("job-1", "user-1");
 
     expect(setUpdate).toHaveBeenCalledWith(expect.objectContaining({ cancelled_by: "user-1" }));
     const ended = mockTurnDAO.update.mock.invocationCallOrder[0];
-    const stopped = (docker.stop as jest.Mock).mock.invocationCallOrder[0];
+    const stopped = docker.stop.mock.invocationCallOrder[0];
     expect(ended).toBeLessThan(stopped);
   });
 
@@ -101,37 +100,16 @@ describe("JobCancellationService", () => {
 
   it("stops the worker of a cancelled run", async () => {
     executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null });
-    const docker = stopper(async () => true);
+    const docker = workers();
 
     await expect(serviceWith(docker).cancel("job-1")).resolves.toBe("cancelled");
 
-    expect(docker.stop).toHaveBeenCalledWith("job-1");
-  });
-
-  it("tries the next stopper when one has no worker for the run", async () => {
-    executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null });
-    const first = stopper(async () => false, "first");
-    const second = stopper(async () => true, "second");
-
-    await serviceWith(first, second).cancel("job-1");
-
-    expect(first.stop).toHaveBeenCalledWith("job-1");
-    expect(second.stop).toHaveBeenCalledWith("job-1");
-  });
-
-  it("still cancels the run when stopping the worker fails", async () => {
-    executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null });
-    const broken = stopper(async () => {
-      throw new Error("docker socket unavailable");
-    });
-
-    await expect(serviceWith(broken).cancel("job-1")).resolves.toBe("cancelled");
-    expect(setUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "cancelled" }));
+    expect(docker.stop).toHaveBeenCalledWith("job-1", "cancelled");
   });
 
   it("does not stop anything for a run that already finished", async () => {
     executeTakeFirst.mockResolvedValue({ status: "completed", ticket_id: null });
-    const docker = stopper(async () => true);
+    const docker = workers();
 
     await expect(serviceWith(docker).cancel("job-1")).resolves.toBe("terminal");
     expect(docker.stop).not.toHaveBeenCalled();
@@ -141,11 +119,11 @@ describe("JobCancellationService", () => {
   describe("stopJob", () => {
     it("cancels the run and stops its worker without touching sessions", async () => {
       executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null });
-      const docker = stopper(async () => true);
+      const docker = workers();
 
       await expect(serviceWith(docker).stopJob("job-1")).resolves.toBe("cancelled");
 
-      expect(docker.stop).toHaveBeenCalledWith("job-1");
+      expect(docker.stop).toHaveBeenCalledWith("job-1", "cancelled");
       expect(mockEventDAO.create).not.toHaveBeenCalled();
       expect(mockSessionDAO.update).not.toHaveBeenCalled();
     });
@@ -169,7 +147,7 @@ describe("JobCancellationService", () => {
       const context = { clawExecutionId: "exec-1" };
       executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null, context });
       const scheduledRuns = { finish: jest.fn() };
-      const service = new JobCancellationService(undefined, undefined, undefined, [], mockTicketStatus, undefined, scheduledRuns);
+      const service = new JobCancellationService(undefined, undefined, undefined, workers(), mockTicketStatus, undefined, scheduledRuns);
 
       await expect(service.stopJob("job-1")).resolves.toBe("cancelled");
 

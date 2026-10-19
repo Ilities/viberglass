@@ -4,8 +4,8 @@ The Helm distribution installs the backend, React/Vite frontend, migration Jobs,
 
 ## Prerequisites
 
-- Docker 28.1 or newer (the installer uses platform-specific image export), with enough disk and memory for the application and worker image builds. Reserve about 40 GiB of free disk for build caches, images and cluster data; image loading is substantial on the first run.
-- `kind`, `kubectl`, Helm 3, and Python 3 on your PATH.
+- Docker 28.1 or newer (the installer uses platform-specific image export), with enough disk and memory for the application and worker image builds. Reserve about 40 GiB of free disk for build caches, images and cluster data; image loading is substantial on the first run. Docker 29 keeps images under `/var/lib/containerd`, so on Linux the space has to be on that disk.
+- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) (a release, not the `latest` development build), [kubectl](https://kubernetes.io/docs/tasks/tools/), [Helm 3](https://helm.sh/docs/intro/install/) and Python 3 on your PATH.
 - Node.js 24 and npm only for the optional host-side smoke tests.
 - Free host ports 3100 (app), 39000 (signed storage downloads) and 38890 (artifact previews).
 
@@ -33,7 +33,7 @@ kubectl --kubeconfig /tmp/viberglass-local.kubeconfig -n viberglass port-forward
 kubectl --kubeconfig /tmp/viberglass-local.kubeconfig -n viberglass port-forward svc/viberglass-backend 38890:8890
 ```
 
-The last one serves artifact previews at http://127.0.0.1:38890. It's another host than `localhost` to the browser, so the app's cookies don't reach it.
+The last one serves artifact previews at http://127.0.0.1:38890. It's another host than `localhost` to the browser, so the app's cookies don't reach it. A port-forward follows one pod, so start it again after the backend restarts or is upgraded.
 
 Open **http://localhost:3100**, register the first administrator, and complete setup. The default compute is Kubernetes when the backend has a worker namespace configured. Add your model key through setup or Secrets; it is encrypted in PostgreSQL. Workers fetch only the credentials authorized for their run.
 

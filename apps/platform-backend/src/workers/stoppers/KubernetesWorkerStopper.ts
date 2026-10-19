@@ -8,6 +8,7 @@ import type { KubernetesRunSecret } from "../invokers/KubernetesRunSecret";
 
 export class KubernetesWorkerStopper implements WorkerStopper {
   readonly name = "KubernetesWorkerStopper";
+  readonly workerType = "kubernetes";
 
   constructor(
     private readonly clientFactory: () => Promise<KubernetesJobClient>,
