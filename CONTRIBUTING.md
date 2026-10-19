@@ -38,14 +38,15 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to keep our com
 ### Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Install dependencies and build the workspace packages the backend loads
+npm ci
+npm run backend:build-deps
 
 # Start Postgres, MinIO, the backend and the frontend (http://localhost:3000)
-docker compose up
+docker compose -f docker-compose.dev.yml up
 ```
 
-The backend and frontend run in compose with hot reload, and the backend migrates on start. Optional settings go in a `.env` in the repository root. To run the backend outside compose instead, see [docs/local-development.md](docs/local-development.md).
+The backend and frontend run in compose with hot reload, and the backend migrates on start. After changing a package under `packages/`, build it again (`npm run build -w <package>`). Set `COMPOSE_FILE=docker-compose.dev.yml` in the root `.env` to leave out the `-f`. Optional settings go in a `.env` in the repository root. To run the backend outside compose instead, see [docs/local-development.md](docs/local-development.md).
 
 ## How to Contribute
 

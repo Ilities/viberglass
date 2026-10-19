@@ -410,6 +410,51 @@ describe("DockerInvoker", () => {
         );
       });
 
+      describe("VIBERATOR_WORKER_NETWORK", () => {
+        afterEach(() => {
+          delete process.env.VIBERATOR_WORKER_NETWORK;
+        });
+
+        it("puts runners without a network of their own on it", async () => {
+          process.env.VIBERATOR_WORKER_NETWORK = "viberglass-workers";
+          mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+          await invoker.invoke(mockJob, {
+            ...mockClanker,
+            deploymentConfig: dockerConfig({
+              containerImage: "viberator/worker:latest",
+            }),
+          });
+
+          expect(mockCreateContainer).toHaveBeenCalledWith(
+            expect.objectContaining({
+              HostConfig: expect.objectContaining({
+                NetworkMode: "viberglass-workers",
+              }),
+            }),
+          );
+        });
+
+        it("leaves a runner's own network alone", async () => {
+          process.env.VIBERATOR_WORKER_NETWORK = "viberglass-workers";
+          mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+          await invoker.invoke(mockJob, {
+            ...mockClanker,
+            deploymentConfig: dockerConfig({
+              containerImage: "viberator/worker:latest",
+              networkMode: "bridge",
+            }),
+          });
+
+          expect(mockCreateContainer).toHaveBeenCalledWith(
+            expect.objectContaining({
+              HostConfig: expect.objectContaining({ NetworkMode: "bridge" }),
+            }),
+          );
+        });
+      });
+
       it("should handle empty environment variables", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 

@@ -6,7 +6,7 @@ Tracing is **off** by default. The backend logs which state it is in on boot:
 OpenTelemetry tracing disabled — set OTEL_EXPORTER_OTLP_ENDPOINT or VIBERGLASS_OTEL_CONSOLE=true to enable
 ```
 
-There are three ways to look at spans locally, in increasing order of effort.
+There are three ways to look at spans locally, in increasing order of effort. The commands use the dev stack, `docker-compose.dev.yml`, and assume `COMPOSE_FILE=docker-compose.dev.yml` in the root `.env` ([local development](./local-development.md)).
 
 ## 1. No collector — spans to stdout
 
@@ -29,7 +29,7 @@ payload does. All three must share one `traceId`, and `job.execute` must show
 
 ## 2. Langfuse
 
-A full Langfuse v4 stack ships in `docker-compose.yml` behind the `langfuse`
+A full Langfuse v4 stack ships in `docker-compose.dev.yml` behind the `langfuse`
 profile, so it never starts with a plain `docker compose up`.
 
 ```bash

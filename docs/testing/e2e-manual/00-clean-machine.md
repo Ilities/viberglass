@@ -39,10 +39,10 @@ Record whether each still holds.
 Run on at least Linux and macOS (Apple silicon). Windows with WSL 2 if you want to claim it.
 
 ### CLEAN-01 · Clone and start
-1. Follow the README's Quick start exactly: `git clone`, `cd`, `docker compose up`.
+1. Follow the README's Quick start exactly: `git clone`, `cd`, `docker compose up -d`.
 2. Note the time until http://localhost:3000 loads, and the download size if you can see it.
 
-Expect: no errors in the compose output that look alarming to a newcomer; the page loads without a manual refresh. Record anything that needs a port to be free (5432, 8888, 3000) and whether the message says so.
+Expect: no errors in the compose output that look alarming to a newcomer; the page loads without a manual refresh. Record anything that needs a port to be free (3000, 8890, 9000, 9001) and whether the message says so.
 
 ### CLEAN-02 · First admin and setup
 1. Create the administrator.
@@ -72,8 +72,8 @@ Expect: the revision addresses the comment; the PR exists and its diff matches t
 Expect: the task shows as done. Record how long it took, and whether anything told you to expect the wait.
 
 ### CLEAN-06 · Stop and start again
-1. `docker compose down`, then `docker compose up`.
-2. `git pull` to a newer commit if one exists, then `docker compose up --build`.
+1. `docker compose down`, then `docker compose up -d`.
+2. Upgrade as the docs say: `git pull`, `docker compose pull`, `docker compose up -d`.
 
 Expect: data survives; migrations run without prompts; the default agent still works.
 

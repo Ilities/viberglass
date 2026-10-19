@@ -76,11 +76,20 @@ export function getAuthToken(req: Request): string | null {
   return cookieToken || null;
 }
 
+/** Secure when the app is served over HTTPS, so a local install on http://localhost can sign in. */
+export function authCookieIsSecure(): boolean {
+  const appUrl = process.env.PLATFORM_FRONTEND_URL?.trim();
+  if (appUrl) {
+    return appUrl.toLowerCase().startsWith("https://");
+  }
+  return process.env.NODE_ENV === "production";
+}
+
 export function setAuthCookie(res: Response, token: string): void {
   res.cookie(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: authCookieIsSecure(),
     maxAge: SESSION_TTL_MS,
     path: "/",
   });
@@ -90,7 +99,7 @@ export function clearAuthCookie(res: Response): void {
   res.clearCookie(AUTH_COOKIE_NAME, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: authCookieIsSecure(),
     path: "/",
   });
 }

@@ -52,4 +52,4 @@ On Docker, the first run of each agent downloads its worker image, which can tak
 - Someone forgot their password: send them a Reset link from Settings → Members.
 - A Files space says File storage is not configured: the backend has no object storage bucket. Set one up as described for your install; see [Files spaces](repositories-and-integrations.md#files-spaces).
 - Artifacts can be downloaded but not previewed: the installation has no preview host set. See [Files spaces](repositories-and-integrations.md#files-spaces).
-- On Docker, a port is already in use: stop whatever uses 3000, 8888, 8890, 5432, 9000 or 9001, or change the port mapping in `docker-compose.yml`.
+- On Docker, a port is already in use: stop whatever uses 3000, 8890, 9000 or 9001, or choose other ports in the root `.env` (see [Ports](install-docker.md#ports)).

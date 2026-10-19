@@ -33,7 +33,7 @@ The automated Playwright smoke suite (`npm run test:e2e`, specs in `tests/e2e/te
 |---|---|---|
 | **L-REV** | Local review instance with fixtures (people, spaces, tasks, 14 runners) | http://localhost:3200; `python3 tests/manual-harness/instance.py status\|restart` |
 | **L-NEW** | Local empty instance (no users) | http://localhost:3201; `python3 .tmp/ux-fresh/instance.py status\|restart`; reset steps in [tests/manual-harness](../../../tests/manual-harness/README.md#starting-the-empty-instance-over) |
-| **L-DEV** | The docker compose dev stack, with MinIO object storage and the artifact preview server, so the only local environment for Files spaces | `docker compose up -d` → http://localhost:3000, API :8888, MinIO :9000, previews http://127.0.0.1:8890; see [../local-development.md](../../local-development.md) |
+| **L-DEV** | The docker compose dev stack, with MinIO object storage and the artifact preview server, so the only local environment for Files spaces | `docker compose -f docker-compose.dev.yml up -d` → http://localhost:3000, API :8888, MinIO :9000, previews http://127.0.0.1:8890; see [../local-development.md](../../local-development.md) |
 | **TUNNEL** | A public HTTPS URL to a local backend, for webhooks and Slack | `cloudflared tunnel --url http://localhost:8888` (or ngrok); point webhook and Slack app URLs at it |
 | **AWS-DEV** | The AWS dev deployment | [05-aws.md](05-aws.md) |
 | **K8S-KIND** | The Helm chart on a local kind cluster | [06-kubernetes.md](06-kubernetes.md) |

@@ -9,7 +9,7 @@ Backend service for spaces and tasks, files and artifacts, agent turns, worker e
 
 ## Quick Start
 
-The usual way to run it is `docker compose up` from the repository root, which also starts Postgres, MinIO and the frontend and runs migrations on start. To run the backend on its own:
+The usual way to run it is `docker compose -f docker-compose.dev.yml up` from the repository root, after `npm run backend:build-deps`. It also starts Postgres, MinIO and the frontend and runs migrations on start. To run the backend on its own:
 
 ### 1) Install dependencies
 ```bash

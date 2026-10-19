@@ -37,14 +37,12 @@ COPY packages/mcp-server ./packages/mcp-server
 COPY packages/agent-core ./packages/agent-core
 COPY apps/platform-backend ./apps/platform-backend
 
-# Build shared workspace packages (needed before backend can start)
-# Integration packages resolve to their dist/, which compose mounts from the host
-RUN npm run build -w @viberglass/types && npm run build -w @viberglass/telemetry && npm run build -w @viberglass/model-hosting-verda && npm run build -w @viberglass/mcp-server
 # Expose backend API port
 EXPOSE 8888
 
 # Set working directory to backend for running the server
 WORKDIR /app/apps/platform-backend
 
-# tsx resolves workspace packages via tsconfig paths — no build step needed
+# Workspace packages load from their dist/, which docker-compose.dev.yml mounts from
+# the host along with their source: build them there first (npm run backend:build-deps).
 CMD ["npm", "run", "dev"]

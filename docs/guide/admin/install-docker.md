@@ -2,12 +2,12 @@
 
 The quickest way to try Viberglass: one command on one machine, then a short setup in the browser. Agents run as Docker containers on the same machine.
 
-There are two ways to run it with Docker. The first, below, is for trying Viberglass on your own machine: it runs the development servers with fixed database and encryption keys, so don't expose it to a network. For an installation your team shares on one server, use the [production setup](#on-a-server). For a cluster or the cloud, use [Kubernetes](install-kubernetes.md) or [AWS](install-aws.md).
+There are two ways to run it with Docker. The first, below, is for trying Viberglass on your own machine: it uses fixed database and encryption keys and only listens on that machine. For an installation your team shares on one server, use the [production setup](#on-a-server). For a cluster or the cloud, use [Kubernetes](install-kubernetes.md) or [AWS](install-aws.md).
 
 ## Requirements
 
-- Docker Engine 20.10 or newer, with Docker Compose v2.
-- Free ports 3000 (the app), 8888 (the API), 8890 (artifact previews), 5432 (PostgreSQL), and 9000 and 9001 (object storage).
+- Docker Engine 20.10 or newer, with Docker Compose v2. Docker Desktop works on macOS and Windows.
+- Free ports 3000 (the app), 8890 (artifact previews), and 9000 and 9001 (object storage). See [Ports](#ports) to use others.
 - A model key from an AI provider, or the address of a compatible model endpoint.
 - A GitHub repository, and a fine-grained access token for it. Not needed if your first space is a Files space.
 
@@ -16,10 +16,10 @@ There are two ways to run it with Docker. The first, below, is for trying Viberg
 ```bash
 git clone https://github.com/Ilities/viberglass.git
 cd viberglass
-docker compose up
+docker compose up -d
 ```
 
-The first start builds the backend and frontend, so it takes a few minutes. The backend runs its database migrations on startup. When it's up, open http://localhost:3000.
+This downloads the published backend and frontend images and starts them with PostgreSQL and MinIO. Nothing is built. The backend runs its database migrations on startup. When it's up, open http://localhost:3000. `docker compose logs -f backend` shows what it's doing.
 
 ## First-run setup
 
@@ -39,23 +39,33 @@ To look around before connecting anything, choose Explore a demo workspace on se
 
 Agents run in worker images pulled from `ghcr.io/ilities`, one per coding agent, tagged `latest` unless you set `VIBERATOR_WORKER_IMAGE_TAG`. To use images you built yourself, set `VIBERATOR_WORKER_REGISTRY` to empty in a `.env` file in the repository root, and restart the backend.
 
+Agent containers join the `viberglass-workers` Docker network, where they reach the backend and object storage. The database isn't on that network.
+
 ## Files spaces and previews
 
-The quick start runs MinIO as its object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-storage-data` volume, and its console is at http://localhost:9001. Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
+MinIO is the object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-local_storage-data` volume, and its console is at http://localhost:9001 (sign in as `viberglass` / `viberglass-local`). Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
+
+## Ports
+
+Set these in a `.env` file in the repository root, then run `docker compose up -d`:
+
+- `VIBERGLASS_HTTP_PORT`: the app (default 3000).
+- `VIBERGLASS_PREVIEW_PORT`: artifact previews (default 8890).
+- `VIBERGLASS_STORAGE_PORT` and `VIBERGLASS_STORAGE_CONSOLE_PORT`: MinIO and its console (default 9000 and 9001).
+
+Every port is bound to 127.0.0.1, so other machines can't reach them.
 
 ## Optional services
 
-Optional settings go in a `.env` file in the repository root. Restart the backend after changing it with `docker compose up -d backend`.
+Optional settings go in a `.env` file in the repository root. Apply them with `docker compose up -d`.
 
 - Email: Mailpit catches mail locally. Set `EMAIL_FROM` and `SMTP_URL=smtp://mailpit:1025`, then start it with `docker compose --profile mail up -d`. Its inbox is at http://localhost:8025. For real delivery, point `SMTP_URL` at your SMTP server.
-- Slack: set it up under Settings → Connections → Slack; it needs no settings here. Slack needs to reach the backend over HTTPS, so locally you need a tunnel such as ngrok. See [Repositories and integrations](repositories-and-integrations.md#slack).
-- Traces: `docker compose --profile langfuse up -d` starts Langfuse for looking at agent traces.
+- Slack: set it up under Settings → Connections → Slack; it needs no settings here. Slack needs to reach the backend over HTTPS, so locally you need a tunnel such as `ngrok http 3000`. See [Repositories and integrations](repositories-and-integrations.md#slack).
+- Traces: set `OTEL_EXPORTER_OTLP_ENDPOINT` to an OTLP collector. See [Telemetry](https://github.com/Ilities/viberglass/blob/main/docs/telemetry-local.md).
 
-More detail is in [local development](https://github.com/Ilities/viberglass/blob/main/docs/local-development.md).
+## Stop, start and upgrade
 
-## Stop and start
-
-`docker compose down` stops everything; your data stays in Docker volumes. `docker compose up` starts it again. To update, `git pull` and run `docker compose up --build`. See [Upgrades and backups](upgrades-and-backups.md).
+`docker compose down` stops everything; your data stays in Docker volumes and in `~/.viberglass` (`VIBERGLASS_DATA_DIR`). `docker compose up -d` starts it again. To upgrade, run `docker compose pull`, then `docker compose up -d`. See [Upgrades and backups](upgrades-and-backups.md).
 
 ## On a server
 

@@ -95,7 +95,7 @@ Trackers as linked threads ([ADR 0011](adr/0011-tracker-issues-are-linked-thread
 2. Try the tracker changes with real GitHub, Jira and Shortcut events.
 3. Then the manual steps below and the rest of launch-todo.
 
-The dev stack is `docker compose up -d` (app on :3000, API on :8888). After changing `packages/types`, run its build and touch a backend file so nodemon restarts; the dev backend runs new migrations on start. Integration packages are baked into the dev frontend image: after changing a package's frontend code, rebuild the package and run `docker compose up -d --build frontend`. A tracker needs a tunnel to reach the webhook URL (`ngrok http 8888`); the GitHub connection's webhook is `497130fc-…`.
+The dev stack is `docker compose -f docker-compose.dev.yml up -d` (app on :3000, API on :8888); plain `docker compose up -d` is the quick start, which runs the published images. After changing `packages/types`, run its build and touch a backend file so nodemon restarts; the dev backend runs new migrations on start. Integration packages are baked into the dev frontend image: after changing a package's frontend code, rebuild the package and run `docker compose up -d --build frontend`. A tracker needs a tunnel to reach the webhook URL (`ngrok http 8888`); the GitHub connection's webhook is `497130fc-…`.
 
 ## Other known gaps and likely tweaks
 
@@ -108,7 +108,7 @@ Fixed on 2026-10-13, none tried with real tracker events yet:
 Still open:
 - The Markdown to Jira wiki conversion is deliberately simple.
 - Not checked visually: outside authors in the thread, the GitHub and Shortcut connection screens after the rewording, the forgot-password page.
-- The dev `docker-compose.yml` uses `jussi` as the PostgreSQL user, and the Docker backup command in Upgrades and backups copies it.
+- `docker-compose.dev.yml` uses `jussi` as the PostgreSQL user.
 
 ## Waiting on manual steps
 

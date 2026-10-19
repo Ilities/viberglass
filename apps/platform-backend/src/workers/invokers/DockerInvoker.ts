@@ -82,7 +82,12 @@ export class DockerInvoker implements WorkerInvoker {
     const dockerConfig: DockerDeploymentConfig = {
       containerImage: resolvedConfig.strategy.containerImage,
       environmentVariables: resolvedConfig.strategy.environmentVariables,
-      networkMode: resolvedConfig.strategy.networkMode,
+      // A runner's own network wins; VIBERATOR_WORKER_NETWORK lets a compose file put
+      // every agent on a network it shares with the backend.
+      networkMode:
+        resolvedConfig.strategy.networkMode ||
+        process.env.VIBERATOR_WORKER_NETWORK?.trim() ||
+        undefined,
       logFilePath: resolvedConfig.strategy.logFilePath,
     };
 
@@ -139,11 +144,15 @@ export class DockerInvoker implements WorkerInvoker {
         }
       }
 
-      // On Linux, add host.docker.internal mapping for bridge network
+      // On Linux, add the host.docker.internal mapping Docker Desktop provides by itself,
+      // on bridge and user-defined networks. Docker refuses host mappings in the other modes.
+      const networkMode = dockerConfig.networkMode || "bridge";
       const extraHosts: string[] = [];
       if (
         process.platform === "linux" &&
-        (!dockerConfig.networkMode || dockerConfig.networkMode === "bridge")
+        networkMode !== "host" &&
+        networkMode !== "none" &&
+        !networkMode.startsWith("container:")
       ) {
         extraHosts.push("host.docker.internal:host-gateway");
       }
@@ -188,7 +197,7 @@ export class DockerInvoker implements WorkerInvoker {
           // platform backend included — while running with its permission rails off
           // on prompts built from untrusted ticket text. Operators who need host
           // networking must opt in explicitly via clanker config.
-          NetworkMode: dockerConfig.networkMode || "bridge",
+          NetworkMode: networkMode,
           ExtraHosts: extraHosts.length > 0 ? extraHosts : undefined,
           Binds: binds.length > 0 ? binds : undefined,
         },

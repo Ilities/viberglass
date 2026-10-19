@@ -126,10 +126,10 @@ Requires Docker Engine 20.10+ and Docker Compose v2.
 ```bash
 git clone https://github.com/Ilities/viberglass.git
 cd viberglass
-docker compose up
+docker compose up -d
 ```
 
-Open http://localhost:3000. The first visit creates the administrator account, then setup walks you through:
+This pulls the published images, so nothing is built. Open http://localhost:3000. The first visit creates the administrator account, then setup walks you through:
 
 1. A model key: pick a provider and paste a key, or point at a custom endpoint.
 2. The space's backing: a Git repository, with a GitHub repository and a fine-grained token that can push a branch and open a pull request (setup links to GitHub's token form with the permissions filled in), or Files, for documents and presentations.
@@ -139,15 +139,15 @@ Open http://localhost:3000. The first visit creates the administrator account, t
 
 There's also an "Explore a demo workspace" option on setup's first screen, with sample tasks and no keys needed.
 
-> This compose file is for trying Viberglass on your own machine. It runs the development servers and uses fixed database and encryption keys. Don't expose it to a network. For a shared installation, use [one server](#one-server), [Kubernetes](#kubernetes) or [AWS](#aws).
+> This compose file is for trying Viberglass on your own machine. It uses fixed database and encryption keys and only listens on this machine. For a shared installation, use [one server](#one-server), [Kubernetes](#kubernetes) or [AWS](#aws).
 
-The backend runs database migrations on startup. Optional services (Mailpit for email, Langfuse for traces) and Slack setup are in [local development](docs/local-development.md).
+The backend runs database migrations on startup. To upgrade, run `docker compose pull` and `docker compose up -d`. Ports, email and other options are in [Install with Docker](docs/guide/admin/install-docker.md).
 
 ---
 
 ## Configuration
 
-The backend reads its environment from `docker-compose.yml`; optional settings go in a `.env` file in the repository root. Running the backend outside compose, it reads `apps/platform-backend/.env` (start from `.env.example`).
+With compose, the backend's environment is set in the compose file, and optional settings go in a `.env` file in the repository root. Running the backend outside compose, it reads `apps/platform-backend/.env` (start from `.env.example`).
 
 | Variable                                                  | Description                                                                             |
 |-----------------------------------------------------------|-----------------------------------------------------------------------------------------|
@@ -160,7 +160,7 @@ The backend reads its environment from `docker-compose.yml`; optional settings g
 | `VIBERATOR_WORKER_REGISTRY`                               | Where worker images are pulled from (default `ghcr.io/ilities`)                         |
 | `VIBERATOR_WORKER_IMAGE_TAG`                              | Tag of the worker images (default `latest`); a release tag or commit sha pins them      |
 | `VIBERGLASS_DATA_DIR`                                     | Where compose keeps task media and saved agent conversations (default `~/.viberglass`)  |
-| `S3_ENDPOINT`, `S3_BUCKET` and the other `S3_*` settings  | S3-compatible storage for Files spaces, artifacts and media; the dev compose runs MinIO |
+| `S3_ENDPOINT`, `S3_BUCKET` and the other `S3_*` settings  | S3-compatible storage for Files spaces, artifacts and media; the local compose files run MinIO |
 | `PREVIEW_PORT`, `PREVIEW_PUBLIC_URL`                      | The separate address artifact previews are served from                                  |
 
 Agent credentials are stored as workspace secrets (encrypted in the database, or in AWS SSM) and attached to runners in Settings → Agents. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
@@ -250,6 +250,8 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md), not in public
 [Local development](docs/local-development.md) and [TESTING.md](TESTING.md) cover the dev stack and test suites. In short:
 
 ```bash
+npm ci && npm run backend:build-deps                                       # once, and after changing a package
+docker compose -f docker-compose.dev.yml up -d                             # dev servers with hot reload
 (cd apps/platform-backend && npx jest --maxWorkers=2 src/__tests__/unit)   # backend unit tests
 npm run test:e2e                                                           # smoke suite, starts its own stack
 ```

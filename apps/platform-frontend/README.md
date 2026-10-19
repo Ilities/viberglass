@@ -2,7 +2,7 @@
 
 React frontend for the Viberglass platform, built with Vite.
 
-From the repository root, `docker compose up` runs it together with the backend (see [docs/local-development.md](../../docs/local-development.md)). To run it on its own:
+From the repository root, `docker compose -f docker-compose.dev.yml up` runs it together with the backend (see [docs/local-development.md](../../docs/local-development.md)). To run it on its own:
 
 ```bash
 npm install
