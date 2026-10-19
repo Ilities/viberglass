@@ -7,11 +7,16 @@
 //   AGENT_USAGE=1200/200000      the usage_update it sends with each reply (used/size)
 //   AGENT_ECHO_MCP=1             the reply ends with the MCP servers its session was opened with
 //   AGENT_MCP_HTTP=1             initialize advertises HTTP MCP servers
+//   AGENT_MODEL=glm-5            the model its session replies name, as a model config option
 //   AGENT_STATS=1000             answers /session with its totals, as pi-acp does: a continued session starts at 1000 input tokens; each prompt adds 100 in, 10 out, $0.001
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
 
 const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n");
+const sessionModel = () =>
+  process.env.AGENT_MODEL
+    ? { configOptions: [{ id: "model", category: "model", type: "select", currentValue: process.env.AGENT_MODEL, options: [] }] }
+    : {};
 const supports = (process.env.AGENT_SUPPORTS ?? "").split(",").filter(Boolean);
 const calls = [];
 let continued = false;
@@ -51,14 +56,14 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (msg.method.startsWith("session/") && Array.isArray(msg.params.mcpServers)) mcpServers = msg.params.mcpServers;
   if (msg.method === "session/new") {
     announceCommands("sess_new");
-    return send({ id: msg.id, result: { sessionId: "sess_new" } });
+    return send({ id: msg.id, result: { sessionId: "sess_new", ...sessionModel() } });
   }
   if (msg.method === "session/load" || msg.method === "session/resume") {
     if (msg.params.sessionId !== process.env.AGENT_KNOWS) return send({ id: msg.id, error: { code: -32002, message: "Resource not found" } });
     if (msg.method === "session/load") say(msg.params.sessionId, "an old reply, replayed");
     continued = true;
     if (process.env.AGENT_STATS) totals = { input: Number(process.env.AGENT_STATS), output: 100, cost: 0.05 };
-    return send({ id: msg.id, result: {} });
+    return send({ id: msg.id, result: sessionModel() });
   }
   if (msg.method === "session/prompt") {
     if (process.env.AGENT_STATS && msg.params.prompt[0]?.text === "/session") {

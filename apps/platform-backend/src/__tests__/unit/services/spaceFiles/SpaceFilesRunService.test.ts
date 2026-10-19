@@ -145,9 +145,22 @@ describe("SpaceFilesRunService", () => {
     expect(saved).toMatchObject({ artifacts: [], artifactError: "The agent didn't declare an artifact" });
   });
 
-  it("ignores declarations from runs that weren't asked for an artifact, and from partial saves", async () => {
+  it("keeps the artifacts a reply declared, and saves a reply without a declaration as files only", async () => {
     const { service, registrar, bootstraps } = setup();
-    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: { artifacts: [] } });
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "reply", context: { ticketId: "t-1" } } });
+    const manifest = { artifacts: [{ title: "PGS10 results", entrypoint: "pgs10/index.html" }] };
+
+    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: manifest });
+    expect(registrar.fromDeclaration).toHaveBeenCalledWith(manifest, [], expect.objectContaining({ ticketId: "t-1", jobId: "job-1" }));
+
+    registrar.fromDeclaration.mockClear();
+    const saved = await service.checkpoint("job-2", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: null });
+    expect(registrar.fromDeclaration).not.toHaveBeenCalled();
+    expect(saved).toMatchObject({ artifacts: [], artifactError: null });
+  });
+
+  it("ignores declarations from partial saves", async () => {
+    const { service, registrar, bootstraps } = setup();
     bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "code" } });
     await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: true, artifactManifest: { artifacts: [] } });
     expect(registrar.fromDeclaration).not.toHaveBeenCalled();

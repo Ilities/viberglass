@@ -14,3 +14,16 @@ export function repositoryWebUrl(repository: string): string | null {
   const [first] = repository.split('/')
   return first.includes('.') ? `https://${repository.replace(/\.git$/, '')}` : null
 }
+
+/** GitHub's new fine-grained token form, prefilled with what the agent needs (push a branch, open a PR). */
+export function gitHubTokenUrl(repository: string): string {
+  const params = new URLSearchParams({
+    name: 'Viberglass',
+    description: 'Lets Viberglass agents push branches and open pull requests',
+    contents: 'write',
+    pull_requests: 'write',
+  })
+  const owner = /^(?:https?:\/\/)?(?:www\.)?(?:git@)?(?:github\.com[/:])?([A-Za-z0-9_.-]+)\/[A-Za-z0-9_.-]+/.exec(repository.trim())?.[1]
+  if (owner) params.set('target_name', owner)
+  return `https://github.com/settings/personal-access-tokens/new?${params.toString()}`
+}

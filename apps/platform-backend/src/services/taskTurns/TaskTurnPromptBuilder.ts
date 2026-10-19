@@ -68,7 +68,9 @@ export class TaskTurnPromptBuilder {
         addedTo: building ? (context.parts.addedTo ?? undefined) : undefined,
         continuesPullRequest: flag(building && Boolean(ticket.pullRequestUrl)),
         createArtifact: flag(creatingArtifact),
-        taskArtifacts: creatingArtifact && artifacts.length > 0 ? formatArtifacts(artifacts) : undefined,
+        // A reply or plan in a Files space may make the deliverable too; only a build must.
+        mayDeclareArtifact: flag(filesSpace && (action === "reply" || action === "plan")),
+        taskArtifacts: filesSpace && action !== "summarise" && artifacts.length > 0 ? formatArtifacts(artifacts) : undefined,
         pullRequestUrl: ticket.pullRequestUrl ?? undefined,
         reply: flag(action === "reply"),
         summarise: flag(action === "summarise"),

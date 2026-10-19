@@ -7,7 +7,9 @@ import type {
   IntegrationCredentialDAO,
   ProjectIntegrationLinkDAO,
 } from "../../persistence/integrations";
+import { RepositoryAccessError, type RepositoryRef } from "@viberglass/integration-core";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
+import type { SecretResolutionService } from "../../services/SecretResolutionService";
 import {
   validateProjectScmConfig,
   validateUuidParam,
@@ -19,7 +21,23 @@ interface Dependencies {
   projectScmConfigDAO: ProjectScmConfigDAO;
   projectIntegrationLinkDAO: Pick<ProjectIntegrationLinkDAO, "isLinked">;
   integrationDAO: Pick<IntegrationDAO, "getIntegration">;
-  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">;
+  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById" | "getDefaultForIntegration">;
+  secrets: Pick<SecretResolutionService, "resolveSecretValue">;
+}
+
+/** Why the code host refused the token for the repository, or null when it can push there. */
+async function accessRefusal(
+  checkAccess: (ref: RepositoryRef, token: string) => Promise<unknown>,
+  ref: RepositoryRef,
+  token: string,
+): Promise<string | null> {
+  try {
+    await checkAccess(ref, token);
+    return null;
+  } catch (error) {
+    if (error instanceof RepositoryAccessError) return error.message;
+    throw error;
+  }
 }
 
 const normalizeOptionalString = (value?: string | null): string | null => {
@@ -36,6 +54,7 @@ export function registerProjectScmRoutes(
     projectIntegrationLinkDAO,
     integrationDAO,
     integrationCredentialDAO,
+    secrets,
   }: Dependencies,
 ): void {
   router.get(
@@ -110,9 +129,23 @@ export function registerProjectScmRoutes(
           });
         }
 
+        // Saved the way setup saves it, as the host's own URL, so everything that reads it later agrees.
+        const host = plugin.repository;
+        const sourceRef = host?.parseRepository(body.sourceRepository) ?? null;
+        const pullRequestInput = normalizeOptionalString(body.pullRequestRepository);
+        const pullRequestRef = host && pullRequestInput ? host.parseRepository(pullRequestInput) : null;
+        if (host && (!sourceRef || (pullRequestInput && !pullRequestRef))) {
+          return res.status(400).json({
+            error: "Enter the repository as owner/name or its URL",
+          });
+        }
+        const sourceRepository = sourceRef?.url ?? body.sourceRepository.trim();
+        const pullRequestRepository = pullRequestRef?.url ?? pullRequestInput;
+
         // Validate integration credential if provided
+        let credential = null;
         if (body.integrationCredentialId) {
-          const credential = await integrationCredentialDAO.getById(
+          credential = await integrationCredentialDAO.getById(
             body.integrationCredentialId,
           );
           if (!credential) {
@@ -128,13 +161,19 @@ export function registerProjectScmRoutes(
           }
         }
 
+        // The token runs will use, checked the way setup checks it, so a token that can't push fails here rather than mid-run.
+        credential ??= await integrationCredentialDAO.getDefaultForIntegration(body.integrationId);
+        if (host && sourceRef && credential?.credentialType === "token") {
+          const token = (await secrets.resolveSecretValue(credential.secretId))?.trim();
+          const refused = token ? await accessRefusal(host.checkAccess.bind(host), sourceRef, token) : null;
+          if (refused) return res.status(422).json({ error: refused });
+        }
+
         const saved = await projectScmConfigDAO.upsertByProjectId(projectId, {
           integrationId: body.integrationId,
-          sourceRepository: body.sourceRepository.trim(),
+          sourceRepository,
           baseBranch: body.baseBranch?.trim() || "main",
-          pullRequestRepository: normalizeOptionalString(
-            body.pullRequestRepository,
-          ),
+          pullRequestRepository,
           pullRequestBaseBranch: normalizeOptionalString(
             body.pullRequestBaseBranch,
           ),

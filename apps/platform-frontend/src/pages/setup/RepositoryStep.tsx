@@ -2,23 +2,11 @@ import { Button } from '@/components/button'
 import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { SpaceBackingField } from '@/components/space-backing-field'
+import { gitHubTokenUrl } from '@/lib/repositoryAddress'
 import { saveRepository } from '@/service/api/setup-api'
 import type { RepositoryAccess, SpaceBackingKind } from '@viberglass/types'
 import { useState } from 'react'
 import { ExternalLink, SetupError, SetupFrame } from './SetupFrame'
-
-/** GitHub's new fine-grained token form, prefilled with what the agent needs (push a branch, open a PR). */
-export function gitHubTokenUrl(repository: string): string {
-  const params = new URLSearchParams({
-    name: 'Viberglass',
-    description: 'Lets Viberglass agents push branches and open pull requests',
-    contents: 'write',
-    pull_requests: 'write',
-  })
-  const owner = /^(?:https?:\/\/)?(?:www\.)?(?:git@)?(?:github\.com[/:])?([A-Za-z0-9_.-]+)\/[A-Za-z0-9_.-]+/.exec(repository.trim())?.[1]
-  if (owner) params.set('target_name', owner)
-  return `https://github.com/settings/personal-access-tokens/new?${params.toString()}`
-}
 
 export function RepositoryStep({ onDone, onChooseFiles }: { onDone: (repository: RepositoryAccess) => void; onChooseFiles: () => void }) {
   const [backingKind, setBackingKind] = useState<SpaceBackingKind>('git')

@@ -41,6 +41,7 @@ import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipService";
 import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
+import { SecretResolutionService } from "../../services/SecretResolutionService";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
@@ -299,7 +300,7 @@ router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req,
 
 registerProjectReadinessRoutes(router, projectReadinessService);
 
-registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectIntegrationLinkDAO, integrationDAO, integrationCredentialDAO });
+registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectIntegrationLinkDAO, integrationDAO, integrationCredentialDAO, secrets: new SecretResolutionService() });
 
 registerProjectPromptRoutes(router, promptTemplateService);
 

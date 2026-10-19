@@ -1,14 +1,14 @@
 import type { PullRequestToOpen } from '@viberglass/integration-core'
 import { isObjectRecord } from '@viberglass/types'
 import { type GitHubApi, type GitHubResponse, restHeaders } from './gitHubApi'
-import { type GitHubRepositoryName, parseGitHubCloneUrl } from './gitHubRepositoryNames'
+import { type GitHubRepositoryName, requireGitHubRepository } from './gitHubRepositoryNames'
 
 const FAILED = 'GitHub PR Creation Failed'
 
 /** Opens the pull request through the REST API; the open one's address when GitHub says the branch already has one. */
 export async function openGitHubPullRequest(api: GitHubApi, pullRequest: PullRequestToOpen, token: string): Promise<string> {
-  const source = parseGitHubCloneUrl(pullRequest.sourceRepository, api.webHost)
-  const destination = parseGitHubCloneUrl(pullRequest.destinationRepository, api.webHost)
+  const source = requireGitHubRepository(pullRequest.sourceRepository, api.webHost)
+  const destination = requireGitHubRepository(pullRequest.destinationRepository, api.webHost)
   const crossRepository = source.owner !== destination.owner || source.repo !== destination.repo
   const ownerHead = `${source.owner}:${pullRequest.head}`
 

@@ -36,6 +36,10 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
     );
   }
 
+  override configuredModel(): string | undefined {
+    return this.resolveModel();
+  }
+
   protected requiresApiKey(): boolean {
     // OpenCode can resolve provider credentials from several env keys.
     return false;

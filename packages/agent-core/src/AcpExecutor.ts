@@ -69,6 +69,9 @@ export class AcpExecutor {
         mcpServers,
       });
 
+      // What the harness says the session runs beats what the runner asked for.
+      const model = result.model ?? result.usage?.model ?? agent.configuredModel();
+
       this.logger.info("AcpExecutor completed", {
         acpSessionId: result.acpSessionId,
         sessionStart: result.sessionStart,
@@ -83,7 +86,8 @@ export class AcpExecutor {
         acpSessionStart: result.sessionStart,
         acpContextUsage: result.contextUsage,
         acpCompacted: result.compacted,
-        usage: result.usage && { ...result.usage, model: result.usage.model ?? agent.configuredModel() },
+        usage: result.usage && { ...result.usage, model: model ?? result.usage.model },
+        model,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

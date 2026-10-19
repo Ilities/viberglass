@@ -118,6 +118,8 @@ export interface ExecutionResult {
    * recorded as such rather than estimated. See {@link AgentUsageReport}.
    */
   usage?: AgentUsageReport;
+  /** The model the run used, for a run whose harness named it without reporting usage. */
+  model?: string;
   /**
    * SHA-256 of the fully assembled prompt, for the run manifest.
    *

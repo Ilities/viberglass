@@ -16,6 +16,13 @@ const mockProjectIntegrationLinkDAO = {
 const mockIntegrationDAO = {
   getIntegration: jest.fn(),
 };
+const mockIntegrationCredentialDAO = {
+  getById: jest.fn(),
+  getDefaultForIntegration: jest.fn(),
+};
+const mockSecrets = {
+  resolveSecretValue: jest.fn(),
+};
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: (
     _req: express.Request,
@@ -46,6 +53,14 @@ jest.mock("../../../../persistence/integrations/IntegrationDAO", () => ({
   IntegrationDAO: jest.fn(() => mockIntegrationDAO),
 }));
 
+jest.mock("../../../../persistence/integrations/IntegrationCredentialDAO", () => ({
+  IntegrationCredentialDAO: jest.fn(() => mockIntegrationCredentialDAO),
+}));
+
+jest.mock("../../../../services/SecretResolutionService", () => ({
+  SecretResolutionService: jest.fn(() => mockSecrets),
+}));
+
 import projectsRouter from "../../../../api/routes/projects";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -57,6 +72,7 @@ describe("project SCM config routes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockProjectDAO.updateProject.mockResolvedValue({ id: PROJECT_ID });
+    mockIntegrationCredentialDAO.getDefaultForIntegration.mockResolvedValue(null);
     app = express();
     app.use(express.json());
     app.use("/api/spaces", projectsRouter);
@@ -252,6 +268,67 @@ describe("project SCM config routes", () => {
       success: true,
       data: savedConfig,
     });
+  });
+
+  it("saves repositories as the host's URL, the way setup does", async () => {
+    mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
+    mockIntegrationDAO.getIntegration.mockResolvedValue({ id: INTEGRATION_ID, system: "github" });
+    mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(true);
+    mockProjectScmConfigDAO.upsertByProjectId.mockResolvedValue({});
+
+    await request(app)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
+      .send({
+        integrationId: INTEGRATION_ID,
+        sourceRepository: "https://github.com/acme/repo/",
+        pullRequestRepository: "acme/upstream.git",
+      })
+      .expect(200);
+
+    expect(mockProjectScmConfigDAO.upsertByProjectId).toHaveBeenCalledWith(
+      PROJECT_ID,
+      expect.objectContaining({
+        sourceRepository: "https://github.com/acme/repo",
+        pullRequestRepository: "https://github.com/acme/upstream",
+      }),
+    );
+  });
+
+  it("returns 422 for PUT when the code host refuses the token runs would use", async () => {
+    mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
+    mockIntegrationDAO.getIntegration.mockResolvedValue({ id: INTEGRATION_ID, system: "github" });
+    mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(true);
+    mockIntegrationCredentialDAO.getDefaultForIntegration.mockResolvedValue({ credentialType: "token", secretId: "secret-1" });
+    mockSecrets.resolveSecretValue.mockResolvedValue("github_pat_readonly");
+    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ full_name: "acme/repo", html_url: "https://github.com/acme/repo", default_branch: "main", permissions: { pull: true, push: false } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const response = await request(app)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
+      .send({ integrationId: INTEGRATION_ID, sourceRepository: "acme/repo" })
+      .expect(422);
+
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://api.github.com/repos/acme/repo");
+    expect(response.body.error).toEqual(expect.any(String));
+    expect(mockProjectScmConfigDAO.upsertByProjectId).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("returns 400 for PUT when the repository isn't one the host reads", async () => {
+    mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
+    mockIntegrationDAO.getIntegration.mockResolvedValue({ id: INTEGRATION_ID, system: "github" });
+    mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(true);
+
+    await request(app)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
+      .send({ integrationId: INTEGRATION_ID, sourceRepository: "https://gitlab.com/acme/repo" })
+      .expect(400);
+
+    expect(mockProjectScmConfigDAO.upsertByProjectId).not.toHaveBeenCalled();
   });
 
   it("returns 404 for DELETE when project does not exist", async () => {

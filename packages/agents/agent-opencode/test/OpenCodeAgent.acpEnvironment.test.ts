@@ -42,6 +42,13 @@ describe("OpenCodeAgent ACP environment", () => {
     });
   });
 
+  it("names the runner's model for the run's record when OpenCode doesn't", () => {
+    delete process.env.OPENCODE_CONFIG_CONTENT;
+    process.env.OPENCODE_MODEL = "opencode-go/deepseek-v4.1-flash";
+
+    expect(agent().configuredModel()).toBe("opencode-go/deepseek-v4.1-flash");
+  });
+
   it("keeps a model endpoint's provider config and model", () => {
     process.env.OPENCODE_MODEL = "viberglass/qwen";
     process.env.OPENCODE_CONFIG_CONTENT = JSON.stringify({ model: "viberglass/qwen", provider: { viberglass: {} } });

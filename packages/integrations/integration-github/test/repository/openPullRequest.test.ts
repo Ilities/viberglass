@@ -42,6 +42,17 @@ describe('GitHubRepositoryHost.openPullRequest', () => {
     })
   })
 
+  it('reads repository URLs that end in a slash', async () => {
+    const fetchFn = jest.fn().mockResolvedValue(response(201, { html_url: 'https://github.com/acme/web/pull/5' }))
+
+    await host(fetchFn).openPullRequest(
+      { ...samePullRequest, sourceRepository: 'https://github.com/acme/web/', destinationRepository: 'https://github.com/acme/web/' },
+      'tok',
+    )
+
+    expect(fetchFn.mock.calls[0][0]).toBe('https://api.github.com/repos/acme/web/pulls')
+  })
+
   it("opens a fork's pull request against the destination with an owner:branch head", async () => {
     const fetchFn = jest.fn().mockResolvedValue(response(201, { html_url: 'https://github.com/acme/web/pull/6' }))
 

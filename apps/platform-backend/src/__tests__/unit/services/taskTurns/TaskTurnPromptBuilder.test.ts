@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/125_build_writes_pull_request_text";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/127_files_turns_declare_artifacts";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -172,6 +172,16 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).not.toContain("Build it: make the change in the code");
     expect(prompt).not.toContain("Change the code as needed.");
     expect(prompt).toContain("Your working directory holds this space's shared files");
+  });
+
+  it("lets a reply in a Files space declare a deliverable it made, without asking it for one", async () => {
+    const files = await builder.build("p", context(), "reply", false, true, [{ id: "a-1", title: "Q4 deck", entrypoint: "deck/index.html" }]);
+    expect(files.prompt).toContain("If you create or revise a deliverable in the space's files on this turn");
+    expect(files.prompt).toContain('This task\'s artifacts so far: "Q4 deck" (artifactId a-1, opens deck/index.html).');
+    expect(files.prompt).not.toContain("Create the deliverable that was asked for");
+
+    const git = await builder.build("p", context(), "reply", false);
+    expect(git.prompt).not.toContain("artifacts.json");
   });
 
   it("tells a build of some parts to build only those, in a pull request of its own", async () => {

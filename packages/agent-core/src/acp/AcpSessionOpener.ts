@@ -27,7 +27,23 @@ export function sessionSupportOf(initializeResult: unknown): AcpAgentSessionSupp
   return { load: capabilities.loadSession === true, resume: isRecord(sessionCapabilities.resume) };
 }
 
+/**
+ * The model a session runs, from a `session/new`, `load` or `resume` reply: its
+ * model config option, or the older `models.currentModelId`.
+ */
+export function sessionModelOf(result: unknown): string | undefined {
+  if (!isRecord(result)) return undefined;
+  const options = Array.isArray(result.configOptions) ? result.configOptions : [];
+  const option = options.find((o) => isRecord(o) && (o.category === "model" || o.id === "model"));
+  if (isRecord(option) && typeof option.currentValue === "string" && option.currentValue) return option.currentValue;
+  const models = isRecord(result.models) ? result.models : {};
+  return typeof models.currentModelId === "string" && models.currentModelId ? models.currentModelId : undefined;
+}
+
 export class AcpSessionOpener {
+  /** The model the harness said the open session runs, when it says. */
+  model: string | undefined;
+
   constructor(
     private readonly request: Request,
     private readonly cwd: string,
@@ -44,7 +60,9 @@ export class AcpSessionOpener {
     if (!via) return { sessionId: await this.create(), start: { resumed: false, reason: "not_supported" } };
     try {
       this.onReplay(via === "load");
-      await this.request(`session/${via}`, { sessionId: previousSessionId, cwd: this.cwd, mcpServers: this.mcpServers });
+      this.model = sessionModelOf(
+        await this.request(`session/${via}`, { sessionId: previousSessionId, cwd: this.cwd, mcpServers: this.mcpServers }),
+      );
       return { sessionId: previousSessionId, start: { resumed: true, via } };
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -57,6 +75,7 @@ export class AcpSessionOpener {
   /** A fresh session, for a first turn or when the earlier one can't be continued. */
   async create(): Promise<string> {
     const result = await this.request("session/new", { cwd: this.cwd, mcpServers: this.mcpServers });
+    this.model = sessionModelOf(result);
     return isRecord(result) && typeof result.sessionId === "string" ? result.sessionId : "";
   }
 }

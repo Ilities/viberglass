@@ -2,6 +2,7 @@ import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Link } from '@/components/link'
 import { Select } from '@/components/select'
+import { gitHubTokenUrl } from '@/lib/repositoryAddress'
 import type { IntegrationCredential } from '@viberglass/types'
 
 /** A select's "nothing chosen" value: Radix selects can't hold an empty one. */
@@ -78,7 +79,7 @@ export function RepositoryFields(props: RepositoryFieldsProps) {
         <Label>Repository address</Label>
         <Input
           name="source_repository"
-          placeholder="https://github.com/acme/storefront"
+          placeholder="acme/storefront or https://github.com/acme/storefront"
           value={props.repositoryAddress}
           onChange={(event) => props.onRepositoryAddressChange(event.target.value)}
           disabled={!hasCodeHost}
@@ -98,7 +99,13 @@ export function RepositoryFields(props: RepositoryFieldsProps) {
 
       <Field>
         <Label>Access token</Label>
-        <Description>Needs to read the repository and open pull requests.</Description>
+        <Description>
+          Needs to push branches and open pull requests.{' '}
+          <Link href={gitHubTokenUrl(props.repositoryAddress)} target="_blank" rel="noreferrer" className="text-[var(--accent-11)] underline underline-offset-2">
+            Create a token with the right permissions
+          </Link>
+          , choose this repository under Repository access, then add the token to the connection.
+        </Description>
         <Select
           name="integration_credential_id"
           value={props.tokenId}

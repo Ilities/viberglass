@@ -50,9 +50,9 @@ export function parseGitHubPullRequestUrl(url: string, host = 'github.com'): Git
   return match ? { owner: match[1], repo: match[2], number: Number(match[3]) } : null
 }
 
-/** Owner and name from a repository's clone URL on `host`, HTTPS or SSH. */
-export function parseGitHubCloneUrl(repositoryUrl: string, host = 'github.com'): GitHubRepositoryName {
-  const match = repositoryUrl.match(new RegExp(`${escapeHost(host)}[:/]([^/]+)/([^/]+?)(?:\\.git)?$`, 'i'))
-  if (!match) throw new Error(`Could not parse owner/repo from URL: ${repositoryUrl}`)
-  return { owner: match[1], repo: match[2] }
+/** Owner and name from a repository's URL on `host`; throws for anything else. */
+export function requireGitHubRepository(repositoryUrl: string, host = 'github.com'): GitHubRepositoryName {
+  const name = parseGitHubRepository(repositoryUrl, host)
+  if (!name) throw new Error(`Could not parse owner/repo from URL: ${repositoryUrl}`)
+  return name
 }

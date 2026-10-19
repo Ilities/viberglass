@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import {
   isObjectRecord,
-  JOB_KIND,
   type FilesCheckpointRequest,
   type FilesCheckpointResult,
   type FilesStorageGrant,
@@ -308,10 +307,10 @@ export class SpaceFilesRunService {
   }
 }
 
-/** A build turn was asked for an artifact and must declare one; a scheduled run keeps one only when it declares it. */
+/** A build turn was asked for an artifact and must declare one; any other run keeps one only when it declares it. */
 function makesArtifacts(payload: Record<string, unknown>, request: FilesCheckpointRequest): boolean {
   if (payload.turnAction === "code") return true;
-  return payload.jobKind === JOB_KIND.CLAW && (request.artifactManifest != null || Boolean(request.artifactManifestError));
+  return request.artifactManifest != null || Boolean(request.artifactManifestError);
 }
 
 function ticketIdOf(payload: Record<string, unknown>): string | null {

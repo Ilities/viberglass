@@ -51,6 +51,8 @@ export interface AcpRunResult {
   compacted: boolean;
   /** The turn's tokens and cost, when the harness reported them. */
   usage?: AgentUsageReport;
+  /** The model the harness said the session runs, when it said. */
+  model?: string;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -187,7 +189,7 @@ export class AcpClient {
       }
       const compacted = await this.compact(options.compactInstructions);
       if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
-      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report() };
+      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: opener.model };
     } finally {
       this.cleanup();
     }

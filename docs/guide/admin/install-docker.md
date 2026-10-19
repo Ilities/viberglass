@@ -6,7 +6,8 @@ There are two ways to run it with Docker. The first, below, is for trying Viberg
 
 ## Requirements
 
-- Docker Engine 20.10 or newer, with Docker Compose v2. Docker Desktop works on macOS and Windows.
+- Git.
+- Docker Engine 20.10 or newer, with Docker Compose v2. On macOS and Windows, install Docker Desktop. On Linux, install [Docker Engine](https://docs.docker.com/engine/install/) and add your user to the `docker` group ([Linux post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/)), then sign out and back in.
 - Free ports 3000 (the app), 8890 (artifact previews), and 9000 and 9001 (object storage). See [Ports](#ports) to use others.
 - A model key from an AI provider, or the address of a compatible model endpoint.
 - A GitHub repository, and a fine-grained access token for it. Not needed if your first space is a Files space.

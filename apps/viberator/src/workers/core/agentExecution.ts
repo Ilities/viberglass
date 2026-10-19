@@ -179,8 +179,8 @@ function recordAgentResultInManifest(
   const usage = result.usage;
   manifest.usageAvailable = Boolean(usage);
 
+  manifest.modelSnapshot = usage?.model ?? result.model;
   if (usage) {
-    manifest.modelSnapshot = usage.model;
     manifest.harnessVersion = usage.harnessVersion;
     manifest.usage = {
       inputTokens: usage.inputTokens,
@@ -217,4 +217,5 @@ interface ExecutionResultLike {
     model?: string;
     harnessVersion?: string;
   };
+  model?: string;
 }

@@ -55,8 +55,9 @@ const runner: Clanker = {
 function prepare(
   additionalSecretBindings = [{ envVar: "NOTION_TOKEN", secretId: "template-notion" }],
   files?: { env?: Record<string, string>; strategy?: string },
+  scm: ProjectScmConfig = scmConfig,
 ) {
-  const scmConfigs = jest.fn(async () => scmConfig);
+  const scmConfigs = jest.fn(async () => scm);
   const space: Project = files ? { ...project, backingKind: "files" } : project;
   const clanker: Clanker = files?.strategy
     ? { ...runner, deploymentConfig: { ...runner.deploymentConfig!, strategy: { type: files.strategy } } as Clanker["deploymentConfig"] }
@@ -74,6 +75,20 @@ function prepare(
           name: "GitHub token",
           credentialType: "token" as const,
           secretId: "repo-token",
+          secretLocation: "database" as const,
+          isDefault: true,
+          description: null,
+          expiresAt: null,
+          lastUsedAt: null,
+          createdAt: "",
+          updatedAt: "",
+        })),
+        getDefaultForIntegration: jest.fn(async () => ({
+          id: "credential-default",
+          integrationId: "integration-1",
+          name: "GitHub token",
+          credentialType: "token" as const,
+          secretId: "default-token",
           secretLocation: "database" as const,
           isDefault: true,
           description: null,
@@ -133,6 +148,13 @@ describe("a run's secret bindings", () => {
       credentialSecretId: "repo-token",
       credentialEnvVar: SCM_TOKEN_ENV_VAR,
     });
+  });
+
+  it("uses the connection's default token when the space chose none, as pull requests do", async () => {
+    const context = await prepare([], undefined, { ...scmConfig, integrationCredentialId: null });
+
+    expect(buildScmPayloadFromContext(context)).toMatchObject({ credentialSecretId: "default-token" });
+    expect(context.executionClanker.secretBindings).toContainEqual({ envVar: SCM_TOKEN_ENV_VAR, secretId: "default-token" });
   });
 });
 

@@ -102,7 +102,7 @@ export class SessionTurnContinuationService {
       });
       const filesSpace = (await this.deps.projects.getProject(ticket.projectId))?.backingKind === "files";
       // Asked for an artifact, the agent revises the task's existing ones by id.
-      const artifacts = filesSpace && action === "code" ? await this.deps.artifacts.listForTicket(ticket.id) : [];
+      const artifacts = filesSpace && action !== "summarise" ? await this.deps.artifacts.listForTicket(ticket.id) : [];
       const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode, filesSpace, artifacts);
       const job = await this.deps.dispatcher.dispatch(
         {

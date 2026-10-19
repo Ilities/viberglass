@@ -1,6 +1,7 @@
 import * as path from "path";
 import { createLogger, transports } from "winston";
 import { AcpClient } from "../src/acp/AcpClient";
+import { sessionModelOf } from "../src/acp/AcpSessionOpener";
 import type { AcpMcpServer, PlatformSessionEvent } from "../src/acp/types";
 import type { AcpUsageProbe } from "../src/acp/AcpSessionTotalsProbe";
 
@@ -40,6 +41,15 @@ describe("AcpClient sessions", () => {
     expect(result.sessionStart).toEqual({ resumed: false, reason: "first_turn" });
     expect(result.acpSessionId).toBe("sess_new");
     expect(progress).toContain("Started the agent's session");
+  });
+
+  it("reports the model the harness says the session runs", async () => {
+    const started = await runTurn({ AGENT_SUPPORTS: "resume", AGENT_MODEL: "opencode/glm-5" });
+    expect(started.result.model).toBe("opencode/glm-5");
+    const resumed = await runTurn({ AGENT_SUPPORTS: "resume", AGENT_KNOWS: "sess_old", AGENT_MODEL: "opencode/glm-5" }, "sess_old");
+    expect(resumed.result.model).toBe("opencode/glm-5");
+    const silent = await runTurn({ AGENT_SUPPORTS: "" });
+    expect(silent.result.model).toBeUndefined();
   });
 
   it("prefers session/resume, which doesn't replay history", async () => {
@@ -176,5 +186,12 @@ describe("AcpClient sessions", () => {
       expect(result.usage).toMatchObject({ inputTokens: 100, outputTokens: 10 });
       expect(result.usage?.costUsd).toBeCloseTo(0.001);
     });
+  });
+});
+
+describe("sessionModelOf", () => {
+  it("reads the older models field when a harness has no model config option", () => {
+    expect(sessionModelOf({ sessionId: "s", models: { currentModelId: "kimi-k3", availableModels: [] } })).toBe("kimi-k3");
+    expect(sessionModelOf({ sessionId: "s" })).toBeUndefined();
   });
 });

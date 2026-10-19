@@ -64,7 +64,7 @@ export type WorkerInstructionFileReference =
 export interface TicketRunOrchestrationDependencies {
   projectDAO: Pick<ProjectDAO, "getProject">;
   projectScmConfigDAO: Pick<ProjectScmConfigDAO, "getByProjectId">;
-  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">;
+  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById" | "getDefaultForIntegration">;
   clankerDAO: Pick<ClankerDAO, "getClanker" | "updateStatus">;
   provisioningService: Pick<ClankerProvisioner, "resolveAvailabilityStatus">;
   instructionStorageService: Pick<
@@ -151,8 +151,9 @@ function mergeSecretBindings(bindings: SecretBinding[]): SecretBinding[] {
   return Array.from(new Map(bindings.map((binding) => [binding.envVar, binding])).values());
 }
 
+/** The space's chosen token, else its connection's default, the same one pull requests are opened with. */
 async function resolveScmCredentialSecretId(
-  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">,
+  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById" | "getDefaultForIntegration">,
   scmConfig: ProjectScmConfigWithLegacySecret | null,
 ): Promise<string | null> {
   const legacyCredentialSecretId =
@@ -166,7 +167,9 @@ async function resolveScmCredentialSecretId(
 
   const integrationCredentialId = scmConfig?.integrationCredentialId?.trim();
   if (!integrationCredentialId) {
-    return null;
+    if (!scmConfig?.integrationId) return null;
+    const fallback = await integrationCredentialDAO.getDefaultForIntegration(scmConfig.integrationId);
+    return fallback?.credentialType === "token" ? fallback.secretId : null;
   }
 
   const credential = await integrationCredentialDAO.getById(

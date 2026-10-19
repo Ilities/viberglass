@@ -121,7 +121,7 @@ Model deployments: Viberglass can create a GPU container on [Verda](https://verd
 
 ## Quick start
 
-Requires Docker Engine 20.10+ and Docker Compose v2.
+Requires Git, and Docker Engine 20.10+ with Docker Compose v2: Docker Desktop on macOS and Windows, or on Linux [Docker Engine](https://docs.docker.com/engine/install/) with your user [in the `docker` group](https://docs.docker.com/engine/install/linux-postinstall/).
 
 ```bash
 git clone https://github.com/Ilities/viberglass.git
