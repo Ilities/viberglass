@@ -81,8 +81,8 @@ Approve in the GitHub UI:
 
 ### GitHub Secrets
 
-- [ ] `AWS_ROLE_ARN` in each environment (and at repository level for `pulumi-preview.yml`)
-- [ ] `PULUMI_CONFIG_PASSPHRASE`, `PULUMI_PLATFORM_CONFIG_DEV`, `PULUMI_PLATFORM_CONFIG_PROD` for the Pulumi workflows
+- [ ] `AWS_ROLE_ARN` and `PULUMI_ROLE_ARN` at repository level for the dev account, and again in the `prod` environment for the prod account
+- [ ] `PULUMI_CONFIG_PASSPHRASE`, `PULUMI_PLATFORM_CONFIG_DEV`, `PULUMI_PLATFORM_CONFIG_PROD` for the Pulumi workflows; a prod passphrase of its own goes in the `prod` environment
 - [ ] `NPM_TOKEN` for `publish-cli.yml`
 
 ### SSM Parameters Created via Pulumi
@@ -118,12 +118,15 @@ HTML, image and PDF artifacts preview from a host of their own, so the agent's s
 
 | Secret | Scope | Example Value | Source |
 |--------|-------|---------------|--------|
-| `AWS_ROLE_ARN` | `dev`/`prod` environments, repository | `arn:aws:iam::111111111111:role/ViberglassDeployRole` | The OIDC role above |
-| `PULUMI_CONFIG_PASSPHRASE` | repository | the stacks' passphrase | The passphrase the stacks were created with (`encryptionsalt` in `Pulumi.<stack>.yaml`) |
+| `AWS_ROLE_ARN` | repository (dev account), `prod` environment (prod account) | `arn:aws:iam::111111111111:role/viberglass-github-deploy-role` | The deploy role above |
+| `PULUMI_ROLE_ARN` | repository (dev account), `prod` environment (prod account) | `arn:aws:iam::111111111111:role/viberglass-github-pulumi-role` | The Pulumi role above |
+| `PULUMI_CONFIG_PASSPHRASE` | repository, and `prod` environment when prod's differs | the stacks' passphrase | The passphrase the stacks were created with (`encryptionsalt` in `Pulumi.<stack>.yaml`) |
 | `PULUMI_PLATFORM_CONFIG_DEV`, `PULUMI_PLATFORM_CONFIG_PROD` | repository | contents of `infra/platform/Pulumi.<stack>.yaml` | The platform stack's config, which isn't committed |
 | `NPM_TOKEN` | repository | npm automation token | npmjs.com |
 
-The Pulumi workflows (`pulumi-preview.yml`, `pulumi-deploy-dev.yml`, `pulumi-deploy-prod.yml`) use the S3 state backend, `s3://viberglass-pulumi-state` unless the repository variable `PULUMI_BACKEND_URL` names another.
+The Pulumi workflows (`pulumi-preview.yml`, `pulumi-deploy-dev.yml`, `pulumi-deploy-prod.yml`) use the S3 state backend, `s3://viberglass-pulumi-state` unless the variable `PULUMI_BACKEND_URL` names another. Prod lives in an AWS account of its own, so set `PULUMI_BACKEND_URL` in the `prod` environment to its state bucket.
+
+Values in the `prod` environment win over the repository's for the prod workflows. A prod workflow missing one falls back to the dev account's role, which only trusts `dev` and pull requests, so it stops at sign-in rather than deploying to dev.
 
 ### SSM Parameters
 

@@ -48,16 +48,13 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.PULUMI_ROLE_ARN }}
           aws-region: eu-west-1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-
-      - name: Install Pulumi CLI
-        uses: pulumi/setup-pulumi@v3
 
       # The platform stack's config holds account-specific values and isn't committed.
       - name: Write platform stack config

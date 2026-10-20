@@ -8,7 +8,6 @@ The clean-machine run in [testing/e2e-manual/00-clean-machine.md](testing/e2e-ma
 
 ## Installing and running
 
-- Set the Pulumi workflow secrets (see `.github/DEPLOYMENT.md`).
 - OVHcloud: follow the install guide on a managed cluster (CLEAN-21 – CLEAN-23). Run the one-server compose install too (CLEAN-15 – CLEAN-19).
 
 ## Validation still open from the UX review

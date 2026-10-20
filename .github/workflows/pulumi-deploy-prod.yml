@@ -20,10 +20,6 @@ concurrency:
   group: pulumi-deploy-prod
   cancel-in-progress: false
 
-env:
-  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL || 's3://viberglass-pulumi-state' }}
-  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
 jobs:
   deploy:
     name: Deploy Infrastructure to Production
@@ -31,6 +27,11 @@ jobs:
     timeout-minutes: 60
     environment:
       name: prod
+    # Here rather than at the top, so the prod environment's own secrets and
+    # variables (another AWS account, its state bucket) win over the repository's.
+    env:
+      PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL || 's3://viberglass-pulumi-state' }}
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
     steps:
       - name: Checkout repository
@@ -44,16 +45,15 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.PULUMI_ROLE_ARN }}
           aws-region: eu-west-1
+          # Creating the database alone can take most of an hour.
+          role-duration-seconds: 10800
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-
-      - name: Install Pulumi CLI
-        uses: pulumi/setup-pulumi@v3
 
       # The platform stack's config holds account-specific values and isn't committed.
       - name: Write platform stack config

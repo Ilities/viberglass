@@ -1,6 +1,11 @@
 # GitHub Actions IAM role
 
-The AWS workflows authenticate via OIDC (no long-lived credentials) by assuming the role in the `AWS_ROLE_ARN` secret: `deploy-backend-dev`, `deploy-backend-prod`, `deploy-frontend-dev`, `deploy-frontend-prod`, `deploy-viberators`, `pulumi-preview`, `pulumi-deploy-dev` and `pulumi-deploy-prod`. The policy below covers the deploy workflows. The Pulumi workflows run `pulumi preview` and `pulumi up` on the base, workers and platform stacks, so their role also needs to manage every resource those stacks create and to read and write the Pulumi state bucket (`s3://viberglass-pulumi-state` unless `PULUMI_BACKEND_URL` says otherwise); that policy isn't listed here.
+The AWS workflows authenticate via OIDC (no long-lived credentials) with two roles in each AWS account, dev and prod:
+
+- The deploy role, in the `AWS_ROLE_ARN` secret: `deploy-backend-dev`, `deploy-backend-prod`, `deploy-frontend-dev`, `deploy-frontend-prod` and `deploy-viberators`. Its policy is below.
+- The Pulumi role, in the `PULUMI_ROLE_ARN` secret: `pulumi-preview`, `pulumi-deploy-dev` and `pulumi-deploy-prod`. They run `pulumi preview` and `pulumi up` on the base, workers and platform stacks, so the role manages every resource those stacks create and reads and writes the state bucket; attach `AdministratorAccess`. Set its maximum session duration to 3 hours (10800 seconds), which the deploy workflows ask for: creating the database alone can take most of an hour.
+
+The repository-level secrets hold the dev account's roles and the `prod` environment's hold the prod account's.
 
 Replace `<ACCOUNT_ID>` with your AWS account ID and `<REGION>` with the region where your infrastructure is deployed (e.g. `eu-west-1`).
 
@@ -173,5 +178,33 @@ The role's trust policy allows GitHub Actions to assume it via OIDC. Note the tw
     ]
 }
 ```
+
+The Pulumi role trusts narrower subjects, so each account's role only takes jobs meant for it. A job that names a GitHub environment presents it as `repo:<org>/<repo>:environment:<name>`; `pulumi-preview` names none and presents `repo:<org>/<repo>:pull_request`. In the dev account:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": [
+                        "repo:<YOUR_GITHUB_ORG>/<YOUR_REPO>:environment:dev",
+                        "repo:<YOUR_GITHUB_ORG>/<YOUR_REPO>:pull_request"
+                    ]
+                }
+            }
+        }
+    ]
+}
+```
+
+In the prod account, the only subject is `repo:<YOUR_GITHUB_ORG>/<YOUR_REPO>:environment:prod`.
 
 The OIDC provider (`token.actions.githubusercontent.com`) must exist in your AWS account before this trust policy will work. The platform stack creates one (`<env>-viberglass-github-oidc`), together with a narrower role that can only read Amplify and SSM, exported as `amplifyOidcRoleArn`. That role isn't enough for these workflows; the role described here is created separately.
