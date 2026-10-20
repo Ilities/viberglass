@@ -27,6 +27,10 @@ export class GitHubRepositoryHost implements RepositoryHost {
     }
   }
 
+  get webHost(): string {
+    return this.api.webHost
+  }
+
   parseRepository(input: string): RepositoryRef | null {
     const name = parseGitHubRepository(input, this.api.webHost)
     if (!name) return null

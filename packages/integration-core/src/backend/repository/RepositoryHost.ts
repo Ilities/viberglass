@@ -27,6 +27,8 @@ export interface PullRequestToOpen {
 export interface RepositoryHost {
   /** The username git sends with the connection's token over HTTPS. */
   readonly gitUsername: string
+  /** Where people browse its repositories, such as "github.com". */
+  readonly webHost: string
   /** Null when the input isn't a repository on this host. */
   parseRepository(input: string): RepositoryRef | null
   /** Throws RepositoryAccessError when the token can't read the repository or push to it. */

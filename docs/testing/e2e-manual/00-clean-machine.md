@@ -6,7 +6,7 @@ Can a stranger get from the README to a merged pull request without help? Every 
 
 - [Rules](#rules)
 - [Known issues](#known-issues)
-- [Local Docker (CLEAN-01 – CLEAN-06)](#local-docker-clean-01--clean-06)
+- [Local Docker (CLEAN-01 – CLEAN-05)](#local-docker-clean-01--clean-05)
 - [First pull requests on real repositories (CLEAN-10 – CLEAN-14)](#first-pull-requests-on-real-repositories-clean-10--clean-14)
 - [One server with Docker Compose (CLEAN-15 – CLEAN-19)](#one-server-with-docker-compose-clean-15--clean-19)
 - [Kubernetes (CLEAN-20 – CLEAN-23)](#kubernetes-clean-20--clean-23)
@@ -32,9 +32,8 @@ Record whether each still holds.
 - Password reset only logs the request; resets are admin-issued links.
 - No visuals. The docs have no diagram or screenshots; a demo video or GIF and screenshots are needed.
 - License loose ends. `apps/platform-frontend/LICENSE.md` is an unfilled Apache 2.0 template. If it's there for vendored components (`components/ai-elements` comes from Vercel's Apache-licensed AI Elements), move it next to them with a notice saying what it covers. Otherwise remove it. The app has no link to its source; AGPL section 13 asks a modified version to offer one to its network users, so a "Source" link (e.g. in the user menu) makes that easy for people who fork it.
-- `security@viberglass.io` is the reporting address in SECURITY.md. Send it a test mail before launch.
 
-## Local Docker (CLEAN-01 – CLEAN-06)
+## Local Docker (CLEAN-01 – CLEAN-05)
 
 Run on at least Linux and macOS (Apple silicon). Windows with WSL 2 if you want to claim it.
 
@@ -70,12 +69,6 @@ Expect: the revision addresses the comment; the PR exists and its diff matches t
 2. Wait for the task to close (up to about an hour; the merge is picked up by a periodic check).
 
 Expect: the task shows as done. Record how long it took, and whether anything told you to expect the wait.
-
-### CLEAN-06 · Stop and start again
-1. `docker compose down`, then `docker compose up -d`.
-2. Upgrade as the docs say: `git pull`, `docker compose pull`, `docker compose up -d`.
-
-Expect: data survives; migrations run without prompts; the default agent still works.
 
 ## First pull requests on real repositories (CLEAN-10 – CLEAN-14)
 

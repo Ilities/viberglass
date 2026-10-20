@@ -1,0 +1,217 @@
+# Installs a release from its published images, the way the install guides do,
+# and runs the platform smoke (infra/kubernetes/scripts/platformSmoke.py) against
+# it with the fake agent, so no model key is needed:
+#
+#   compose     docker-compose.prod.yml with Caddy and HTTPS on localhost. Upgrades
+#               from the previous release when there is one, then stops and starts
+#               the stack, signing in again each time with the account made first.
+#   kubernetes  the Helm chart on kind, through infra/kubernetes/scripts/local.py.
+#
+# The fake agent's image isn't published; both jobs build it on the release's
+# published base worker image, which is all it adds to.
+name: Install Smoke
+
+on:
+  workflow_run:
+    workflows: ["Publish Platform Images (GHCR)"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to install, such as v1.2.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Find the release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'release' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    # The worker images publish separately and take longer than the platform's.
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      previous: ${{ steps.plan.outputs.previous }}
+      registry: ${{ steps.plan.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: plan
+        env:
+          # A release's workflow_run carries its tag as the branch.
+          VERSION: ${{ inputs.version || github.event.workflow_run.head_branch }}
+        run: |
+          git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null || { echo "No tag $VERSION"; exit 1; }
+          previous=$(git describe --tags --abbrev=0 --match 'v*' "$VERSION^" 2>/dev/null || true)
+          {
+            echo "version=$VERSION"
+            echo "previous=$previous"
+            echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Installing $VERSION${previous:+, upgrading from $previous}"
+
+      - name: Wait for the release's base worker image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/viberator-base-worker:${{ steps.plan.outputs.version }}
+        run: |
+          image="${IMAGE,,}"
+          until docker buildx imagetools inspect "$image" >/dev/null 2>&1; do
+            echo "Waiting for $image"
+            sleep 60
+          done
+
+  compose:
+    name: Docker Compose
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      PREVIOUS: ${{ needs.plan.outputs.previous }}
+      REGISTRY: ${{ needs.plan.outputs.registry }}
+      COMPOSE: docker compose -f docker-compose.prod.yml --profile https
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.version }}
+          fetch-depth: 0
+
+      # The release's smoke drives every step, the previous release's install too.
+      - name: Keep the smoke script
+        run: |
+          SMOKE="$RUNNER_TEMP/smoke"
+          echo "SMOKE=$SMOKE" >> "$GITHUB_ENV"
+          mkdir -p "$SMOKE"
+          cp infra/kubernetes/scripts/platformSmoke.py infra/kubernetes/scripts/gitFixture.cjs "$SMOKE/"
+
+      - name: Build the fake agent image
+        run: |
+          docker build -f infra/workers/docker/generated/fake.Dockerfile \
+            --build-arg BASE_IMAGE="$REGISTRY/viberator-base-worker:$VERSION" \
+            -t viberator-worker-fake:local .
+
+      - name: Configure
+        run: |
+          cat > .env <<EOF
+          VIBERGLASS_URL=https://localhost
+          VIBERGLASS_DOMAIN=localhost
+          VIBERGLASS_PREVIEW_URL=
+          VIBERGLASS_PREVIEW_DOMAIN=
+          DB_PASSWORD=$(openssl rand -hex 32)
+          SECRETS_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          WEBHOOK_SECRET_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          VIBERGLASS_REGISTRY=$REGISTRY
+          VIBERGLASS_VERSION=${PREVIOUS:-$VERSION}
+          VIBERATOR_WORKER_REGISTRY=$REGISTRY
+          VIBERATOR_WORKER_IMAGE_TAG=${PREVIOUS:-$VERSION}
+          EOF
+          cat > "$SMOKE/wait.sh" <<'EOF'
+          # Until the app answers through Caddy, then trust Caddy's local certificate authority.
+          for _ in $(seq 1 90); do
+            curl -skf https://localhost/api/auth/setup-status >/dev/null && break
+            sleep 2
+          done
+          curl -skf https://localhost/api/auth/setup-status >/dev/null
+          $COMPOSE cp caddy:/data/caddy/pki/authorities/local/root.crt "$SMOKE/caddy-root.crt"
+          EOF
+
+      - name: Install the previous release
+        if: env.PREVIOUS != ''
+        run: |
+          git checkout "$PREVIOUS"
+          $COMPOSE up -d
+          bash "$SMOKE/wait.sh"
+          # Only an account: the previous release's behaviour isn't under test, its data surviving is.
+          python3 - <<'EOF'
+          import json, os, secrets, ssl, urllib.request
+          account = {"email": "install-smoke@example.com", "name": "Install Smoke", "password": secrets.token_urlsafe(24)}
+          path = os.path.join(os.environ["SMOKE"], "credentials.json")
+          with open(path, "w") as file: json.dump(account, file)
+          context = ssl.create_default_context(cafile=os.path.join(os.environ["SMOKE"], "caddy-root.crt"))
+          request = urllib.request.Request("https://localhost/api/auth/register", data=json.dumps(account).encode(),
+                                           headers={"Content-Type": "application/json"}, method="POST")
+          urllib.request.urlopen(request, context=context, timeout=30)
+          EOF
+          git checkout "$VERSION"
+          sed -i "s/^VIBERGLASS_VERSION=.*/VIBERGLASS_VERSION=$VERSION/; s/^VIBERATOR_WORKER_IMAGE_TAG=.*/VIBERATOR_WORKER_IMAGE_TAG=$VERSION/" .env
+
+      - name: Install the release
+        run: |
+          $COMPOSE pull
+          $COMPOSE up -d
+          bash "$SMOKE/wait.sh"
+
+      - name: Smoke
+        run: |
+          SSL_CERT_FILE="$SMOKE/caddy-root.crt" python3 "$SMOKE/platformSmoke.py" --runner docker \
+            --api-url https://localhost --credentials "$SMOKE/credentials.json"
+
+      - name: Stop, start and smoke again
+        run: |
+          $COMPOSE down
+          $COMPOSE up -d
+          bash "$SMOKE/wait.sh"
+          SSL_CERT_FILE="$SMOKE/caddy-root.crt" python3 "$SMOKE/platformSmoke.py" --runner docker \
+            --api-url https://localhost --credentials "$SMOKE/credentials.json"
+
+      - name: Logs
+        if: failure()
+        run: $COMPOSE logs --no-color --tail 300
+
+  kubernetes:
+    name: Kubernetes (kind)
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      REGISTRY: ${{ needs.plan.outputs.registry }}
+      KUBECONFIG: /tmp/viberglass-local.kubeconfig
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.version }}
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
+          sudo install kind /usr/local/bin/kind
+
+      # local.py installs the images it finds under these names instead of building them.
+      - name: Fetch the release's images
+        run: |
+          docker pull "$REGISTRY/viberglass-backend:$VERSION"
+          docker pull "$REGISTRY/viberglass-frontend:$VERSION"
+          docker tag "$REGISTRY/viberglass-backend:$VERSION" viberglass-k8s-backend:local
+          docker tag "$REGISTRY/viberglass-frontend:$VERSION" viberglass-k8s-frontend:local
+          docker build -f infra/workers/docker/generated/fake.Dockerfile \
+            --build-arg BASE_IMAGE="$REGISTRY/viberator-base-worker:$VERSION" \
+            -t viberator-worker-fake:local .
+
+      - name: Install
+        run: python3 infra/kubernetes/scripts/local.py --skip-build --agent fake
+
+      - name: Smoke
+        run: |
+          kubectl -n viberglass port-forward svc/viberglass-frontend 3100:80 >/tmp/port-forward.log 2>&1 &
+          # Media downloads are signed for the bundled MinIO at localhost:39000.
+          kubectl -n viberglass port-forward svc/viberglass-minio 39000:9000 >/tmp/port-forward-minio.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:3100/api/auth/setup-status >/dev/null && break
+            sleep 2
+          done
+          python3 infra/kubernetes/scripts/platformSmoke.py
+
+      - name: Logs
+        if: failure()
+        run: |
+          kubectl get pods -A
+          kubectl -n viberglass logs deploy/viberglass-backend --tail 300 || true

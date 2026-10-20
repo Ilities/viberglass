@@ -7,10 +7,12 @@ import fs from "fs";
 import { PassThrough } from "stream";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { JobDispatchStateDAO } from "../../persistence/job/JobDispatchStateDAO";
 import { AgentLoginService } from "../../services/agentLogin/AgentLoginService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
 import { dockerJobContainerName } from "./dockerJobContainerName";
+import { dockerStatusCode } from "./dockerStatusCode";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
@@ -54,7 +56,10 @@ export class DockerInvoker implements WorkerInvoker {
   private secretResolutionService: SecretResolutionService;
   private logins = new AgentLoginService();
 
-  constructor(config?: { socketPath?: string; host?: string; port?: number }) {
+  constructor(
+    config?: { socketPath?: string; host?: string; port?: number },
+    private readonly dispatchState: Pick<JobDispatchStateDAO, "getStatus"> = new JobDispatchStateDAO(),
+  ) {
     this.docker = new Docker({
       socketPath: config?.socketPath || "/var/run/docker.sock",
       host: config?.host,
@@ -96,6 +101,11 @@ export class DockerInvoker implements WorkerInvoker {
         "Docker container image required in clanker deploymentConfig",
         ErrorClassification.PERMANENT,
       );
+    }
+
+    const status = await this.dispatchState.getStatus(job.id);
+    if (status !== "queued" && status !== "active") {
+      throw new WorkerError("Run is no longer dispatchable", ErrorClassification.PERMANENT);
     }
 
     const payload = job.bootstrapPayload || this.buildPayload(job, clanker, project);
@@ -214,6 +224,7 @@ export class DockerInvoker implements WorkerInvoker {
         image: dockerConfig.containerImage,
         payloadMode: canUseJobRef ? "job-ref" : "inline",
       });
+      await this.stopIfCancelled(container, job.id);
 
       void this.streamContainerLogs(
         container,
@@ -226,8 +237,22 @@ export class DockerInvoker implements WorkerInvoker {
         workerType: "docker",
       };
     } catch (error) {
+      if (error instanceof WorkerError) throw error;
       throw this.classifyError(error);
     }
+  }
+
+  /** Cancelling while the run was dispatched found no container to stop; stop the one just started. */
+  private async stopIfCancelled(container: Docker.Container, jobId: string): Promise<void> {
+    if ((await this.dispatchState.getStatus(jobId)) !== "cancelled") return;
+    try {
+      await container.stop({ t: 0 });
+    } catch (error) {
+      // Already stopped (304) or gone (404).
+      const statusCode = dockerStatusCode(error);
+      if (statusCode !== 304 && statusCode !== 404) throw error;
+    }
+    throw new WorkerError("Run was cancelled during dispatch", ErrorClassification.PERMANENT);
   }
 
   private classifyError(error: unknown): WorkerError {

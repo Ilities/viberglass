@@ -318,17 +318,41 @@ describe("project SCM config routes", () => {
     fetchSpy.mockRestore();
   });
 
-  it("returns 400 for PUT when the repository isn't one the host reads", async () => {
+  it("returns 400 for PUT when an address on the host isn't a repository", async () => {
     mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
     mockIntegrationDAO.getIntegration.mockResolvedValue({ id: INTEGRATION_ID, system: "github" });
     mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(true);
 
-    await request(app)
-      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
-      .send({ integrationId: INTEGRATION_ID, sourceRepository: "https://gitlab.com/acme/repo" })
-      .expect(400);
+    for (const sourceRepository of ["https://github.com/acme", "acme", "ftp://example.com/acme/repo"]) {
+      await request(app)
+        .put(`/api/spaces/${PROJECT_ID}/scm-config`)
+        .send({ integrationId: INTEGRATION_ID, sourceRepository })
+        .expect(400);
+    }
 
     expect(mockProjectScmConfigDAO.upsertByProjectId).not.toHaveBeenCalled();
+  });
+
+  it("saves an address on another server as given, without asking the host about it", async () => {
+    mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
+    mockIntegrationDAO.getIntegration.mockResolvedValue({ id: INTEGRATION_ID, system: "github" });
+    mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(true);
+    mockIntegrationCredentialDAO.getDefaultForIntegration.mockResolvedValue({ credentialType: "token", secretId: "secret-1" });
+    mockProjectScmConfigDAO.upsertByProjectId.mockResolvedValue({});
+    const fetchSpy = jest.spyOn(global, "fetch");
+
+    await request(app)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
+      .send({ integrationId: INTEGRATION_ID, sourceRepository: " http://git.internal:39101/fixture.git " })
+      .expect(200);
+
+    expect(mockProjectScmConfigDAO.upsertByProjectId).toHaveBeenCalledWith(
+      PROJECT_ID,
+      expect.objectContaining({ sourceRepository: "http://git.internal:39101/fixture.git" }),
+    );
+    expect(mockSecrets.resolveSecretValue).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
   it("returns 404 for DELETE when project does not exist", async () => {

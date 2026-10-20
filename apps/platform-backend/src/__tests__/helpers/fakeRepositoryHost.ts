@@ -4,6 +4,7 @@ import type { RepositoryHost } from "@viberglass/integration-core";
 export function fakeRepositoryHost() {
   return {
     gitUsername: "x-token",
+    webHost: "github.com",
     parseRepository: jest.fn(),
     checkAccess: jest.fn(),
     openPullRequest: jest.fn(),

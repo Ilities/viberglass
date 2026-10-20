@@ -155,6 +155,8 @@ Run it against a disposable installation with both port forwards active. It crea
 
 The check validates strategy activation, credential bootstrap, media upload/download, plan persistence, session continuation in a different Pod, and cancellation during execution and dispatch. It needs no paid model key and does not push to external repositories.
 
+With `--runner docker --api-url <address>` it checks a Docker Compose install instead, with agents as containers and the Git fixture as a container on the Docker bridge (`--fixture-host`, 172.17.0.1 by default). `install-smoke.yml` runs both against each release.
+
 These local checks don't cover OVHcloud provisioning, provider storage and networking, paid models, network policy enforcement or backup restoration.
 
 ## Installer and upgrade regression checks

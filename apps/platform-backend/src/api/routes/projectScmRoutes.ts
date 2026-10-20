@@ -7,7 +7,7 @@ import type {
   IntegrationCredentialDAO,
   ProjectIntegrationLinkDAO,
 } from "../../persistence/integrations";
-import { RepositoryAccessError, type RepositoryRef } from "@viberglass/integration-core";
+import { RepositoryAccessError, type RepositoryHost, type RepositoryRef } from "@viberglass/integration-core";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import type { SecretResolutionService } from "../../services/SecretResolutionService";
 import {
@@ -38,6 +38,31 @@ async function accessRefusal(
     if (error instanceof RepositoryAccessError) return error.message;
     throw error;
   }
+}
+
+function isOtherServerUrl(input: string, webHost: string): boolean {
+  try {
+    const url = new URL(input);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.host.replace(/^www\./, "") !== webHost;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The address to save: the host's own URL for one of its repositories, or a full
+ * address on another server as typed (a mirror, a test fixture), which runs clone
+ * but the host can't check. Null for anything else.
+ */
+function readRepository(
+  host: RepositoryHost | undefined,
+  input: string,
+): { url: string; ref: RepositoryRef | null } | null {
+  const trimmed = input.trim();
+  if (!host) return { url: trimmed, ref: null };
+  const ref = host.parseRepository(trimmed);
+  if (ref) return { url: ref.url, ref };
+  return isOtherServerUrl(trimmed, host.webHost) ? { url: trimmed, ref: null } : null;
 }
 
 const normalizeOptionalString = (value?: string | null): string | null => {
@@ -131,16 +156,16 @@ export function registerProjectScmRoutes(
 
         // Saved the way setup saves it, as the host's own URL, so everything that reads it later agrees.
         const host = plugin.repository;
-        const sourceRef = host?.parseRepository(body.sourceRepository) ?? null;
+        const source = readRepository(host, body.sourceRepository);
         const pullRequestInput = normalizeOptionalString(body.pullRequestRepository);
-        const pullRequestRef = host && pullRequestInput ? host.parseRepository(pullRequestInput) : null;
-        if (host && (!sourceRef || (pullRequestInput && !pullRequestRef))) {
+        const pullRequest = pullRequestInput ? readRepository(host, pullRequestInput) : null;
+        if (!source || (pullRequestInput && !pullRequest)) {
           return res.status(400).json({
             error: "Enter the repository as owner/name or its URL",
           });
         }
-        const sourceRepository = sourceRef?.url ?? body.sourceRepository.trim();
-        const pullRequestRepository = pullRequestRef?.url ?? pullRequestInput;
+        const sourceRepository = source.url;
+        const pullRequestRepository = pullRequest?.url ?? null;
 
         // Validate integration credential if provided
         let credential = null;
@@ -163,9 +188,9 @@ export function registerProjectScmRoutes(
 
         // The token runs will use, checked the way setup checks it, so a token that can't push fails here rather than mid-run.
         credential ??= await integrationCredentialDAO.getDefaultForIntegration(body.integrationId);
-        if (host && sourceRef && credential?.credentialType === "token") {
+        if (host && source.ref && credential?.credentialType === "token") {
           const token = (await secrets.resolveSecretValue(credential.secretId))?.trim();
-          const refused = token ? await accessRefusal(host.checkAccess.bind(host), sourceRef, token) : null;
+          const refused = token ? await accessRefusal(host.checkAccess.bind(host), source.ref, token) : null;
           if (refused) return res.status(422).json({ error: refused });
         }
 

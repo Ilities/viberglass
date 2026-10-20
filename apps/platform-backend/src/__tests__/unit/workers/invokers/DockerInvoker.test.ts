@@ -47,17 +47,21 @@ describe("DockerInvoker", () => {
   let mockClanker: Clanker;
   let mockContainer: {
     start: jest.Mock;
+    stop: jest.Mock;
     id: string;
   };
+  const getStatus = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    getStatus.mockResolvedValue("active");
 
-    invoker = new DockerInvoker({ socketPath: "/var/run/docker.sock" });
+    invoker = new DockerInvoker({ socketPath: "/var/run/docker.sock" }, { getStatus });
 
     // Setup mock container
     mockContainer = {
       start: jest.fn().mockResolvedValue(undefined),
+      stop: jest.fn().mockResolvedValue(undefined),
       id: "container-abc123",
     };
 
@@ -363,6 +367,38 @@ describe("DockerInvoker", () => {
         ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
+      });
+    });
+
+    describe("runs cancelled during dispatch", () => {
+      it("doesn't start a run that's no longer queued or active", async () => {
+        getStatus.mockResolvedValue("cancelled");
+
+        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+          classification: ErrorClassification.PERMANENT,
+          message: "Run is no longer dispatchable",
+        });
+        expect(mockCreateContainer).not.toHaveBeenCalled();
+      });
+
+      it("stops the container it just started when the run was cancelled meanwhile", async () => {
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+        getStatus.mockResolvedValueOnce("active").mockResolvedValueOnce("cancelled");
+
+        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+          classification: ErrorClassification.PERMANENT,
+          message: "Run was cancelled during dispatch",
+        });
+        expect(mockContainer.start).toHaveBeenCalled();
+        expect(mockContainer.stop).toHaveBeenCalledWith({ t: 0 });
+      });
+
+      it("counts a container that already stopped or went as stopped", async () => {
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+        getStatus.mockResolvedValueOnce("active").mockResolvedValueOnce("cancelled");
+        mockContainer.stop.mockRejectedValueOnce(Object.assign(new Error("no such container"), { statusCode: 404 }));
+
+        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toThrow("Run was cancelled during dispatch");
       });
     });
 

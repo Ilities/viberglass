@@ -21,6 +21,7 @@ For secret management in depth, see [docs/DEPLOYMENT_SECRETS.md](../docs/DEPLOYM
 | `deploy-viberators.yml` | Push to `main` (worker paths) or manual | Builds the Lambda worker image (on push) or the chosen harness images (manual, `all` for every one) and pushes them to ECR as `latest` and the commit sha |
 | `publish-worker-images.yml` | Push to `main` (worker paths), releases | Worker images to GHCR, amd64 and arm64 |
 | `publish-platform-images.yml` | Push to `main` (app paths), releases | `viberglass-backend` and `viberglass-frontend` images to GHCR, used by `docker-compose.prod.yml` and the Helm chart |
+| `install-smoke.yml` | After `publish-platform-images` on a release, or manual with a tag | Installs the release from its published images with `docker-compose.prod.yml` (upgrading from the previous release, then stopping and starting) and with the Helm chart on kind, and runs `platformSmoke.py` with the fake agent against each |
 | `publish-cli.yml` | `v*` tags or manual | Publishes the `viberglass` CLI to npm |
 | `release-chrome-extension.yml` | `v*` tags | Attaches the built Chrome extension to the release |
 

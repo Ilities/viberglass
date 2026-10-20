@@ -31,6 +31,8 @@ describe('GitHubRepositoryHost.parseRepository', () => {
   it('reads repositories and pull requests on a GitHub Enterprise server, by its API address', () => {
     const enterprise = new GitHubRepositoryHost({ fetch: jest.fn(), apiBaseUrl: 'https://git.acme.dev/api/v3' })
 
+    expect(enterprise.webHost).toBe('git.acme.dev')
+    expect(host.webHost).toBe('github.com')
     expect(enterprise.parseRepository('https://git.acme.dev/acme/web.git')).toEqual({ fullName: 'acme/web', url: 'https://git.acme.dev/acme/web' })
     expect(enterprise.parseRepository('git@git.acme.dev:acme/web.git')).toEqual({ fullName: 'acme/web', url: 'https://git.acme.dev/acme/web' })
     expect(enterprise.parseRepository('acme/web')).toEqual({ fullName: 'acme/web', url: 'https://git.acme.dev/acme/web' })

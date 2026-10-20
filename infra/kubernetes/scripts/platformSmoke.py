@@ -6,8 +6,14 @@ parser.add_argument("--namespace", default="viberglass")
 parser.add_argument("--release", default="viberglass")
 parser.add_argument("--worker-namespace", help="Defaults to the namespace in the installed backend ConfigMap")
 parser.add_argument("--credentials", default="/tmp/viberglass-platform-smoke-credentials.json")
+parser.add_argument("--runner", default="kubernetes", choices=["kubernetes", "docker"],
+ help="docker: a Docker Compose install, whose agents run as containers on this host")
+parser.add_argument("--worker-image", default="viberator-worker-fake:local")
+parser.add_argument("--fixture-host", default="172.17.0.1",
+ help="docker: the address the backend and agent containers reach this host at")
 args = parser.parse_args()
-if not args.worker_namespace:
+kubernetes = args.runner=="kubernetes"
+if kubernetes and not args.worker_namespace:
  config=subprocess.check_output(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.namespace,
   "get","configmap",args.release+"-config","-o","json"],text=True)
  args.worker_namespace=json.loads(config)["data"]["KUBERNETES_WORKER_NAMESPACE"]
@@ -46,17 +52,32 @@ def task_with_media(project_id):
  media=task["screenshot"]
  assert media["url"].startswith(base+"/api/tasks/media/"),media["url"]
  signed=entity("GET",f"/api/tasks/{task['id']}/media/{media['id']}/signed-url")["signedUrl"]
- assert urllib.request.urlopen(signed,timeout=30).read()==content
- print("Browser media upload and signed download passed",flush=True)
+ # Without object storage the media stay on disk and the address is the API's own, behind sign-in.
+ headers={"Authorization":"Bearer "+token} if signed.startswith(base+"/api/") else {}
+ assert urllib.request.urlopen(urllib.request.Request(signed,headers=headers),timeout=30).read()==content
+ print("Browser media upload and download passed",flush=True)
  return task
 
 @contextlib.contextmanager
 def git_fixture():
  name="viberglass-smoke-git-"+secrets.token_hex(3)
+ if not kubernetes:
+  server=pathlib.Path(__file__).with_name("gitFixture.cjs").resolve()
+  subprocess.run(["docker","run","-d","--name",name,"-p",f"{args.fixture_host}:39101:39101","-v",f"{server}:/fixture/server.cjs:ro",
+   "--entrypoint","node",args.worker_image,"/fixture/server.cjs"],check=True,stdout=subprocess.DEVNULL)
+  try:
+   for i in range(60):
+    if subprocess.run(["docker","logs",name],capture_output=True,text=True).stdout.strip(): break
+    time.sleep(1)
+   else: raise RuntimeError("Git fixture did not start")
+   yield f"http://{args.fixture_host}:39101/fixture.git"
+  finally:
+   subprocess.run(["docker","rm","-f",name],check=True,stdout=subprocess.DEVNULL)
+  return
  labels={"app":name}
  resources={"apiVersion":"v1","kind":"List","items":[
   {"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":name,"namespace":args.namespace},"data":{"server.cjs":pathlib.Path(__file__).with_name("gitFixture.cjs").read_text()}},
-  {"apiVersion":"v1","kind":"Pod","metadata":{"name":name,"namespace":args.namespace,"labels":labels},"spec":{"automountServiceAccountToken":False,"containers":[{"name":"git","image":"viberator-worker-fake:local","imagePullPolicy":"IfNotPresent","command":["node","/fixture/server.cjs"],"volumeMounts":[{"name":"fixture","mountPath":"/fixture","readOnly":True}]}],"volumes":[{"name":"fixture","configMap":{"name":name}}]}},
+  {"apiVersion":"v1","kind":"Pod","metadata":{"name":name,"namespace":args.namespace,"labels":labels},"spec":{"automountServiceAccountToken":False,"containers":[{"name":"git","image":args.worker_image,"imagePullPolicy":"IfNotPresent","command":["node","/fixture/server.cjs"],"volumeMounts":[{"name":"fixture","mountPath":"/fixture","readOnly":True}]}],"volumes":[{"name":"fixture","configMap":{"name":name}}]}},
   {"apiVersion":"v1","kind":"Service","metadata":{"name":name,"namespace":args.namespace},"spec":{"selector":labels,"ports":[{"port":39101,"targetPort":39101}]}},
   {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":name,"namespace":args.worker_namespace},"spec":{"podSelector":{"matchLabels":{"app.kubernetes.io/name":"viberglass-worker"}},"policyTypes":["Egress"],"egress":[{"to":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":args.namespace}},"podSelector":{"matchLabels":labels}}],"ports":[{"protocol":"TCP","port":39101}]}]}}
  ]}
@@ -74,11 +95,13 @@ with git_fixture() as repository_url:
   token=api('POST','/api/auth/register',account)['token']
  else: token=api('POST','/api/auth/login',{'email':account['email'],'password':account['password']})['token']
  strategies=entity('GET','/api/deployment-strategies')
- strategy=next(item for item in strategies if item['name']=='kubernetes')
+ strategy=next(item for item in strategies if item['name']==args.runner)
  seclist=entity('GET','/api/secrets')
  secret=next((s for s in seclist if s['name']=='FAKE_API_KEY'),None)
  if not secret: secret=entity('POST','/api/secrets',{'name':'FAKE_API_KEY','secretValue':'offline-smoke-key','secretLocation':'database'})
- runner=entity('POST','/api/clankers',{'name':'Kubernetes Smoke '+str(int(time.time())),'agent':'fake','configFiles':[{'fileType':'AGENTS.md','content':'Use the local fixture repository for the smoke task.'}],'secretBindings':[{'envVar':'FAKE_API_KEY','secretId':secret['id']}],'deploymentStrategyId':strategy['id'],'deploymentConfig':{'version':1,'strategy':{'type':'kubernetes','containerImage':'viberator-worker-fake:local','cpu':'250m','memory':'512Mi'},'agent':{'type':'fake'}}})
+ runner_strategy=({'type':'kubernetes','containerImage':args.worker_image,'cpu':'250m','memory':'512Mi'} if kubernetes
+  else {'type':'docker','provisioningMode':'prebuilt','containerImage':args.worker_image})
+ runner=entity('POST','/api/clankers',{'name':'Platform Smoke '+str(int(time.time())),'agent':'fake','configFiles':[{'fileType':'AGENTS.md','content':'Use the local fixture repository for the smoke task.'}],'secretBindings':[{'envVar':'FAKE_API_KEY','secretId':secret['id']}],'deploymentStrategyId':strategy['id'],'deploymentConfig':{'version':1,'strategy':runner_strategy,'agent':{'type':'fake'}}})
  entity('POST',f"/api/clankers/{runner['id']}/start",{})
  for i in range(60):
   status=entity('GET',f"/api/clankers/{runner['id']}")
@@ -86,9 +109,9 @@ with git_fixture() as repository_url:
   if status['status']=='failed': raise RuntimeError(status['statusMessage'])
   time.sleep(1)
  else: raise RuntimeError('Worker did not activate')
- print('Kubernetes strategy and admission checks passed',flush=True)
+ print(f'{args.runner} runner started',flush=True)
  integration=entity('POST','/api/integrations',{'name':'Smoke GitHub','system':'github','config':{}})
- space=entity('POST','/api/spaces',{'name':'Kubernetes Smoke '+str(int(time.time()))})
+ space=entity('POST','/api/spaces',{'name':'Platform Smoke '+str(int(time.time()))})
  entity('POST',f"/api/integrations/space/{space['id']}/link",{'integrationId':integration['id'],'isPrimary':True})
  entity('PUT',f"/api/spaces/{space['id']}/scm-config",{'integrationId':integration['id'],'sourceRepository':repository_url,'baseBranch':'main'})
  task=task_with_media(space["id"])
@@ -106,22 +129,24 @@ with git_fixture() as repository_url:
  doc=entity('GET',f"/api/tasks/{task['id']}/plan")
  assert 'turn 1' in doc['document']['content'],doc
 
- worker_job="viberglass-"+hashlib.sha256(turn["jobId"].encode()).hexdigest()[:32]
- logs=subprocess.check_output(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.worker_namespace,"logs","job/"+worker_job],text=True)
- bootstrap=[]
- for line in logs.splitlines():
-  try: entry=json.loads(line)
-  except json.JSONDecodeError: continue
-  if isinstance(entry,dict): bootstrap.append(entry)
- assert any(entry.get("instructionFilesLoaded")==1 and entry.get("credentialsFetched")==1 for entry in bootstrap)
+ # Docker removes an agent's container when it finishes, logs and all.
+ if kubernetes:
+  worker_job="viberglass-"+hashlib.sha256(turn["jobId"].encode()).hexdigest()[:32]
+  logs=subprocess.check_output(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.worker_namespace,"logs","job/"+worker_job],text=True)
+  bootstrap=[]
+  for line in logs.splitlines():
+   try: entry=json.loads(line)
+   except json.JSONDecodeError: continue
+   if isinstance(entry,dict): bootstrap.append(entry)
+  assert any(entry.get("instructionFilesLoaded")==1 and entry.get("credentialsFetched")==1 for entry in bootstrap)
  print('First plan and persisted document passed',flush=True)
  turn2=ask(task,'Revise PLAN.md with a second observation')
  result=waitjob(turn2['jobId'])
  if result['status']!='completed': raise RuntimeError(json.dumps(result))
  doc=entity('GET',f"/api/tasks/{task['id']}/plan")
  assert 'turn 2' in doc['document']['content'],doc
- print('Session resumed in a new worker Pod and wrote turn 2',flush=True)
- cancelTask=entity('POST','/api/tasks',{'projectId':space['id'],'title':'Cancel Kubernetes worker','description':'Write PLAN.md. [fake:sleep=60]'})
+ print('Session resumed in a new worker and wrote turn 2',flush=True)
+ cancelTask=entity('POST','/api/tasks',{'projectId':space['id'],'title':'Cancel the worker','description':'Write PLAN.md. [fake:sleep=60]'})
  cancel=ask(cancelTask,'Write the plan')
  for i in range(60):
   status=api('GET',f"/api/jobs/{cancel['jobId']}")
@@ -138,7 +163,11 @@ with git_fixture() as repository_url:
  assert api('GET',f"/api/jobs/{immediate['jobId']}")['status']=='cancelled'
  print('Cancellation during execution and dispatch passed',flush=True)
  for run in [cancel,immediate]:
-  name="viberglass-"+hashlib.sha256(run["jobId"].encode()).hexdigest()[:32]
-  stopped=subprocess.run(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.worker_namespace,"get","job",name],capture_output=True,text=True)
-  assert stopped.returncode!=0 and "NotFound" in stopped.stderr, "Cancelled worker Job still exists"
- print('Platform smoke passed: activation, bootstrap, plan, persisted document, session restore, cancellation', flush=True)
+  if kubernetes:
+   name="viberglass-"+hashlib.sha256(run["jobId"].encode()).hexdigest()[:32]
+   stopped=subprocess.run(["kubectl","--kubeconfig",args.kubeconfig,"-n",args.worker_namespace,"get","job",name],capture_output=True,text=True)
+   assert stopped.returncode!=0 and "NotFound" in stopped.stderr, "Cancelled worker Job still exists"
+  else:
+   stopped=subprocess.run(["docker","inspect","viberator-job-"+run["jobId"]],capture_output=True,text=True)
+   assert stopped.returncode!=0, "Cancelled worker container still exists"
+ print('Platform smoke passed: activation,'+(' bootstrap,' if kubernetes else '')+' plan, persisted document, session restore, cancellation', flush=True)

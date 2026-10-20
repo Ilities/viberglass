@@ -1,17 +1,10 @@
 import Docker from "dockerode";
 import type { WorkerStopper } from "../WorkerStopper";
 import { dockerJobContainerName } from "../invokers/dockerJobContainerName";
+import { dockerStatusCode } from "../invokers/dockerStatusCode";
 
 const NOT_FOUND = 404;
 const NOT_MODIFIED = 304;
-
-function statusCodeOf(error: unknown): number | undefined {
-  if (typeof error === "object" && error !== null && "statusCode" in error) {
-    const { statusCode } = error;
-    return typeof statusCode === "number" ? statusCode : undefined;
-  }
-  return undefined;
-}
 
 /** The part of the Docker API this stopper needs. */
 export interface DockerContainerLookup {
@@ -37,7 +30,7 @@ export class DockerWorkerStopper implements WorkerStopper {
       await this.docker.getContainer(dockerJobContainerName(jobId)).stop({ t: STOP_GRACE_SECONDS });
       return true;
     } catch (error) {
-      const statusCode = statusCodeOf(error);
+      const statusCode = dockerStatusCode(error);
       // No such container (not a Docker job, or already removed) or already stopped.
       if (statusCode === NOT_FOUND || statusCode === NOT_MODIFIED) {
         return false;

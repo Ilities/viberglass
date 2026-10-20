@@ -26,7 +26,7 @@ Also late on 2026-10-08, uncommitted with the above:
 - Slack: the command is `/viberglass`, the bot and app are named Viberglass (manifest, install screen, docs). An existing Slack app needs its slash command renamed.
 - The custom webhook route creates tasks through `CustomInboundProcessor`, so "Write the plan for new issues" works there too.
 - Clean-machine tests CLEAN-15 – CLEAN-19 for the one-server compose install.
-- `CLA.md` drafted, with a placeholder for the Project Owner's legal name; CONTRIBUTING asks for it.
+- `CLA.md` drafted; CONTRIBUTING asks for it.
 
 ## Tested on 2026-10-13: a local Kubernetes install with real agents
 
@@ -113,7 +113,6 @@ Still open:
 ## Waiting on manual steps
 
 From launch-todo, things only the maintainer can do:
-- Add `NPM_TOKEN`, publish a GitHub Release (`v1.0.0`) to publish images, the CLI and the extension zip, then make the GHCR packages public and link them to the repository.
 - Pulumi secrets (`PULUMI_CONFIG_PASSPHRASE`, `PULUMI_PLATFORM_CONFIG_DEV`/`_PROD`, `AWS_ROLE_ARN` per environment); details in `.github/DEPLOYMENT.md`.
-- Clean-machine runs CLEAN-15 to CLEAN-32 (CLEAN-15 – CLEAN-19 are the one-server compose install).
-- The CLA's legal name, gist and cla-assistant.io link; the rest of launch-todo: UX validation, security mailbox, marketing site.
+- Clean-machine runs CLEAN-15 to CLEAN-41 (CLEAN-15 – CLEAN-19 are the one-server compose install).
+- The rest of launch-todo: UX validation and the marketing site.
