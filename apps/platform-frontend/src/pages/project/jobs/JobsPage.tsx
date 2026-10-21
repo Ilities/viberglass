@@ -6,6 +6,7 @@ import { Select } from '@/components/select'
 import { getProjectJobs } from '@/data'
 import type { JobListItem } from '@/data'
 import { useProject } from '@/context/project-context'
+import { useDebounce } from '@/hooks/useDebounce'
 import { getClankers } from '@/service/api/clanker-api'
 import { JobsTable } from './jobs-table'
 import { useEffect, useState } from 'react'
@@ -14,13 +15,33 @@ import { useParams, useSearchParams } from 'react-router-dom'
 export function JobsPage() {
   const { project } = useParams<{ project: string }>()
   const { project: space } = useProject()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [jobs, setJobs] = useState<JobListItem[]>([])
   const [agentNames, setAgentNames] = useState<Map<string, string>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
 
   const status = searchParams.get('status') ?? 'all'
   const search = searchParams.get('search') ?? ''
+
+  // The box holds what is being typed; the URL catches up once the typing settles.
+  const [searchInput, setSearchInput] = useState(search)
+  const settledSearch = useDebounce(searchInput, 300)
+
+  useEffect(() => {
+    if (settledSearch !== searchInput) return
+    if (settledSearch === search) return
+    const next = new URLSearchParams(searchParams)
+    if (settledSearch) next.set('search', settledSearch)
+    else next.delete('search')
+    setSearchParams(next, { replace: true })
+  }, [settledSearch, searchInput, search, searchParams, setSearchParams])
+
+  function setStatus(value: string) {
+    const next = new URLSearchParams(searchParams)
+    if (value === 'all') next.delete('status')
+    else next.set('status', value)
+    setSearchParams(next)
+  }
 
   useEffect(() => {
     async function loadData() {
@@ -75,10 +96,12 @@ export function JobsPage() {
           <SearchInput
             placeholder="Search runs..."
             name="search"
-            defaultValue={search}
+            aria-label="Search runs"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
           />
         </div>
-        <Select name="status" defaultValue={status}>
+        <Select name="status" aria-label="Filter by status" value={status} onChange={setStatus}>
           <option value="all">All statuses</option>
           <option value="queued">Queued</option>
           <option value="active">Running</option>

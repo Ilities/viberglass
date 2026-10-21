@@ -84,9 +84,9 @@ export function SpacePage() {
   const error = lists.find((list) => list.error)?.error
   const doneOpen = showDone || filters.state === 'done'
 
-  const setParams = (next: URLSearchParams) => {
+  const setParams = (next: URLSearchParams, options?: { replace?: boolean }) => {
     setSelected(new Set())
-    setSearchParams(next)
+    setSearchParams(next, options)
   }
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -166,6 +166,7 @@ export function SpacePage() {
       <SpaceFilterBar
         filters={filters}
         onChange={(next) => setParams(writeFilters(searchParams, next))}
+        onSearchChange={(search) => setParams(writeFilters(searchParams, { ...filters, search }), { replace: true })}
         people={peopleIn(loaded)}
       />
 

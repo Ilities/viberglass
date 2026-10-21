@@ -1,6 +1,6 @@
 import { Theme } from '@radix-ui/themes'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import type { Project } from '@viberglass/types'
 import { useProject } from '@/context/project-context'
 import { ClawsPage } from './ClawsPage'
@@ -33,17 +33,27 @@ const SPACE: Project = {
 }
 
 describe('ClawsPage', () => {
-  it('with no task templates, offers to create one, which opens the template form', async () => {
+  function Location() {
+    const location = useLocation()
+    return <span data-testid="location">{`${location.pathname}${location.search}`}</span>
+  }
+
+  function renderPage(entry: string) {
     jest.mocked(useProject).mockReturnValue({ project: SPACE, isLoading: false, error: null })
-    render(
+    return render(
       <Theme>
-        <MemoryRouter initialEntries={['/spaces/web/schedules']}>
+        <MemoryRouter initialEntries={[entry]}>
+          <Location />
           <Routes>
             <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
           </Routes>
         </MemoryRouter>
       </Theme>
     )
+  }
+
+  it('with no task templates, offers to create one, which opens the template form', async () => {
+    renderPage('/spaces/web/schedules')
 
     expect(await screen.findByText('No task templates yet')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /New schedule/ })).not.toBeInTheDocument()
@@ -51,5 +61,19 @@ describe('ClawsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Create a template/ }))
 
     expect(await screen.findByText('New task template')).toBeInTheDocument()
+  })
+
+  it('keeps the view in the URL, so it can be linked to', async () => {
+    renderPage('/spaces/web/schedules')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Task templates' }))
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('clawTab=templates'))
+  })
+
+  it('opens the view the URL asks for', async () => {
+    renderPage('/spaces/web/schedules?clawTab=templates')
+
+    expect(await screen.findByText('A template is the task a schedule runs.')).toBeInTheDocument()
   })
 })
