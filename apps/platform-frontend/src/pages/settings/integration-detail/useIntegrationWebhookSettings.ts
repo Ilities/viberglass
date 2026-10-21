@@ -212,8 +212,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
   }
 
   const confirmGenerateSecret = async () => {
-    setIsRegenerateDialogOpen(false)
     await handleGenerateSecret(pendingRegenerateProjectId)
+    setIsRegenerateDialogOpen(false)
     setPendingRegenerateProjectId(null)
   }
 
