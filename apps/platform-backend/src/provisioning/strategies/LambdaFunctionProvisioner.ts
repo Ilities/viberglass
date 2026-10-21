@@ -12,9 +12,11 @@ import {
   buildLambdaFunctionName,
   mapLambdaFunctionDetails,
 } from "./lambdaFunctionUtils";
-import type {
-  LambdaFunctionDetails,
-  LambdaProvisioningConfig,
+import {
+  DEFAULT_LAMBDA_MEMORY_MB,
+  DEFAULT_LAMBDA_TIMEOUT_SECONDS,
+  type LambdaFunctionDetails,
+  type LambdaProvisioningConfig,
 } from "./lambdaTypes";
 
 export class LambdaFunctionProvisioner {
@@ -102,9 +104,13 @@ export class LambdaFunctionProvisioner {
     };
 
     if (config.roleArn) configurationUpdate.Role = config.roleArn;
-    if (config.memorySize !== undefined)
-      configurationUpdate.MemorySize = config.memorySize;
-    if (config.timeout !== undefined) configurationUpdate.Timeout = config.timeout;
+    // A function Viberglass made before these defaults may still have AWS's own 128 MB and 3 seconds;
+    // a prebuilt one keeps its own unless the runner sets them.
+    const managed = config.provisioningMode !== "prebuilt";
+    const memorySize = config.memorySize ?? (managed ? DEFAULT_LAMBDA_MEMORY_MB : undefined);
+    const timeout = config.timeout ?? (managed ? DEFAULT_LAMBDA_TIMEOUT_SECONDS : undefined);
+    if (memorySize !== undefined) configurationUpdate.MemorySize = memorySize;
+    if (timeout !== undefined) configurationUpdate.Timeout = timeout;
     if (config.ephemeralStorage !== undefined) {
       configurationUpdate.EphemeralStorage = { Size: config.ephemeralStorage };
     }
@@ -142,8 +148,8 @@ export class LambdaFunctionProvisioner {
       Role: roleArn,
       Code: { ImageUri: imageUri },
       PackageType: "Image",
-      MemorySize: config.memorySize,
-      Timeout: config.timeout,
+      MemorySize: config.memorySize ?? DEFAULT_LAMBDA_MEMORY_MB,
+      Timeout: config.timeout ?? DEFAULT_LAMBDA_TIMEOUT_SECONDS,
       EphemeralStorage: config.ephemeralStorage !== undefined
         ? { Size: config.ephemeralStorage }
         : { Size: 2048 },

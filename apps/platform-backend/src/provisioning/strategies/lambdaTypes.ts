@@ -1,3 +1,8 @@
+/** What a runner's function gets when the runner sets none: AWS's own defaults, 128 MB and 3 seconds, can't run an agent. */
+export const DEFAULT_LAMBDA_MEMORY_MB = 4096;
+/** Lambda's longest run. */
+export const DEFAULT_LAMBDA_TIMEOUT_SECONDS = 900;
+
 export interface LambdaFunctionDetails {
   functionName?: string;
   functionArn?: string;

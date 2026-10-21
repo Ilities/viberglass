@@ -25,7 +25,7 @@ export function LambdaStrategyFields({ provisioningMode, defaults }: StrategyFie
       <div className="grid grid-cols-2 gap-4">
         <Field>
           <Label>Memory Size (MB)</Label>
-          <Description>Amount of memory available to the function.</Description>
+          <Description>Amount of memory available to the function. Empty means 4096 MB.</Description>
           <Input
             name="lambdaMemorySize"
             type="number"
@@ -33,12 +33,12 @@ export function LambdaStrategyFields({ provisioningMode, defaults }: StrategyFie
             max={10240}
             step={1}
             defaultValue={defaults.lambdaMemorySize}
-            placeholder="1024"
+            placeholder="4096"
           />
         </Field>
         <Field>
           <Label>Timeout (seconds)</Label>
-          <Description>Maximum execution time.</Description>
+          <Description>Maximum execution time. Empty means 900 seconds, Lambda's longest.</Description>
           <Input
             name="lambdaTimeout"
             type="number"
@@ -46,7 +46,7 @@ export function LambdaStrategyFields({ provisioningMode, defaults }: StrategyFie
             max={900}
             step={1}
             defaultValue={defaults.lambdaTimeout}
-            placeholder="60"
+            placeholder="900"
           />
         </Field>
       </div>

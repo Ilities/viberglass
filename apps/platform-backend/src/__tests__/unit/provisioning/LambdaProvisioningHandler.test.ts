@@ -221,9 +221,34 @@ describe("LambdaProvisioningHandler", () => {
         FunctionName: "viberator-test-clanker",
         Role: "arn:env-role",
         PackageType: "Image",
+        // A runner that sets neither gets enough to run an agent, not AWS's 128 MB and 3 seconds.
+        MemorySize: 4096,
+        Timeout: 900,
       }),
     );
     expect(result.status).toBe("active");
+  });
+
+  it("gives an existing managed function the defaults, and leaves a prebuilt one's own", async () => {
+    const { client, getFunction, updateFunctionConfiguration } = buildLambdaClient();
+    getFunction.mockResolvedValue({ Configuration: { FunctionName: "fn", FunctionArn: "arn:fn" }, Code: { ImageUri: "image" } });
+    const handler = new LambdaProvisioningHandler(client);
+
+    await handler.provision(buildClanker("lambda", { version: 1, strategy: { type: "lambda", imageUri: "image" }, agent: { type: "claude-code" } }));
+    expect(updateFunctionConfiguration).toHaveBeenLastCalledWith(expect.objectContaining({ MemorySize: 4096, Timeout: 900 }));
+
+    updateFunctionConfiguration.mockClear();
+    await handler.provision(
+      buildClanker("lambda", {
+        version: 1,
+        strategy: { type: "lambda", provisioningMode: "prebuilt", functionName: "fn", imageUri: "image" },
+        agent: { type: "claude-code" },
+      }),
+    );
+    for (const [update] of updateFunctionConfiguration.mock.calls) {
+      expect(update).not.toHaveProperty("MemorySize");
+      expect(update).not.toHaveProperty("Timeout");
+    }
   });
 
   it("returns inactive when lambda function is not configured", async () => {

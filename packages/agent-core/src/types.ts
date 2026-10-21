@@ -23,7 +23,7 @@ export interface BaseAgentConfig extends Record<string, unknown> {
 
 export interface TicketMediaContext {
   id: string;
-  kind: "screenshot" | "recording";
+  kind: "screenshot" | "recording" | "image";
   filename: string;
   mimeType: string;
   size: number;

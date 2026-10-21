@@ -68,7 +68,13 @@ export const handler = async (
   const payload = parsePayload(event);
 
   try {
-    console.log("Lambda processing task:", payload);
+    // Not the payload itself: it carries the job's callback token.
+    console.log("Lambda processing task:", {
+      jobId: payload.jobId,
+      jobKind: payload.jobKind,
+      tenantId: payload.tenantId,
+      clankerId: payload.clankerId,
+    });
 
     // Validate required fields
     if (!payload.tenantId) {
@@ -81,7 +87,8 @@ export const handler = async (
     if (payload.files) {
       throw new Error("Files spaces can't run on Lambda workers");
     }
-    if (!payload.repository) {
+    // Signing an agent in works on no repository.
+    if (!payload.repository && payload.jobKind !== "agent_login") {
       throw new Error("Missing repository in payload");
     }
     if (!payload.task) {

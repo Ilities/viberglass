@@ -316,7 +316,7 @@ const workerLambda = new aws.lambda.Function(
     imageUri: lambdaWorkerImageUri,
     role: lambdaRole.arn,
     timeout: 900, // 15 minutes (max Lambda timeout)
-    memorySize: 2048,
+    memorySize: 4096,
     environment: {
       variables: {
         HOME: "/tmp",
