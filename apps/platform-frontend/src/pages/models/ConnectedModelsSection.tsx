@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { deleteModelEndpoint, listModelEndpoints } from '@/service/api/model-endpoint-api'
@@ -27,6 +27,7 @@ export function ConnectedModelsSection() {
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [editing, setEditing] = useState<ModelEndpointView | 'new' | null>(null)
   const [removing, setRemoving] = useState<ModelEndpointView | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   const load = useCallback(() => {
     listModelEndpoints()
@@ -50,6 +51,7 @@ export function ConnectedModelsSection() {
 
   async function confirmRemove() {
     if (!removing) return
+    setIsRemoving(true)
     try {
       await deleteModelEndpoint(removing.id)
       setEndpoints((previous) => previous?.filter((endpoint) => endpoint.id !== removing.id) ?? null)
@@ -57,6 +59,7 @@ export function ConnectedModelsSection() {
     } catch (error) {
       toast.error("Couldn't remove the model", { description: error instanceof Error ? error.message : undefined })
     } finally {
+      setIsRemoving(false)
       setRemoving(null)
     }
   }
@@ -140,21 +143,16 @@ export function ConnectedModelsSection() {
         />
       )}
 
-      <Alert open={removing !== null} onClose={() => setRemoving(null)}>
-        <AlertTitle>Remove {removing?.name}?</AlertTitle>
-        <AlertDescription>
-          Viberglass forgets the connection; the model keeps running wherever it is hosted. A model an agent uses can&apos;t
-          be removed.
-        </AlertDescription>
-        <AlertActions>
-          <Button outline onClick={() => setRemoving(null)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={confirmRemove}>
-            Remove
-          </Button>
-        </AlertActions>
-      </Alert>
+      <ConfirmDialog
+        open={removing !== null}
+        title={`Remove ${removing?.name}?`}
+        description="Viberglass forgets the connection; the model keeps running wherever it is hosted. A model an agent uses can't be removed."
+        confirmLabel="Remove"
+        confirmingLabel="Removing…"
+        isConfirming={isRemoving}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void confirmRemove()}
+      />
     </section>
   )
 }

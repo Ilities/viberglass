@@ -1,5 +1,6 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Subheading } from '@/components/heading'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
@@ -11,8 +12,9 @@ import {
   updateUserRole,
   type ManagedUser,
 } from '@/service/api/user-api'
-import { isWorkspaceRole, WORKSPACE_ROLES } from '@viberglass/types'
+import { isWorkspaceRole, WORKSPACE_ROLES, type WorkspaceRole } from '@viberglass/types'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { CopyLink } from './copy-link'
 
 interface MembersTableProps {
@@ -25,6 +27,8 @@ interface MembersTableProps {
 export function MembersTable({ users, currentUserId, onChanged, onError }: MembersTableProps) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [resetLink, setResetLink] = useState<{ name: string; path: string } | null>(null)
+  const [deactivating, setDeactivating] = useState<ManagedUser | null>(null)
+  const [roleChange, setRoleChange] = useState<{ user: ManagedUser; role: WorkspaceRole } | null>(null)
   const activeAdmins = users.filter((entry) => entry.role === 'admin' && !entry.deactivatedAt).length
 
   async function run(user: ManagedUser, action: () => Promise<void>) {
@@ -39,6 +43,26 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
   }
 
   const isLastAdmin = (user: ManagedUser) => user.role === 'admin' && !user.deactivatedAt && activeAdmins <= 1
+
+  async function confirmDeactivate() {
+    if (!deactivating) return
+    const target = deactivating
+    await run(target, async () => {
+      onChanged(await deactivateUser(target.id))
+      toast.success(`${target.name} was deactivated`)
+    })
+    setDeactivating(null)
+  }
+
+  async function confirmRoleChange() {
+    if (!roleChange) return
+    const { user, role } = roleChange
+    await run(user, async () => {
+      onChanged(await updateUserRole(user.id, role))
+      toast.success(`${user.name} is now ${ROLE_LABEL[role].toLowerCase()}`)
+    })
+    setRoleChange(null)
+  }
 
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
@@ -82,7 +106,7 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
                       onChange={(value) =>
                         isWorkspaceRole(value) &&
                         value !== entry.role &&
-                        void run(entry, async () => onChanged(await updateUserRole(entry.id, value)))
+                        setRoleChange({ user: entry, role: value })
                       }
                     >
                       {WORKSPACE_ROLES.map((role) => (
@@ -112,11 +136,7 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
                           Reactivate
                         </Button>
                       ) : (
-                        <Button
-                          plain
-                          disabled={busy || isLastAdmin(entry)}
-                          onClick={() => void run(entry, async () => onChanged(await deactivateUser(entry.id)))}
-                        >
+                        <Button plain disabled={busy || isLastAdmin(entry)} onClick={() => setDeactivating(entry)}>
                           Deactivate
                         </Button>
                       )}
@@ -128,6 +148,33 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
           })}
         </TableBody>
       </Table>
+
+      <ConfirmDialog
+        open={deactivating !== null}
+        title={`Deactivate ${deactivating?.name}?`}
+        description="They lose access at once. Their name stays on what they did."
+        confirmLabel="Deactivate"
+        confirmingLabel="Deactivating…"
+        isConfirming={busyId === deactivating?.id}
+        onClose={() => setDeactivating(null)}
+        onConfirm={() => void confirmDeactivate()}
+      />
+
+      <ConfirmDialog
+        open={roleChange !== null}
+        title={`Make ${roleChange?.user.name} ${roleChange ? ROLE_LABEL[roleChange.role].toLowerCase() : ''}?`}
+        description={
+          roleChange
+            ? `They go from ${ROLE_LABEL[roleChange.user.role].toLowerCase()} to ${ROLE_LABEL[roleChange.role].toLowerCase()}.`
+            : ''
+        }
+        confirmLabel="Change role"
+        confirmingLabel="Changing…"
+        destructive={false}
+        isConfirming={busyId === roleChange?.user.id}
+        onClose={() => setRoleChange(null)}
+        onConfirm={() => void confirmRoleChange()}
+      />
     </section>
   )
 }

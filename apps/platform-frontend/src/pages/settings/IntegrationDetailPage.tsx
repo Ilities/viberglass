@@ -1,5 +1,6 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Heading } from '@/components/heading'
 import { IntegrationConfigForm } from '@/components/integration-config-form'
 import { PageMeta } from '@/components/page-meta'
@@ -398,10 +399,8 @@ export function IntegrationDetailPage() {
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
             onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(projectId)}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={() =>
-              webhook.handleGenerateSecret(webhook.selectedInboundProjectId)
-            }
+            onDeleteInboundWebhook={webhook.requestDeleteInboundWebhook}
+            onGenerateSecret={() => webhook.requestGenerateSecret(webhook.selectedInboundProjectId)}
             onInboundActiveChange={webhook.setInboundActive}
             onProjectChange={webhook.setSelectedInboundProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
@@ -434,6 +433,28 @@ export function IntegrationDetailPage() {
           onRemoved={() => navigate('/settings/connections')}
         />
       )}
+
+      <ConfirmDialog
+        open={webhook.isDeleteDialogOpen}
+        title="Remove this webhook?"
+        description="Events from it stop arriving, and the secret it uses stops working. It can be set up again later."
+        confirmLabel="Remove"
+        confirmingLabel="Removing…"
+        isConfirming={webhook.isSavingWebhook}
+        onClose={webhook.cancelDeleteInboundWebhook}
+        onConfirm={() => void webhook.handleDeleteInboundWebhook()}
+      />
+
+      <ConfirmDialog
+        open={webhook.isRegenerateDialogOpen}
+        title="Regenerate the secret?"
+        description="The old secret stops working at once. Anything still signing with it is rejected until it is updated."
+        confirmLabel="Regenerate"
+        confirmingLabel="Regenerating…"
+        isConfirming={webhook.isSavingWebhook}
+        onClose={webhook.cancelGenerateSecret}
+        onConfirm={() => void webhook.confirmGenerateSecret()}
+      />
       </>
       )}
     </div>

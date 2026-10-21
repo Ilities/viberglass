@@ -1,5 +1,6 @@
 import { RoleCapabilityTable } from '@/components/role-capabilities'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
@@ -13,6 +14,7 @@ import { getPeopleDirectory, type Person } from '@/service/api/user-api'
 import { isSpaceRole, type Project, type SpaceMember, type SpaceRole } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 const SPACE_ROLE_LABEL: Record<SpaceRole, string> = { maintainer: 'Maintainer', member: 'Member' }
 
@@ -24,6 +26,7 @@ export function SpaceMembersPage() {
   const [adding, setAdding] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<SpaceMember | null>(null)
 
   useEffect(() => {
     getProjectBySlug(slug)
@@ -48,6 +51,16 @@ export function SpaceMembersPage() {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function removeMember() {
+    if (!memberToRemove || !project) return
+    const removed = memberToRemove
+    await act(async () => {
+      setMembers(await removeSpaceMember(project.id, removed.userId))
+      toast.success(`${removed.name} was removed from the space`)
+    })
+    setMemberToRemove(null)
   }
 
   if (!project) return error ? <Text>{error}</Text> : <Text>Loading…</Text>
@@ -104,7 +117,7 @@ export function SpaceMembersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {canMaintain && (
-                        <Button plain disabled={busy} onClick={() => void act(async () => setMembers(await removeSpaceMember(project.id, member.userId)))}>
+                        <Button plain disabled={busy} onClick={() => setMemberToRemove(member)}>
                           Remove
                         </Button>
                       )}
@@ -144,6 +157,21 @@ export function SpaceMembersPage() {
 
         <RoleCapabilityTable />
       </div>
+
+      <ConfirmDialog
+        open={memberToRemove !== null}
+        title="Remove member?"
+        description={
+          <>
+            Remove <strong>{memberToRemove?.name}</strong> from this space? They lose access to its tasks at once.
+          </>
+        }
+        confirmLabel="Remove"
+        confirmingLabel="Removing…"
+        isConfirming={busy}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={() => void removeMember()}
+      />
     </>
   )
 }

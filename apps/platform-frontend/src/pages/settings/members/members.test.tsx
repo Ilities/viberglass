@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ManagedUser } from '@/service/api/user-api'
 import { InviteForm } from './invite-form'
 import { MembersTable } from './members-table'
@@ -102,6 +102,10 @@ describe('InviteForm for guests', () => {
 })
 
 describe('MembersTable', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   it('deactivates someone and offers no actions on your own row', async () => {
     mockDeactivate.mockResolvedValue(person({ deactivatedAt: at }))
     const onChanged = jest.fn()
@@ -119,8 +123,30 @@ describe('MembersTable', () => {
     expect(screen.getAllByRole('button', { name: 'Deactivate' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }))
 
+    const dialog = await screen.findByRole('alertdialog')
+    expect(mockDeactivate).not.toHaveBeenCalled()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate' }))
+
     await waitFor(() => expect(onChanged).toHaveBeenCalledWith(expect.objectContaining({ deactivatedAt: at })))
     expect(mockDeactivate).toHaveBeenCalledWith('user-2')
+  })
+
+  it('keeps someone active when the deactivation is cancelled', async () => {
+    const onChanged = jest.fn()
+    render(
+      <Theme>
+        <MembersTable users={[person({})]} currentUserId="user-1" onChanged={onChanged} onError={jest.fn()} />
+      </Theme>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }))
+
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(mockDeactivate).not.toHaveBeenCalled()
+    expect(onChanged).not.toHaveBeenCalled()
   })
 
   it('shows a reset link once it is made', async () => {
