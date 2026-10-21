@@ -159,4 +159,15 @@ describe('HomePage', () => {
     renderHome()
     expect(await screen.findByText('Overview page')).toBeInTheDocument()
   })
+
+  it('says what went wrong when the tasks cannot be loaded, and offers another try', async () => {
+    mockHome.mockRejectedValueOnce(new Error('The server is busy')).mockResolvedValue({ needsYou: [], threads: [] })
+    renderHome()
+
+    expect(await screen.findByText('The server is busy')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument()
+  })
 })

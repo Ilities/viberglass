@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { EmptyState } from '@/components/empty-state'
 import { Link } from '@/components/link'
 import { ListPanel } from '@/components/list-panel'
 import { PageHeader } from '@/components/page-header'
@@ -13,7 +14,7 @@ import { TICKET_ARCHIVE_FILTER, TICKET_STATUS, type Ticket } from '@viberglass/t
 import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { readFilters, SpaceFilterBar, writeFilters, type SpaceFilters } from './space-filters'
+import { clearFilters, hasActiveFilters, readFilters, SpaceFilterBar, writeFilters, type SpaceFilters } from './space-filters'
 import { groupTasks, matchesSituationFilters, peopleIn, SPACE_GROUP_LABEL, type SpaceGroup } from './space-groups'
 import { SpaceTaskRow } from './space-task-row'
 import { SpaceTaskTable } from './space-task-table'
@@ -95,9 +96,20 @@ export function SpacePage() {
       else next.add(id)
       return next
     })
+  const toggleAll = (ids: string[], checked: boolean) =>
+    setSelected((current) => {
+      const next = new Set(current)
+      for (const id of ids) {
+        if (checked) next.add(id)
+        else next.delete(id)
+      }
+      return next
+    })
   const selection = (task: Ticket) =>
     canArchive ? { selected: selected.has(task.id), onToggle: () => toggle(task.id) } : undefined
-  const tableSelection = canArchive ? { selected, onToggle: toggle } : undefined
+  const tableSelection = canArchive
+    ? { selected, onToggle: toggle, onToggleAll: (ids: string[], checked: boolean) => toggleAll(ids, checked) }
+    : undefined
 
   const archiveSelected = async () => {
     setArchiving(true)
@@ -123,7 +135,16 @@ export function SpacePage() {
     </ListPanel>
   )
   const list = (tasks: Ticket[], group?: SpaceGroup) =>
-    view === 'table' ? <SpaceTaskTable tasks={tasks} space={slug} selection={tableSelection} /> : rows(tasks, group)
+    view === 'table' ? (
+      <SpaceTaskTable
+        tasks={tasks}
+        space={slug}
+        selection={tableSelection}
+        selectAllLabel={group ? `Select all ${SPACE_GROUP_LABEL[group]} tasks` : undefined}
+      />
+    ) : (
+      rows(tasks, group)
+    )
   const countLine = (count: number) => `${count} task${count === 1 ? '' : 's'}`
   const activeCount = groups.reduce((sum, group) => sum + group.tasks.length, 0)
 
@@ -218,9 +239,30 @@ export function SpacePage() {
         </section>
       ) : (
         <>
-          {groups.length === 0 && doneTasks.length === 0 && (
-            <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">No tasks here match.</p>
-          )}
+          {groups.length === 0 && doneTasks.length === 0 &&
+            (loaded.length === 0 && !hasActiveFilters(filters) ? (
+              <EmptyState
+                title="No tasks in this space yet"
+                description="Ask the agent for the first one, and it shows here while it works."
+                action={
+                  access?.canCreateTasks ? (
+                    <Button href={`/spaces/${slug}/tasks/new`} color="brand">
+                      Create a task
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <EmptyState
+                title="No tasks match your filters"
+                description="Nothing in this space fits what you asked for."
+                action={
+                  <Button outline onClick={() => setParams(writeFilters(searchParams, clearFilters(filters)))}>
+                    Clear the filters
+                  </Button>
+                }
+              />
+            ))}
           {groups.map(({ group, tasks }) => (
             <section key={group} aria-labelledby={`space-group-${group}`} className="mt-8">
               <SectionHeader

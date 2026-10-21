@@ -55,6 +55,23 @@ export function writeFilters(params: URLSearchParams, filters: SpaceFilters): UR
   return next
 }
 
+/** Whether any filter is off its default, so an empty result is the filters' doing. */
+export function hasActiveFilters(filters: SpaceFilters): boolean {
+  return (
+    filters.search.trim() !== '' ||
+    filters.state !== 'all' ||
+    filters.artifact !== 'all' ||
+    filters.severity !== 'all' ||
+    filters.ownerId !== 'all' ||
+    filters.waitingOn !== 'all'
+  )
+}
+
+/** The filters back at their defaults. */
+export function clearFilters(filters: SpaceFilters): SpaceFilters {
+  return { ...filters, search: '', state: 'all', artifact: 'all', severity: 'all', ownerId: 'all', waitingOn: 'all' }
+}
+
 interface SpaceFilterBarProps {
   filters: SpaceFilters
   onChange: (filters: SpaceFilters) => void

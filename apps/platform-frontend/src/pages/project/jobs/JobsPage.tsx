@@ -1,3 +1,4 @@
+import { Button } from '@/components/button'
 import { Link } from '@/components/link'
 import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
@@ -19,6 +20,8 @@ export function JobsPage() {
   const [jobs, setJobs] = useState<JobListItem[]>([])
   const [agentNames, setAgentNames] = useState<Map<string, string>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reload, setReload] = useState(0)
 
   const status = searchParams.get('status') ?? 'all'
   const search = searchParams.get('search') ?? ''
@@ -44,15 +47,29 @@ export function JobsPage() {
   }
 
   useEffect(() => {
+    let cancelled = false
+
     async function loadData() {
       if (!project) return
-      const [j, agents] = await Promise.all([getProjectJobs(project, 50), getClankers(100).catch(() => [])])
-      setJobs(j)
-      setAgentNames(new Map(agents.map((agent) => [agent.id, agent.name])))
-      setIsLoading(false)
+      setIsLoading(true)
+      setLoadError(null)
+      try {
+        const [j, agents] = await Promise.all([getProjectJobs(project, 50), getClankers(100).catch(() => [])])
+        if (cancelled) return
+        setJobs(j)
+        setAgentNames(new Map(agents.map((agent) => [agent.id, agent.name])))
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Couldn't load the runs")
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
     }
-    loadData()
-  }, [project])
+
+    void loadData()
+    return () => {
+      cancelled = true
+    }
+  }, [project, reload])
 
   if (isLoading) {
     return (
@@ -91,33 +108,44 @@ export function JobsPage() {
         className="mb-0"
       />
 
-      <div className="mt-8 flex items-center gap-4">
-        <div className="min-w-75 flex-2">
-          <SearchInput
-            placeholder="Search runs..."
-            name="search"
-            aria-label="Search runs"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-          />
+      {loadError ? (
+        <div className="mt-8 space-y-3 text-sm">
+          <p className="text-red-700 dark:text-red-400">{loadError}</p>
+          <Button outline onClick={() => setReload((count) => count + 1)}>
+            Try again
+          </Button>
         </div>
-        <Select name="status" aria-label="Filter by status" value={status} onChange={setStatus}>
-          <option value="all">All statuses</option>
-          <option value="queued">Queued</option>
-          <option value="active">Running</option>
-          <option value="completed">Completed</option>
-          <option value="failed">Failed</option>
-        </Select>
-      </div>
-
-      {filteredJobs.length > 0 ? (
-        <JobsTable jobs={filteredJobs} project={project} agentNames={agentNames} />
       ) : (
-        <div className="mt-8 text-center">
-          <p className="text-zinc-500 dark:text-zinc-400">
-            {jobs.length === 0 ? 'No runs found for this space.' : 'No runs found matching your criteria.'}
-          </p>
-        </div>
+        <>
+          <div className="mt-8 flex items-center gap-4">
+            <div className="min-w-75 flex-2">
+              <SearchInput
+                placeholder="Search runs..."
+                name="search"
+                aria-label="Search runs"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+            </div>
+            <Select name="status" aria-label="Filter by status" value={status} onChange={setStatus}>
+              <option value="all">All statuses</option>
+              <option value="queued">Queued</option>
+              <option value="active">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </Select>
+          </div>
+
+          {filteredJobs.length > 0 ? (
+            <JobsTable jobs={filteredJobs} project={project} agentNames={agentNames} />
+          ) : (
+            <div className="mt-8 text-center">
+              <p className="text-zinc-500 dark:text-zinc-400">
+                {jobs.length === 0 ? 'No runs found for this space.' : 'No runs found matching your criteria.'}
+              </p>
+            </div>
+          )}
+        </>
       )}
     </>
   )

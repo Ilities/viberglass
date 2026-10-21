@@ -88,4 +88,15 @@ describe('JobsPage filters', () => {
 
     expect(await screen.findByRole('combobox', { name: 'Filter by status' })).toHaveTextContent('Failed')
   })
+
+  it('says what went wrong when the runs cannot be loaded, and offers another try', async () => {
+    jest.mocked(getProjectJobs).mockRejectedValueOnce(new Error('The server is busy')).mockResolvedValue([])
+    renderPage('/spaces/web/runs')
+
+    expect(await screen.findByText('The server is busy')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('No runs found for this space.')).toBeInTheDocument()
+  })
 })

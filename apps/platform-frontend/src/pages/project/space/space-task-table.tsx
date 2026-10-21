@@ -7,8 +7,14 @@ import type { Ticket } from '@viberglass/types'
 interface SpaceTaskTableProps {
   tasks: Ticket[]
   space: string
+  /** What the select-all covers, so it says which tasks it picks. */
+  selectAllLabel?: string
   /** Set only for people who may archive, who get checkboxes. */
-  selection?: { selected: Set<string>; onToggle: (id: string) => void }
+  selection?: {
+    selected: Set<string>
+    onToggle: (id: string) => void
+    onToggleAll: (ids: string[], checked: boolean) => void
+  }
 }
 
 function waitingOn(task: Ticket): string {
@@ -19,12 +25,23 @@ function waitingOn(task: Ticket): string {
 }
 
 /** The same facts as the cards, for scanning many tasks. */
-export function SpaceTaskTable({ tasks, space, selection }: SpaceTaskTableProps) {
+export function SpaceTaskTable({ tasks, space, selectAllLabel = 'Select all tasks', selection }: SpaceTaskTableProps) {
+  const selectedCount = selection ? tasks.filter((task) => selection.selected.has(task.id)).length : 0
+  const allSelected = selection !== undefined && tasks.length > 0 && selectedCount === tasks.length
+
   return (
     <Table className="mt-4 [--gutter:--spacing(4)]">
       <TableHead>
         <TableRow>
-          {selection && <TableHeader className="w-8" aria-label="Select" />}
+          {selection && (
+            <TableHeader className="w-8">
+              <Checkbox
+                checked={allSelected ? true : selectedCount > 0 ? 'indeterminate' : false}
+                onChange={(checked) => selection.onToggleAll(tasks.map((task) => task.id), checked)}
+                aria-label={selectAllLabel}
+              />
+            </TableHeader>
+          )}
           <TableHeader>Key</TableHeader>
           <TableHeader>Title</TableHeader>
           <TableHeader>Status</TableHeader>
