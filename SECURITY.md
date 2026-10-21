@@ -116,6 +116,12 @@ These are documented rather than fixed, and are tracked for the containment work
 - **Rate limiting.** Not implemented. `helmet` is applied; no request throttling is.
 - **Sandboxing.** Isolation is the container boundary only — no gVisor, bubblewrap or
   microVM layer, and no tamper-resistant audit log the agent cannot alter.
+- **Backend socket access.** The Docker deployment mounts the host's socket into the
+  backend and runs it as root, because creating agent containers needs both. A
+  compromised backend is therefore root on the host rather than confined to the
+  workspace, and a socket proxy doesn't narrow that while container creation stays
+  allowed: whoever can create a container can mount the host's filesystem into it. The
+  options that do are rootless Docker, user namespaces, or a host of its own.
 
 ### Deployment guidance
 
@@ -125,6 +131,9 @@ These are documented rather than fixed, and are tracked for the containment work
 - Do not set `networkMode: host` in clanker configuration for workloads processing
   externally-submitted tickets.
 - Treat every repository an agent is pointed at as capable of instructing it.
+- Give the local Docker deployment a host you would otherwise give root. On Kubernetes
+  and ECS the backend starts each run as a Job or task, so no host Docker socket is
+  involved.
 
 ## Security Audit Trail
 
