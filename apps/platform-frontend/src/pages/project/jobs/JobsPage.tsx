@@ -13,6 +13,13 @@ import { JobsTable } from './jobs-table'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
+const STATUSES = ['all', 'queued', 'active', 'completed', 'failed'] as const
+
+/** `?status=` names a status; anything else means all of them. */
+function resolveStatus(value: string | null): (typeof STATUSES)[number] {
+  return STATUSES.find((status) => status === value) ?? 'all'
+}
+
 export function JobsPage() {
   const { project } = useParams<{ project: string }>()
   const { project: space } = useProject()
@@ -23,7 +30,7 @@ export function JobsPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
 
-  const status = searchParams.get('status') ?? 'all'
+  const status = resolveStatus(searchParams.get('status'))
   const search = searchParams.get('search') ?? ''
 
   // The box holds what is being typed; the URL catches up once the typing settles.
