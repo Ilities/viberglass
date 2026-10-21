@@ -69,6 +69,14 @@ export function StackedLayout({
   return (
     <SidebarCollapseContext.Provider value={collapseValue}>
       <div className="app-canvas relative isolate flex min-h-svh w-full bg-transparent max-lg:flex-col">
+        {/* The first thing a keyboard reaches, so the sidebar can be skipped on every page. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-[var(--gray-1)] focus:px-3 focus:py-2 focus:text-sm focus:shadow"
+        >
+          Skip to content
+        </a>
+
         {/* Sidebar on desktop */}
         <motion.div
           animate={{ width: collapsed ? 64 : 256 }}
@@ -95,6 +103,8 @@ export function StackedLayout({
 
         {/* Content */}
         <motion.main
+          id="main-content"
+          tabIndex={-1}
           animate={{ paddingLeft: collapsed ? 64 : 256 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0 lg:pt-0 lg:pr-0 lg:pb-0 max-lg:!pl-3"

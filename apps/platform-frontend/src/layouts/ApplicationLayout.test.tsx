@@ -129,6 +129,14 @@ function linkNames(drawer: HTMLElement): string[] {
 }
 
 describe('ApplicationLayout navigation', () => {
+  it('lets a keyboard user skip the sidebar', () => {
+    renderLayout('/')
+
+    const skip = screen.getByRole('link', { name: 'Skip to content' })
+    expect(skip).toHaveAttribute('href', '#main-content')
+    expect(document.getElementById('main-content')).not.toBeNull()
+  })
+
   it.each(['/api/spaces', '/api/setup/space', '/api/setup/demo'])('updates the mounted sidebar after a space is created through %s', async (path) => {
     renderLayout('/')
     const drawer = await openDrawer()

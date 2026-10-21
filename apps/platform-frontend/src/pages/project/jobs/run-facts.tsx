@@ -1,4 +1,5 @@
 import { Badge } from '@/components/badge'
+import { CopyButton } from '@/components/copy-button'
 import { Fact, FactList } from '@/components/fact-list'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Link } from '@/components/link'
@@ -92,6 +93,7 @@ export function RunFacts({ job, isPolling }: { job: JobStatus; isPolling: boolea
         )}
         <Fact label="Run ID">
           <span className="font-mono text-xs text-[var(--gray-10)]">{job.jobId}</span>
+          <CopyButton value={job.jobId} label={`Copy run ID ${job.jobId}`} className="ml-1 align-middle" />
         </Fact>
     </FactList>
   )

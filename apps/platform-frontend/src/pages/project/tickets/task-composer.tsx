@@ -73,7 +73,14 @@ export function TaskComposer({ taskId, agents, draft, agentWorking = false, canI
 
   // The list follows the combobox pattern: arrows move, Enter or Tab picks, Escape closes; with it closed, keys type as usual.
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (!open) return
+    if (!open) {
+      // With the list closed, Cmd/Ctrl+Enter sends the message instead of adding a line break.
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault()
+        if (!empty && !isPosting) void post()
+      }
+      return
+    }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       const step = event.key === 'ArrowDown' ? 1 : -1
