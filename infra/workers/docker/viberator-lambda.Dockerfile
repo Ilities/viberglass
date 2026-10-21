@@ -84,4 +84,11 @@ RUN npm install --omit=dev --workspace=@viberator/orchestrator
 # Copy built app from builder
 COPY --from=builder /app/apps/viberator/dist/lambda-handler.js ${LAMBDA_TASK_ROOT}/
 
+# Only /tmp is writable on Lambda. Agents keep their logins and config under
+# HOME, so a function created without these settings still works.
+ENV HOME=/tmp \
+    CLAUDE_CONFIG_DIR=/tmp/config \
+    NODE_ENV=production \
+    LOG_FORMAT=json
+
 CMD [ "lambda-handler.handler" ]

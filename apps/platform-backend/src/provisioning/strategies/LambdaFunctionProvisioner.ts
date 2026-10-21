@@ -6,7 +6,8 @@ import type {
   LambdaClientPort,
   LambdaFunctionResponse,
 } from "../ports/LambdaClientPort";
-import { getErrorName } from "../shared/errorUtils";
+import { createChildLogger } from "../../config/logger";
+import { getErrorMessage, getErrorName } from "../shared/errorUtils";
 import type { ProvisioningProgressReporter } from "../types";
 import {
   buildLambdaFunctionName,
@@ -18,6 +19,8 @@ import {
   type LambdaFunctionDetails,
   type LambdaProvisioningConfig,
 } from "./lambdaTypes";
+
+const logger = createChildLogger({ service: "LambdaFunctionProvisioner" });
 
 export class LambdaFunctionProvisioner {
   constructor(private readonly lambdaClient: LambdaClientPort) {}
@@ -61,6 +64,7 @@ export class LambdaFunctionProvisioner {
     } else {
       await this.createNewFunction(functionName, config, imageUri, progress);
     }
+    if (provisioningMode === "managed") await this.turnOffRetries(functionIdentifier);
 
     const refreshed = await this.lambdaClient.getFunction(functionIdentifier);
     return {
@@ -68,6 +72,23 @@ export class LambdaFunctionProvisioner {
       functionArn: refreshed.Configuration?.FunctionArn,
       functionDetails: mapLambdaFunctionDetails(refreshed),
     };
+  }
+
+  /**
+   * Runs are invoked asynchronously, and Lambda runs a failed one again twice
+   * on its own: a second sign-in with a new code, or an agent run that pushes
+   * twice. Viberglass decides itself whether to try a run again. Refused, as
+   * by a backend role from before this permission, provisioning goes on.
+   */
+  private async turnOffRetries(functionIdentifier: string): Promise<void> {
+    try {
+      await this.lambdaClient.putFunctionEventInvokeConfig({ FunctionName: functionIdentifier, MaximumRetryAttempts: 0 });
+    } catch (error) {
+      logger.warn("Couldn't turn off Lambda's own retries; a failed run may start again", {
+        functionName: functionIdentifier,
+        error: getErrorMessage(error, "unknown error"),
+      });
+    }
   }
 
   private async loadExistingFunction(

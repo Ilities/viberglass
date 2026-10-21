@@ -1,5 +1,6 @@
 import type {
   CreateFunctionCommandInput,
+  PutFunctionEventInvokeConfigCommandInput,
   UpdateFunctionCodeCommandInput,
   UpdateFunctionConfigurationCommandInput,
 } from "@aws-sdk/client-lambda";
@@ -29,4 +30,5 @@ export interface LambdaClientPort {
     input: UpdateFunctionConfigurationCommandInput,
   ): Promise<void>;
   deleteFunction(functionName: string): Promise<void>;
+  putFunctionEventInvokeConfig(input: PutFunctionEventInvokeConfigCommandInput): Promise<void>;
 }

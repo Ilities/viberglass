@@ -3,10 +3,12 @@ import {
   CreateFunctionCommand,
   GetFunctionCommand,
   LambdaClient,
+  PutFunctionEventInvokeConfigCommand,
   UpdateFunctionCodeCommand,
   UpdateFunctionConfigurationCommand,
   type CreateFunctionCommandInput,
   type GetFunctionCommandOutput,
+  type PutFunctionEventInvokeConfigCommandInput,
   type UpdateFunctionCodeCommandInput,
   type UpdateFunctionConfigurationCommandInput,
 } from "@aws-sdk/client-lambda";
@@ -46,6 +48,10 @@ export class AwsLambdaClientAdapter implements LambdaClientPort {
     if (input.FunctionName) {
       await this.waitForFunctionUpdate(input.FunctionName);
     }
+  }
+
+  async putFunctionEventInvokeConfig(input: PutFunctionEventInvokeConfigCommandInput): Promise<void> {
+    await this.lambdaClient.send(new PutFunctionEventInvokeConfigCommand(input));
   }
 
   async deleteFunction(functionName: string): Promise<void> {

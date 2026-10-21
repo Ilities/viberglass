@@ -343,6 +343,7 @@ export function createBackendEcs(
               "lambda:UpdateFunctionConfiguration",
               "lambda:DeleteFunction",
               "lambda:InvokeFunction",
+              "lambda:PutFunctionEventInvokeConfig",
             ],
             Resource: [
               `arn:aws:lambda:${options.config.awsRegion}:*:function:viberator-*`,

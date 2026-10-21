@@ -22,6 +22,7 @@ describe("LambdaProvisioningHandler", () => {
     updateFunctionCode: jest.Mock;
     updateFunctionConfiguration: jest.Mock;
     deleteFunction: jest.Mock;
+    putFunctionEventInvokeConfig: jest.Mock;
   } {
     const getFunction = jest.fn(async () => ({
       Configuration: {
@@ -36,6 +37,7 @@ describe("LambdaProvisioningHandler", () => {
     const updateFunctionCode = jest.fn(async () => undefined);
     const updateFunctionConfiguration = jest.fn(async () => undefined);
     const deleteFunction = jest.fn(async () => undefined);
+    const putFunctionEventInvokeConfig = jest.fn(async (_input: { FunctionName?: string; MaximumRetryAttempts?: number }) => undefined);
 
     const client: LambdaClientPort = {
       getFunction,
@@ -43,6 +45,7 @@ describe("LambdaProvisioningHandler", () => {
       updateFunctionCode,
       updateFunctionConfiguration,
       deleteFunction,
+      putFunctionEventInvokeConfig,
     };
 
     return {
@@ -52,6 +55,7 @@ describe("LambdaProvisioningHandler", () => {
       updateFunctionCode,
       updateFunctionConfiguration,
       deleteFunction,
+      putFunctionEventInvokeConfig,
     };
   }
 
@@ -249,6 +253,29 @@ describe("LambdaProvisioningHandler", () => {
       expect(update).not.toHaveProperty("MemorySize");
       expect(update).not.toHaveProperty("Timeout");
     }
+  });
+
+  it("turns off Lambda's own retries for the functions it manages, and goes on when that's refused", async () => {
+    const { client, getFunction, putFunctionEventInvokeConfig } = buildLambdaClient();
+    getFunction.mockResolvedValue({ Configuration: { FunctionName: "fn", FunctionArn: "arn:fn" }, Code: { ImageUri: "image" } });
+    const handler = new LambdaProvisioningHandler(client);
+    const managed = buildClanker("lambda", { version: 1, strategy: { type: "lambda", imageUri: "image" }, agent: { type: "codex" } });
+
+    await handler.provision(managed);
+    expect(putFunctionEventInvokeConfig).toHaveBeenCalledWith(expect.objectContaining({ MaximumRetryAttempts: 0 }));
+
+    putFunctionEventInvokeConfig.mockRejectedValueOnce(Object.assign(new Error("not authorized"), { name: "AccessDeniedException" }));
+    await expect(handler.provision(managed)).resolves.toMatchObject({ status: "active" });
+
+    putFunctionEventInvokeConfig.mockClear();
+    await handler.provision(
+      buildClanker("lambda", {
+        version: 1,
+        strategy: { type: "lambda", provisioningMode: "prebuilt", functionName: "fn", imageUri: "image" },
+        agent: { type: "codex" },
+      }),
+    );
+    expect(putFunctionEventInvokeConfig).not.toHaveBeenCalled();
   });
 
   it("returns inactive when lambda function is not configured", async () => {
