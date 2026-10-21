@@ -74,12 +74,7 @@ export class LambdaFunctionProvisioner {
     };
   }
 
-  /**
-   * Runs are invoked asynchronously, and Lambda runs a failed one again twice
-   * on its own: a second sign-in with a new code, or an agent run that pushes
-   * twice. Viberglass decides itself whether to try a run again. Refused, as
-   * by a backend role from before this permission, provisioning goes on.
-   */
+  /** Viberglass retries runs itself; Lambda's own async retries would start a failed run twice more. */
   private async turnOffRetries(functionIdentifier: string): Promise<void> {
     try {
       await this.lambdaClient.putFunctionEventInvokeConfig({ FunctionName: functionIdentifier, MaximumRetryAttempts: 0 });
@@ -125,8 +120,6 @@ export class LambdaFunctionProvisioner {
     };
 
     if (config.roleArn) configurationUpdate.Role = config.roleArn;
-    // A function Viberglass made before these defaults may still have AWS's own 128 MB and 3 seconds;
-    // a prebuilt one keeps its own unless the runner sets them.
     const managed = config.provisioningMode !== "prebuilt";
     const memorySize = config.memorySize ?? (managed ? DEFAULT_LAMBDA_MEMORY_MB : undefined);
     const timeout = config.timeout ?? (managed ? DEFAULT_LAMBDA_TIMEOUT_SECONDS : undefined);

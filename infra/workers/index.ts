@@ -333,7 +333,6 @@ const workerLambda = new aws.lambda.Function(
   },
 );
 
-// Runs are invoked asynchronously; Viberglass decides itself whether to run a failed one again.
 new aws.lambda.FunctionEventInvokeConfig(`${config.environment}-viberglass-worker-no-retries`, {
   functionName: workerLambda.name,
   maximumRetryAttempts: 0,

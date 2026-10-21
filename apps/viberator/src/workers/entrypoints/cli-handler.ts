@@ -195,7 +195,6 @@ async function main() {
     if (!payload.tenantId) {
       throw new Error("Missing required field: tenantId");
     }
-    // Signing an agent in works on no repository.
     if (!payload.repository && !payload.files && payload.jobKind !== "agent_login") {
       throw new Error("Missing required field: repository (or files, for a Files space)");
     }

@@ -75,6 +75,7 @@ jobs:
         with:
           command: up
           stack-name: dev
+          refresh: true
           work-dir: infra/base
           cloud-url: ${{ env.PULUMI_BACKEND_URL }}
           diff: true
@@ -88,6 +89,7 @@ jobs:
         with:
           command: up
           stack-name: dev
+          refresh: true
           work-dir: infra/workers
           cloud-url: ${{ env.PULUMI_BACKEND_URL }}
           diff: true
@@ -101,6 +103,7 @@ jobs:
         with:
           command: up
           stack-name: dev
+          refresh: true
           work-dir: infra/platform
           cloud-url: ${{ env.PULUMI_BACKEND_URL }}
           diff: true
