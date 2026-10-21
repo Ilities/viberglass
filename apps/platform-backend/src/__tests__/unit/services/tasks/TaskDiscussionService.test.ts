@@ -51,6 +51,22 @@ describe("TaskDiscussionService", () => {
     });
   });
 
+  it("posts a message that's only images", async () => {
+    const { messages, service } = setup();
+    const image = { id: "media-1", filename: "a.png", mimeType: "image/png", size: 3, url: "s3://b/a.png", storageUrl: "s3://b/a.png", uploadedAt: "2026-10-21T10:00:00.000Z" };
+
+    await service.post("task-1", "user-1", "  ", [image]);
+
+    expect(messages.create).toHaveBeenCalledWith({ ticketId: "task-1", authorId: "user-1", body: "", mentionedUserIds: [], images: [image] });
+  });
+
+  it("refuses a message with neither words nor images", async () => {
+    const { messages, service } = setup();
+
+    await expect(service.post("task-1", "user-1", "  ")).rejects.toMatchObject({ code: "MESSAGE_INVALID" });
+    expect(messages.create).not.toHaveBeenCalled();
+  });
+
   it("refuses a mention of someone who can't see the task, before saving anything", async () => {
     const { messages, service } = setup();
 

@@ -1,10 +1,11 @@
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/auth-context'
-import { interruptAgent, postTaskMessage } from '@/service/api/discussion-api'
+import { interruptAgent, MESSAGE_IMAGE_LIMIT, postTaskMessage } from '@/service/api/discussion-api'
 import { getPeopleDirectory } from '@/service/api/user-api'
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import type { ComposerDraft, Mentionable } from './composer-draft'
+import { ComposerImages, imageFiles, MESSAGE_IMAGE_TYPES } from './message-images'
 
 export type { Mentionable } from './composer-draft'
 
@@ -26,7 +27,7 @@ interface TaskComposerProps {
   onPosted: () => void
 }
 
-/** Writing in a task's thread, with @mentions of people, and of agents to ask them. */
+/** Writing in a task's thread, with @mentions of people, and of agents to ask them, and images pasted, dropped or picked. */
 export function TaskComposer({ taskId, agents, draft, agentWorking = false, canInterrupt = false, onPosted }: TaskComposerProps) {
   const { user } = useAuth()
   const [people, setPeople] = useState<Mentionable[]>([])
@@ -34,7 +35,17 @@ export function TaskComposer({ taskId, agents, draft, agentWorking = false, canI
   const [active, setActive] = useState(0)
   /** The @query Escape closed the list for; typing on opens it again. */
   const [dismissed, setDismissed] = useState<string | null>(null)
+  const [images, setImages] = useState<File[]>([])
+  const picker = useRef<HTMLInputElement>(null)
   const listId = useId()
+  const empty = draft.isEmpty && images.length === 0
+
+  function attach(files: File[]) {
+    if (files.length === 0) return
+    const room = MESSAGE_IMAGE_LIMIT - images.length
+    if (files.length > room) toast.error(`A message can carry up to ${MESSAGE_IMAGE_LIMIT} images.`)
+    if (room > 0) setImages([...images, ...files.slice(0, room)])
+  }
 
   useEffect(() => {
     getPeopleDirectory()
@@ -80,8 +91,9 @@ export function TaskComposer({ taskId, agents, draft, agentWorking = false, canI
     setIsPosting(true)
     try {
       const body = draft.body()
-      const turn = interrupt ? await interruptAgent(taskId, body) : (await postTaskMessage(taskId, body)).turn
+      const turn = interrupt ? await interruptAgent(taskId, body) : (await postTaskMessage(taskId, body, {}, images)).turn
       draft.clear()
+      setImages([])
       if (interrupt) toast.success('Stopped the agent; it starts again with your message')
       else if (turn) toast.success(turn.status === 'queued' ? 'The agent will read it when it finishes its turn' : turn.status === 'paused' ? 'The agent will read it when it carries on' : 'Asked the agent')
       onPosted()
@@ -93,7 +105,18 @@ export function TaskComposer({ taskId, agents, draft, agentWorking = false, canI
   }
 
   return (
-    <div className="relative space-y-2 border-t border-[var(--gray-5)] pt-5">
+    <div
+      className="relative space-y-2 border-t border-[var(--gray-5)] pt-5"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes('Files')) event.preventDefault()
+      }}
+      onDrop={(event) => {
+        const dropped = imageFiles(event.dataTransfer.files)
+        if (dropped.length === 0) return
+        event.preventDefault()
+        attach(dropped)
+      }}
+    >
       <textarea
         id={`${listId}-input`}
         aria-label="Write a message"
@@ -104,6 +127,12 @@ export function TaskComposer({ taskId, agents, draft, agentWorking = false, canI
         aria-activedescendant={open ? `${listId}-${activeIndex}` : undefined}
         value={draft.text}
         onKeyDown={onKeyDown}
+        onPaste={(event) => {
+          const pasted = imageFiles(event.clipboardData.files)
+          if (pasted.length === 0) return
+          event.preventDefault()
+          attach(pasted)
+        }}
         onChange={(event) => {
           draft.setText(event.target.value)
           setActive(0)
@@ -136,13 +165,30 @@ export function TaskComposer({ taskId, agents, draft, agentWorking = false, canI
             </li>
           ))}
       </ul>
+      <ComposerImages images={images} onRemove={(image) => setImages(images.filter((other) => other !== image))} />
+      <input
+        ref={picker}
+        type="file"
+        multiple
+        hidden
+        accept={MESSAGE_IMAGE_TYPES.join(',')}
+        aria-label="Attach images"
+        onChange={(event) => {
+          attach(imageFiles(event.target.files))
+          event.target.value = ''
+        }}
+      />
       <div className="flex justify-end gap-2">
-        {agentWorking && canInterrupt && (
+        <Button outline className="mr-auto" disabled={isPosting || images.length >= MESSAGE_IMAGE_LIMIT} onClick={() => picker.current?.click()}>
+          Attach images
+        </Button>
+        {/* Interrupting sends text only; images go with the message after this turn. */}
+        {agentWorking && canInterrupt && images.length === 0 && (
           <Button outline disabled={isPosting || draft.isEmpty} onClick={() => void post(true)}>
             Send now and interrupt
           </Button>
         )}
-        <Button color="brand" disabled={isPosting || draft.isEmpty} onClick={() => void post()}>
+        <Button color="brand" disabled={isPosting || empty} onClick={() => void post()}>
           {isPosting ? 'Sending…' : agentWorking ? 'Send after this turn' : 'Send'}
         </Button>
       </div>

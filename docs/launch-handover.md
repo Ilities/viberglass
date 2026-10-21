@@ -113,5 +113,5 @@ Still open:
 ## Waiting on manual steps
 
 From launch-todo, things only the maintainer can do:
-- Clean-machine runs CLEAN-15 to CLEAN-41 (CLEAN-15 – CLEAN-19 are the one-server compose install).
+- Clean-machine runs CLEAN-15 to CLEAN-23 (CLEAN-15 – CLEAN-19 are the one-server compose install).
 - The rest of launch-todo: UX validation and the marketing site.

@@ -23,6 +23,18 @@ export class SlackWebApi {
     await this.call("chat.postMessage", { channel, text, unfurl_links: false });
   }
 
+  /** Whether the bot is in the channel, and whether the channel is private. */
+  async channelMembership(channel: string): Promise<{ isMember: boolean; isPrivate: boolean }> {
+    const body = await this.call("conversations.info", { channel }, "GET");
+    const info = isObjectRecord(body.channel) ? body.channel : {};
+    // The bot's own DM has no membership flag; Slack only shows it the DMs it's part of.
+    return { isMember: info.is_member === true || info.is_im === true, isPrivate: info.is_private === true };
+  }
+
+  async joinChannel(channel: string): Promise<void> {
+    await this.call("conversations.join", { channel });
+  }
+
   async lookupUserIdByEmail(email: string): Promise<string | null> {
     const body = await this.call("users.lookupByEmail", { email }, "GET");
     return isObjectRecord(body.user) && typeof body.user.id === "string" ? body.user.id : null;

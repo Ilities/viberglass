@@ -44,6 +44,8 @@ Write a message and choose Send. A plain message is for people: the agent reads 
 
 The suggested actions under the composer, such as Write the plan or Build it, ask the agent in one step. If you've written something in the composer, choosing one sends your message as the request instead of the suggestion's own words.
 
+To show what you mean, paste or drop images into the composer, or choose Attach images: up to four per message, PNG, JPEG, GIF or WebP, 10 MB each. They show under your message, and the agent turn that answers it gets them as files to open. A later turn doesn't get them again, so attach an image again if you want the agent to look at it once more. Send now and interrupt sends words only, so it isn't offered while images are attached.
+
 Type @ to mention someone. Pick a person to ask for their attention; it shows on their Home. Pick an agent to ask that agent for something; your message is the request. The line above the suggested actions says which agent your next request goes to, and whether it picks up its earlier conversation or starts fresh from the task and its documents.
 
 If the agent is working, the button says Send after this turn: your message waits until the agent finishes its turn.

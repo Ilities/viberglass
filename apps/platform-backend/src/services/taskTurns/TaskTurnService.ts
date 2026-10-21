@@ -1,4 +1,4 @@
-import { addPartMessage, buildPartsMessage, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { addPartMessage, buildPartsMessage, type MediaAsset, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import { AgentSessionDAO, type AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentTurnDAO, type AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
@@ -27,6 +27,8 @@ export interface AskInput {
   parts?: PartRange;
   /** For a build: the parts go into the open pull request rather than one of their own. */
   add?: boolean;
+  /** Images attached to the message, already in storage; the turn that takes it gets them. */
+  images?: MediaAsset[];
 }
 
 export interface AskResult {
@@ -107,7 +109,8 @@ export class TaskTurnService {
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
     // Only once the build can be asked for, so a refused ask leaves the open pull request as it was.
     if (adding && buildParts) await this.deps.parts.extendOpen(ticket, buildParts);
-    const messageId = input.postedMessageId ?? (actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null);
+    const posting = input.images?.length ? [{ images: input.images }] as const : [];
+    const messageId = input.postedMessageId ?? (actorId ? await this.deps.discussion.create(ticket.id, actorId, text, ...posting) : null);
 
     // Locked per task and agent so two asks can't each open a session.
     return agentSessionMutex.runExclusive(`task:${ticket.id}:${clankerId}`, async () => {

@@ -189,3 +189,5 @@ Expect: their one-line description matches the README's first line. Their object
 |---|---|---|---|---|---|---|
 | CLEAN-01 | | | | | | |
 | CLEAN-20 | 2026-10-19 | Ubuntu 24.04 VM, 4 vCPU, 8 GB, Docker 29.9, kind 0.33, Helm 3.22 | d38179b1 (v1.0.0) | 26 min clone to plan: 21 min install (image builds), 2 min setup, starter answer 44 s, plan 90 s | Pass | Disk used about 27 GB: 18 GB images, 9 GB cluster. The docs name kind, kubectl and Helm but don't link their installs; kind's `dl/latest` URL serves an alpha build. Docker 29 keeps images under `/var/lib/containerd`, so the 40 GiB is needed there, not only under `/var/lib/docker`. The backend preview port-forward drops when the backend pod restarts. Wrong model key gets a plain error; the token link names the repository's owner. Cancelling a run logged a Docker socket error from the Docker stopper; fixed after the run. |
+| CLEAN-30 – CLEAN-32 | 2026-10-20 | AWS dev account | | | Done | Covered by the dev deployment, which `pulumi-deploy-dev.yml` now ships. |
+| CLEAN-40 – CLEAN-41 | 2026-10-20 | | | | Closed | |

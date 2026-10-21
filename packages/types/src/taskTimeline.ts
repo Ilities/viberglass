@@ -1,5 +1,6 @@
 import type { AgentQuestion } from './agentQuestion'
 import type { ExternalMessageAuthor, TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
+import type { MediaAsset } from './ticket'
 import type { TaskTurnAction, TaskTurnOutcome } from './taskTurn'
 
 /** The artifacts a task's conversation produces so far. Code arrives with the pull request. */
@@ -22,6 +23,8 @@ export type TaskTimelineEntry =
       /** The tracker it was written in ("jira", "shortcut", "github"); absent or null when written in Viberglass or Slack. */
       source?: string | null
       body: string
+      /** Images attached to a thread message; session messages have none. */
+      images: MediaAsset[]
       /** `session` when it was sent to the agent in a live session, which the agent reads. */
       channel: 'thread' | 'session'
       sessionId: string | null

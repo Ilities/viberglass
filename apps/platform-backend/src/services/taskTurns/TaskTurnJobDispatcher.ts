@@ -1,6 +1,6 @@
 import { runnerModelEndpoints } from "../modelEndpoints";
 import { randomUUID } from "crypto";
-import { isObjectRecord, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { isObjectRecord, type MediaAsset, type PartRange, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import logger from "../../config/logger";
 import type { AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
@@ -41,6 +41,8 @@ export interface DispatchTurnInput {
   summary: string;
   /** The last commit an agent pushed to the task's branch, so the worker can tell it what people pushed since. */
   lastAgentCommit: string | null;
+  /** Images attached to the thread messages this turn answers. */
+  messageImages?: MediaAsset[];
 }
 
 /** What a harness with a compact command keeps when it compacts after a summary. */
@@ -108,7 +110,7 @@ export class TaskTurnJobDispatcher {
       this.runContextDeps,
     );
     const files = prepared.project.backingKind === "files";
-    const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker);
+    const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker, input.messageImages ?? []);
     const { acpSessionId, conversationStateUrl } = resumeState(session.metadataJson);
     // A first turn starts cold for certain; a later one only if the harness can't resume.
     const task = acpSessionId ? prompts.prompt : prompts.coldStartPrompt;

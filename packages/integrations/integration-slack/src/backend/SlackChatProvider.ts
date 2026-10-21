@@ -4,6 +4,7 @@ import type { AuthCredentials } from '@viberglass/types'
 import type { Chat } from 'chat'
 import { registerButtonActionHandlers } from './chat/buttonActions'
 import { registerModalSubmitHandler } from './chat/modalSubmit'
+import { botInChannel } from './chat/botInChannel'
 import { registerSlashCommandHandler } from './chat/slashCommand'
 import { registerThreadMessageHandler } from './chat/threadMessage'
 import { SLACK_ADAPTER } from './slackAdapterName'
@@ -15,7 +16,7 @@ const SLACK_MENTION = /<@([A-Z0-9]+)(?:\|[^>]*)?>/g
 /** How a message to the bot starts: its mention, raw or as the SDK renders it. */
 const LEADING_MENTION = /^\s*(<@[A-Z0-9]+(?:\|[^>]*)?>|@\S+)\s*/
 
-type SlackApi = Pick<SlackWebApi, 'postMessage' | 'lookupUserIdByEmail'>
+type SlackApi = Pick<SlackWebApi, 'postMessage' | 'lookupUserIdByEmail' | 'channelMembership' | 'joinChannel'>
 
 /** Slack through the chat SDK, with the bot token and signing secret the Slack connection holds. */
 export class SlackChatProvider implements ChatProvider {
@@ -40,7 +41,7 @@ export class SlackChatProvider implements ChatProvider {
   }
 
   registerHandlers(bot: Chat, services: ChatHandlerServices): void {
-    registerSlashCommandHandler(bot, services)
+    registerSlashCommandHandler(bot, services, (channel) => botInChannel(this.connected().api, channel))
     registerModalSubmitHandler(bot, services)
     registerThreadMessageHandler(bot, services)
     registerButtonActionHandlers(bot, services)

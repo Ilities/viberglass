@@ -13,7 +13,7 @@ jest.mock('chat', () => ({ Modal: jest.fn(), Select: jest.fn(), SelectOption: je
 const CONNECTION: AuthCredentials = { type: 'token', botToken: 'xoxb-1', signingSecret: 'secret' }
 
 function provider(connection: AuthCredentials | null = CONNECTION) {
-  const api = { postMessage: jest.fn().mockResolvedValue(undefined), lookupUserIdByEmail: jest.fn() }
+  const api = { postMessage: jest.fn().mockResolvedValue(undefined), lookupUserIdByEmail: jest.fn(), channelMembership: jest.fn(), joinChannel: jest.fn() }
   const createApi = jest.fn(() => api)
   const slack = new SlackChatProvider(createApi)
   slack.configure(connection)

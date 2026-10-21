@@ -4,6 +4,7 @@ import logger from "../../config/logger";
 import type { AgentSession, AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import type { AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import type { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { TaskMessageDAO } from "../../persistence/ticketing/TaskMessageDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import {
   AGENT_SESSION_EVENT_TYPE,
@@ -34,6 +35,7 @@ interface Collaborators {
   dispatcher: Pick<TaskTurnJobDispatcher, "dispatch">;
   projects: Pick<ProjectDAO, "getProject">;
   artifacts: Pick<ArtifactDAO, "listForTicket">;
+  messages: Pick<TaskMessageDAO, "imagesOf">;
 }
 
 /**
@@ -61,6 +63,7 @@ export class SessionTurnContinuationService {
       dispatcher: deps.dispatcher ?? new TaskTurnJobDispatcher(),
       projects: new ProjectDAO(),
       artifacts: new ArtifactDAO(),
+      messages: new TaskMessageDAO(),
       ...deps,
     };
   }
@@ -104,6 +107,9 @@ export class SessionTurnContinuationService {
       // Asked for an artifact, the agent revises the task's existing ones by id.
       const artifacts = filesSpace && action !== "summarise" ? await this.deps.artifacts.listForTicket(ticket.id) : [];
       const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode, filesSpace, artifacts);
+      // The images people attached to the messages this turn takes; earlier ones stay with the turns that had them.
+      const asked = pending.flatMap((entry) => (entry.taskMessageId ? [entry.taskMessageId] : []));
+      const images = await this.deps.messages.imagesOf(asked);
       const job = await this.deps.dispatcher.dispatch(
         {
           session,
@@ -116,6 +122,7 @@ export class SessionTurnContinuationService {
           documents: context.documents,
           summary: context.summary,
           lastAgentCommit: context.lastAgentCommit,
+          messageImages: asked.flatMap((messageId) => images.get(messageId) ?? []),
         },
         async (submitted) => {
           await this.agentTurnDAO.update(turn.id, { jobId: submitted.id });

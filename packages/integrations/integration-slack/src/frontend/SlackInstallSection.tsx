@@ -37,6 +37,7 @@ const BASE_MANIFEST = {
         'chat:write',
         'chat:write.public',
         'channels:read',
+        'channels:join',
         'channels:history',
         'groups:read',
         'groups:history',

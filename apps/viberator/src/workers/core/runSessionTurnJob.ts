@@ -17,6 +17,7 @@ import { httpMcpServersOf } from "../runtime/workerMcpServers";
 import { peoplesChanges } from "./peoplesChanges";
 import { keepPartialWork } from "./keepPartialWork";
 import { onStop } from "../runtime/stopSignal";
+import { localTaskMedia, taskMediaDir, withTaskMedia } from "./taskMedia";
 
 /**
  * One turn of a task's conversation with its agent. The agent gets
@@ -38,7 +39,9 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const pushed = setup.taskBranch?.continued
       ? await peoplesChanges(repoDir, params.lastAgentCommit ?? `origin/${checkoutBaseBranch}`)
       : null;
-    const withPushed = (prompt: string | undefined) => (prompt && pushed ? `${pushed}\n\n${prompt}` : prompt);
+    const media = await localTaskMedia(data.context?.ticketMedia || [], taskMediaDir(repoDir), logger);
+    const withPushed = (prompt: string | undefined) =>
+      withTaskMedia(prompt && pushed ? `${pushed}\n\n${prompt}` : prompt, media);
     const snapshot = materializeArtifacts(repoDir, {
       plan: data.context?.planDocument,
       summary: data.context?.summaryDocument,

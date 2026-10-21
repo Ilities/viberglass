@@ -46,7 +46,8 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 - [guide/admin/install-aws.md](guide/admin/install-aws.md) - Install on AWS with the Pulumi stacks
 - [kubernetes-deployment.md](kubernetes-deployment.md) - Kubernetes upgrades, backups and operations
 - [local-kubernetes.md](local-kubernetes.md) - Disposable local cluster and platform verification
-- [kubernetes-ovh-deployment-plan.md](kubernetes-ovh-deployment-plan.md) - The OVHcloud managed-cluster target
+- [guide/admin/install-ovhcloud.md](guide/admin/install-ovhcloud.md) - Install on OVHcloud Managed Kubernetes
+- [kubernetes-ovh-deployment-plan.md](kubernetes-ovh-deployment-plan.md) - How the Kubernetes support was planned
 - [portable-storage-and-credentials.md](portable-storage-and-credentials.md) - S3-compatible storage settings and how workers get credentials
 - [DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md) - Managing secrets
 - [operations/database-migrations.md](operations/database-migrations.md) - Database migration guide

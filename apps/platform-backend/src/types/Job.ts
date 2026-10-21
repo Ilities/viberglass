@@ -8,7 +8,7 @@ interface InstructionFile {
 
 export interface JobTicketMedia {
   id: string;
-  kind: "screenshot" | "recording";
+  kind: "screenshot" | "recording" | "image";
   filename: string;
   mimeType: string;
   size: number;

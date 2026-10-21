@@ -1,3 +1,5 @@
+import type { MediaAsset } from './ticket'
+
 /**
  * A mention inside a message body: `@[Maria PM](user:<id>)` for a person,
  * `@[Claude](agent:<clankerId>)` for an agent. The composer writes it; the
@@ -75,6 +77,8 @@ export interface TaskMessage {
   /** The tracker it was written in ("jira", "shortcut", "github"), or null when written in Viberglass or Slack. */
   source: string | null
   body: string
+  /** Images attached to the message, in the order they were attached. */
+  images: MediaAsset[]
   createdAt: string
   editedAt: string | null
 }

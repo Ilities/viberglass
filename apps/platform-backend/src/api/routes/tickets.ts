@@ -84,6 +84,7 @@ registerTaskDiscussionRoutes(router, {
   timeline: new TaskTimelineService(),
   turns: taskTurns,
   mentions: new TaskMentionDAO(),
+  uploads: fileUploadService,
 });
 registerTaskCopyRoutes(router, {
   copies: new TaskCopyService({ tickets: ticketService, spaceAccess: new SpaceAccessService(), discussion: taskDiscussion }),

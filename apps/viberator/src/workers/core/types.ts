@@ -61,7 +61,7 @@ export interface ScmPayload {
 
 export interface TicketMediaPayload {
   id: string;
-  kind: "screenshot" | "recording";
+  kind: "screenshot" | "recording" | "image";
   filename: string;
   mimeType: string;
   size: number;

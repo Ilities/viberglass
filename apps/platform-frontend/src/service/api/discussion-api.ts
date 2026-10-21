@@ -40,20 +40,37 @@ export interface PostedMessage {
   turn: AskedTurn | null
 }
 
+/** The most images one message can carry. */
+export const MESSAGE_IMAGE_LIMIT = 4
+
+/** The message as form fields, for sending images with it. */
+function messageForm(body: string, ask: { action?: TaskTurnAction; agentId?: string; parts?: PartRange; add?: boolean }, images: File[]) {
+  const form = new FormData()
+  form.append('body', body)
+  if (ask.action) form.append('action', ask.action)
+  if (ask.agentId) form.append('agentId', ask.agentId)
+  if (ask.parts) form.append('parts', JSON.stringify(ask.parts))
+  if (ask.add !== undefined) form.append('add', String(ask.add))
+  for (const image of images) form.append('images', image)
+  return form
+}
+
 /**
- * Posts in the task's thread. A message that mentions an agent, or carries an
- * action, also starts the agent's turn.
+ * Posts in the task's thread, with any images attached. A message that
+ * mentions an agent, or carries an action, also starts the agent's turn.
  */
 export async function postTaskMessage(
   taskId: string,
   body: string,
-  ask: { action?: TaskTurnAction; agentId?: string; parts?: PartRange; add?: boolean } = {}
+  ask: { action?: TaskTurnAction; agentId?: string; parts?: PartRange; add?: boolean } = {},
+  images: File[] = []
 ): Promise<PostedMessage> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ body, ...ask }),
-  })
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/tasks/${taskId}/messages`,
+    images.length > 0
+      ? { method: 'POST', body: messageForm(body, ask, images) }
+      : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body, ...ask }) }
+  )
   if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to post the message')
   const data: ApiResponse<TaskMessage[]> & { turn?: AskedTurn } = await response.json()
   return { messages: data.data, turn: data.turn ?? null }

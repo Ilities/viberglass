@@ -5,6 +5,7 @@ import type { TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useState } from 'react'
 import { describeActivity } from './activity-sentence'
 import { MessageBody } from './message-body'
+import { MessageImages } from './message-images'
 import { ThreadItem } from './thread-item'
 
 const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { plan: 'Plan' }
@@ -26,7 +27,8 @@ export function MessageEntry({ entry }: { entry: Extract<TaskTimelineEntry, { ki
       at={entry.at}
       note={note}
     >
-      <MessageBody body={entry.body} />
+      {entry.body && <MessageBody body={entry.body} />}
+      <MessageImages images={entry.images ?? []} />
     </ThreadItem>
   )
 }

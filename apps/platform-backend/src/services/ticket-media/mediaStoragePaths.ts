@@ -1,6 +1,7 @@
 import path from "path";
 
-export type TicketMediaKind = "screenshot" | "recording";
+/** An image is one attached to a message in the task's thread. */
+export type TicketMediaKind = "screenshot" | "recording" | "image";
 
 const S3_PREFIX = (process.env.TICKET_MEDIA_S3_PREFIX || "ticket-media").replace(
   /^\/+|\/+$/g,
@@ -19,7 +20,7 @@ function fileNameForMedia(mediaId: string, originalFilename: string): string {
 }
 
 function folderForKind(kind: TicketMediaKind): string {
-  return kind === "recording" ? "recordings" : "screenshots";
+  return kind === "recording" ? "recordings" : kind === "image" ? "images" : "screenshots";
 }
 
 export function buildDiskPath(

@@ -24,6 +24,8 @@ export function launchChoices(spaces: ChatSpaceSummary[]) {
 export function registerSlashCommandHandler(
   bot: Pick<Chat, "onSlashCommand">,
   services: ChatHandlerServices,
+  /** Null once the bot is in the channel; otherwise what to tell the person. */
+  botInChannel: (channel: string) => Promise<string | null>,
 ): void {
   bot.onSlashCommand("/viberglass", async (event) => {
     try {
@@ -31,6 +33,13 @@ export function registerSlashCommandHandler(
       const unlinked = await services.unlinkedAccountMessage(event.user.userId);
       if (unlinked) {
         await event.channel.postEphemeral(event.user, unlinked, { fallbackToDM: true });
+        return;
+      }
+
+      // The chat SDK names channels "slack:<id>".
+      const notInChannel = await botInChannel(event.channel.id.replace(/^slack:/, ""));
+      if (notInChannel) {
+        await event.channel.postEphemeral(event.user, notInChannel, { fallbackToDM: true });
         return;
       }
 

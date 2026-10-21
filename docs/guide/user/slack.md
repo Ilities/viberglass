@@ -10,7 +10,7 @@ A linked account lets you start tasks from Slack, take part in task threads as y
 
 ## Start a task
 
-1. Invite the bot to the channel: `/invite @Viberglass`.
+1. In a private channel, invite the bot first: `/invite @Viberglass`. Slack only tells the bot about replies and mentions in channels it's in. It joins a public channel by itself when you use `/viberglass` there; in a private channel it asks for the invite instead of opening the form.
 2. Type `/viberglass`.
 3. In the Ask the agent form, choose the space and the agent, and whether to start with a plan or with the work itself. Write what you want done; the title is optional.
 4. Choose Ask.

@@ -2,6 +2,8 @@ import type { ChatHandlerServices } from '@viberglass/integration-core'
 import { registerModalSubmitHandler } from '../src/backend/chat/modalSubmit'
 import { launchChoices, registerSlashCommandHandler } from '../src/backend/chat/slashCommand'
 
+const inChannel = jest.fn().mockResolvedValue(null)
+
 // The chat SDK is ESM-only and doesn't load under Jest; its form elements become the options they were given.
 jest.mock(
   'chat',
@@ -65,7 +67,7 @@ describe('the launch form for someone without a linked account', () => {
   it("tells them to link it instead of opening the form", async () => {
     const bot = { onSlashCommand: jest.fn() }
     const platform = services(false)
-    registerSlashCommandHandler(bot, platform)
+    registerSlashCommandHandler(bot, platform, inChannel)
     const [, handler] = bot.onSlashCommand.mock.calls[0]
     const event = { user: { userId: 'U1' }, channel: { id: 'C1', post: jest.fn(), postEphemeral: jest.fn() }, openModal: jest.fn() }
 
@@ -78,7 +80,7 @@ describe('the launch form for someone without a linked account', () => {
 
   it('opens the form for a linked account', async () => {
     const bot = { onSlashCommand: jest.fn() }
-    registerSlashCommandHandler(bot, services(true))
+    registerSlashCommandHandler(bot, services(true), inChannel)
     const [, handler] = bot.onSlashCommand.mock.calls[0]
     const event = { user: { userId: 'U1' }, channel: { id: 'C1', post: jest.fn(), postEphemeral: jest.fn() }, openModal: jest.fn().mockResolvedValue({ viewId: 'V1' }) }
 
@@ -86,6 +88,20 @@ describe('the launch form for someone without a linked account', () => {
 
     expect(event.openModal).toHaveBeenCalled()
     expect(event.channel.postEphemeral).not.toHaveBeenCalled()
+  })
+
+  it('asks for an invite instead of opening the form when the bot can\'t be in the channel', async () => {
+    const bot = { onSlashCommand: jest.fn() }
+    const notInChannel = jest.fn().mockResolvedValue('Invite me first')
+    registerSlashCommandHandler(bot, services(true), notInChannel)
+    const [, handler] = bot.onSlashCommand.mock.calls[0]
+    const event = { user: { userId: 'U1' }, channel: { id: 'slack:G1', post: jest.fn(), postEphemeral: jest.fn() }, openModal: jest.fn() }
+
+    await handler(event)
+
+    expect(notInChannel).toHaveBeenCalledWith('G1')
+    expect(event.channel.postEphemeral).toHaveBeenCalledWith(event.user, 'Invite me first', { fallbackToDM: true })
+    expect(event.openModal).not.toHaveBeenCalled()
   })
 
   it('creates no task when the form is sent without one', async () => {

@@ -58,7 +58,7 @@ curl -X POST https://slack.com/api/apps.manifest.create \
 
 1. Create a new app at [api.slack.com/apps](https://api.slack.com/apps) > **From scratch**.
 2. **Bot User**: set the display name to "Viberglass" and enable "Always Online".
-3. **OAuth Scopes** (Bot Token): `commands`, `app_mentions:read`, `chat:write`, `chat:write.public`, `channels:read`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write`. `users:read.email` is used to link accounts by email, `im:write` to send DMs, and `files:write` to attach `plan.md`.
+3. **OAuth Scopes** (Bot Token): `commands`, `app_mentions:read`, `chat:write`, `chat:write.public`, `channels:read`, `channels:join`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write`. `channels:join` lets the bot join a public channel a task is started from, since Slack only sends it replies and mentions from channels it's in, `users:read.email` is used to link accounts by email, `im:write` to send DMs, and `files:write` to attach `plan.md`.
 4. **Slash Commands**: create `/viberglass` pointing to `https://{host}/api/webhooks/slack`.
 5. **Interactivity**: enable it and set the Request URL to `https://{host}/api/webhooks/slack`.
 6. **Event Subscriptions**: enable them, set the Request URL to `https://{host}/api/webhooks/slack`, and subscribe to `app_mention`, `message.channels` and `message.groups`.

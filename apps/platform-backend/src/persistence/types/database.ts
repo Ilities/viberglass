@@ -499,6 +499,12 @@ export interface TaskMessagesTable {
   edited_at: Timestamp | null;
 }
 
+export interface TaskMessageImagesTable {
+  message_id: string;
+  media_id: string;
+  position: number;
+}
+
 export interface TaskIssueLinksTable {
   ticket_id: string;
   provider: string;
@@ -910,6 +916,7 @@ export interface Database {
   space_members: SpaceMembersTable;
   task_participants: TaskParticipantsTable;
   task_messages: TaskMessagesTable;
+  task_message_images: TaskMessageImagesTable;
   task_mentions: TaskMentionsTable;
   task_issue_links: TaskIssueLinksTable;
   tracker_issue_rules: TrackerIssueRulesTable;

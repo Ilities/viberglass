@@ -192,7 +192,7 @@ python3 infra/kubernetes/scripts/local.py
 - [Local Kubernetes](docs/local-kubernetes.md): prerequisites, port forwards and a full-platform smoke test.
 - [Install on your Kubernetes cluster](docs/guide/admin/install-kubernetes.md): step-by-step setup, Secrets, production values, TLS, installation and your first task.
 - [Kubernetes operations](docs/kubernetes-deployment.md): upgrades, backups, diagnostics and cleanup.
-- [OVHcloud plan](docs/kubernetes-ovh-deployment-plan.md): the managed-cluster target we're validating against.
+- [Install on OVHcloud](docs/guide/admin/install-ovhcloud.md): step by step on OVHcloud Managed Kubernetes, with its managed PostgreSQL and Object Storage.
 
 ### AWS
 

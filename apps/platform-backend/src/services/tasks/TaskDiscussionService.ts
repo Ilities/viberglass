@@ -1,4 +1,4 @@
-import { parseMentionedUserIds, type TaskMessage } from "@viberglass/types";
+import { parseMentionedUserIds, type MediaAsset, type TaskMessage } from "@viberglass/types";
 import { TaskMessageDAO } from "../../persistence/ticketing/TaskMessageDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { TASK_PARTICIPANT_ERROR_CODE, TaskParticipantError } from "../errors/TaskParticipantError";
@@ -32,16 +32,24 @@ export class TaskDiscussionService {
     return this.deps.messages.list(ticketId);
   }
 
-  async post(ticketId: string, authorId: string, body: string): Promise<TaskMessage[]> {
-    await this.create(ticketId, authorId, body);
+  async post(ticketId: string, authorId: string, body: string, images: MediaAsset[] = []): Promise<TaskMessage[]> {
+    await this.create(ticketId, authorId, body, { images });
     return this.list(ticketId);
   }
 
-  /** Posts the message and returns its id. */
-  /** With `source`, the message was written in that tracker, by someone with an account here. */
-  async create(ticketId: string, authorId: string, body: string, { source }: { source?: string } = {}): Promise<string> {
+  /**
+   * Posts the message and returns its id. With `source`, it was written in
+   * that tracker, by someone with an account here. A message may be only
+   * images.
+   */
+  async create(
+    ticketId: string,
+    authorId: string,
+    body: string,
+    { source, images = [] }: { source?: string; images?: MediaAsset[] } = {},
+  ): Promise<string> {
     const text = body.trim();
-    if (!text || text.length > MAX_BODY) {
+    if ((!text && images.length === 0) || text.length > MAX_BODY) {
       throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.MESSAGE_INVALID, "Write a message of up to 20,000 characters.");
     }
     const mentioned = parseMentionedUserIds(text).filter((userId) => userId !== authorId);
@@ -55,6 +63,7 @@ export class TaskDiscussionService {
       body: text,
       mentionedUserIds: mentioned,
       ...(source ? { external: { source, authorName: null } } : {}),
+      ...(images.length > 0 ? { images } : {}),
     });
     for (const userId of mentioned) {
       await this.deps.participants.add(ticketId, userId, "watcher", authorId);

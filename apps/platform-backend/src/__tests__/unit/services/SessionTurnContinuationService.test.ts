@@ -83,6 +83,7 @@ describe("SessionTurnContinuationService", () => {
   const dispatcher = { dispatch: jest.fn() };
   const projects = { getProject: jest.fn() };
   const artifacts = { listForTicket: jest.fn() };
+  const messages = { imagesOf: jest.fn() };
   const service = new SessionTurnContinuationService(sessions, turns, events, {
     tickets,
     context: loader,
@@ -90,6 +91,7 @@ describe("SessionTurnContinuationService", () => {
     dispatcher,
     projects,
     artifacts,
+    messages,
   });
 
   beforeEach(() => {
@@ -97,6 +99,7 @@ describe("SessionTurnContinuationService", () => {
     tickets.getTicket.mockResolvedValue({ id: "ticket-1", projectId: "proj-1", title: "Dark mode" });
     projects.getProject.mockResolvedValue({ id: "proj-1", backingKind: "git" });
     artifacts.listForTicket.mockResolvedValue([]);
+    messages.imagesOf.mockResolvedValue(new Map());
     turns.nextSequence.mockResolvedValue(7);
     turns.create.mockResolvedValue({ id: "a1" });
     events.getMaxSequence.mockResolvedValue(10);
@@ -139,6 +142,24 @@ describe("SessionTurnContinuationService", () => {
       expect.any(Function),
     );
     expect(result).toEqual({ currentTurn: { id: "a1" }, job: { id: "job-1", status: "pending" } });
+  });
+
+  it("gives the turn the images attached to the messages it answers", async () => {
+    const image = (id: string) => ({ id, filename: `${id}.png`, mimeType: "image/png", size: 3, url: id, storageUrl: id, uploadedAt: "2026-10-21T10:00:00.000Z" });
+    turns.listUnconsumedUserTurns.mockResolvedValue([
+      makeUserTurn({ id: "u1", taskMessageId: "message-1" }),
+      makeUserTurn({ id: "u2", taskMessageId: null }),
+      makeUserTurn({ id: "u3", taskMessageId: "message-3" }),
+    ]);
+    messages.imagesOf.mockResolvedValue(new Map([["message-1", [image("a")]], ["message-3", [image("b"), image("c")]]]));
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(messages.imagesOf).toHaveBeenCalledWith(["message-1", "message-3"]);
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ messageImages: [image("a"), image("b"), image("c")] }),
+      expect.any(Function),
+    );
   });
 
   it("tells the prompt when the agent works in a Files space's files", async () => {

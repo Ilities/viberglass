@@ -1,6 +1,6 @@
 # Install on Kubernetes
 
-Deploy Viberglass to an existing Kubernetes cluster with the [Helm chart](../../../infra/kubernetes/chart). It runs one backend, one frontend, and a migration Job. Each agent run gets its own Job in a dedicated worker namespace. This guide uses external PostgreSQL and S3-compatible storage; for a disposable installation with bundled PostgreSQL/MinIO, use the [local walkthrough](../../local-kubernetes.md).
+Deploy Viberglass to an existing Kubernetes cluster with the [Helm chart](../../../infra/kubernetes/chart). It runs one backend, one frontend, and a migration Job. Each agent run gets its own Job in a dedicated worker namespace. This guide uses external PostgreSQL and S3-compatible storage; for a disposable installation with bundled PostgreSQL/MinIO, use the [local walkthrough](../../local-kubernetes.md). [Install on OVHcloud](install-ovhcloud.md) goes through this on OVHcloud Managed Kubernetes, step by step.
 
 The examples use Helm release `viberglass`, app namespace `viberglass`, and worker namespace `viberglass-workers`. Use dedicated namespaces. If you change these names, update the values and commands together. Run commands in Bash from the repository root unless stated otherwise.
 

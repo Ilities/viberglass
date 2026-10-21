@@ -1,4 +1,4 @@
-import type { Clanker, Ticket } from "@viberglass/types";
+import type { Clanker, MediaAsset, Ticket } from "@viberglass/types";
 import { resolveClankerConfig } from "../clanker-config";
 import { createChildLogger } from "../config/logger";
 import { FileUploadService } from "./FileUploadService";
@@ -9,17 +9,19 @@ const logger = createChildLogger({ service: "TicketMediaExecutionService" });
 
 interface TicketMediaCandidate {
   kind: TicketMediaKind;
-  asset: NonNullable<Ticket["screenshot"]>;
+  asset: MediaAsset;
 }
 
 export class TicketMediaExecutionService {
   constructor(private readonly fileUploadService: FileUploadService = new FileUploadService()) {}
 
+  /** The task's screenshot and recording, and `images` from its thread, made reachable for the run's worker. */
   async prepareForExecution(
     ticket: Ticket,
     clanker: Clanker,
+    images: MediaAsset[] = [],
   ): Promise<{ media: JobTicketMedia[]; mounts: VolumeMount[] }> {
-    const candidates: TicketMediaCandidate[] = [];
+    const candidates: TicketMediaCandidate[] = images.map((asset) => ({ kind: "image", asset }));
     if (ticket.screenshot) {
       candidates.push({ kind: "screenshot", asset: ticket.screenshot });
     }
