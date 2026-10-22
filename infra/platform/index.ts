@@ -322,7 +322,7 @@ const email = createEmail(config);
 
 const backendEcs: BackendEcsOutputs = createBackendEcs({
   config,
-  email: email && { identityArn: email.identityArn, from: email.from },
+  email: email && { identityArn: email.identityArn, configurationSetArn: email.configurationSetArn, from: email.from },
   repositoryUrl: registry.repositoryUrl,
   logGroupName: backendLogGroupName,
   targetGroupArn: loadBalancer.targetGroupArn,

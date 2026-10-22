@@ -9,6 +9,8 @@ import { emailSetupSteps, sesDkimStatus, sesProductionAccess } from "./emailSetu
 export interface EmailOutputs {
   /** SES identity ARN the backend may send from */
   identityArn: pulumi.Output<string>;
+  /** The identity's default configuration set; SES authorizes sends against it too */
+  configurationSetArn: pulumi.Output<string>;
   /** Sender address, e.g. "Viberglass <notifications@viberglass.io>" */
   from: string;
   /** DKIM CNAME records; created in Route 53 when the zone is configured, else add them by hand */
@@ -29,12 +31,17 @@ export function createEmail(config: InfrastructureConfig): EmailOutputs | undefi
   if (!config.emailDomain) return undefined;
   const domain = config.emailDomain;
 
+  const configurationSet = new aws.sesv2.ConfigurationSet(`${config.environment}-viberglass-email`, {
+    configurationSetName: `${config.environment}-viberglass-email`,
+    reputationOptions: { reputationMetricsEnabled: true },
+    tags: config.tags,
+  });
+
+  // The provider can't detach a configuration set (SES rejects an empty set name), so always attach one.
   const identity = new aws.sesv2.EmailIdentity(`${config.environment}-viberglass-email`, {
     emailIdentity: domain,
+    configurationSetName: configurationSet.configurationSetName,
     tags: config.tags,
-  }, {
-    // Attached in the console; clearing it would make SES reject the update with an empty set id.
-    ignoreChanges: ["configurationSetName"],
   });
 
   const dkimRecords = identity.dkimSigningAttributes.apply((attributes) =>
@@ -80,6 +87,7 @@ export function createEmail(config: InfrastructureConfig): EmailOutputs | undefi
 
   return {
     identityArn: identity.arn,
+    configurationSetArn: configurationSet.arn,
     from: config.emailFrom ?? `Viberglass <notifications@${domain}>`,
     dkimRecords,
     setupSteps,

@@ -55,6 +55,7 @@ export interface BackendEcsOptions {
   /** SES identity and sender address; without it the backend sends no email */
   email?: {
     identityArn: pulumi.Input<string>;
+    configurationSetArn: pulumi.Input<string>;
     from: string;
   };
   /** Artifact previews on their own host; without it the app offers no HTML, image or PDF previews */
@@ -316,12 +317,14 @@ export function createBackendEcs(
   if (options.email) {
     new aws.iam.RolePolicy(`${options.config.environment}-viberglass-backend-ses-send`, {
       role: backendTaskRole.name,
-      policy: pulumi.output(options.email.identityArn).apply((identityArn) =>
-        JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [{ Effect: "Allow", Action: ["ses:SendEmail"], Resource: [identityArn] }],
-        }),
-      ),
+      policy: pulumi
+        .all([options.email.identityArn, options.email.configurationSetArn])
+        .apply(([identityArn, configurationSetArn]) =>
+          JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [{ Effect: "Allow", Action: ["ses:SendEmail"], Resource: [identityArn, configurationSetArn] }],
+          }),
+        ),
     });
   }
 
