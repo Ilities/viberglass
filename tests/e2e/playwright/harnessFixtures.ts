@@ -24,19 +24,25 @@ async function createHarnessRunner(api: APIRequestContext, harness: HarnessUnder
   // Playwright starts a new worker after a failed test, which creates its own runner.
   const suffix = Date.now();
   const keyId = await createSecret(api, `${harness.name} mock model key ${suffix}`, MOCK_MODEL_KEY);
+  const path = harness.apiFormat === "anthropic-messages" ? "" : "/v1";
+  const endpoint = {
+    name: `Mock model for ${harness.name} ${suffix}`,
+    baseUrl: `${E2E.workerReachableMockModelUrl}${path}`,
+    apiFormat: harness.apiFormat,
+    auth: { scheme: "bearer" },
+    secretId: keyId,
+    extraHeaders: {},
+    models: [MOCK_MODEL],
+    mayColdStart: false,
+  };
+  // As the endpoint form does: check it, then save the models and context lengths it reports. The
+  // backend runs on the host, where the workers' address for the mock doesn't resolve.
+  const checked = await readEntity(
+    await api.post("/api/model-endpoints/check", { data: { ...endpoint, baseUrl: `http://localhost:${E2E.mockModelPort}${path}` } }),
+    `Checking the mock model endpoint for ${harness.name}`,
+  );
   const endpointId = await readId(
-    await api.post("/api/model-endpoints", {
-      data: {
-        name: `Mock model for ${harness.name} ${suffix}`,
-        baseUrl: `${E2E.workerReachableMockModelUrl}${harness.apiFormat === "anthropic-messages" ? "" : "/v1"}`,
-        apiFormat: harness.apiFormat,
-        auth: { scheme: "bearer" },
-        secretId: keyId,
-        extraHeaders: {},
-        models: [MOCK_MODEL],
-        mayColdStart: false,
-      },
-    }),
+    await api.post("/api/model-endpoints", { data: { ...endpoint, contextWindows: checked.contextWindows } }),
     `Creating the mock model endpoint for ${harness.name}`,
   );
   const clankerId = await readId(

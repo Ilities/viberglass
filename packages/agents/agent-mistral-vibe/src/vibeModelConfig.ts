@@ -42,7 +42,12 @@ export function vibeModelEndpointEnvironment(
       },
     ]),
     VIBE_MODELS: JSON.stringify([
-      { name: endpoint.model, provider: ALIAS, alias: ALIAS, max_context_length: 32768 },
+      {
+        name: endpoint.model,
+        provider: ALIAS,
+        alias: ALIAS,
+        ...(endpoint.contextWindow ? { max_context_length: endpoint.contextWindow } : {}),
+      },
     ]),
     VIBE_ACTIVE_MODEL: ALIAS,
     VIBE_ENABLE_TELEMETRY: "false",

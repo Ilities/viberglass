@@ -1,5 +1,6 @@
 import type { Selectable } from "kysely";
 import {
+  isContextWindow,
   isModelApiFormat,
   isModelEndpointAuth,
   isObjectRecord,
@@ -8,6 +9,15 @@ import {
 } from "@viberglass/types";
 import db from "../config/database";
 import type { Database } from "../types/database";
+
+function readContextWindows(value: unknown): Record<string, number> {
+  const windows: Record<string, number> = {};
+  if (!isObjectRecord(value)) return windows;
+  for (const [model, tokens] of Object.entries(value)) {
+    if (isContextWindow(tokens)) windows[model] = tokens;
+  }
+  return windows;
+}
 
 function toEndpoint(
   row: Selectable<Database["model_endpoints"]>,
@@ -36,6 +46,7 @@ function toEndpoint(
     models: Array.isArray(row.models)
       ? row.models.filter((value): value is string => typeof value === "string")
       : [],
+    contextWindows: readContextWindows(row.context_windows),
     source: row.source,
     deploymentId: row.deployment_id,
     mayColdStart: row.may_cold_start,
@@ -57,6 +68,7 @@ export function modelEndpointValues(
     secret_id: input.secretId ?? null,
     extra_headers: JSON.stringify(input.extraHeaders),
     models: JSON.stringify(input.models),
+    context_windows: JSON.stringify(input.contextWindows ?? {}),
     may_cold_start: input.mayColdStart,
     source: deploymentId ? ("deployment" as const) : ("manual" as const),
     deployment_id: deploymentId,

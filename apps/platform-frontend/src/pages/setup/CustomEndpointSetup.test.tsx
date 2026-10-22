@@ -30,7 +30,7 @@ describe('CustomEndpointSetup', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockCreateSecret.mockResolvedValue({ id: 'secret-1' })
-    mockCheck.mockResolvedValue({ models: ['glm-4.7-flash', 'glm-4.7'], discoverySupported: true })
+    mockCheck.mockResolvedValue({ models: ['glm-4.7-flash', 'glm-4.7'], contextWindows: { 'glm-4.7': 200000 }, discoverySupported: true })
     mockSave.mockResolvedValue({ id: 'endpoint-1' })
   })
 
@@ -51,7 +51,7 @@ describe('CustomEndpointSetup', () => {
     expect(mockCreateSecret).toHaveBeenCalledTimes(1)
     expect(mockCreateSecret).toHaveBeenCalledWith({ name: 'api.z.ai key', secretLocation: 'database', secretValue: 'zai-key' })
     expect(mockSave).toHaveBeenCalledWith(
-      expect.objectContaining({ baseUrl: 'https://api.z.ai/api/paas/v4', apiFormat: 'openai-chat', secretId: 'secret-1', models: ['glm-4.7-flash', 'glm-4.7'] })
+      expect.objectContaining({ baseUrl: 'https://api.z.ai/api/paas/v4', apiFormat: 'openai-chat', secretId: 'secret-1', models: ['glm-4.7-flash', 'glm-4.7'], contextWindows: { 'glm-4.7': 200000 } })
     )
   })
 

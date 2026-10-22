@@ -97,7 +97,11 @@ export function CustomEndpointSetup({ onDone }: { onDone: (endpointId: string, m
       if (result.discoverySupported && !result.models.includes(chosen)) {
         throw new Error(`This endpoint doesn't list ${chosen}. It lists ${result.models.slice(0, 5).join(', ')}${result.models.length > 5 ? '…' : ''}.`)
       }
-      const endpoint = await saveModelEndpoint({ ...value, models: Array.from(new Set([chosen, ...result.models])) })
+      const endpoint = await saveModelEndpoint({
+        ...value,
+        models: Array.from(new Set([chosen, ...result.models])),
+        contextWindows: result.contextWindows,
+      })
       onDone(endpoint.id, chosen)
     })
 

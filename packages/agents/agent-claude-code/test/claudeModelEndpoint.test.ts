@@ -45,4 +45,14 @@ describe("Claude Code model endpoint", () => {
     expect(open.ANTHROPIC_AUTH_TOKEN).toBe("unused");
     expect(open.ANTHROPIC_CUSTOM_HEADERS).toBeUndefined();
   });
+
+  test("tells Claude Code a known context window, with a reply limit that leaves room in it", () => {
+    expect(claudeModelEndpointEnvironment({ ...endpoint, contextWindow: 32768 }, env)).toMatchObject({
+      CLAUDE_CODE_MAX_CONTEXT_TOKENS: "32768",
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192",
+    });
+    const unknown = claudeModelEndpointEnvironment(endpoint, env);
+    expect(unknown.CLAUDE_CODE_MAX_CONTEXT_TOKENS).toBeUndefined();
+    expect(unknown.CLAUDE_CODE_MAX_OUTPUT_TOKENS).toBeUndefined();
+  });
 });

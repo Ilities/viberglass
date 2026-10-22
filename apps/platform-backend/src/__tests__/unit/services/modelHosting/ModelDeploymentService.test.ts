@@ -135,8 +135,23 @@ describe("model deployments", () => {
         secretId: "secret-key",
         extraHeaders: {},
         models: ["Qwen/Qwen3-8B"],
+        contextWindows: {},
         mayColdStart: true,
       },
+    );
+  });
+
+  test("records the context length the deployment serves its model with", async () => {
+    const { service, deployments } = fixture();
+    await service.create({ ...input, servingArgs: ["--max-model-len", "32768", "--tool-call-parser", "hermes"] });
+    expect(deployments.create).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ contextWindows: { "Qwen/Qwen3-8B": 32768 } }),
+    );
+    await service.create({ ...input, name: "Qwen 2", servingArgs: ["--max-model-len=65536"] });
+    expect(deployments.create).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ contextWindows: { "Qwen/Qwen3-8B": 65536 } }),
     );
   });
 
@@ -168,6 +183,7 @@ describe("model deployments", () => {
         auth: { scheme: "none" },
         extraHeaders: {},
         models: [],
+        contextWindows: {},
         mayColdStart: false,
         source: "manual",
         deploymentId: null,

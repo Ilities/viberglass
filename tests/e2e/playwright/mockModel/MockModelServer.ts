@@ -10,6 +10,8 @@ const APIS: MockModelApi[] = [chatCompletionsApi, responsesApi, anthropicMessage
 const COUNT_TOKENS = "/messages/count_tokens";
 
 export const MOCK_MODEL = "mock-model";
+/** The context length the mock's model list reports, as vLLM does: neither the local default nor any harness's own. */
+export const MOCK_CONTEXT_WINDOW = 131072;
 
 export interface RecordedModelRequest {
   method: string;
@@ -95,7 +97,15 @@ export class MockModelServer {
     }
     if (req.method === "GET" && path.endsWith("/models")) {
       // Both the OpenAI and the Anthropic shapes of a model list.
-      const model = { id: MOCK_MODEL, object: "model", type: "model", display_name: MOCK_MODEL, owned_by: "mock", created_at: "2026-01-01T00:00:00Z" };
+      const model = {
+        id: MOCK_MODEL,
+        object: "model",
+        type: "model",
+        display_name: MOCK_MODEL,
+        owned_by: "mock",
+        created_at: "2026-01-01T00:00:00Z",
+        max_model_len: MOCK_CONTEXT_WINDOW,
+      };
       return writeJson(res, 200, { object: "list", data: [model], has_more: false, first_id: MOCK_MODEL, last_id: MOCK_MODEL });
     }
     if (req.method === "POST" && path.endsWith(COUNT_TOKENS)) {

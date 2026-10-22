@@ -21,7 +21,7 @@ export function codexModelConfig(endpoint: WorkerModelEndpoint): string {
   return [
     `model = ${tomlString(endpoint.model)}`,
     `model_provider = ${tomlString(PROVIDER)}`,
-    `model_context_window = 32768`,
+    ...(endpoint.contextWindow ? [`model_context_window = ${endpoint.contextWindow}`] : []),
     ``,
     `[model_providers.${PROVIDER}]`,
     `name = ${tomlString(endpoint.name)}`,

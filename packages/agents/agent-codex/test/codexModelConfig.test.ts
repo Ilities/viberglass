@@ -13,6 +13,7 @@ const endpoint: WorkerModelEndpoint = {
   extraHeaders: { "X-Team": "eu" },
   model: "gpt-oss-120b",
   mayColdStart: false,
+  contextWindow: 32768,
 };
 
 describe("Codex model endpoint", () => {
@@ -59,5 +60,9 @@ describe("Codex model endpoint", () => {
       sendProgress: async () => {},
     });
     expect(lifecycle?.constructor.name).toBe("NoopAgentAuthLifecycle");
+  });
+
+  test("leaves the context window to Codex when the model's isn't known", () => {
+    expect(codexModelConfig({ ...endpoint, contextWindow: undefined })).not.toContain("model_context_window");
   });
 });

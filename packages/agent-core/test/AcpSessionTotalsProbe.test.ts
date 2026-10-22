@@ -16,6 +16,13 @@ describe("AcpSessionTotalsProbe", () => {
     expect(probe.capture(chunk("after"))).toBe(false);
   });
 
+  it("lets the harness's other updates through while it runs, such as the context size Kimi reports as a turn ends", () => {
+    const probe = new AcpSessionTotalsProbe({ command: "/usage", parse: () => null });
+    probe.begin();
+    expect(probe.capture({ sessionId: "s", update: { sessionUpdate: "usage_update", used: 8353, size: 131072 } })).toBe(false);
+    expect(probe.capture(chunk("Session total: 1 input, 1 output"))).toBe(true);
+  });
+
   it("reads nothing when the harness didn't answer", () => {
     const probe = new AcpSessionTotalsProbe({ command: "/session", parse: () => ({ inputTokens: 1 }) });
     probe.begin();

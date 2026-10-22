@@ -1,5 +1,6 @@
 import {
   MODEL_ENDPOINT_KEY_ENV_VAR,
+  modelContextWindow,
   type Clanker,
   type SecretBinding,
   type WorkerModelEndpoint,
@@ -31,6 +32,7 @@ export class RunnerModelEndpointResolver {
       clanker.modelEndpoint.endpointId,
     );
     await this.waker?.prepare(endpoint);
+    const contextWindow = modelContextWindow(endpoint, clanker.modelEndpoint.model);
     return {
       endpoint: {
         name: endpoint.name,
@@ -40,6 +42,7 @@ export class RunnerModelEndpointResolver {
         extraHeaders: endpoint.extraHeaders,
         model: clanker.modelEndpoint.model,
         mayColdStart: endpoint.mayColdStart,
+        ...(contextWindow !== undefined ? { contextWindow } : {}),
       },
       secretBindings: endpoint.secretId
         ? [{ envVar: MODEL_ENDPOINT_KEY_ENV_VAR, secretId: endpoint.secretId }]

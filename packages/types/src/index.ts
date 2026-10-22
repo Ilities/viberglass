@@ -108,6 +108,7 @@ export * from './taskSituation'
 export * from './home'
 
 export * from './modelEndpoints'
+export * from './modelEndpointContext'
 
 // Open-weight models Viberglass deploys to a customer's cloud account
 export * from './modelDeployments'

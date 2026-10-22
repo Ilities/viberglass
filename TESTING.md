@@ -334,6 +334,10 @@ npm run test:harnesses -w @viberator/e2e-tests -- --project=harness-opencode
 - It records every request. Tests use the recordings to check what the harness
   sent, and a failed test gets them as `model-requests.json` in its output
   folder.
+- Its model list reports a context length (`max_model_len`, as vLLM does). Each
+  runner's endpoint is checked and saved the way the endpoint form does it, and
+  the plan test checks that a harness which reports its context size got that
+  length.
 - The harnesses are listed in `playwright/harnessMatrix.ts`, one Playwright
   project each. Steps that fail today are listed there with the reason; they
   run as expected failures, so a fix shows up as an unexpected pass. Antigravity isn't listed:

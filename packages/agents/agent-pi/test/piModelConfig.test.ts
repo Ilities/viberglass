@@ -80,3 +80,14 @@ test.each(["openai-chat", "openai-responses", "anthropic-messages"] as const)(
     );
   },
 );
+
+test("gives Pi the model's context window and a reply limit within it, only when known", () => {
+  const modelOf = (env: Record<string, string>) => JSON.parse(env.PI_CUSTOM_MODELS).providers.viberglass.models[0];
+  expect(modelOf(new PiModelEndpointEnvironment({ ...endpoint, contextWindow: 131072 }).resolve())).toMatchObject({
+    contextWindow: 131072,
+    maxTokens: 32000,
+  });
+  const unknown = modelOf(new PiModelEndpointEnvironment(endpoint).resolve());
+  expect(unknown).not.toHaveProperty("contextWindow");
+  expect(unknown).not.toHaveProperty("maxTokens");
+});

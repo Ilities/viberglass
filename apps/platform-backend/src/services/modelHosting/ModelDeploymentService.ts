@@ -10,6 +10,7 @@ import type {
   ModelDeploymentRecord,
 } from "../../persistence/modelHosting/ModelDeploymentDAO";
 import type { ModelEndpointDAO } from "../../persistence/modelEndpoint/ModelEndpointDAO";
+import { maxModelLenOf } from "@viberglass/types";
 import type { ModelHostConnection, ModelHostConnector } from "./ModelHostConnector";
 import { ModelHostingError } from "../errors/ModelHostingError";
 import logger from "../../config/logger";
@@ -23,6 +24,12 @@ function stripRecord({ externalId: _externalId, wakingSince: _wakingSince, ...de
  * after this is almost always restarting a container that crashes on start.
  */
 const WAKING_LIMIT_MINUTES = 20;
+
+/** Without --max-model-len, vLLM serves the model's own full context length, which we don't know. */
+function contextWindowsOf(model: string, servingArgs: readonly string[]): Record<string, number> {
+  const tokens = maxModelLenOf(servingArgs);
+  return tokens ? { [model]: tokens } : {};
+}
 
 /** The cloud's refusals (quota, balance, a bad flavour) reach the admin in its own words. */
 async function cloud<T>(action: Promise<T>): Promise<T> {
@@ -100,6 +107,7 @@ export class ModelDeploymentService {
           secretId: account.endpointKeySecretId,
           extraHeaders: {},
           models: [input.model],
+          contextWindows: contextWindowsOf(input.model, input.servingArgs),
           mayColdStart: true,
         },
       );

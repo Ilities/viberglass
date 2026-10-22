@@ -37,7 +37,10 @@ export function qwenModelSettings(endpoint: WorkerModelEndpoint): Record<string,
             endpoint.auth.scheme === "bearer"
               ? MODEL_ENDPOINT_KEY_ENV_VAR
               : QWEN_PLACEHOLDER_KEY_ENV_VAR,
-          generationConfig: { contextWindowSize: 32768, customHeaders: headers },
+          generationConfig: {
+            ...(endpoint.contextWindow ? { contextWindowSize: endpoint.contextWindow } : {}),
+            customHeaders: headers,
+          },
         },
       ],
     },

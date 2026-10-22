@@ -25,7 +25,7 @@ function runner(overrides: Partial<Clanker> = {}): Clanker {
 const REJECTED: RunnerLastRun = { status: "failed", failureCode: "AGENT_CREDENTIAL_INVALID", failureTitle: "Model key rejected", at: "2026-10-02T00:00:00Z" };
 const ENDPOINT: ModelEndpoint = {
   id: "endpoint", name: "EU models", baseUrl: "https://models.example.com/v1", apiFormat: "openai-chat",
-  auth: { scheme: "bearer" }, secretId: KEY, models: ["qwen"], extraHeaders: {}, mayColdStart: false,
+  auth: { scheme: "bearer" }, secretId: KEY, models: ["qwen"], contextWindows: {}, extraHeaders: {}, mayColdStart: false,
   source: "manual", deploymentId: null, createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z",
 };
 const endpointRunner = () => runner({ agent: "opencode", modelEndpoint: { endpointId: ENDPOINT.id, model: "qwen" }, secretBindings: [] });

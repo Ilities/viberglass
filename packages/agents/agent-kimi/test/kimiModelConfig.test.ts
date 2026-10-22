@@ -12,6 +12,7 @@ const endpoint: WorkerModelEndpoint = {
   extraHeaders: { "X-Team": "eu" },
   model: "qwen",
   mayColdStart: false,
+  contextWindow: 32768,
 };
 const env = { MODEL_ENDPOINT_API_KEY: "secret" };
 
@@ -69,5 +70,9 @@ describe("Kimi model endpoint", () => {
     const file = path.join(home, ".kimi-code", "config.toml");
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     expect(fs.readFileSync(file, "utf-8")).toContain(`api_key = "unused"`);
+  });
+
+  test("leaves the context size to Kimi when the model's isn't known", () => {
+    expect(kimiModelConfig({ ...endpoint, contextWindow: undefined }, env)).not.toContain("max_context_size");
   });
 });

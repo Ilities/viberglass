@@ -14,7 +14,11 @@ import type { ModelEndpointInputValidator } from "./ModelEndpointInputValidator"
 import { ModelEndpointServiceError } from "../errors/ModelEndpointServiceError";
 
 function normalized(input: ModelEndpointInput): ModelEndpointInput {
-  return { ...input, baseUrl: normalizeModelEndpointBaseUrl(input.baseUrl, input.apiFormat) };
+  // A context length is only kept for a model the endpoint lists.
+  const contextWindows = Object.fromEntries(
+    Object.entries(input.contextWindows ?? {}).filter(([model]) => input.models.includes(model)),
+  );
+  return { ...input, baseUrl: normalizeModelEndpointBaseUrl(input.baseUrl, input.apiFormat), contextWindows };
 }
 
 export class ModelEndpointService {

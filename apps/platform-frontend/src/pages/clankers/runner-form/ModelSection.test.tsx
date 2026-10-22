@@ -13,6 +13,7 @@ const endpoint: ModelEndpoint = {
   auth: { scheme: 'none' },
   extraHeaders: {},
   models: ['qwen'],
+  contextWindows: {},
   mayColdStart: false,
   source: 'manual',
   deploymentId: null,

@@ -17,6 +17,7 @@ const input: ModelEndpointInput = {
 };
 const endpoint: ModelEndpoint = {
   ...input,
+  contextWindows: {},
   id: "endpoint-1",
   source: "manual",
   deploymentId: null,
@@ -65,7 +66,7 @@ describe("workspace model endpoints", () => {
   test("validates shared auth and rejects credentials in URLs or extra headers", async () => {
     const { service, dao } = fixture();
     await service.create(input);
-    expect(dao.create).toHaveBeenCalledWith(input);
+    expect(dao.create).toHaveBeenCalledWith({ ...input, contextWindows: {} });
     for (const invalid of [
       { ...input, secretId: null },
       { ...input, baseUrl: "https://key:secret@host/v1" },
@@ -173,6 +174,53 @@ describe("workspace model endpoints", () => {
     });
   });
 
+  test("gives a runner the model's known context length, a local endpoint's model the local default, and a remote one's none", async () => {
+    const resolveWith = async (stored: Partial<ModelEndpoint>) => {
+      const { dao, service } = fixture();
+      dao.get.mockResolvedValue({ ...endpoint, ...stored });
+      const result = await new RunnerModelEndpointResolver(service).resolve({
+        agent: "opencode",
+        modelEndpoint: { endpointId: endpoint.id, model: "qwen" },
+      });
+      return result.endpoint?.contextWindow;
+    };
+    expect(await resolveWith({ contextWindows: { qwen: 131072 } })).toBe(131072);
+    expect(await resolveWith({ baseUrl: "http://localhost:11434/v1" })).toBe(32768);
+    expect(await resolveWith({ baseUrl: "http://host.docker.internal:8000/v1", contextWindows: { qwen: 65536 } })).toBe(65536);
+    expect(await resolveWith({})).toBeUndefined();
+  });
+
+  test("reads each listed model's context length where the server reports one", async () => {
+    const fetchFn = jest.fn(async () => ({
+      status: 200,
+      json: async () => ({
+        data: [
+          { id: "vllm-model", max_model_len: 32768 },
+          { id: "router-model", context_length: 200000 },
+          { id: "groq-model", context_window: 131072 },
+          { id: "studio-model", max_context_length: 8192 },
+          { id: "plain-model" },
+          { id: "odd-model", max_model_len: "big" },
+        ],
+      }),
+    }));
+    const checker = new ModelEndpointChecker({ resolveSecretValues: jest.fn(async () => new Map([["key-1", "raw-secret"]])) }, fetchFn);
+    const result = await checker.check({ ...input, contextWindows: { "plain-model": 4096, "vllm-model": 1 } });
+    expect(result.contextWindows).toEqual({
+      "vllm-model": 32768,
+      "router-model": 200000,
+      "groq-model": 131072,
+      "studio-model": 8192,
+      "plain-model": 4096,
+    });
+  });
+
+  test("keeps a context length only for a model the endpoint lists", async () => {
+    const { dao, service } = fixture();
+    await service.create({ ...input, models: ["qwen"], contextWindows: { qwen: 32768, gone: 4096 } });
+    expect(dao.create).toHaveBeenCalledWith(expect.objectContaining({ contextWindows: { qwen: 32768 } }));
+  });
+
   test("checks headers, discovers model IDs and refuses redirects", async () => {
     const fetchFn = jest.fn(async () => ({
       status: 200,
@@ -191,7 +239,7 @@ describe("workspace model endpoints", () => {
         ...input,
         auth: { scheme: "header", header: "x-model-key" },
       }),
-    ).toEqual({ models: ["qwen"], discoverySupported: true });
+    ).toEqual({ models: ["qwen"], contextWindows: {}, discoverySupported: true });
     expect(fetchFn).toHaveBeenCalledWith(
       `${input.baseUrl}/models`,
       expect.objectContaining({
@@ -218,6 +266,7 @@ describe("workspace model endpoints", () => {
     };
     expect(await checker.check(anonymous)).toEqual({
       models: ["qwen"],
+      contextWindows: {},
       discoverySupported: false,
       detail: `Nothing lists models at ${input.baseUrl}/models (HTTP 404).`,
     });

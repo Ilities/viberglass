@@ -1,5 +1,5 @@
 import { modelEndpointKey } from "@viberglass/agent-core";
-import type { WorkerModelEndpoint } from "@viberglass/types";
+import { modelOutputLimit, type WorkerModelEndpoint } from "@viberglass/types";
 
 /** Claude Code asks for a login unless some credential is set; endpoints keyed another way get this one. */
 const PLACEHOLDER_TOKEN = "unused";
@@ -44,5 +44,13 @@ export function claudeModelEndpointEnvironment(
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
     CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: "1",
     CLAUDE_CODE_NON_INTERACTIVE: "true",
+    // Claude Code doesn't know a custom model's window; without one it assumes its own. It keeps
+    // its output limit free in the window, so a small window needs a smaller one.
+    ...(endpoint.contextWindow
+      ? {
+          CLAUDE_CODE_MAX_CONTEXT_TOKENS: String(endpoint.contextWindow),
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(modelOutputLimit(endpoint.contextWindow)),
+        }
+      : {}),
   };
 }

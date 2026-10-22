@@ -39,5 +39,9 @@ export const modelEndpointSchema = Joi.object({
     .unique()
     .max(1000)
     .default([]),
+  contextWindows: Joi.object()
+    .pattern(Joi.string().trim().min(1).max(255), Joi.number().integer().min(1).max(100_000_000))
+    .max(1000)
+    .default({}),
   mayColdStart: Joi.boolean().default(false),
 });

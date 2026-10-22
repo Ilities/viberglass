@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/lib'
-import type { ApiResponse, ModelEndpoint, ModelEndpointInput, ModelEndpointView } from '@viberglass/types'
+import type { ApiResponse, ModelEndpoint, ModelEndpointCheck, ModelEndpointInput, ModelEndpointView } from '@viberglass/types'
 import { apiFetch } from './client'
 
 async function send(path: string, method: string, input?: ModelEndpointInput): Promise<Response> {
@@ -27,7 +27,7 @@ export const listModelEndpoints = () => request<ModelEndpointView[]>()
 export const saveModelEndpoint = (input: ModelEndpointInput, id?: string) =>
   request<ModelEndpoint>(id ? `/${id}` : '', id ? 'PUT' : 'POST', input)
 export const checkModelEndpoint = (input: ModelEndpointInput) =>
-  request<{ models: string[]; discoverySupported: boolean; detail?: string }>('/check', 'POST', input)
+  request<ModelEndpointCheck>('/check', 'POST', input)
 export const deleteModelEndpoint = async (id: string): Promise<void> => {
   await send(`/${id}`, 'DELETE')
 }

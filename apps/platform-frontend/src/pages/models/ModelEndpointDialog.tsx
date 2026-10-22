@@ -8,8 +8,11 @@ import { Textarea } from '@/components/textarea'
 import { checkModelEndpoint, saveModelEndpoint } from '@/service/api/model-endpoint-api'
 import { createSecret, getSecretStorageDefaults, type Secret } from '@/service/api/secret-api'
 import {
+  LOCAL_MODEL_CONTEXT_WINDOW,
   MODEL_API_FORMAT_LABELS,
+  formatModelLines,
   isModelApiFormat,
+  readModelLines,
   normalizeModelEndpointBaseUrl,
   isObjectRecord,
   type ModelEndpoint,
@@ -36,7 +39,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
   const [addingKey, setAddingKey] = useState(false)
   const [availableSecrets, setAvailableSecrets] = useState(secrets)
   const [secretId, setSecretId] = useState(initial?.secretId ?? '')
-  const [models, setModels] = useState(initial?.models.join('\n') ?? '')
+  const [models, setModels] = useState(initial ? formatModelLines(initial.models, initial.contextWindows) : '')
   const [extraHeaders, setExtraHeaders] = useState(JSON.stringify(initial?.extraHeaders ?? {}, null, 2))
   const [mayColdStart, setMayColdStart] = useState(initial?.mayColdStart ?? false)
   const [error, setError] = useState<string | null>(null)
@@ -62,14 +65,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
         auth === 'header' ? { scheme: 'header', header } : auth === 'none' ? { scheme: 'none' } : { scheme: 'bearer' },
       secretId: auth === 'none' ? null : secretId || null,
       extraHeaders: headers,
-      models: Array.from(
-        new Set(
-          models
-            .split('\n')
-            .map((model) => model.trim())
-            .filter(Boolean)
-        )
-      ),
+      ...readModelLines(models),
       mayColdStart,
     }
   }
@@ -98,7 +94,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
       }
       if (check) {
         const result = await checkModelEndpoint(value)
-        if (result.discoverySupported) setModels(result.models.join('\n'))
+        if (result.discoverySupported) setModels(formatModelLines(result.models, result.contextWindows))
         setCheckResult(
           result.discoverySupported
             ? { ok: true, text: `Connected. Found ${result.models.length} models.` }
@@ -251,7 +247,11 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
             )}
             <Field>
               <Label>Model IDs</Label>
-              <Description>One per line. You can enter IDs when discovery is unavailable.</Description>
+              <Description>
+                One per line, with the model&apos;s context length in tokens after it when you know it, such as glm-4.7
+                200000. Checking fills in what the endpoint reports. Without one, agents use their own default, or{' '}
+                {LOCAL_MODEL_CONTEXT_WINDOW.toLocaleString('en')} on an endpoint on your own network.
+              </Description>
               <Textarea
                 required
                 rows={4}

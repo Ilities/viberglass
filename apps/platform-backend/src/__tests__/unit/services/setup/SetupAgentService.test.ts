@@ -26,6 +26,7 @@ const ZAI: ModelEndpoint = {
   secretId: "endpoint-key",
   extraHeaders: {},
   models: ["glm-4.7-flash"],
+  contextWindows: {},
   mayColdStart: false,
   source: "manual",
   deploymentId: null,

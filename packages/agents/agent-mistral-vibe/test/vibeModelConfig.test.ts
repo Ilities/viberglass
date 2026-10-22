@@ -9,6 +9,7 @@ const endpoint: WorkerModelEndpoint = {
   extraHeaders: { "X-Team": "eu" },
   model: "qwen",
   mayColdStart: false,
+  contextWindow: 32768,
 };
 const env = { MODEL_ENDPOINT_API_KEY: "secret" };
 
@@ -65,5 +66,10 @@ describe("Vibe model endpoint", () => {
     expect(anthropic.extra_headers.Authorization).toBe("Bearer secret");
     const [open] = providers(vibeModelEndpointEnvironment({ ...endpoint, auth: { scheme: "none" } }, {}));
     expect(open).toMatchObject({ api_key_env_var: "", extra_headers: { "X-Team": "eu" } });
+  });
+
+  test("leaves the context length to Vibe when the model's isn't known", () => {
+    const models = JSON.parse(vibeModelEndpointEnvironment({ ...endpoint, contextWindow: undefined }, env).VIBE_MODELS ?? "[]");
+    expect(models[0]).not.toHaveProperty("max_context_length");
   });
 });

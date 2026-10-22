@@ -38,13 +38,15 @@ export class AcpSessionTotalsProbe {
     this.answer = "";
   }
 
-  /** Takes a session update while the probe runs; false when no probe is running, so the update goes on as usual. */
+  /**
+   * Takes the answer's text while the probe runs. Anything else, such as the
+   * context size a harness reports as its turn ends, goes on as usual.
+   */
   capture(params: unknown): boolean {
     if (this.answer === null) return false;
     const update = isRecord(params) && isRecord(params.update) ? params.update : params;
-    if (isRecord(update) && update.sessionUpdate === "agent_message_chunk" && isRecord(update.content) && typeof update.content.text === "string") {
-      this.answer += update.content.text;
-    }
+    if (!isRecord(update) || update.sessionUpdate !== "agent_message_chunk") return false;
+    if (isRecord(update.content) && typeof update.content.text === "string") this.answer += update.content.text;
     return true;
   }
 

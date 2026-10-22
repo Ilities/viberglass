@@ -33,11 +33,14 @@ export interface ModelEndpointInput {
   secretId?: string | null;
   extraHeaders: Record<string, string>;
   models: string[];
+  /** Each model's context length in tokens, where the endpoint reported it or someone entered it. */
+  contextWindows?: Record<string, number>;
   mayColdStart: boolean;
 }
 
 export interface ModelEndpoint extends ModelEndpointInput {
   id: string;
+  contextWindows: Record<string, number>;
   source: "manual" | "deployment";
   deploymentId: string | null;
   createdAt: string;
@@ -47,6 +50,14 @@ export interface ModelEndpoint extends ModelEndpointInput {
 export interface ModelEndpointView extends ModelEndpoint {
   /** Names of the runners that use the endpoint. */
   runners: string[];
+}
+
+/** What checking an endpoint found: its models and, where it reports them, their context lengths. */
+export interface ModelEndpointCheck {
+  models: string[];
+  contextWindows: Record<string, number>;
+  discoverySupported: boolean;
+  detail?: string;
 }
 
 export interface ModelEndpointSelection {
@@ -62,6 +73,8 @@ export interface WorkerModelEndpoint {
   extraHeaders: Record<string, string>;
   model: string;
   mayColdStart: boolean;
+  /** The model's context length in tokens; absent when unknown, and the harness uses its own default. */
+  contextWindow?: number;
 }
 
 export const MODEL_ENDPOINT_KEY_ENV_VAR = "MODEL_ENDPOINT_API_KEY";
@@ -163,6 +176,8 @@ export function readWorkerModelEndpoint(
     if (typeof header !== "string") return undefined;
     extraHeaders[key] = header;
   }
+  const contextWindow = value.contextWindow;
+  if (contextWindow !== undefined && !isContextWindow(contextWindow)) return undefined;
   return {
     name: value.name,
     baseUrl: value.baseUrl,
@@ -171,5 +186,10 @@ export function readWorkerModelEndpoint(
     extraHeaders,
     model: value.model,
     mayColdStart: value.mayColdStart,
+    ...(contextWindow !== undefined ? { contextWindow } : {}),
   };
+}
+
+export function isContextWindow(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
 }

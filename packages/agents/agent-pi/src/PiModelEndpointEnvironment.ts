@@ -1,6 +1,7 @@
 import type { AgentEndpointEnvironment } from "@viberglass/agent-core";
 import {
   MODEL_ENDPOINT_KEY_ENV_VAR,
+  modelOutputLimit,
   type ModelApiFormat,
   type WorkerModelEndpoint,
 } from "@viberglass/types";
@@ -41,8 +42,7 @@ export class PiModelEndpointEnvironment implements AgentEndpointEnvironment {
                 reasoning: false,
                 input: ["text"],
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                contextWindow: 32768,
-                maxTokens: 8192,
+                ...(endpoint.contextWindow ? { contextWindow: endpoint.contextWindow, maxTokens: modelOutputLimit(endpoint.contextWindow) } : {}),
               },
             ],
           },

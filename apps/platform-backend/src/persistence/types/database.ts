@@ -950,6 +950,7 @@ export interface ModelEndpointsTable {
   secret_id: string | null;
   extra_headers: Json;
   models: Json;
+  context_windows: Generated<Json>;
   source: Generated<"manual" | "deployment">;
   deployment_id: string | null;
   may_cold_start: boolean;

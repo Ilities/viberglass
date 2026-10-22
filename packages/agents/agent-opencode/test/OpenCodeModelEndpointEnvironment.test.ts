@@ -9,6 +9,7 @@ test("generates an OpenAI-compatible provider with model and env-referenced head
     extraHeaders: { "X-Team": "eu" },
     model: "org/qwen",
     mayColdStart: false,
+    contextWindow: 32768,
   }).resolve();
   expect(env.OPENCODE_MODEL).toBe("viberglass/org/qwen");
   expect(JSON.parse(env.OPENCODE_CONFIG_CONTENT)).toEqual({
@@ -49,4 +50,17 @@ test("anonymous endpoints send no auth header", () => {
   expect(
     JSON.parse(env.OPENCODE_CONFIG_CONTENT).provider.viberglass.options.headers,
   ).toEqual({});
+});
+
+test("leaves the limits to OpenCode when the model's context length isn't known", () => {
+  const env = new OpenCodeModelEndpointEnvironment({
+    name: "Hosted",
+    baseUrl: "https://api.example.com/v1",
+    apiFormat: "openai-chat",
+    auth: { scheme: "bearer" },
+    extraHeaders: {},
+    model: "big",
+    mayColdStart: false,
+  }).resolve();
+  expect(JSON.parse(env.OPENCODE_CONFIG_CONTENT).provider.viberglass.models.big).toEqual({ name: "big" });
 });

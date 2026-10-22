@@ -2,7 +2,7 @@ import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "../../playwright/harnessFixtures";
 import type { HarnessStep, HarnessUnderTest } from "../../playwright/harnessMatrix";
 import type { RecordedModelRequest } from "../../playwright/mockModel/MockModelServer";
-import { MOCK_MODEL } from "../../playwright/mockModel/MockModelServer";
+import { MOCK_CONTEXT_WINDOW, MOCK_MODEL } from "../../playwright/mockModel/MockModelServer";
 import type { MockToolCall } from "../../playwright/mockModel/mockModelTypes";
 import { asksHuman, MOCK_CHANGE_FILE, MOCK_DOCUMENT_HEADING, writesFile } from "../../playwright/mockModel/scriptedModel";
 import { askAgent, createTask, planDocument, runStatus, startPlan, timeline } from "../../playwright/tasks";
@@ -74,6 +74,13 @@ test("writes the plan with its own tools through the model endpoint, and the run
 
   const [turn] = await agentTurns(adminApi, task.id);
   expect(turn.outcome).toMatchObject({ resumed: false });
+  // The context length the endpoint reported reached the harness's config, for one that says how big its context is.
+  // Some report only the part they use: Codex keeps back 5%, Vibe 20%.
+  const size = turn.outcome.contextUsage?.size;
+  if (size) {
+    expect(size).toBeLessThanOrEqual(MOCK_CONTEXT_WINDOW);
+    expect(size).toBeGreaterThan(MOCK_CONTEXT_WINDOW * 0.75);
+  }
 
   const record = await (await adminApi.get(`/api/jobs/${jobId}/record`)).json();
   expect(record).toMatchObject({ agent: harness.agent, success: true, usageAvailable: true });

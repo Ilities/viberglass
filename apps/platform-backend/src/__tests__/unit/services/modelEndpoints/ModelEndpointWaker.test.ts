@@ -16,6 +16,7 @@ const endpoint: ModelEndpoint = {
   deploymentId: "deployment-1",
   createdAt: "",
   updatedAt: "",
+  contextWindows: {},
 };
 
 function deployment(mode: ModelDeploymentRecord["mode"]): ModelDeploymentRecord {

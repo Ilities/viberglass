@@ -2,6 +2,7 @@ import type { AgentEndpointEnvironment } from "@viberglass/agent-core";
 import {
   MODEL_ENDPOINT_KEY_ENV_VAR,
   modelEndpointHeaders,
+  modelOutputLimit,
   type WorkerModelEndpoint,
 } from "@viberglass/types";
 
@@ -28,7 +29,9 @@ export class OpenCodeModelEndpointEnvironment implements AgentEndpointEnvironmen
             models: {
               [endpoint.model]: {
                 name: endpoint.model,
-                limit: { context: 32768, output: 8192 },
+                ...(endpoint.contextWindow
+                  ? { limit: { context: endpoint.contextWindow, output: modelOutputLimit(endpoint.contextWindow) } }
+                  : {}),
               },
             },
           },

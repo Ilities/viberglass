@@ -42,7 +42,7 @@ export function kimiModelConfig(
     `[models.viberglass]`,
     `provider = "viberglass"`,
     `model = ${tomlString(endpoint.model)}`,
-    `max_context_size = 32768`,
+    ...(endpoint.contextWindow ? [`max_context_size = ${endpoint.contextWindow}`] : []),
     ``,
   ].join("\n");
 }

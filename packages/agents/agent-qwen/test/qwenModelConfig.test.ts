@@ -12,6 +12,7 @@ const endpoint: WorkerModelEndpoint = {
   extraHeaders: { "X-Team": "eu" },
   model: "qwen",
   mayColdStart: false,
+  contextWindow: 32768,
 };
 
 describe("Qwen model endpoint", () => {
@@ -58,5 +59,10 @@ describe("Qwen model endpoint", () => {
     const file = writeQwenModelSettings({ ...endpoint, apiFormat: "openai-responses" }, path.join(dir, "qwen"));
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     expect(JSON.parse(fs.readFileSync(file, "utf-8")).modelProviders["openai-responses"]).toHaveLength(1);
+  });
+
+  test("leaves the context window to Qwen when the model's isn't known", () => {
+    const settings = qwenModelSettings({ ...endpoint, contextWindow: undefined });
+    expect(JSON.stringify(settings)).not.toContain("contextWindowSize");
   });
 });
