@@ -1,8 +1,9 @@
 import { Button } from '@/components/button'
 import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
+import { useDebounce } from '@/hooks/useDebounce'
 import { TASK_SITUATION_STATES, TICKET_WORKFLOW_PHASE, type Severity, type TaskSituationState, type TicketWorkflowPhase } from '@viberglass/types'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { STATE_FILTER_LABEL, type SituationFilters } from './space-groups'
 
 export interface SpaceFilters extends SituationFilters {
@@ -54,9 +55,27 @@ export function writeFilters(params: URLSearchParams, filters: SpaceFilters): UR
   return next
 }
 
+/** Whether any filter is off its default, so an empty result is the filters' doing. */
+export function hasActiveFilters(filters: SpaceFilters): boolean {
+  return (
+    filters.search.trim() !== '' ||
+    filters.state !== 'all' ||
+    filters.artifact !== 'all' ||
+    filters.severity !== 'all' ||
+    filters.ownerId !== 'all' ||
+    filters.waitingOn !== 'all'
+  )
+}
+
+/** The filters back at their defaults. */
+export function clearFilters(filters: SpaceFilters): SpaceFilters {
+  return { ...filters, search: '', state: 'all', artifact: 'all', severity: 'all', ownerId: 'all', waitingOn: 'all' }
+}
+
 interface SpaceFilterBarProps {
   filters: SpaceFilters
   onChange: (filters: SpaceFilters) => void
+  onSearchChange: (search: string) => void
   people: { owners: Array<{ id: string; name: string }>; waitedOn: Array<{ id: string; name: string }> }
 }
 
@@ -98,11 +117,32 @@ function activeFilters(filters: SpaceFilters, people: SpaceFilterBarProps['peopl
  * More filters. Whatever is set shows as a chip that clears it, so a hidden
  * filter is never forgotten.
  */
-export function SpaceFilterBar({ filters, onChange, people }: SpaceFilterBarProps) {
+export function SpaceFilterBar({ filters, onChange, onSearchChange, people }: SpaceFilterBarProps) {
   const hiddenSet = filters.artifact !== 'all' || filters.ownerId !== 'all' || filters.waitingOn !== 'all' || filters.severity !== 'all'
   const [showMore, setShowMore] = useState(hiddenSet)
   const set = (patch: Partial<SpaceFilters>) => onChange({ ...filters, ...patch })
   const active = activeFilters(filters, people)
+
+  // The box holds what is being typed; the search is applied once it settles, so the list
+  // isn't reloaded on every keystroke.
+  const [searchInput, setSearchInput] = useState(filters.search)
+  const settledSearch = useDebounce(searchInput, 300)
+  const applied = useRef(filters.search)
+
+  useEffect(() => {
+    if (settledSearch !== searchInput) return
+    if (settledSearch === filters.search) return
+    if (settledSearch === applied.current) return
+    applied.current = settledSearch
+    onSearchChange(settledSearch)
+  }, [settledSearch, searchInput, filters.search, onSearchChange])
+
+  // A search that arrives from elsewhere, such as the back button, fills the box.
+  useEffect(() => {
+    if (filters.search === applied.current) return
+    applied.current = filters.search
+    setSearchInput(filters.search)
+  }, [filters.search])
 
   return (
     <div className="space-y-3">
@@ -112,8 +152,8 @@ export function SpaceFilterBar({ filters, onChange, people }: SpaceFilterBarProp
             placeholder="Search tasks"
             aria-label="Search tasks"
             name="search"
-            value={filters.search}
-            onChange={(event) => set({ search: event.target.value })}
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
           />
         </div>
         <div className="w-48">

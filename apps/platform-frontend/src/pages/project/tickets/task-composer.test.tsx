@@ -73,3 +73,48 @@ describe('TaskComposer with images', () => {
     expect(screen.getByRole('button', { name: 'Send after this turn' })).toBeEnabled()
   })
 })
+
+describe('TaskComposer keyboard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('sends the message on Cmd+Enter', async () => {
+    render(<Theme><Composer /></Theme>)
+
+    const input = screen.getByRole('combobox', { name: 'Write a message' })
+    fireEvent.change(input, { target: { value: 'Ship it' } })
+    await act(async () => fireEvent.keyDown(input, { key: 'Enter', metaKey: true }))
+
+    expect(postTaskMessage).toHaveBeenCalledWith('t-1', 'Ship it', {}, [])
+  })
+
+  it('sends the message on Ctrl+Enter', async () => {
+    render(<Theme><Composer /></Theme>)
+
+    const input = screen.getByRole('combobox', { name: 'Write a message' })
+    fireEvent.change(input, { target: { value: 'Ship it' } })
+    await act(async () => fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true }))
+
+    expect(postTaskMessage).toHaveBeenCalledWith('t-1', 'Ship it', {}, [])
+  })
+
+  it('keeps the message when there is nothing to send', () => {
+    render(<Theme><Composer /></Theme>)
+
+    const input = screen.getByRole('combobox', { name: 'Write a message' })
+    fireEvent.keyDown(input, { key: 'Enter', metaKey: true })
+
+    expect(postTaskMessage).not.toHaveBeenCalled()
+  })
+
+  it('leaves a plain Enter to the textarea', () => {
+    render(<Theme><Composer /></Theme>)
+
+    const input = screen.getByRole('combobox', { name: 'Write a message' })
+    fireEvent.change(input, { target: { value: 'Ship it' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(postTaskMessage).not.toHaveBeenCalled()
+  })
+})

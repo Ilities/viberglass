@@ -77,7 +77,7 @@ export function Checkbox({
   color?: Color
   className?: string
   onChange?: (checked: boolean) => void
-} & Omit<React.ComponentPropsWithoutRef<typeof RadixCheckbox>, 'className' | 'onCheckedChange' | 'color'>) {
+} & Omit<React.ComponentPropsWithoutRef<typeof RadixCheckbox>, 'className' | 'onChange' | 'onCheckedChange' | 'color'>) {
   const fieldContext = useFieldContext()
   const disabled = props.disabled ?? fieldContext?.disabled
   const describedBy =
