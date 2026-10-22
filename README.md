@@ -76,6 +76,7 @@ Files backed spaces support "artifacts" where an agent makes a deliverable such 
 - Runs you can inspect: what the agent thought and did, its tool calls, the prompt it got, the worker log, and cost and token usage where the harness reports them.
 - Workspace controls: shared secrets, MCP servers and skills for agents, agent instructions per space, API tokens and an audit log.
 - Schedules for recurring agent work.
+- Fewer ways to hurt yourself and fewer dead ends: destructive actions ask before they run, one click copies a run ID or a takeover's `git` commands, Cmd/Ctrl+Enter sends a reply, filters and views live in the URL so a shared link keeps them, and a failed load says why and offers a retry instead of spinning.
 
 <table>
 <tr>
