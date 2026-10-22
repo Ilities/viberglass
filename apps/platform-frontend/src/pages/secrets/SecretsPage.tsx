@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertActions, AlertBody, AlertDescription, AlertTitle } from '@/components/alert'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PageMeta } from '@/components/page-meta'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
@@ -84,6 +84,7 @@ export function SecretsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
   const modelKeys = secrets.filter((secret) => secret.provider && !secret.purpose)
@@ -218,6 +219,7 @@ export function SecretsPage() {
   async function confirmDelete() {
     if (!secretToDelete) return
 
+    setIsDeleting(true)
     try {
       await deleteSecret(secretToDelete.id)
       toast.success('Secret deleted')
@@ -227,6 +229,7 @@ export function SecretsPage() {
         description: error instanceof Error ? error.message : 'Unknown error',
       })
     } finally {
+      setIsDeleting(false)
       setDeleteDialogOpen(false)
       setSecretToDelete(null)
     }
@@ -412,30 +415,32 @@ export function SecretsPage() {
         </form>
       </Dialog>
 
-      <Alert open={deleteDialogOpen} onClose={setDeleteDialogOpen}>
-        <AlertTitle>Delete secret?</AlertTitle>
-        <AlertDescription>
-          Are you sure you want to delete <strong>{secretToDelete?.name}</strong>? This action cannot be undone.
-        </AlertDescription>
-        {usersOfSecretToDelete.length > 0 && (
-          <AlertBody>
-            <p className="text-sm">These lose access to it:</p>
-            <ul className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              {usersOfSecretToDelete.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </AlertBody>
-        )}
-        <AlertActions>
-          <Button outline onClick={() => setDeleteDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={confirmDelete}>
-            Delete
-          </Button>
-        </AlertActions>
-      </Alert>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete secret?"
+        description={
+          <>
+            Are you sure you want to delete <strong>{secretToDelete?.name}</strong>? This action cannot be undone.
+          </>
+        }
+        body={
+          usersOfSecretToDelete.length > 0 ? (
+            <>
+              <p className="text-sm">These lose access to it:</p>
+              <ul className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                {usersOfSecretToDelete.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          ) : undefined
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting…"
+        isConfirming={isDeleting}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
     </>
   )

@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
@@ -50,6 +51,7 @@ export function ApiTokensPage() {
   const [revealDialogOpen, setRevealDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [tokenToDelete, setTokenToDelete] = useState<ApiToken | null>(null)
+  const [isRevoking, setIsRevoking] = useState(false)
   const [copied, setCopied] = useState(false)
   const [configCopied, setConfigCopied] = useState(false)
   const [mcpConfigExpanded, setMcpConfigExpanded] = useState(false)
@@ -106,6 +108,7 @@ export function ApiTokensPage() {
 
   async function handleDelete() {
     if (!tokenToDelete) return
+    setIsRevoking(true)
     try {
       await deleteApiToken(tokenToDelete.id)
       toast.success('API token revoked')
@@ -116,6 +119,8 @@ export function ApiTokensPage() {
       toast.error('Failed to revoke API token', {
         description: error instanceof Error ? error.message : 'Unknown error',
       })
+    } finally {
+      setIsRevoking(false)
     }
   }
 
@@ -313,20 +318,20 @@ export function ApiTokensPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={deleteDialogOpen} onClose={setDeleteDialogOpen}>
-        <DialogTitle>Revoke API token</DialogTitle>
-        <DialogDescription>
-          Are you sure you want to revoke <strong>{tokenToDelete?.name}</strong>? This action cannot be undone.
-        </DialogDescription>
-        <DialogActions>
-          <Button outline onClick={() => setDeleteDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={handleDelete}>
-            Revoke
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Revoke API token"
+        description={
+          <>
+            Are you sure you want to revoke <strong>{tokenToDelete?.name}</strong>? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Revoke"
+        confirmingLabel="Revoking…"
+        isConfirming={isRevoking}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => void handleDelete()}
+      />
     </>
   )
 }

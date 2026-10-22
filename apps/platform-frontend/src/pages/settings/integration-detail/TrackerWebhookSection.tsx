@@ -82,7 +82,7 @@ export function TrackerWebhookSection({ tracker, webhook, spaceRules, projects }
               <Button outline onClick={() => void webhook.handleCopyWebhookSecret()}>
                 Copy
               </Button>
-              <Button outline onClick={() => void webhook.handleGenerateSecret()} disabled={webhook.isSavingWebhook}>
+              <Button outline onClick={() => webhook.requestGenerateSecret()} disabled={webhook.isSavingWebhook}>
                 Regenerate
               </Button>
             </div>
@@ -139,7 +139,7 @@ export function TrackerWebhookSection({ tracker, webhook, spaceRules, projects }
           />
 
           <div className="border-t border-[var(--gray-6)] pt-4">
-            <Button color="red" onClick={() => void webhook.handleDeleteInboundWebhook()} disabled={webhook.isSavingWebhook}>
+            <Button color="red" onClick={webhook.requestDeleteInboundWebhook} disabled={webhook.isSavingWebhook}>
               Remove the webhook
             </Button>
           </div>

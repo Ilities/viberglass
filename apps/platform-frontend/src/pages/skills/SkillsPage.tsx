@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState } from '@/components/empty-state'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
@@ -25,6 +25,7 @@ export function SkillsPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [removing, setRemoving] = useState<Skill | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const replacing = useRef<Skill | undefined>(undefined)
   const usedBy = useMemo(() => {
@@ -64,6 +65,7 @@ export function SkillsPage() {
 
   async function confirmRemove() {
     if (!removing) return
+    setIsRemoving(true)
     try {
       await deleteSkill(removing.id)
       setSkills((previous) => previous.filter((skill) => skill.id !== removing.id))
@@ -71,6 +73,7 @@ export function SkillsPage() {
     } catch (error) {
       toast.error("Couldn't remove the skill", { description: error instanceof Error ? error.message : undefined })
     } finally {
+      setIsRemoving(false)
       setRemoving(null)
     }
   }
@@ -158,18 +161,16 @@ export function SkillsPage() {
         )}
       </div>
 
-      <Alert open={removing !== null} onClose={() => setRemoving(null)}>
-        <AlertTitle>Remove {removing?.name}?</AlertTitle>
-        <AlertDescription>Runners can no longer pick it. A skill some runner still uses can&apos;t be removed.</AlertDescription>
-        <AlertActions>
-          <Button outline onClick={() => setRemoving(null)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={confirmRemove}>
-            Remove
-          </Button>
-        </AlertActions>
-      </Alert>
+      <ConfirmDialog
+        open={removing !== null}
+        title={`Remove ${removing?.name}?`}
+        description="Runners can no longer pick it. A skill some runner still uses can't be removed."
+        confirmLabel="Remove"
+        confirmingLabel="Removing…"
+        isConfirming={isRemoving}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void confirmRemove()}
+      />
     </>
   )
 }
