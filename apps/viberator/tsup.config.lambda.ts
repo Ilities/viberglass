@@ -3,6 +3,8 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     "lambda-handler": "src/workers/entrypoints/lambda-handler.ts",
+    // Started by the agent's harness as its ask_human MCP server; found next to the handler.
+    "ask-human-mcp": "src/questions/askHumanMcpServerMain.ts",
   },
   // Lambda loads .js as CommonJS unless package.json sets type=module or file is .mjs.
   // Emit CJS to match the runtime's default module loader.

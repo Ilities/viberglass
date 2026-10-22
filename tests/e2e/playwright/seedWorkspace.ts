@@ -12,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Routes answer either with the entity or with `{ success, data }`. */
-async function readEntity(response: APIResponse, what: string): Promise<Record<string, unknown>> {
+export async function readEntity(response: APIResponse, what: string): Promise<Record<string, unknown>> {
   if (!response.ok()) {
     throw new Error(`${what} failed: ${response.status()} ${await response.text()}`);
   }
@@ -22,13 +22,13 @@ async function readEntity(response: APIResponse, what: string): Promise<Record<s
   return entity;
 }
 
-async function readId(response: APIResponse, what: string): Promise<string> {
+export async function readId(response: APIResponse, what: string): Promise<string> {
   const entity = await readEntity(response, what);
   if (typeof entity.id !== "string") throw new Error(`${what} returned no id`);
   return entity.id;
 }
 
-async function findDockerStrategyId(api: APIRequestContext): Promise<string> {
+export async function findDockerStrategyId(api: APIRequestContext): Promise<string> {
   const response = await api.get("/api/deployment-strategies");
   const body: unknown = await response.json();
   const list = isRecord(body) && Array.isArray(body.data) ? body.data : body;
@@ -40,25 +40,25 @@ async function findDockerStrategyId(api: APIRequestContext): Promise<string> {
   return docker.id;
 }
 
-async function waitForClankerActive(
+export async function waitForClankerActive(
   api: APIRequestContext,
   clankerId: string,
 ): Promise<void> {
   const deadline = Date.now() + 30_000;
   let clanker: Record<string, unknown> = {};
   while (Date.now() < deadline) {
-    clanker = await readEntity(await api.get(`/api/clankers/${clankerId}`), "Reading the fake runner");
+    clanker = await readEntity(await api.get(`/api/clankers/${clankerId}`), "Reading the runner");
     if (clanker.status === "active") return;
     if (clanker.status === "failed") break;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(
-    `The fake runner didn't become active: ${String(clanker.status)} (${String(clanker.statusMessage)})`,
+    `The runner didn't become active: ${String(clanker.status)} (${String(clanker.statusMessage)})`,
   );
 }
 
 /** A secret stored in the database, for keys and tokens the fake agent and the git fixture don't check. */
-async function createSecret(api: APIRequestContext, name: string, value: string): Promise<string> {
+export async function createSecret(api: APIRequestContext, name: string, value: string): Promise<string> {
   return readId(
     await api.post("/api/secrets", { data: { name, secretLocation: "database", secretValue: value } }),
     `Creating the secret ${name}`,

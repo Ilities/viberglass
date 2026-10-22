@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { backendEnvironment, E2E } from "./playwright/e2eEnvironment";
+import { HARNESSES } from "./playwright/harnessMatrix";
 
 export default defineConfig({
   testDir: "./tests",
@@ -23,11 +24,18 @@ export default defineConfig({
       timeout: 120_000,
       use: { ...devices["Desktop Chrome"] },
     },
+    // Real harness images against the mock model endpoint, one project each; not part of the default run.
+    ...HARNESSES.map((harness) => ({
+      name: `harness-${harness.agent}`,
+      testDir: "./tests/harnesses",
+      timeout: 420_000,
+      use: { ...devices["Desktop Chrome"], harness },
+    })),
     {
       // Quarantined older specs, not part of `npm run test:e2e`. They predate
       // the current UI and fail on login; revive or delete them one by one.
       name: "legacy",
-      testIgnore: "smoke/**",
+      testIgnore: ["smoke/**", "harnesses/**"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],

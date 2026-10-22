@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "npm run stack:up && playwright test --project=smoke",
+    "test:harnesses": "npm run stack:up && playwright test --project='harness-*'",
     "test:legacy": "playwright test --project=legacy",
     "test:headed": "playwright test --project=smoke --headed",
     "test:report": "playwright show-report",

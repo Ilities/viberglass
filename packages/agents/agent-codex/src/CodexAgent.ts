@@ -15,6 +15,12 @@ export const CODEX_COMPACT_PROMPT = [
   "SUMMARY.md in the repository holds the latest summary of the conversation; keep what still holds in it.",
 ].join(" ");
 
+/**
+ * codex-acp's default mode runs commands in Codex's own sandbox, which can't start
+ * without user namespaces (Lambda). The worker is the sandbox, as with `--yolo`.
+ */
+const CODEX_ACP_MODE = "agent-full-access";
+
 export class CodexAgent extends BaseAgent<CodexConfig> {
   constructor(config: CodexConfig, logger: Logger, gitService?: IAgentGitService) {
     super(config, logger, gitService);
@@ -40,6 +46,7 @@ export class CodexAgent extends BaseAgent<CodexConfig> {
           path.join(this.resolveHomeDirectory(process.env.HOME), ".codex"),
       );
       return {
+        INITIAL_AGENT_MODE: CODEX_ACP_MODE,
         OPENAI_API_KEY: undefined,
         OPENAI_BASE_URL: undefined,
         CODEX_CONFIG: JSON.stringify({
@@ -50,6 +57,7 @@ export class CodexAgent extends BaseAgent<CodexConfig> {
       };
     }
     return {
+      INITIAL_AGENT_MODE: CODEX_ACP_MODE,
       OPENAI_API_KEY:
         (process.env.CODEX_AUTH_MODE || "api_key") === "api_key"
           ? this.config.apiKey

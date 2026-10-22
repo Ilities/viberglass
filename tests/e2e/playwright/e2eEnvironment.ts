@@ -14,6 +14,8 @@ export const E2E = {
   firstRunBackendPort: 8991,
   firstRunPostgresPort: 5435,
   setupStubPort: 8992,
+  /** The mock model endpoint the harness suite's real harnesses talk to. */
+  mockModelPort: 8993,
   get frontendUrl() {
     return `http://localhost:${this.frontendPort}`;
   },
@@ -26,6 +28,9 @@ export const E2E = {
   },
   get workerReachableRepositoryUrl() {
     return `http://host.docker.internal:${this.gitFixturePort}/fixture.git`;
+  },
+  get workerReachableMockModelUrl() {
+    return `http://host.docker.internal:${this.mockModelPort}`;
   },
   fakeWorkerImage: "viberator-worker-fake:latest",
   admin: {

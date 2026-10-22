@@ -20,6 +20,7 @@ import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
 import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
 import { describeLeftOutMcpServers, mcpServersSupportedBy } from "./mcpServerSupport";
+import { signalProcessGroup, stopAcpProcess } from "./stopAcpProcess";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -74,6 +75,8 @@ function spawnAcpProcess(
     cwd: workDir,
     env: withWorkingDirectory(env, workDir),
     stdio: ["pipe", "pipe", "pipe"],
+    // Its own group, so stopping it reaches the processes it starts (codex app-server).
+    detached: true,
   });
 
   let buf = "";
@@ -89,7 +92,7 @@ function spawnAcpProcess(
 
   child.stderr?.on("data", (data: Buffer) => onStderr(data.toString().trim()));
 
-  const tid = setTimeout(() => child.kill(), timeoutMs);
+  const tid = setTimeout(() => signalProcessGroup(child, "SIGTERM"), timeoutMs);
   child.on("close", () => clearTimeout(tid));
 
   return child;
@@ -191,7 +194,7 @@ export class AcpClient {
       if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
       return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: opener.model };
     } finally {
-      this.cleanup();
+      await this.cleanup();
     }
   }
 
@@ -303,10 +306,11 @@ export class AcpClient {
     });
   }
 
-  private cleanup(): void {
+  private async cleanup(): Promise<void> {
     for (const p of this.pending.values()) p.reject(new Error("ACP client closed"));
     this.pending.clear();
-    try { this.child?.kill(); } catch { /* best effort */ }
+    const child = this.child;
     this.child = undefined;
+    if (child) await stopAcpProcess(child);
   }
 }

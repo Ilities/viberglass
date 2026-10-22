@@ -43,6 +43,12 @@ COPY --from=builder /app/packages/agents/ ${LAMBDA_TASK_ROOT}/packages/agents/
 RUN npm install --omit=dev --workspace=@viberator/orchestrator
 
 # Copy built app from builder
-COPY --from=builder /app/apps/viberator/dist/lambda-handler.js ${LAMBDA_TASK_ROOT}/
+COPY --from=builder /app/apps/viberator/dist/lambda-handler.js /app/apps/viberator/dist/ask-human-mcp.js ${LAMBDA_TASK_ROOT}/
+
+# Only /tmp is writable on Lambda.
+ENV HOME=/tmp \
+    CLAUDE_CONFIG_DIR=/tmp/config \
+    NODE_ENV=production \
+    LOG_FORMAT=json
 
 CMD [ "lambda-handler.handler" ]

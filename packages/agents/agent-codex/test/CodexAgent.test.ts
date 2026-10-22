@@ -195,4 +195,9 @@ describe("CodexAgent ACP environment", () => {
     expect(JSON.parse(String(env.CODEX_CONFIG))).toEqual({ compact_prompt: CODEX_COMPACT_PROMPT });
     expect(CODEX_COMPACT_PROMPT).toContain("who agreed to each");
   });
+
+  it("starts codex-acp in full access, since the worker is the sandbox", () => {
+    const agent = new CodexAgent(createCodexConfig(), createLogger({ silent: true }));
+    expect(agent.getAcpEnvironment("/tmp/harness-config").INITIAL_AGENT_MODE).toBe("agent-full-access");
+  });
 });
