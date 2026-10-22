@@ -17,10 +17,10 @@ Files spaces, ticket media and plan documents are stored in MinIO's `viberglass-
 
 Optional services sit behind compose profiles, so a plain `docker compose up` never starts them:
 
-| Profile | Starts | Use it for |
-|---|---|---|
-| `mail` | Mailpit, inbox at http://localhost:8025 | reading invite links, notifications and test emails |
-| `langfuse` | Langfuse on http://localhost:3001 | looking at traces ([telemetry-local.md](./telemetry-local.md)) |
+| Profile    | Starts                                  | Use it for                                                     |
+|------------|-----------------------------------------|----------------------------------------------------------------|
+| `mail`     | Mailpit, inbox at http://localhost:8025 | reading invite links, notifications and test emails            |
+| `langfuse` | Langfuse on http://localhost:3001       | looking at traces ([telemetry-local.md](./telemetry-local.md)) |
 
 ## Where settings go
 

@@ -9,7 +9,7 @@
 
 Tasks already produce artifacts through conversations, but execution assumes a repository and a pull request. People also need spaces for presentations, documents and other deliverables whose working files persist across separate harness runs and whose final destination may be Notion or Google Docs.
 
-The product decisions in the [artifact spaces plan](../artifact-spaces-plan.md) were reviewed and settled on 2026-10-12. Implementation is staged; accepting this direction does not mean the capability already exists.
+The product decisions were reviewed and settled on 2026-10-12.
 
 ## Decision
 

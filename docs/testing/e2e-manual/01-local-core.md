@@ -320,9 +320,6 @@ Needs: L-DEV with `ARTIFACT_KEEP_VERSIONS=2` and `SPACE_FILES_KEEP_SNAPSHOTS=3` 
 
 Expect: the two newest versions stay; older ones show "This version is no longer kept. Older versions are removed as new ones are made." with **See the current version**. The current files still restore on the next run.
 
-### FILES-11 · Publish an artifact
-Not available yet. Publishing to Notion or Google Docs is planned; mark `n/a`.
-
 ## Home and Overview (HOME)
 
 ### HOME-01 · Home

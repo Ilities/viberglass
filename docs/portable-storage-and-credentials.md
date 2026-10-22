@@ -18,18 +18,18 @@ Codex device-login credentials use the same delivery path. Connect the runner to
 
 Configure the following on the backend and AWS/Docker worker deployments. Kubernetes workers use backend-authorized URLs and receive no S3 credential environment. Read the endpoint and signing region from the storage provider's configuration for the selected bucket; they must be reachable from workers and browsers that use signed media URLs.
 
-| Variable | Meaning | Default/fallback |
-| --- | --- | --- |
-| `S3_ENDPOINT` | S3-compatible HTTP(S) endpoint, without embedded credentials | AWS SDK endpoint |
-| `S3_REGION` | Signing region | `AWS_REGION`, then `eu-west-1` |
-| `S3_BUCKET` | Files space snapshots and artifacts, media, documents, and session archive bucket | `AWS_S3_BUCKET` |
-| `INSTRUCTION_FILES_S3_BUCKET` | Optional separate instruction bucket | `S3_BUCKET`, then `AWS_S3_BUCKET` |
-| `S3_FORCE_PATH_STYLE` | `true` for `/bucket/key`, `false` for virtual host addressing | SDK default |
-| `S3_ACCESS_KEY_ID` | Object storage access key | SDK credential chain if both S3 keys are unset |
-| `S3_SECRET_ACCESS_KEY` | Object storage secret key; set together with access key | SDK credential chain |
-| `S3_PUBLIC_ENDPOINT` | Browser-reachable endpoint for signed downloads; workers use `S3_ENDPOINT` | `S3_ENDPOINT` |
-| `S3_WORKER_ENDPOINT` | Endpoint for the URLs the backend signs for workers (Files snapshots), when workers reach storage at another address | `S3_ENDPOINT` |
-| `S3_SESSION_TOKEN` | Optional token for temporary S3 credentials | Unset |
+| Variable                      | Meaning                                                                                                              | Default/fallback                               |
+|-------------------------------|----------------------------------------------------------------------------------------------------------------------|------------------------------------------------|
+| `S3_ENDPOINT`                 | S3-compatible HTTP(S) endpoint, without embedded credentials                                                         | AWS SDK endpoint                               |
+| `S3_REGION`                   | Signing region                                                                                                       | `AWS_REGION`, then `eu-west-1`                 |
+| `S3_BUCKET`                   | Files space snapshots and artifacts, media, documents, and session archive bucket                                    | `AWS_S3_BUCKET`                                |
+| `INSTRUCTION_FILES_S3_BUCKET` | Optional separate instruction bucket                                                                                 | `S3_BUCKET`, then `AWS_S3_BUCKET`              |
+| `S3_FORCE_PATH_STYLE`         | `true` for `/bucket/key`, `false` for virtual host addressing                                                        | SDK default                                    |
+| `S3_ACCESS_KEY_ID`            | Object storage access key                                                                                            | SDK credential chain if both S3 keys are unset |
+| `S3_SECRET_ACCESS_KEY`        | Object storage secret key; set together with access key                                                              | SDK credential chain                           |
+| `S3_PUBLIC_ENDPOINT`          | Browser-reachable endpoint for signed downloads; workers use `S3_ENDPOINT`                                           | `S3_ENDPOINT`                                  |
+| `S3_WORKER_ENDPOINT`          | Endpoint for the URLs the backend signs for workers (Files snapshots), when workers reach storage at another address | `S3_ENDPOINT`                                  |
+| `S3_SESSION_TOKEN`            | Optional token for temporary S3 credentials                                                                          | Unset                                          |
 
 The neutral S3 variables let an OVH signing region coexist with an AWS region used by other clients. Standard AWS SDK checksum environment settings also apply; see [AWS checksum configuration](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html).
 

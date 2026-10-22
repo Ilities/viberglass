@@ -17,23 +17,23 @@ Needs: L-REV accounts (admin Alex, member Maria, maintainer Dev, guest Quinn, vi
 
 For each person, try each action in the UI, and for refusals also by API (copy the request from the browser dev tools and replay it). Record allowed/refused:
 
-| Action | Admin | Member | Maintainer | Guest (on task) | Guest (not on task) | Viewer |
-|---|---|---|---|---|---|---|
-| See the private space | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Create a space | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Change space settings | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| Delete a space | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Create a task | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Post in a task | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
-| Ask for a plan | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
-| Ask for code | ✓ | on task | ✓ | ✓ | ✗ | ✗ |
-| Pause / take over | ✓ | as owner | ✓ | as owner | ✗ | ✗ |
-| Edit / finish a task | ✓ | requester/owner | ✓ | requester/owner | ✗ | ✗ |
-| Delete a task | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Upload, edit or delete a Files space's files | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Runners, secrets, connections, members, audit log | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Runs and schedules pages | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
-| API tokens | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Action                                            | Admin | Member          | Maintainer | Guest (on task) | Guest (not on task) | Viewer |
+|---------------------------------------------------|-------|-----------------|------------|-----------------|---------------------|--------|
+| See the private space                             | ✓    | ✗              | ✗         | ✗              | ✗                  | ✗     |
+| Create a space                                    | ✓    | ✓              | ✓         | ✗              | ✗                  | ✗     |
+| Change space settings                             | ✓    | ✗              | ✓         | ✗              | ✗                  | ✗     |
+| Delete a space                                    | ✓    | ✗              | ✗         | ✗              | ✗                  | ✗     |
+| Create a task                                     | ✓    | ✓              | ✓         | ✗              | ✗                  | ✗     |
+| Post in a task                                    | ✓    | ✓              | ✓         | ✓              | ✓                  | ✗     |
+| Ask for a plan                                    | ✓    | ✓              | ✓         | ✓              | ✗                  | ✗     |
+| Ask for code                                      | ✓    | on task         | ✓         | ✓              | ✗                  | ✗     |
+| Pause / take over                                 | ✓    | as owner        | ✓         | as owner        | ✗                  | ✗     |
+| Edit / finish a task                              | ✓    | requester/owner | ✓         | requester/owner | ✗                  | ✗     |
+| Delete a task                                     | ✓    | ✗              | ✗         | ✗              | ✗                  | ✗     |
+| Upload, edit or delete a Files space's files      | ✓    | ✓              | ✓         | ✗              | ✗                  | ✗     |
+| Runners, secrets, connections, members, audit log | ✓    | ✗              | ✗         | ✗              | ✗                  | ✗     |
+| Runs and schedules pages                          | ✓    | ✓              | ✓         | ✗              | ✗                  | ✗     |
+| API tokens                                        | ✓    | ✓              | ✓         | ✗              | ✗                  | ✗     |
 
 Expect: matches the table. A private-space read by a non-member returns 404, not 403. Anyone who can see a Files space can list and download its files and preview its artifacts.
 

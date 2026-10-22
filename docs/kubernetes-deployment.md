@@ -12,11 +12,11 @@ Artifact previews need a hostname of their own, such as `preview.viberglass.exam
 
 The image publishing workflows target GHCR for linux/amd64 and linux/arm64 on relevant changes to `main` and on each release:
 
-| Image | Repository |
-| --- | --- |
-| Backend | `ghcr.io/ilities/viberglass-backend` |
-| Frontend | `ghcr.io/ilities/viberglass-frontend` |
-| Workers | `ghcr.io/ilities/viberator-worker-<agent>` (the agent catalog's names) |
+| Image    | Repository                                                             |
+|----------|------------------------------------------------------------------------|
+| Backend  | `ghcr.io/ilities/viberglass-backend`                                   |
+| Frontend | `ghcr.io/ilities/viberglass-frontend`                                  |
+| Workers  | `ghcr.io/ilities/viberator-worker-<agent>` (the agent catalog's names) |
 
 Successful publishing jobs tag images with the release, the commit SHA and `latest`. Verify that the backend, frontend and chosen workers all exist under the same tag, and pin it rather than following `latest`. Unpublished changes require your own matching builds. The chart's default worker repositories follow the agent catalog; `workers.registry` and `workers.imageTag` resolve them, and explicit runner images override the catalog default.
 
@@ -26,10 +26,10 @@ For your own registry, follow the [build and push commands](guide/admin/install-
 
 Create the app namespace and worker namespace before loading secrets. Supply:
 
-| Namespace | Secret | Keys |
-| --- | --- | --- |
-| App | `viberglass-app` | `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY`, `WEBHOOK_SECRET_ENCRYPTION_KEY`, optional `PREVIEW_SIGNING_KEY` (preview links fall back to `SECRETS_ENCRYPTION_KEY`) |
-| App | `viberglass-storage` | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, optional `S3_SESSION_TOKEN` |
+| Namespace | Secret               | Keys                                                                                                                                                           |
+|-----------|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| App       | `viberglass-app`     | `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY`, `WEBHOOK_SECRET_ENCRYPTION_KEY`, optional `PREVIEW_SIGNING_KEY` (preview links fall back to `SECRETS_ENCRYPTION_KEY`) |
+| App       | `viberglass-storage` | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, optional `S3_SESSION_TOKEN`                                                                                        |
 
 Workers do not receive S3 keys. The backend creates an immutable callback-token Secret per run, mounts it read-only, and gives it a Job owner reference so Job deletion/TTL cleanup also removes it. The backend needs namespaced create/get/delete permissions on these Secrets and get/list access to worker Pods and events; workers have no Kubernetes API token or permissions.
 

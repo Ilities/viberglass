@@ -30,8 +30,6 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 - Technology stack details
 - Security architecture
 - [adr/README.md](adr/README.md) - Product and architecture decision records
-- [artifact-spaces-plan.md](artifact-spaces-plan.md) - Spaces without Git, persistent files and artifact previews (implemented); publishing is still planned
-- [eval-plan.md](eval-plan.md) - Grading agent runs
 
 ### Development
 
@@ -47,7 +45,6 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 - [kubernetes-deployment.md](kubernetes-deployment.md) - Kubernetes upgrades, backups and operations
 - [local-kubernetes.md](local-kubernetes.md) - Disposable local cluster and platform verification
 - [guide/admin/install-ovhcloud.md](guide/admin/install-ovhcloud.md) - Install on OVHcloud Managed Kubernetes
-- [kubernetes-ovh-deployment-plan.md](kubernetes-ovh-deployment-plan.md) - How the Kubernetes support was planned
 - [portable-storage-and-credentials.md](portable-storage-and-credentials.md) - S3-compatible storage settings and how workers get credentials
 - [DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md) - Managing secrets
 - [operations/database-migrations.md](operations/database-migrations.md) - Database migration guide

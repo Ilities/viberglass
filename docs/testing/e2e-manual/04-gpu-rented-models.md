@@ -9,7 +9,6 @@ An open-weight model served from a GPU you rent, used by agents through a worksp
 - [Choosing a model and a provider](#choosing-a-model-and-a-provider)
 - [Tests (GPU)](#tests-gpu)
 - [Viberglass-created deployments (Verda)](#viberglass-created-deployments-verda)
-- [Not available yet](#not-available-yet)
 
 ## Choosing a model and a provider
 
@@ -103,7 +102,3 @@ Expect: Keep warm shows the hourly price and a replica stays up. While stopped, 
 1. Try deleting while the runner uses it; move the runner to another model; delete.
 
 Expect: the first attempt is refused, naming the runner. The second can take about a minute. After deletion, the Verda console shows no deployment and no `*-hf-token` secret, and the endpoint is gone from the runner form.
-
-## Not available yet
-
-Mark these `n/a`: OVH AI Deploy deployments, Bedrock with the ECS task role (use GPU-06 instead).

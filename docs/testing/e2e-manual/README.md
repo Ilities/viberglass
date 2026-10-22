@@ -67,7 +67,6 @@ Gather these first; tests list which they need. Keep keys outside the repo where
 - **Needs** lists the environment, accounts and earlier tests a test depends on.
 - **Expect** is the pass condition. Anything else is a failure: record what you saw and, if you can, the run ID (`/spaces/<space>/runs/<jobId>`), the time, and the browser console or backend log lines.
 - **Known issue** marks behaviour the code is already known to get wrong. Record whether it still happens; don't stop the run for it.
-- **Not available yet** marks planned features with nothing to test. Skip them and leave the row as `n/a`.
 - Use a separate browser profile or private window per person, so you can switch without logging out.
 - Agent runs cost model tokens. GLM 4.7 Flash is cheap; native providers may not be.
 
