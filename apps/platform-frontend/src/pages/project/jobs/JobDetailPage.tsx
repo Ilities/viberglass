@@ -27,9 +27,16 @@ export function JobDetailPage() {
   const { job, isLoading, error, isPolling, refetch } = useJobStatus(jobId)
   const context = useRunContext(job)
   const { project: space } = useProject()
-  const [searchParams] = useSearchParams()
-  const [activeTab, setActiveTab] = useState<RunTab>(() => resolveRunTab(searchParams.get('runTab')))
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = resolveRunTab(searchParams.get('runTab'))
   const [isCancelling, setIsCancelling] = useState(false)
+
+  // The view lives in the URL, so a run can be linked to and reloaded.
+  const showTab = (tab: RunTab) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('runTab', tab)
+    setSearchParams(next)
+  }
 
   if (isLoading) {
     return (
@@ -107,16 +114,16 @@ export function JobDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-1">
-            <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')}>
+            <TabButton active={activeTab === 'activity'} onClick={() => showTab('activity')}>
               Activity
             </TabButton>
-            <TabButton active={activeTab === 'prompt'} onClick={() => setActiveTab('prompt')}>
+            <TabButton active={activeTab === 'prompt'} onClick={() => showTab('prompt')}>
               Prompt
             </TabButton>
-            <TabButton active={activeTab === 'log'} onClick={() => setActiveTab('log')}>
+            <TabButton active={activeTab === 'log'} onClick={() => showTab('log')}>
               Raw log
             </TabButton>
-            <TabButton active={activeTab === 'record'} onClick={() => setActiveTab('record')}>
+            <TabButton active={activeTab === 'record'} onClick={() => showTab('record')}>
               Record
             </TabButton>
             <div className="mb-1 ml-2">
@@ -131,7 +138,7 @@ export function JobDetailPage() {
               <RunActivity
                 job={job}
                 project={project}
-                onShowRawLog={() => setActiveTab('log')}
+                onShowRawLog={() => showTab('log')}
                 nextStep={
                   <div className="space-y-4">
                     {signInPrompt && <DeviceCodeCard prompt={signInPrompt} />}

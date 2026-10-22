@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
@@ -72,6 +73,7 @@ export function IntegrationCredentialSection({ integrationId, credentialUse }: I
 
   // Editing state
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(null)
+  const [credentialToDelete, setCredentialToDelete] = useState<{ id: string; name: string } | null>(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editIsDefault, setEditIsDefault] = useState(false)
@@ -253,18 +255,17 @@ export function IntegrationCredentialSection({ integrationId, credentialUse }: I
     }
   }
 
-  const handleDelete = async (credentialId: string) => {
-    const credential = credentials.find((c) => c.id === credentialId)
-    if (!credential) return
+  const handleDelete = (credential: IntegrationCredential) => {
+    setCredentialToDelete({ id: credential.id, name: credential.name })
+  }
 
-    if (!window.confirm(`Are you sure you want to delete the credential "${credential.name}"?`)) {
-      return
-    }
+  const confirmDelete = async () => {
+    if (!credentialToDelete) return
 
     setIsSubmitting(true)
     try {
-      await deleteIntegrationCredential(integrationId, credentialId)
-      setCredentials((prev) => prev.filter((c) => c.id !== credentialId))
+      await deleteIntegrationCredential(integrationId, credentialToDelete.id)
+      setCredentials((prev) => prev.filter((c) => c.id !== credentialToDelete.id))
       toast.success('Credential deleted successfully')
     } catch (error) {
       console.error('Failed to delete credential:', error)
@@ -273,6 +274,7 @@ export function IntegrationCredentialSection({ integrationId, credentialUse }: I
       })
     } finally {
       setIsSubmitting(false)
+      setCredentialToDelete(null)
     }
   }
 
@@ -424,7 +426,7 @@ export function IntegrationCredentialSection({ integrationId, credentialUse }: I
                         <Button
                           surface
                           color="red"
-                          onClick={() => handleDelete(credential.id)}
+                          onClick={() => handleDelete(credential)}
                           disabled={isSubmitting}
                           aria-label="Delete credential"
                         >
@@ -595,6 +597,21 @@ export function IntegrationCredentialSection({ integrationId, credentialUse }: I
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={credentialToDelete !== null}
+        title="Delete credential?"
+        description={
+          <>
+            Delete <strong>{credentialToDelete?.name}</strong>? Spaces using it lose access at once.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting…"
+        isConfirming={isSubmitting}
+        onClose={() => setCredentialToDelete(null)}
+        onConfirm={() => void confirmDelete()}
+      />
     </section>
   )
 }

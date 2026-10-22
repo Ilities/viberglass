@@ -1,3 +1,4 @@
+import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
 import { FilterPills } from '@/components/filter-pills'
 import { FunLoading } from '@/components/fun-loading'
@@ -37,7 +38,7 @@ export function HomePage() {
   const [home, setHome] = useState<HomeData | null>(null)
   const [spaces, setSpaces] = useState<Project[]>([])
   const [filter, setFilter] = useState<HomeFilter>('all')
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState<string | null>(null)
   const [reloads, setReloads] = useState(0)
   const revision = useApiRefresh('/api/spaces', '/api/tasks', '/api/setup/space', '/api/setup/demo')
   const reload = () => setReloads((count) => count + 1)
@@ -48,8 +49,14 @@ export function HomePage() {
     let cancelled = false
     const load = () =>
       getHome()
-        .then((data) => !cancelled && setHome(data))
-        .catch(() => !cancelled && setFailed(true))
+        .then((data) => {
+          if (cancelled) return
+          setHome(data)
+          setFailed(null)
+        })
+        .catch((error: unknown) =>
+          !cancelled && setFailed(error instanceof Error ? error.message : "Couldn't load your tasks")
+        )
     void load()
     getProjectsList()
       .then((projects) => !cancelled && setSpaces(projects))
@@ -82,7 +89,12 @@ export function HomePage() {
       />
       {isAdmin && <NextStepsChecklist />}
       {failed && (
-        <p className="mb-6 text-sm text-red-600">Your tasks couldn&apos;t be loaded. Try again in a moment.</p>
+        <div className="mb-6 space-y-3 text-sm">
+          <p className="text-red-700 dark:text-red-400">{failed}</p>
+          <Button outline onClick={reload}>
+            Try again
+          </Button>
+        </div>
       )}
 
       {empty && !failed ? (

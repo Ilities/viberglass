@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState } from '@/components/empty-state'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
@@ -38,6 +38,7 @@ export function McpServersPage() {
   const [editing, setEditing] = useState<McpServer | undefined>()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [removing, setRemoving] = useState<McpServer | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
   const usedBy = useMemo(() => runnersByServer(runners), [runners])
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export function McpServersPage() {
 
   async function confirmRemove() {
     if (!removing) return
+    setIsRemoving(true)
     try {
       await deleteMcpServer(removing.id)
       setServers((previous) => previous.filter((server) => server.id !== removing.id))
@@ -71,6 +73,7 @@ export function McpServersPage() {
     } catch (error) {
       toast.error("Couldn't remove the MCP server", { description: error instanceof Error ? error.message : undefined })
     } finally {
+      setIsRemoving(false)
       setRemoving(null)
     }
   }
@@ -145,18 +148,16 @@ export function McpServersPage() {
 
       <McpServerDialog open={dialogOpen} server={editing} secrets={secrets} onClose={() => setDialogOpen(false)} onSaved={saved} />
 
-      <Alert open={removing !== null} onClose={() => setRemoving(null)}>
-        <AlertTitle>Remove {removing?.name}?</AlertTitle>
-        <AlertDescription>Runners can no longer pick it. A server some runner still uses can&apos;t be removed.</AlertDescription>
-        <AlertActions>
-          <Button outline onClick={() => setRemoving(null)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={confirmRemove}>
-            Remove
-          </Button>
-        </AlertActions>
-      </Alert>
+      <ConfirmDialog
+        open={removing !== null}
+        title={`Remove ${removing?.name}?`}
+        description="Runners can no longer pick it. A server some runner still uses can't be removed."
+        confirmLabel="Remove"
+        confirmingLabel="Removing…"
+        isConfirming={isRemoving}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void confirmRemove()}
+      />
     </>
   )
 }

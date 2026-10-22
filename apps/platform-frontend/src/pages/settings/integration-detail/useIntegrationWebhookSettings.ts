@@ -39,6 +39,9 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
   const [inboundEvents, setInboundEvents] = useState<string[]>([])
   const [isSavingWebhook, setIsSavingWebhook] = useState(false)
   const [selectedInboundProjectId, setSelectedInboundProjectId] = useState<string | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false)
+  const [pendingRegenerateProjectId, setPendingRegenerateProjectId] = useState<string | null>(null)
 
   const selectedInboundConfig = useMemo(
     () => inboundWebhooks.find((config) => config.id === selectedInboundConfigId) || null,
@@ -192,6 +195,28 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
+  /** Regenerating replaces the secret, so the old one stops working — ask first. */
+  const requestGenerateSecret = (projectId?: string | null) => {
+    if (selectedInboundConfig && inboundEvents.length === 0) {
+      toast.error('Select at least one inbound event')
+      return
+    }
+
+    setPendingRegenerateProjectId(projectId ?? null)
+    setIsRegenerateDialogOpen(true)
+  }
+
+  const cancelGenerateSecret = () => {
+    setIsRegenerateDialogOpen(false)
+    setPendingRegenerateProjectId(null)
+  }
+
+  const confirmGenerateSecret = async () => {
+    await handleGenerateSecret(pendingRegenerateProjectId)
+    setIsRegenerateDialogOpen(false)
+    setPendingRegenerateProjectId(null)
+  }
+
   const handleCreateInboundWebhook = async (projectId?: string | null) => {
     if (!integrationEntityId) {
       return
@@ -249,12 +274,20 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleDeleteInboundWebhook = async () => {
+  const requestDeleteInboundWebhook = () => {
     if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
 
-    if (!window.confirm('Are you sure you want to remove this inbound webhook configuration?')) {
+    setIsDeleteDialogOpen(true)
+  }
+
+  const cancelDeleteInboundWebhook = () => {
+    setIsDeleteDialogOpen(false)
+  }
+
+  const handleDeleteInboundWebhook = async () => {
+    if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
 
@@ -274,6 +307,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
       })
     } finally {
       setIsSavingWebhook(false)
+      setIsDeleteDialogOpen(false)
     }
   }
 
@@ -375,6 +409,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     isLoadingDeliveries,
     isLoadingWebhook,
     isSavingWebhook,
+    isDeleteDialogOpen,
+    isRegenerateDialogOpen,
     selectedInboundConfig,
     selectedInboundConfigId,
     selectedInboundProjectId,
@@ -388,11 +424,15 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     handleCopyWebhookUrl,
     handleCreateInboundWebhook,
     handleDeleteInboundWebhook,
-    handleGenerateSecret,
     handleRefreshDeliveries,
     handleRetryDelivery,
     handleSaveInboundWebhook,
     handleSelectInboundWebhook,
     handleToggleInboundEvent,
+    requestDeleteInboundWebhook,
+    cancelDeleteInboundWebhook,
+    requestGenerateSecret,
+    cancelGenerateSecret,
+    confirmGenerateSecret,
   }
 }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Dropdown, DropdownButton, DropdownDescription, DropdownItem, DropdownLabel, DropdownMenu } from '@/components/dropdown'
 import { Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
@@ -24,6 +24,7 @@ export function DeployedModelsSection() {
   const [deploying, setDeploying] = useState(false)
   const [changing, setChanging] = useState<string | null>(null)
   const [removing, setRemoving] = useState<ModelDeploymentView | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   const load = useCallback(() => {
     listModelDeployments()
@@ -58,6 +59,7 @@ export function DeployedModelsSection() {
 
   async function confirmRemove() {
     if (!removing) return
+    setIsRemoving(true)
     try {
       await deleteModelDeployment(removing.id)
       setDeployments((previous) => previous?.filter((deployment) => deployment.id !== removing.id) ?? null)
@@ -65,6 +67,7 @@ export function DeployedModelsSection() {
     } catch (error) {
       toast.error("Couldn't delete the deployment", { description: error instanceof Error ? error.message : undefined })
     } finally {
+      setIsRemoving(false)
       setRemoving(null)
     }
   }
@@ -160,21 +163,21 @@ export function DeployedModelsSection() {
         }}
       />
 
-      <Alert open={removing !== null} onClose={() => setRemoving(null)}>
-        <AlertTitle>Delete {removing?.name}?</AlertTitle>
-        <AlertDescription>
-          The deployment is removed from {removing ? MODEL_HOST_LABELS[removing.host] : 'the cloud'} and from Viberglass,
-          and nothing is billed after. A model an agent uses can&apos;t be deleted.
-        </AlertDescription>
-        <AlertActions>
-          <Button outline onClick={() => setRemoving(null)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={confirmRemove}>
-            Delete
-          </Button>
-        </AlertActions>
-      </Alert>
+      <ConfirmDialog
+        open={removing !== null}
+        title={`Delete ${removing?.name}?`}
+        description={
+          <>
+            The deployment is removed from {removing ? MODEL_HOST_LABELS[removing.host] : 'the cloud'} and from Viberglass,
+            and nothing is billed after. A model an agent uses can&apos;t be deleted.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting…"
+        isConfirming={isRemoving}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void confirmRemove()}
+      />
     </section>
   )
 }

@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { CopyButton } from '@/components/copy-button'
 import { Textarea } from '@/components/textarea'
 import { handBackTask } from '@/service/api/discussion-api'
 import type { TaskCodeBranch } from '@viberglass/types'
@@ -61,9 +62,10 @@ export function TaskTakeoverCard({ taskId, branch, canSteer, onHandedBack, resum
       <pre aria-label="Checkout commands" className="mt-3 rounded-md bg-[var(--gray-3)] p-3 font-mono text-xs text-[var(--gray-12)]">
         {/* A long command wraps with a hanging indent, so a continuation reads as part of it; copying keeps it one line. */}
         {checkoutCommands(branch).map((command) => (
-          <code key={command} className="block -indent-4 pl-4 whitespace-pre-wrap [overflow-wrap:anywhere]">
-            {command}
-          </code>
+          <span key={command} className="flex items-start justify-between gap-2">
+            <code className="flex-1 -indent-4 pl-4 whitespace-pre-wrap [overflow-wrap:anywhere]">{command}</code>
+            <CopyButton value={command} label={`Copy command: ${command}`} />
+          </span>
         ))}
       </pre>
       {canSteer && (
