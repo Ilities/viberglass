@@ -1,4 +1,5 @@
 import { APIRequestContext } from "@playwright/test";
+import { writeFileSync } from "fs";
 import { E2E } from "./e2eEnvironment";
 import { HARNESSES, harnessImage, type HarnessUnderTest } from "./harnessMatrix";
 import { MOCK_MODEL, MockModelServer } from "./mockModel/MockModelServer";
@@ -20,11 +21,13 @@ interface HarnessWorkerFixtures {
 }
 
 async function createHarnessRunner(api: APIRequestContext, harness: HarnessUnderTest): Promise<string> {
-  const keyId = await createSecret(api, `${harness.name} mock model key`, MOCK_MODEL_KEY);
+  // Playwright starts a new worker after a failed test, which creates its own runner.
+  const suffix = Date.now();
+  const keyId = await createSecret(api, `${harness.name} mock model key ${suffix}`, MOCK_MODEL_KEY);
   const endpointId = await readId(
     await api.post("/api/model-endpoints", {
       data: {
-        name: `Mock model for ${harness.name}`,
+        name: `Mock model for ${harness.name} ${suffix}`,
         baseUrl: `${E2E.workerReachableMockModelUrl}${harness.apiFormat === "anthropic-messages" ? "" : "/v1"}`,
         apiFormat: harness.apiFormat,
         auth: { scheme: "bearer" },
@@ -39,7 +42,7 @@ async function createHarnessRunner(api: APIRequestContext, harness: HarnessUnder
   const clankerId = await readId(
     await api.post("/api/clankers", {
       data: {
-        name: `${harness.name} on the mock model`,
+        name: `${harness.name} on the mock model ${suffix}`,
         agent: harness.agent,
         secretBindings: [],
         modelEndpoint: { endpointId, model: MOCK_MODEL },
@@ -82,10 +85,9 @@ export const test = smokeTest.extend<HarnessTestFixtures, HarnessWorkerFixtures>
       const from = mockModel.requests.length;
       await use();
       if (testInfo.status !== testInfo.expectedStatus) {
-        await testInfo.attach("model-requests.json", {
-          body: JSON.stringify(mockModel.requests.slice(from), null, 2),
-          contentType: "application/json",
-        });
+        const path = testInfo.outputPath("model-requests.json");
+        writeFileSync(path, JSON.stringify(mockModel.requests.slice(from), null, 2));
+        await testInfo.attach("model-requests.json", { path, contentType: "application/json" });
       }
     },
     { auto: true },

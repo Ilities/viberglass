@@ -1,9 +1,10 @@
 import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
-import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpUsageProbe, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { KimiCodeConfig } from "./config";
 import { writeKimiModelConfig } from "./kimiModelConfig";
+import { kimiUsageProbe } from "./kimiSessionStats";
 
 export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
   constructor(config: KimiCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -19,6 +20,11 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
 
   public getAcpServerCommand(): string[] {
     return ["kimi", "acp"];
+  }
+
+  /** Kimi sends no token usage over ACP; its `/usage` command has the session's totals. */
+  public override getAcpUsageProbe(): AcpUsageProbe {
+    return kimiUsageProbe;
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {

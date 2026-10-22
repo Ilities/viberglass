@@ -1,7 +1,13 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
-import { chatCompletionsConversation, writeChatCompletion } from "./chatCompletionsApi";
-import type { MockConversation, MockReply, MockUsage } from "./mockModelTypes";
+import { anthropicMessagesApi } from "./anthropicMessagesApi";
+import { chatCompletionsApi } from "./chatCompletionsApi";
+import type { MockConversation, MockModelApi, MockReply, MockUsage } from "./mockModelTypes";
+import { responsesApi } from "./responsesApi";
 import { decideMockReply } from "./scriptedModel";
+import { isRecord, writeJson } from "./wireValues";
+
+const APIS: MockModelApi[] = [chatCompletionsApi, responsesApi, anthropicMessagesApi];
+const COUNT_TOKENS = "/messages/count_tokens";
 
 export const MOCK_MODEL = "mock-model";
 
@@ -14,10 +20,6 @@ export interface RecordedModelRequest {
   reply?: MockReply;
   /** The harness hung up before the reply was sent, as a cancelled run does. */
   abandoned: boolean;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -73,7 +75,7 @@ export class MockModelServer {
 
   /** Requests to routes the mock doesn't serve: a harness calling something new. */
   unknownRequests(): RecordedModelRequest[] {
-    return this.requests.filter((request) => !request.conversation && !request.path.endsWith("/models"));
+    return this.requests.filter((request) => !request.conversation && !request.path.endsWith("/models") && !request.path.endsWith(COUNT_TOKENS));
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -86,32 +88,33 @@ export class MockModelServer {
       abandoned: false,
     };
     this.requests.push(recorded);
-    const json = (status: number, body: unknown): void => {
-      res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-    };
+    const api = APIS.find((candidate) => path.endsWith(candidate.path));
 
     if (recorded.authorization !== `Bearer ${this.apiKey}`) {
-      return json(401, { error: { message: "Invalid API key", type: "invalid_request_error", code: "invalid_api_key" } });
+      return writeJson(res, 401, (api ?? chatCompletionsApi).errorBody(401, "Invalid API key."));
     }
     if (req.method === "GET" && path.endsWith("/models")) {
-      return json(200, { object: "list", data: [{ id: MOCK_MODEL, object: "model", owned_by: "mock" }] });
+      // Both the OpenAI and the Anthropic shapes of a model list.
+      const model = { id: MOCK_MODEL, object: "model", type: "model", display_name: MOCK_MODEL, owned_by: "mock", created_at: "2026-01-01T00:00:00Z" };
+      return writeJson(res, 200, { object: "list", data: [model], has_more: false, first_id: MOCK_MODEL, last_id: MOCK_MODEL });
     }
-    if (req.method !== "POST" || !path.endsWith("/chat/completions")) {
-      return json(404, { error: { message: `The mock model doesn't serve ${req.method} ${path}` } });
+    if (req.method === "POST" && path.endsWith(COUNT_TOKENS)) {
+      return writeJson(res, 200, { input_tokens: Math.ceil(JSON.stringify(recorded.body).length / 4) });
+    }
+    if (req.method !== "POST" || !api) {
+      return writeJson(res, 404, chatCompletionsApi.errorBody(404, `The mock model doesn't serve ${req.method} ${path}`));
     }
 
-    const conversation = chatCompletionsConversation(recorded.body);
+    const conversation = api.conversation(recorded.body);
     const reply = decideMockReply(conversation);
     recorded.conversation = conversation;
     recorded.reply = reply;
-    if (reply.kind === "error") {
-      return json(reply.status, { error: { message: reply.message, type: "invalid_request_error", code: String(reply.status) } });
-    }
+    if (reply.kind === "error") return writeJson(res, reply.status, api.errorBody(reply.status, reply.message));
     if (reply.delayMs > 0 && !(await this.waitUnlessAbandoned(res, reply.delayMs))) {
       recorded.abandoned = true;
       return;
     }
-    writeChatCompletion(res, recorded.body, reply, usageOf(conversation, reply));
+    api.writeReply(res, recorded.body, reply, usageOf(conversation, reply));
   }
 
   /** False when the harness hung up while the reply was held back. */

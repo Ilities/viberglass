@@ -7,6 +7,7 @@ import * as path from "path";
 import type { PiConfig } from "./config";
 import { piAgentDirectory, writePiMcpConfig } from "./piMcpConfig";
 import { piUsageProbe } from "./piSessionStats";
+import { piTurnError } from "./piTurnError";
 
 /**
  * Pi coding agent harness.
@@ -41,6 +42,10 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
   /** pi-acp sends no usage over ACP; its `/session` command has the session's tokens and cost. */
   public getAcpUsageProbe(): AcpUsageProbe {
     return piUsageProbe;
+  }
+
+  public override async acpTurnError(acpSessionId: string): Promise<string | undefined> {
+    return piTurnError(this.sessionDirectory(), acpSessionId);
   }
 
   /**

@@ -116,7 +116,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/`, sub
 
 4. **Include it in the build**: add `"@viberglass/agent-aider"` to `agents` in `viberglass.plugins.json` (`npm run new:agent` does this), then run `npm run generate:plugins`. That writes `apps/viberator/src/agents/configuredAgentPlugins.ts` and the dependency in `apps/viberator/package.json`. Remove it from the list the same way to leave it out of a build.
 
-5. **Write the Dockerfile fragments**: `Dockerfile.fragment` installs the CLI on the Debian worker image, running as the `viberator` user with npm installing under its home; `Dockerfile.lambda.fragment` installs it on the Lambda image, as root on Amazon Linux. Only install steps and the ENV the CLI needs: the generator adds `AGENT_TYPE`, labels and `CMD`.
+5. **Write the Dockerfile fragments**: `Dockerfile.fragment` installs the CLI on the Debian worker image, running as the `viberator` user with npm installing under its home; `Dockerfile.lambda.fragment` installs it on the Lambda image, as root on Amazon Linux. A harness that can't run on Lambda has no Lambda fragment and sets `docker.lambdaUnsupportedReason` instead; runners can't put it on Lambda, and the runner form shows the reason. Only install steps and the ENV the CLI needs: the generator adds `AGENT_TYPE`, labels and `CMD`.
 
 6. **Build and regenerate**:
 
@@ -202,7 +202,7 @@ Commit the updated JSON; nothing in CI regenerates it.
 - `infra/workers/docker/generated/<variant>.Dockerfile`: one per harness, `FROM` the base worker image plus its `Dockerfile.fragment`
 - `viberator-worker-multi-agent.Dockerfile`: `base/base-worker.Dockerfile` with every shipped harness's `Dockerfile.fragment`
 - `viberator-ecs-worker.Dockerfile`: the same with only the build's `defaultAgent`
-- `viberator-lambda.Dockerfile`: `base/lambda-worker.Dockerfile` with every shipped harness's `Dockerfile.lambda.fragment`
+- `viberator-lambda.Dockerfile`: `base/lambda-worker.Dockerfile` with the `Dockerfile.lambda.fragment` of every shipped harness without a `lambdaUnsupportedReason`
 
 Fragments go in at the `# HARNESS INSTALLS` line of the template, before the app, so a code change doesn't reinstall the harnesses.
 

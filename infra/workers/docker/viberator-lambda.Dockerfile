@@ -1,4 +1,4 @@
-# Lambda worker image with every harness in the build
+# Lambda worker image with every harness in the build that runs on Lambda
 # Generated: don't edit, run npm run generate:dockerfiles.
 
 FROM public.ecr.aws/lambda/nodejs:24 AS builder
@@ -35,9 +35,6 @@ RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-a
 
 # Lambda fragment: Qwen Code CLI agent (Amazon Linux, as root)
 RUN npm install -g @qwen-code/qwen-code@latest
-
-# Lambda fragment: OpenAI Codex agent (Amazon Linux, as root)
-RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 
 # Lambda fragment: OpenCode agent (Amazon Linux, as root)
 RUN npm install -g opencode-ai@1.18.34

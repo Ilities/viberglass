@@ -1,31 +1,11 @@
-import type { ServerResponse } from "http";
-import type { JsonSchema, MockConversation, MockMessage, MockReply, MockToolCall, MockUsage } from "./mockModelTypes";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function textOf(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
-  return content.map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : "")).join("\n");
-}
-
-function parseArguments(raw: unknown): Record<string, unknown> {
-  if (typeof raw !== "string") return {};
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
+import type { MockMessage, MockMessageReply, MockModelApi, MockToolCall, MockUsage } from "./mockModelTypes";
+import { isRecord, parseJsonObject, schemaOf, startEventStream, textOf, writeEvent, writeJson } from "./wireValues";
 
 function toolCallsOf(message: Record<string, unknown>): MockToolCall[] {
   const calls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
   return calls.flatMap((call): MockToolCall[] => {
     if (!isRecord(call) || !isRecord(call.function)) return [];
-    return [{ id: String(call.id), name: String(call.function.name), arguments: parseArguments(call.function.arguments) }];
+    return [{ id: String(call.id), name: String(call.function.name), arguments: parseJsonObject(call.function.arguments) }];
   });
 }
 
@@ -47,24 +27,7 @@ function messageOf(message: unknown): MockMessage | undefined {
   }
 }
 
-function schemaOf(value: unknown): JsonSchema {
-  return isRecord(value) ? value : {};
-}
-
-export function chatCompletionsConversation(body: Record<string, unknown>): MockConversation {
-  const tools = Array.isArray(body.tools) ? body.tools : [];
-  return {
-    model: String(body.model),
-    tools: tools.flatMap((tool) =>
-      isRecord(tool) && isRecord(tool.function) ? [{ name: String(tool.function.name), parameters: schemaOf(tool.function.parameters) }] : [],
-    ),
-    messages: (Array.isArray(body.messages) ? body.messages : []).flatMap((message) => messageOf(message) ?? []),
-  };
-}
-
-type MessageReply = Extract<MockReply, { kind: "message" }>;
-
-function wireToolCalls(reply: MessageReply) {
+function wireToolCalls(reply: MockMessageReply) {
   return reply.toolCalls.map((call, index) => ({
     index,
     id: call.id,
@@ -77,38 +40,44 @@ function wireUsage(usage: MockUsage) {
   return { prompt_tokens: usage.inputTokens, completion_tokens: usage.outputTokens, total_tokens: usage.inputTokens + usage.outputTokens };
 }
 
-export function writeChatCompletion(
-  res: ServerResponse,
-  body: Record<string, unknown>,
-  reply: MessageReply,
-  usage: MockUsage,
-): void {
-  const id = `chatcmpl-${Date.now()}`;
-  const created = Math.floor(Date.now() / 1000);
-  const model = String(body.model);
-  const finishReason = reply.toolCalls.length > 0 ? "tool_calls" : "stop";
+export const chatCompletionsApi: MockModelApi = {
+  path: "/chat/completions",
 
-  if (body.stream !== true) {
-    res.writeHead(200, { "Content-Type": "application/json" }).end(
-      JSON.stringify({
-        id,
-        object: "chat.completion",
-        created,
-        model,
-        choices: [{ index: 0, message: { role: "assistant", content: reply.text || null, tool_calls: reply.toolCalls.length > 0 ? wireToolCalls(reply) : undefined }, finish_reason: finishReason }],
-        usage: wireUsage(usage),
-      }),
-    );
-    return;
-  }
+  conversation(body) {
+    const tools = Array.isArray(body.tools) ? body.tools : [];
+    return {
+      model: String(body.model),
+      tools: tools.flatMap((tool) =>
+        isRecord(tool) && isRecord(tool.function) ? [{ name: String(tool.function.name), parameters: schemaOf(tool.function.parameters) }] : [],
+      ),
+      messages: (Array.isArray(body.messages) ? body.messages : []).flatMap((message) => messageOf(message) ?? []),
+    };
+  },
 
-  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
-  const chunk = (choices: unknown[], extra: Record<string, unknown> = {}) =>
-    res.write(`data: ${JSON.stringify({ id, object: "chat.completion.chunk", created, model, choices, ...extra })}\n\n`);
-  chunk([{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }]);
-  if (reply.text) chunk([{ index: 0, delta: { content: reply.text }, finish_reason: null }]);
-  if (reply.toolCalls.length > 0) chunk([{ index: 0, delta: { tool_calls: wireToolCalls(reply) }, finish_reason: null }]);
-  // Usage rides on the last chunk whether or not stream_options asked for it, as many compatible servers do.
-  chunk([{ index: 0, delta: {}, finish_reason: finishReason }], { usage: wireUsage(usage) });
-  res.end("data: [DONE]\n\n");
-}
+  writeReply(res, body, reply, usage) {
+    const id = `chatcmpl-${Date.now()}`;
+    const created = Math.floor(Date.now() / 1000);
+    const model = String(body.model);
+    const finishReason = reply.toolCalls.length > 0 ? "tool_calls" : "stop";
+
+    if (body.stream !== true) {
+      const message = { role: "assistant", content: reply.text || null, tool_calls: reply.toolCalls.length > 0 ? wireToolCalls(reply) : undefined };
+      writeJson(res, 200, { id, object: "chat.completion", created, model, choices: [{ index: 0, message, finish_reason: finishReason }], usage: wireUsage(usage) });
+      return;
+    }
+
+    startEventStream(res);
+    const chunk = (choices: unknown[], extra: Record<string, unknown> = {}) =>
+      writeEvent(res, { id, object: "chat.completion.chunk", created, model, choices, ...extra });
+    chunk([{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }]);
+    if (reply.text) chunk([{ index: 0, delta: { content: reply.text }, finish_reason: null }]);
+    if (reply.toolCalls.length > 0) chunk([{ index: 0, delta: { tool_calls: wireToolCalls(reply) }, finish_reason: null }]);
+    // Usage rides on the last chunk whether or not stream_options asked for it, as many compatible servers do.
+    chunk([{ index: 0, delta: {}, finish_reason: finishReason }], { usage: wireUsage(usage) });
+    res.end("data: [DONE]\n\n");
+  },
+
+  errorBody(status, message) {
+    return { error: { message, type: "invalid_request_error", code: String(status) } };
+  },
+};

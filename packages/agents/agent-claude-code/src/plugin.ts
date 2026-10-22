@@ -38,6 +38,8 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
     temperature: 0.1,
   },
 
+  rejectedKeyNote: "Claude Code tries a rejected key again for about three minutes before it gives up, so this run took a while to fail.",
+
   customEndpoints: {
     apiFormats: ["anthropic-messages"],
     environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),

@@ -1,4 +1,4 @@
-import { JOB_FAILURE_CODE } from "@viberglass/types";
+import { AGENT_CATALOG, JOB_FAILURE_CODE } from "@viberglass/types";
 import { describeJobFailure } from "../../../services/job/describeJobFailure";
 import { readJobFailure } from "../../../services/job/readJobFailure";
 
@@ -54,5 +54,21 @@ describe("readJobFailure", () => {
       summary: "x",
       retryable: false,
     });
+  });
+
+  it("adds what the run's harness says about a rejected key", () => {
+    const harness = AGENT_CATALOG.find((entry) => entry.rejectedKeyNote);
+    if (!harness?.rejectedKeyNote) throw new Error("No harness has a rejected-key note");
+    const failure = describeJobFailure(JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID, "401", harness.agent);
+    expect(failure.summary).toBe(`The model provider rejected the agent's API key or login. ${harness.rejectedKeyNote}`);
+  });
+
+  it("adds nothing for other failures, or for harnesses without a note", () => {
+    const harness = AGENT_CATALOG.find((entry) => entry.rejectedKeyNote);
+    const plain = AGENT_CATALOG.find((entry) => !entry.rejectedKeyNote);
+    expect(describeJobFailure(JOB_FAILURE_CODE.AGENT_FAILED, undefined, harness?.agent).summary).toBe("The agent stopped with an error before finishing.");
+    expect(describeJobFailure(JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID, undefined, plain?.agent).summary).toBe(
+      "The model provider rejected the agent's API key or login.",
+    );
   });
 });

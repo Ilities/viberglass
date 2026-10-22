@@ -2,7 +2,9 @@ import { modelEndpoints } from "../../services/modelEndpoints";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Clanker, SecretBinding } from "@viberglass/types";
+import { agentStrategyUnsupportedReason, DEFAULT_AGENT_TYPE, isClankerConfigV1 } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
+import { DeploymentStrategyDAO } from "../../persistence/clanker/DeploymentStrategyDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
 import { ClankerReadinessService } from "../../services/ClankerReadinessService";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
@@ -29,6 +31,7 @@ import {
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
+const strategyDAO = new DeploymentStrategyDAO();
 const healthService = new ClankerHealthService();
 const readinessService = new ClankerReadinessService();
 const provisioningService = getClankerProvisioner();
@@ -117,6 +120,24 @@ function validateImageSource(deploymentConfig: unknown): void {
   }
 }
 
+interface RunnerCompute {
+  agent?: string | null;
+  deploymentStrategyId?: string | null;
+  deploymentConfig?: unknown;
+}
+
+/** Refuses a harness on compute it can't run on, such as Codex on Lambda. */
+async function validateAgentCompute({ agent, deploymentStrategyId, deploymentConfig }: RunnerCompute): Promise<void> {
+  const config = isClankerConfigV1(deploymentConfig) ? deploymentConfig : null;
+  const strategyName =
+    config?.strategy.type ??
+    (deploymentStrategyId ? (await strategyDAO.getDeploymentStrategy(deploymentStrategyId))?.name : undefined);
+  const reason = agentStrategyUnsupportedReason(agent || config?.agent.type || DEFAULT_AGENT_TYPE, strategyName);
+  if (reason) {
+    throw new ClankerServiceError(CLANKER_SERVICE_ERROR_CODE.PROVISIONING_CONFIG_ERROR, reason);
+  }
+}
+
 // GET /api/clankers - List all clankers
 router.get(
   "/",
@@ -161,6 +182,7 @@ router.post(
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
     validateImageSource(req.body.deploymentConfig);
+    await validateAgentCompute(req.body);
     await modelEndpoints.validateSelection(req.body.modelEndpoint, req.body.agent);
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
@@ -189,6 +211,12 @@ router.put(
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
     validateImageSource(req.body.deploymentConfig);
+    await validateAgentCompute({
+      agent: req.body.agent === undefined ? existing.agent : req.body.agent,
+      deploymentStrategyId:
+        req.body.deploymentStrategyId === undefined ? existing.deploymentStrategyId : req.body.deploymentStrategyId,
+      deploymentConfig: req.body.deploymentConfig === undefined ? existing.deploymentConfig : req.body.deploymentConfig,
+    });
 
     const updatedClanker = await clankerService.updateClanker(
       req.params.id,

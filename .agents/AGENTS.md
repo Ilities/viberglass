@@ -71,7 +71,7 @@ These are the single source of truth instructions for agent behavior and backend
 **Adding a new agent:** Use `npm run new:agent <name>` to scaffold from the template; it adds the package to `viberglass.plugins.json` and regenerates the registrations. Then:
 1. Implement the agent class in `packages/agents/agent-<name>/src/<Name>Agent.ts` (extend `BaseAgent`).
 2. Fill in `plugin.ts` — `defaultConfig`, `envAliases`, `stateDirs` (and `stateExcludes` for credential files), `settings` for what the runner form should let people set, `docker` metadata.
-3. Write `Dockerfile.fragment` (Debian, as the viberator user) and `Dockerfile.lambda.fragment` (Amazon Linux, as root) — the install steps and the ENV the CLI needs.
+3. Write `Dockerfile.fragment` (Debian, as the viberator user) and `Dockerfile.lambda.fragment` (Amazon Linux, as root) — the install steps and the ENV the CLI needs. A harness that can't run on Lambda skips the Lambda fragment and sets `docker.lambdaUnsupportedReason`.
 4. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
 
 The worker and the platform are registry-driven: a harness's name, settings (`settings`, fields the runner form renders and the worker passes on as env vars), config file editor and interactive sign-ins (`signInMethods`, run through one login job, secret purpose and upload route) come from its plugin through the generated catalog.

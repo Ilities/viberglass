@@ -36,6 +36,7 @@ interface PluginDockerMeta {
   defaultForAgents: string[];
   dockerfilePath?: string;
   testOnly?: boolean;
+  lambdaUnsupportedReason?: string;
 }
 
 interface PluginProviderBinding {
@@ -68,6 +69,7 @@ interface LoadedPlugin {
   settings: AgentSettingField[];
   harnessConfigEditor: HarnessConfigEditor | null;
   signInMethods: AgentSignInMethod[];
+  rejectedKeyNote?: string;
 }
 
 interface CatalogEntry {
@@ -122,6 +124,7 @@ function loadPlugin(packageName: string, packageDir: string): LoadedPlugin {
     settings: checkedSettings(packageName, plugin.settings),
     harnessConfigEditor: checkedHarnessConfigEditor(packageName, plugin.harnessConfigEditor, harnessConfigPatterns),
     signInMethods: checkedSignInMethods(packageName, plugin.signInMethods),
+    rejectedKeyNote: typeof plugin.rejectedKeyNote === "string" ? plugin.rejectedKeyNote : undefined,
   };
 }
 
@@ -347,6 +350,8 @@ const agentPlugins = loadedPlugins.map((p) => ({
   settings: p.settings,
   harnessConfigEditor: p.harnessConfigEditor,
   signInMethods: p.signInMethods,
+  lambdaUnsupportedReason: p.docker.lambdaUnsupportedReason ?? null,
+  rejectedKeyNote: p.rejectedKeyNote ?? null,
 }));
 
 fs.writeFileSync(

@@ -21,6 +21,7 @@ import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessi
 import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
 import { describeLeftOutMcpServers, mcpServersSupportedBy } from "./mcpServerSupport";
 import { signalProcessGroup, stopAcpProcess } from "./stopAcpProcess";
+import { acpErrorMessage } from "./acpErrorMessage";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -259,10 +260,7 @@ export class AcpClient {
       if (!p) return;
       this.pending.delete(msg.id as number);
       if (msg.error !== undefined) {
-        const errMsg =
-          isRecord(msg.error) && typeof msg.error.message === "string"
-            ? msg.error.message : "ACP error";
-        p.reject(new Error(errMsg));
+        p.reject(new Error(acpErrorMessage(msg.error)));
       } else {
         p.resolve(msg.result);
       }
@@ -289,6 +287,7 @@ export class AcpClient {
     // A replayed usage update still says what the session had cost before this turn.
     this.turnUsage.noteSessionUpdate(params);
     if (this.replaying) return;
+    this.turnUsage.noteMessageUsage(params);
     this.contextUsage = contextUsageOf(params) ?? this.contextUsage;
     for (const event of this.mapper.mapSessionUpdate(params)) {
       if (this.toolCallStarts.keep(event)) this.onEvent(event);

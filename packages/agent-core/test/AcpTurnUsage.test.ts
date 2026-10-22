@@ -67,4 +67,27 @@ describe("AcpTurnUsage", () => {
     unread.noteTotals(null, { inputTokens: 5 });
     expect(unread.report()).toBeUndefined();
   });
+
+  it("adds up each model call's usage from the updates' _meta when the prompt's result has none, as Qwen Code reports it", () => {
+    const usage = new AcpTurnUsage();
+    usage.startTurn(true);
+    const call = (inputTokens: number, outputTokens: number) => ({
+      sessionId: "s",
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "" }, _meta: { usage: { inputTokens, outputTokens, thoughtTokens: 0, cachedReadTokens: 0 } } },
+    });
+    usage.noteMessageUsage(call(14712, 44));
+    usage.noteMessageUsage(call(14809, 135));
+    usage.noteMessageUsage({ sessionId: "s", update: { sessionUpdate: "usage_update", used: 14809, size: 32768 } });
+    usage.notePromptResult({ stopReason: "end_turn" });
+
+    expect(usage.report()).toMatchObject({ inputTokens: 29521, outputTokens: 179, reasoningOutputTokens: 0, cacheReadInputTokens: 0 });
+  });
+
+  it("prefers the prompt's own usage over the model calls'", () => {
+    const usage = new AcpTurnUsage();
+    usage.startTurn(true);
+    usage.noteMessageUsage({ update: { sessionUpdate: "agent_message_chunk", _meta: { usage: { inputTokens: 5, outputTokens: 1 } } } });
+    usage.notePromptResult({ stopReason: "end_turn", usage: { inputTokens: 100, outputTokens: 20 } });
+    expect(usage.report()).toMatchObject({ inputTokens: 100, outputTokens: 20 });
+  });
 });

@@ -40,3 +40,23 @@ it.each([
     deploymentConfig: expect.objectContaining({ strategy: expect.objectContaining({ type: defaultName }) }),
   })))
 })
+
+it("moves a runner off compute its harness can't run on, and won't offer it again", async () => {
+  jest.mocked(getDeploymentStrategies).mockResolvedValue(['aws-lambda-container', 'ecs'].map(strategy))
+  const { container } = render(
+    <MemoryRouter>
+      <Theme>
+        <RunnerForm submitLabel="Save" submittingLabel="Saving" onSubmit={jest.fn(async () => {})} onCancel={jest.fn()} openAdvanced />
+      </Theme>
+    </MemoryRouter>,
+  )
+  const strategyInput = () => container.querySelector('input[name="deploymentStrategyId"]')
+  await waitFor(() => expect(strategyInput()).toHaveValue('aws-lambda-container-id'))
+
+  fireEvent.click(screen.getByRole('radio', { name: /OpenAI Codex/ }))
+
+  expect(strategyInput()).toHaveValue('ecs-id')
+  const lambda = screen.getByRole('radio', { name: /Aws Lambda Container/ })
+  expect(lambda).toBeDisabled()
+  expect(lambda).toHaveTextContent("Codex can't run shell commands on AWS Lambda")
+})

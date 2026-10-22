@@ -1,4 +1,5 @@
 import {
+  getAgentCatalogEntry,
   JOB_FAILURE_CODE,
   type JobFailure,
   type JobFailureCategory,
@@ -115,6 +116,12 @@ function isJobFailureCode(code: string): code is JobFailureCode {
   return Object.prototype.hasOwnProperty.call(FAILURES, code);
 }
 
+/** What the run's harness adds to a failure, such as how long it takes to give up on a rejected key. */
+function harnessNote(code: JobFailureCode, agent: string | undefined): string | undefined {
+  if (code !== JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID || !agent) return undefined;
+  return getAgentCatalogEntry(agent)?.rejectedKeyNote ?? undefined;
+}
+
 /**
  * Turns a failure code, reported where the failure happened, into what people
  * see. Unknown or missing codes are treated as an unrecognised failure.
@@ -122,12 +129,16 @@ function isJobFailureCode(code: string): code is JobFailureCode {
 export function describeJobFailure(
   code: string | undefined,
   technicalDetail?: string,
+  agent?: string,
 ): JobFailure {
   const knownCode =
     code && isJobFailureCode(code) ? code : JOB_FAILURE_CODE.RUN_FAILED;
+  const description = FAILURES[knownCode];
+  const note = harnessNote(knownCode, agent);
   return {
     code: knownCode,
-    ...FAILURES[knownCode],
+    ...description,
+    ...(note ? { summary: `${description.summary} ${note}` } : {}),
     ...(technicalDetail ? { technicalDetail } : {}),
   };
 }

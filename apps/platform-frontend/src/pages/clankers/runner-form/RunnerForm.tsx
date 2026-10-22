@@ -6,6 +6,7 @@ import { Textarea } from '@/components/textarea'
 import { getDeploymentStrategies } from '@/service/api/clanker-api'
 import { listAllSecrets, type Secret } from '@/service/api/secret-api'
 import {
+  agentStrategyUnsupportedReason,
   DEFAULT_AGENT_TYPE,
   type AgentType,
   type DeploymentStrategy,
@@ -68,7 +69,8 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         setDeploymentStrategies(strategies)
         setSecrets(allSecrets)
         if (!initial) {
-          const defaultStrategy = strategies[0]
+          const defaultStrategy =
+            strategies.find((strategy) => !agentStrategyUnsupportedReason(DEFAULT_AGENT_TYPE, strategy.name)) ?? strategies[0]
           if (defaultStrategy) {
             setSelectedStrategyId((current) => current || defaultStrategy.id)
             setProvisioningMode(defaultProvisioningMode(defaultStrategy.name))
@@ -145,8 +147,18 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
     setModelKeyId((previous) => (keys.some((secret) => secret.id === previous) ? previous : (keys[0]?.id ?? '')))
   }
 
+  function chooseStrategy(strategy: DeploymentStrategy) {
+    setSelectedStrategyId(strategy.id)
+    setProvisioningMode(defaultProvisioningMode(strategy.name))
+  }
+
   function chooseAgent(next: AgentType) {
     setAgent(next)
+    // A harness that can't run on the chosen compute moves to the first it can run on.
+    if (selectedStrategy && agentStrategyUnsupportedReason(next, selectedStrategy.name)) {
+      const runnable = deploymentStrategies.find((strategy) => !agentStrategyUnsupportedReason(next, strategy.name))
+      if (runnable) chooseStrategy(runnable)
+    }
     const options = providerOptionsForAgent(next)
     const kept = options.some((option) => option.provider === provider)
     chooseProvider(kept ? provider : options.length === 1 ? options[0].provider : '', next)
@@ -162,6 +174,11 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
 
     if (!selectedStrategy) {
       setError('Choose an available hosting option under Advanced before saving this runner.')
+      return
+    }
+    const unsupported = agent ? agentStrategyUnsupportedReason(agent, selectedStrategy.name) : null
+    if (unsupported) {
+      setError(unsupported)
       return
     }
 
@@ -276,9 +293,10 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
               <DeploymentStrategyCards
                 strategies={deploymentStrategies}
                 value={selectedStrategyId}
+                agent={agent}
                 onChange={(strategyId) => {
-                  setSelectedStrategyId(strategyId)
-                  setProvisioningMode(defaultProvisioningMode(deploymentStrategies.find((strategy) => strategy.id === strategyId)?.name))
+                  const strategy = deploymentStrategies.find((candidate) => candidate.id === strategyId)
+                  if (strategy) chooseStrategy(strategy)
                 }}
               />
               <StrategySpecificFields

@@ -20,7 +20,9 @@
     ],
     "settings": [],
     "harnessConfigEditor": null,
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": "Claude Code tries a rejected key again for about three minutes before it gives up, so this run took a while to fail."
   },
   {
     "agent": "qwen-cli",
@@ -81,7 +83,9 @@
       }
     ],
     "harnessConfigEditor": null,
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   },
   {
     "agent": "codex",
@@ -111,7 +115,9 @@
         "kind": "device_code",
         "credentialEnvVar": "CODEX_AUTH_JSON"
       }
-    ]
+    ],
+    "lambdaUnsupportedReason": "Codex can't run shell commands on AWS Lambda, which blocks a system call Codex makes for every command. Run it on ECS, Kubernetes or Docker.",
+    "rejectedKeyNote": null
   },
   {
     "agent": "opencode",
@@ -169,7 +175,9 @@
       ],
       "template": "{\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"provider\": {\n    \"my-proxy\": {\n      \"npm\": \"@ai-sdk/openai-compatible\",\n      \"options\": {\n        \"baseURL\": \"https://llm-proxy.example.com/v1\",\n        \"apiKey\": \"{env:OPENAI_API_KEY}\"\n      },\n      \"models\": {\n        \"my-model\": { \"name\": \"My model\" }\n      }\n    }\n  }\n}"
     },
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   },
   {
     "agent": "kimi-code",
@@ -219,7 +227,9 @@
       }
     ],
     "harnessConfigEditor": null,
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   },
   {
     "agent": "mistral-vibe",
@@ -241,7 +251,9 @@
     ],
     "settings": [],
     "harnessConfigEditor": null,
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   },
   {
     "agent": "antigravity",
@@ -271,7 +283,9 @@
       }
     ],
     "harnessConfigEditor": null,
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   },
   {
     "agent": "pi",
@@ -303,7 +317,9 @@
       ],
       "template": "{\n  \"providers\": {\n    \"my-proxy\": {\n      \"baseUrl\": \"https://llm-proxy.example.com/v1\",\n      \"api\": \"openai-completions\",\n      \"apiKey\": \"$OPENAI_API_KEY\",\n      \"models\": [{ \"id\": \"my-model\" }]\n    }\n  }\n}"
     },
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   },
   {
     "agent": "fake",
@@ -319,6 +335,8 @@
     "modelApiFormats": [],
     "settings": [],
     "harnessConfigEditor": null,
-    "signInMethods": []
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   }
 ]

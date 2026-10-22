@@ -133,6 +133,9 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
   /** Optional per-agent auth lifecycle, for harnesses with an interactive sign-in. */
   readonly authLifecycle?: (ctx: AgentRuntimeContext) => AgentAuthLifecycle;
 
+  /** Added to a run's "Model key rejected" failure, when the harness behaves in a way people should know. */
+  readonly rejectedKeyNote?: string;
+
   readonly customEndpoints?: {
     apiFormats: readonly ModelApiFormat[];
     environment(endpoint: WorkerModelEndpoint): AgentEndpointEnvironment;
@@ -165,5 +168,10 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> extend
      * provisioned in infrastructure or pushed to a registry.
      */
     testOnly?: boolean;
+    /**
+     * Why the harness can't run on Lambda, when it can't. It's left out of the
+     * Lambda image, and runners can't put it on Lambda; the form shows this.
+     */
+    lambdaUnsupportedReason?: string;
   };
 }

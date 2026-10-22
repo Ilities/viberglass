@@ -115,4 +115,8 @@ write(
   "ECS worker image, with the build's default harness",
   debianImage([defaultHarness], `LABEL agent.type="${defaultHarness.id}" viberator.worker-type="agent"`),
 );
-write("viberator-lambda.Dockerfile", "Lambda worker image with every harness in the build", lambdaImage(shipped));
+write(
+  "viberator-lambda.Dockerfile",
+  "Lambda worker image with every harness in the build that runs on Lambda",
+  lambdaImage(shipped.filter((harness) => !harness.docker.lambdaUnsupportedReason)),
+);

@@ -306,27 +306,38 @@ with the answer, change code, be cancelled mid-request, and fail with a
 rejected key. They aren't part of `npm run test:e2e`.
 
 ```bash
-# Once, and after changing apps/viberator, packages/agent* or a harness's pinned version
+# Once, and after changing apps/viberator, packages/agent* or a harness's pinned version.
+# <name> is the Dockerfile's name: opencode, pi, qwen, kimi, mistral, claude or codex.
 docker build -f infra/workers/docker/base/base-worker.Dockerfile -t base-worker .
-docker build -f infra/workers/docker/generated/opencode.Dockerfile \
-  --build-arg BASE_IMAGE=base-worker -t viberator-worker-opencode:e2e .
+docker build -f infra/workers/docker/generated/<name>.Dockerfile \
+  --build-arg BASE_IMAGE=base-worker -t viberator-worker-<name>:e2e .
 
 npm run test:harnesses -w @viberator/e2e-tests                # every harness
 npm run test:harnesses -w @viberator/e2e-tests -- --project=harness-opencode
 ```
 
 - The mock model (`playwright/mockModel/`) listens on port 8993, and each
-  harness's runner reaches it as a workspace model endpoint. It does what the
-  platform's prompt asks, using whichever tools the harness offers: it writes
-  the document the prompt names with the harness's own write tool. Directives
+  harness's runner reaches it as a workspace model endpoint. It speaks Chat
+  Completions, Responses and Anthropic Messages, one translator each, and
+  decides what to do in one place, `scriptedModel.ts`.
+- It does what the platform's prompt asks with whichever tools the harness
+  offers, the way a model would: it asks the shell for the working directory
+  when the harness doesn't say, reads a file before writing it, writes through
+  the shell when there's no write tool, and finds deferred tools with the
+  harness's tool search, its tool-call wrapper or its code sandbox. Directives
   in people's words steer it: `[mock:ask=Q|A|B]`, `[mock:code]` (writes
   `mock-change.txt`), `[mock:sleep=N]`, `[mock:fail=STATUS]`.
 - It decides from the conversation alone, so a resumed session gets the same
-  answers, and the plan says how many prompts the conversation held.
+  answers, and the plan says how many prompts the conversation held. Requests
+  the harness makes on its own after a turn (titles, memories, suggestions) get
+  a plain reply.
 - It records every request. Tests use the recordings to check what the harness
-  sent, and a failed test gets them attached as `model-requests.json`.
+  sent, and a failed test gets them as `model-requests.json` in its output
+  folder.
 - The harnesses are listed in `playwright/harnessMatrix.ts`, one Playwright
-  project each. The mock speaks only Chat Completions for now.
+  project each. Steps that fail today are listed there with the reason; they
+  run as expected failures, so a fix shows up as an unexpected pass. Antigravity isn't listed:
+  it runs only on its own providers.
 - The git fixture is read-only, so the code step expects the push to fail with
   `REPOSITORY_WRITE_FAILED`, which shows the change was committed.
 

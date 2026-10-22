@@ -69,6 +69,9 @@ export class AcpExecutor {
         mcpServers,
       });
 
+      const turnError = await agent.acpTurnError(result.acpSessionId);
+      if (turnError) throw new Error(turnError);
+
       // What the harness says the session runs beats what the runner asked for.
       const model = result.model ?? result.usage?.model ?? agent.configuredModel();
 

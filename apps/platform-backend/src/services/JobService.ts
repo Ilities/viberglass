@@ -11,6 +11,7 @@ import {
   JobServiceError,
 } from "./errors/JobServiceError";
 import {
+  JOB_FAILURE_CODE,
   JOB_KIND,
   TICKET_STATUS,
   type TaskTurnAction,
@@ -139,7 +140,12 @@ export class JobService {
   ): Promise<boolean> {
     const failure =
       status === "failed"
-        ? describeJobFailure(updates.failureCode, updates.errorMessage)
+        ? describeJobFailure(
+            updates.failureCode,
+            updates.errorMessage,
+            // Only a rejected key's copy depends on the harness.
+            updates.failureCode === JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID ? await this.harnessOf(jobId) : undefined,
+          )
         : undefined;
     const result = updates.result
       ? { ...updates.result, ...(failure ? { failure } : {}) }
@@ -240,6 +246,17 @@ export class JobService {
   }
 
   /** Best effort: a ticket status that lags must not fail the run update. */
+  /** The harness the job's runner uses, for failure copy that depends on it. */
+  private async harnessOf(jobId: string): Promise<string | undefined> {
+    const row = await db
+      .selectFrom("jobs")
+      .innerJoin("clankers", "clankers.id", "jobs.clanker_id")
+      .select("clankers.agent")
+      .where("jobs.id", "=", jobId)
+      .executeTakeFirst();
+    return row?.agent ?? undefined;
+  }
+
   private async synchronizeTicketStatus(ticketId: string): Promise<void> {
     try {
       await this.lifecycleStatusService.synchronize(ticketId);

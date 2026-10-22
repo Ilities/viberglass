@@ -27,6 +27,10 @@ export interface AgentCatalogEntry {
   harnessConfigEditor: HarnessConfigEditor | null
   /** Interactive sign-ins besides API keys. */
   signInMethods: AgentSignInMethod[]
+  /** Why it can't run on Lambda; null when it can. */
+  lambdaUnsupportedReason: string | null
+  /** Added to a "Model key rejected" failure; null when there's nothing to add. */
+  rejectedKeyNote: string | null
 }
 
 function toEntry(entry: (typeof agentPluginCatalog)[number]): AgentCatalogEntry {
@@ -41,6 +45,8 @@ function toEntry(entry: (typeof agentPluginCatalog)[number]): AgentCatalogEntry 
     settings: readSettingFields(entry.settings),
     harnessConfigEditor: readHarnessConfigEditor(entry.harnessConfigEditor),
     signInMethods: readSignInMethods(entry.signInMethods),
+    lambdaUnsupportedReason: entry.lambdaUnsupportedReason ?? null,
+    rejectedKeyNote: entry.rejectedKeyNote ?? null,
   }
 }
 
@@ -71,6 +77,13 @@ export function getHarnessConfigEditor(agent: string): HarnessConfigEditor | nul
 
 export function getAgentSignInMethods(agent: string): AgentSignInMethod[] {
   return getAgentCatalogEntry(agent)?.signInMethods ?? []
+}
+
+/** Why a harness can't run on a deployment strategy, by the strategy's name; null when it can. */
+export function agentStrategyUnsupportedReason(agent: string, strategyName: string | null | undefined): string | null {
+  const strategy = (strategyName ?? '').trim().toLowerCase()
+  if (strategy !== 'lambda' && strategy !== 'aws-lambda-container') return null
+  return getAgentCatalogEntry(agent)?.lambdaUnsupportedReason ?? null
 }
 
 /** A runner's interactive sign-in and its method, when the runner chose one its harness declares. */

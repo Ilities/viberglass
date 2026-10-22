@@ -67,6 +67,14 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     return undefined;
   }
 
+  /**
+   * The error a turn ended with when the harness recorded it but ended the
+   * ACP turn normally, for one whose adapter doesn't pass model errors on.
+   */
+  async acpTurnError(_acpSessionId: string): Promise<string | undefined> {
+    return undefined;
+  }
+
   /** The model the agent was configured to run, for a record when the harness doesn't name the one it used. */
   configuredModel(): string | undefined {
     return typeof this.config.model === "string" && this.config.model ? this.config.model : undefined;

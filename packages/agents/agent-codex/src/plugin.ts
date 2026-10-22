@@ -90,6 +90,8 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
     scriptImageName: "worker-codex",
     supportedAgents: ["codex"],
     defaultForAgents: ["codex"],
+    lambdaUnsupportedReason:
+      "Codex can't run shell commands on AWS Lambda, which blocks a system call Codex makes for every command. Run it on ECS, Kubernetes or Docker.",
   },
 };
 

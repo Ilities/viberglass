@@ -1,6 +1,6 @@
 import { CheckCircledIcon } from '@radix-ui/react-icons'
 import clsx from 'clsx'
-import { AGENT_OPTIONS, type AgentType, type DeploymentStrategy } from '@viberglass/types'
+import { AGENT_OPTIONS, agentStrategyUnsupportedReason, type AgentType, type DeploymentStrategy } from '@viberglass/types'
 
 interface StrategyVisual {
   logoPath: string
@@ -93,10 +93,13 @@ export function AgentSelectionCards({
 export function DeploymentStrategyCards({
   strategies,
   value,
+  agent,
   onChange,
 }: {
   strategies: DeploymentStrategy[]
   value: string
+  /** The runner's harness; compute it can't run on is shown but can't be picked. */
+  agent?: AgentType | ''
   onChange: (strategyId: string) => void
 }) {
   return (
@@ -111,6 +114,7 @@ export function DeploymentStrategyCards({
           {strategies.map((strategy) => {
             const selected = strategy.id === value
             const visual = getStrategyVisual(strategy.name)
+            const unsupported = agent ? agentStrategyUnsupportedReason(agent, strategy.name) : null
 
             return (
               <button
@@ -118,6 +122,7 @@ export function DeploymentStrategyCards({
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                disabled={unsupported !== null}
                 onClick={() => onChange(strategy.id)}
                 className={clsx(
                   'rounded-xl border p-4 text-left transition',
@@ -125,6 +130,7 @@ export function DeploymentStrategyCards({
                   selected
                     ? 'border-brand-burnt-orange/60 bg-brand-burnt-orange/5 dark:border-brand-burnt-orange/50 dark:bg-brand-burnt-orange/10'
                     : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700',
+                  unsupported && 'cursor-not-allowed opacity-60 hover:border-zinc-200 dark:hover:border-zinc-800',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -135,7 +141,7 @@ export function DeploymentStrategyCards({
                 </div>
                 <p className="mt-3 text-sm font-semibold text-zinc-950 dark:text-white">{toTitleCase(strategy.name)}</p>
                 <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                  {strategy.description || visual.summary}
+                  {unsupported ?? (strategy.description || visual.summary)}
                 </p>
               </button>
             )
