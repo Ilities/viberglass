@@ -20,6 +20,8 @@ A task counts toward the agent and model that ran its latest build. A task that 
 
 A row with fewer than five tasks says "Too few tasks to say" instead of showing rates.
 
+![A space's track record: Claude Code and OpenCode side by side, with their merges, plans, questions, takeovers, review comments and cost per merge](../images/track-record.png)
+
 People choose which agent takes each task, and they may give the hardest tasks to the agent they trust most. Keep that in mind when one row looks worse than another. For a fair comparison on one task, use [Compare agents](tasks.md#comparing-agents).
 
 ## One agent's tasks

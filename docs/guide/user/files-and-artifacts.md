@@ -21,7 +21,7 @@ The `.viberglass` folder is kept for Viberglass, so you can't put files there.
 
 If someone else saved a file while you were editing it, your save is refused rather than overwriting their change. Your text stays in the editor: copy what you need, then choose Load their version.
 
-![The Files page with a Markdown file open in the editor above the notes and research folders](../images/files-editor.png)
+![The Files page with a Markdown file open in the editor above the space's folders](../images/files-editor.png)
 
 ### While a run has the files
 
