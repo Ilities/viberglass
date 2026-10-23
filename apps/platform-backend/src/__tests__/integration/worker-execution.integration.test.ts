@@ -82,6 +82,10 @@ const mockFindOrphanedJobs = jest.fn().mockResolvedValue([]);
 jest.mock("../../services/job/JobSweeperQueries", () => ({
   findOrphanedJobs: (...args: unknown[]) => mockFindOrphanedJobs(...args),
 }));
+// The Docker invoker reads the run's status before and after starting its container.
+jest.mock("../../persistence/job/JobDispatchStateDAO", () => ({
+  JobDispatchStateDAO: jest.fn(() => ({ getStatus: jest.fn().mockResolvedValue("active") })),
+}));
 jest.mock("../../persistence/job/JobWorkerDAO", () => ({
   JobWorkerDAO: jest.fn(() => ({ record: jest.fn().mockResolvedValue(undefined) })),
 }));

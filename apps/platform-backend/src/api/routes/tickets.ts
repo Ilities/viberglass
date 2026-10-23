@@ -39,6 +39,18 @@ import { TaskAskPolicyService } from "../../services/taskTurns/TaskAskPolicyServ
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { registerTaskCopyRoutes } from "./tickets/copyRoutes";
 import { TaskCopyService } from "../../services/tasks/TaskCopyService";
+import { registerTaskComparisonRoutes } from "./tickets/comparisonRoutes";
+import { TaskComparisonService } from "../../services/tasks/TaskComparisonService";
+import { TaskComparisonViewService } from "../../services/tasks/TaskComparisonViewService";
+import { TaskForkService } from "../../services/tasks/TaskForkService";
+import { TaskComparisonDAO } from "../../persistence/ticketing/TaskComparisonDAO";
+import { TaskComparisonArmStatsDAO } from "../../persistence/ticketing/TaskComparisonArmStatsDAO";
+import { TaskForkDAO } from "../../persistence/ticketing/TaskForkDAO";
+import { TaskSessionMessageDAO } from "../../persistence/agentSession/TaskSessionMessageDAO";
+import { TaskBranchDAO } from "../../persistence/ticketing/TaskBranchDAO";
+import { TaskSummaryDAO } from "../../persistence/ticketing/TaskSummaryDAO";
+import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
+import { SpaceRunAvailabilityService } from "../../services/spaces/SpaceRunAvailabilityService";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { registerTaskQuestionRoutes } from "./tickets/questionRoutes";
 import { registerTaskSteeringRoutes } from "./tickets/steeringRoutes";
@@ -88,6 +100,31 @@ registerTaskDiscussionRoutes(router, {
 });
 registerTaskCopyRoutes(router, {
   copies: new TaskCopyService({ tickets: ticketService, spaceAccess: new SpaceAccessService(), discussion: taskDiscussion }),
+});
+const taskComparisons = new TaskComparisonDAO();
+const taskForks = new TaskForkDAO();
+registerTaskComparisonRoutes(router, {
+  comparisons: new TaskComparisonService({
+    tickets: ticketService,
+    execution: new SpaceRunAvailabilityService(),
+    policy: new TaskAskPolicyService(),
+    agents: new TaskTurnAgentResolver(),
+    clankers: new ClankerDAO(),
+    comparisons: taskComparisons,
+    forkPoints: taskForks,
+    branches: new TaskBranchDAO(),
+    forks: new TaskForkService({
+      tickets: ticketService,
+      forks: taskForks,
+      participants: new TaskParticipantDAO(),
+      sessionMessages: new TaskSessionMessageDAO(),
+      documents: ticketPhaseDocumentService,
+      summaries: new TaskSummaryDAO(),
+    }),
+    turns: taskTurns,
+    discussion: taskDiscussion,
+  }),
+  views: new TaskComparisonViewService({ comparisons: taskComparisons, stats: new TaskComparisonArmStatsDAO(), tickets: ticketService }),
 });
 registerTaskQuestionRoutes(router, { answers: new AgentQuestionAnswerService({ asker: taskTurns }) });
 const steering = new TaskSteeringService({ turns: taskTurns });

@@ -20,7 +20,7 @@ jest.mock("../../../../services/ticketRunOrchestration", () => ({
 }));
 jest.mock("../../../../provisioning/provisioningFactory", () => ({ getClankerProvisioner: jest.fn() }));
 
-function setup() {
+function setup(arm: { comparison: { baseBranch: string | null; baseCommit: string | null } } | null = null) {
   const jobs = { submitJob: jest.fn().mockResolvedValue({ jobId: "job", callbackToken: "token" }), updateJobStatus: jest.fn() };
   const bootstraps = { saveBootstrapPayload: jest.fn() };
   const credentials = { getRequiredCredentialsForClanker: jest.fn().mockResolvedValue([]) };
@@ -37,7 +37,8 @@ function setup() {
   };
   const launches = { getQueued: jest.fn() };
   const tickets = { getTicket: jest.fn().mockResolvedValue(TICKET) };
-  const dispatcher = new TaskTurnJobDispatcher(jobs, bootstraps, credentials, workers, media, branches, spaceFiles, launches, tickets, jobs);
+  const comparisons = { armOf: jest.fn().mockResolvedValue(arm) };
+  const dispatcher = new TaskTurnJobDispatcher(jobs, bootstraps, credentials, workers, media, branches, spaceFiles, launches, tickets, jobs, comparisons);
   return { dispatcher, bootstraps, branches, workers, spaceFiles, launches, jobs };
 }
 
@@ -134,6 +135,37 @@ describe("TaskTurnJobDispatcher's branch", () => {
 
     expect(branches.nameFor).not.toHaveBeenCalled();
     expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ taskBranch: "viberglass/t-1" }));
+  });
+});
+
+describe("TaskTurnJobDispatcher on a comparison's fork", () => {
+  const ARM = { comparison: { baseBranch: "viberglass/t-0", baseCommit: "abc123" } };
+
+  it.each(["code", "plan"] as const)("starts a %s turn from the code the original had when it was forked", async (action) => {
+    const { dispatcher, bootstraps } = setup(ARM);
+
+    await dispatcher.dispatch(input(action), jest.fn());
+
+    expect(bootstraps.saveBootstrapPayload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ forkBase: { branch: "viberglass/t-0", commit: "abc123" } }),
+    );
+  });
+
+  it("stops once the fork has a pull request of its own", async () => {
+    const { dispatcher, bootstraps } = setup(ARM);
+
+    await dispatcher.dispatch(input("code", { ticket: { ...TICKET, pullRequestUrl: "https://github.com/acme/app/pull/2" } }), jest.fn());
+
+    expect(bootstraps.saveBootstrapPayload.mock.calls[0][1]).not.toHaveProperty("forkBase");
+  });
+
+  it("sends none when the original had no code of its own", async () => {
+    const { dispatcher, bootstraps } = setup({ comparison: { baseBranch: null, baseCommit: null } });
+
+    await dispatcher.dispatch(input("code"), jest.fn());
+
+    expect(bootstraps.saveBootstrapPayload.mock.calls[0][1]).not.toHaveProperty("forkBase");
   });
 });
 

@@ -146,6 +146,8 @@ export interface BaseWorkerPayload {
   lastAgentCommit?: string | null;
   /** The task's branch, named once by the platform; absent for runs outside a task. */
   taskBranch?: string | null;
+  /** On a forked task without a pull request of its own: the code its original had when it was forked. */
+  forkBase?: ForkBase | null;
   /**
    * W3C trace context linking this job's worker spans to the backend span
    * that dispatched it.
@@ -317,3 +319,9 @@ import type { CredentialRequest, FilesCheckpointResult, FilesWorkspacePayload, J
 import type { AcpContextUsage, AcpSessionStart } from "@viberglass/agent-core";
 import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";
+
+/** A branch on origin, at `commit` when set, else at its head. */
+export interface ForkBase {
+  branch: string;
+  commit: string | null;
+}

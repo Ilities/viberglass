@@ -1,6 +1,6 @@
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { taskPath } from '@/lib/taskPath'
-import { ArchiveIcon, CheckCircledIcon, ChevronDownIcon, CopyIcon, Link2Icon, Pencil1Icon, ResetIcon, TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons'
+import { ArchiveIcon, CheckCircledIcon, ChevronDownIcon, ColumnsIcon, CopyIcon, Link2Icon, Pencil1Icon, ResetIcon, TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons'
 import { TICKET_STATUS, type SpaceBackingKind, type TaskCapabilities, type Ticket } from '@viberglass/types'
 import { toast } from 'sonner'
 
@@ -15,10 +15,12 @@ interface TaskActionsMenuProps {
   onDelete: () => void
   /** Set for those who may create tasks. */
   onCopy?: () => void
+  /** Set for those who may compare agents on forks of the task. */
+  onCompare?: () => void
 }
 
 /** Housekeeping on a task, only the items this person may use. */
-export function TaskActionsMenu({ ticket, space, backingKind = 'git', capabilities, onEdit, onSetDone, onArchive, onDelete, onCopy }: TaskActionsMenuProps) {
+export function TaskActionsMenu({ ticket, space, backingKind = 'git', capabilities, onEdit, onSetDone, onArchive, onDelete, onCopy, onCompare }: TaskActionsMenuProps) {
   const canEdit = Boolean(capabilities?.canEdit)
   const canDelete = Boolean(capabilities?.canDelete)
   const done = ticket.status === TICKET_STATUS.RESOLVED
@@ -51,6 +53,12 @@ export function TaskActionsMenu({ ticket, space, backingKind = 'git', capabiliti
           <Link2Icon className="size-4" />
           Copy link
         </DropdownItem>
+        {onCompare && (
+          <DropdownItem onClick={onCompare}>
+            <ColumnsIcon className="size-4" />
+            Compare agents…
+          </DropdownItem>
+        )}
         {onCopy && (
           <DropdownItem onClick={onCopy}>
             <CopyIcon className="size-4" />

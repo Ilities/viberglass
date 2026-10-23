@@ -94,6 +94,7 @@ export * from './taskAskPolicy'
 export * from './taskChangePolicy'
 export * from './taskTimeline'
 export * from './taskTurn'
+export * from './taskComparison'
 
 // Where a comment sits in a document
 export * from './documentAnchor'

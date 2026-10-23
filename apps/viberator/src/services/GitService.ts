@@ -205,6 +205,35 @@ class GitService {
   }
 
   /**
+   * Moves the working tree, detached, to `base.commit` on `base.branch` from
+   * origin, or to the branch's head without a commit, so a forked task's run
+   * starts from the code its original had. Leaves the tree on the base branch
+   * when origin no longer has the branch (deleted once it merged), and on the
+   * branch's head when its history no longer has the commit.
+   */
+  public async checkoutForkBase(repoDir: string, base: { branch: string; commit: string | null }, auth?: GitAuth): Promise<boolean> {
+    const git = simpleGit({ baseDir: repoDir, ...AUTHENTICATED_GIT_OPTIONS });
+    const env = await this.originEnvironment(git, auth);
+
+    const heads = await git.env(env).listRemote(["--heads", "origin", base.branch]);
+    if (!heads.split("\n").some((line) => line.trim().endsWith(`refs/heads/${base.branch}`))) {
+      this.logger.warn("Fork base branch is gone from origin; starting from the base branch", { branch: base.branch });
+      return false;
+    }
+    const remoteRef = `refs/remotes/origin/${base.branch}`;
+    await git.env(env).fetch("origin", `+refs/heads/${base.branch}:${remoteRef}`);
+    try {
+      await git.checkout(["--detach", base.commit ?? remoteRef]);
+    } catch (error) {
+      if (!base.commit) throw error;
+      this.logger.warn("Fork base commit is not on its branch any more; starting from the branch's head", base);
+      await git.checkout(["--detach", remoteRef]);
+    }
+    this.logger.info("Starting from the fork's base", base);
+    return true;
+  }
+
+  /**
    * Commit changes using simple-git
    */
   public async commitChanges(

@@ -24,6 +24,7 @@ import { JOB_FAILURE_CODE, type Clanker, type Project } from "@viberglass/types"
 import { JobLaunchDAO, type QueuedJobRecord } from "../../persistence/job/JobLaunchDAO";
 import type { SpaceFileRun } from "../../persistence/spaceFiles/SpaceFilesDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import { TaskComparisonDAO } from "../../persistence/ticketing/TaskComparisonDAO";
 import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
 import { claimSpaceFiles, withoutRepository } from "../spaceFiles/filesRunBootstrap";
 
@@ -93,6 +94,7 @@ export class TaskTurnJobDispatcher {
     private readonly launches: Pick<JobLaunchDAO, "getQueued"> = new JobLaunchDAO(),
     private readonly tickets: Pick<TicketDAO, "getTicket"> = new TicketDAO(),
     private readonly failures: Pick<JobService, "updateJobStatus"> = new JobService(),
+    private readonly comparisons: Pick<TaskComparisonDAO, "armOf"> = new TaskComparisonDAO(),
   ) {}
 
   /**
@@ -112,6 +114,8 @@ export class TaskTurnJobDispatcher {
     const files = prepared.project.backingKind === "files";
     const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker, input.messageImages ?? []);
     const { acpSessionId, conversationStateUrl } = resumeState(session.metadataJson);
+    // Until a fork opens a pull request of its own, its runs start from the code its original had when it was forked.
+    const forkBase = files || ticket.pullRequestUrl ? null : await this.forkBaseOf(ticket.id);
     // A first turn starts cold for certain; a later one only if the harness can't resume.
     const task = acpSessionId ? prompts.prompt : prompts.coldStartPrompt;
 
@@ -180,6 +184,7 @@ export class TaskTurnJobDispatcher {
               action === "code"
                 ? await this.branches.nameFor(ticket.id, jobId, input.buildParts ?? null)
                 : ((await this.branches.existing(ticket.id)) ?? undefined),
+            ...(forkBase ? { forkBase } : {}),
           }),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
@@ -242,6 +247,12 @@ export class TaskTurnJobDispatcher {
       bootstrapPayload: bootstrap,
     } as unknown as JobData;
     this.invoke(jobData, prepared.executionClanker, prepared.project, String(bootstrap.agentSessionId ?? ""));
+  }
+
+  private async forkBaseOf(ticketId: string): Promise<{ branch: string; commit: string | null } | null> {
+    const arm = await this.comparisons.armOf(ticketId);
+    const branch = arm?.comparison.baseBranch;
+    return branch ? { branch, commit: arm.comparison.baseCommit } : null;
   }
 
   private invoke(jobData: JobData, clanker: Clanker, project: Project, sessionId: string): void {

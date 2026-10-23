@@ -13,6 +13,9 @@ import db from "../config/database";
 import { latestPullRequestUrl } from "./latestPullRequestUrl";
 import { ticketOfRow } from "./ticketRow";
 
+/** A comparison's forks show under the task they were forked from, not in lists of their own. */
+const notAComparisonFork = sql<boolean>`NOT EXISTS (SELECT 1 FROM task_comparison_arms a WHERE a.ticket_id = t.id)`;
+
 export interface TicketListQuery {
   limit?: number;
   offset?: number;
@@ -80,7 +83,8 @@ export class TicketListDAO {
         "r.size as recording_size",
         "r.url as recording_url",
         "r.uploaded_at as recording_uploaded_at",
-      ]);
+      ])
+      .where(notAComparisonFork);
 
     if (params.projectId) {
       query = query.where("t.project_id", "=", params.projectId);
@@ -121,7 +125,8 @@ export class TicketListDAO {
 
     let totalQuery = db
       .selectFrom("tickets as t")
-      .select(sql<string>`COUNT(*)`.as("total"));
+      .select(sql<string>`COUNT(*)`.as("total"))
+      .where(notAComparisonFork);
 
     if (params.projectId) {
       totalQuery = totalQuery.where("t.project_id", "=", params.projectId);
@@ -165,7 +170,7 @@ export class TicketListDAO {
 
   /** `projectIds` limits the stats to these spaces; null or omitted means all. */
   async getTicketStats(projectId?: string, projectIds: string[] | null = null): Promise<TicketStats> {
-    let baseQuery = db.selectFrom("tickets as t").where("t.archived_at", "is", null);
+    let baseQuery = db.selectFrom("tickets as t").where("t.archived_at", "is", null).where(notAComparisonFork);
     if (projectId) baseQuery = baseQuery.where("t.project_id", "=", projectId);
     if (projectIds) {
       baseQuery = projectIds.length > 0 ? baseQuery.where("t.project_id", "in", projectIds) : baseQuery.where(sql<boolean>`false`);

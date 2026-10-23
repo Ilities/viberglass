@@ -2,6 +2,7 @@ import { buildFeatureBranchName, type PartRange } from "@viberglass/types";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { TaskBranchDAO } from "../../persistence/ticketing/TaskBranchDAO";
+import { TaskComparisonDAO } from "../../persistence/ticketing/TaskComparisonDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 
 const WHOLE_PLAN: PartRange = { first: 1, last: null };
@@ -11,13 +12,16 @@ interface Dependencies {
   tickets: Pick<TicketDAO, "getTicket">;
   scm: Pick<ProjectScmConfigDAO, "getByProjectId">;
   sessions: Pick<AgentSessionDAO, "getLatestClankerIdByTicket">;
+  comparisons: Pick<TaskComparisonDAO, "armOf">;
 }
 
 /**
  * Names the branch of each of a task's pull requests the first time anything
  * needs it (a build, or someone taking the work over) from the space's branch
  * template, and keeps it from then on, whatever the template renders later. A
- * later part's branch is the first's name with `-part-N`.
+ * later part's branch is the first's name with `-part-N`. A fork in a
+ * comparison is named as its original would be, followed by its runner's
+ * slug, so the forks' branches sit next to each other and the original's.
  */
 export class TaskBranchNamer {
   private readonly deps: Dependencies;
@@ -28,6 +32,7 @@ export class TaskBranchNamer {
       tickets: new TicketDAO(),
       scm: new ProjectScmConfigDAO(),
       sessions: new AgentSessionDAO(),
+      comparisons: new TaskComparisonDAO(),
       ...deps,
     };
   }
@@ -60,12 +65,14 @@ export class TaskBranchNamer {
   }
 
   private async render(ticketId: string, runId: string): Promise<string | null> {
-    const ticket = await this.deps.tickets.getTicket(ticketId);
+    const arm = await this.deps.comparisons.armOf(ticketId);
+    const ticket = await this.deps.tickets.getTicket(arm?.comparison.parentTicketId ?? ticketId);
     if (!ticket) return null;
     const [scm, clankerId] = await Promise.all([
       this.deps.scm.getByProjectId(ticket.projectId),
-      this.deps.sessions.getLatestClankerIdByTicket(ticketId),
+      arm ? Promise.resolve(arm.runner.id) : this.deps.sessions.getLatestClankerIdByTicket(ticketId),
     ]);
-    return buildFeatureBranchName(runId, ticket.id, ticket.externalTicketId || ticket.id, clankerId ?? undefined, scm?.branchNameTemplate);
+    const name = buildFeatureBranchName(runId, ticket.id, ticket.externalTicketId || ticket.id, clankerId ?? undefined, scm?.branchNameTemplate);
+    return arm ? `${name}-${arm.runner.slug}` : name;
   }
 }

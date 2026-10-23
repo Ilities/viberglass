@@ -96,4 +96,40 @@ describe("GitService.checkoutRemoteBranch", () => {
 
     await expect(gitService.checkoutRemoteBranch(repoDir, "viberglass/task-3")).resolves.toBe(false);
   });
+
+  describe("checkoutForkBase", () => {
+    it("starts a fork at the commit its original had, then pushes the fork's own branch from there", async () => {
+      const seed = path.join(root, "seed");
+      const forkedAt = git(seed, "rev-parse", "HEAD");
+      fs.writeFileSync(path.join(seed, "a.txt"), "after the fork\n");
+      git(seed, "commit", "-am", "build run 2");
+      git(seed, "push", "origin", "viberglass/task-1");
+      const repoDir = await cloneMain();
+
+      await expect(gitService.checkoutForkBase(repoDir, { branch: "viberglass/task-1", commit: forkedAt })).resolves.toBe(true);
+      expect(fs.readFileSync(path.join(repoDir, "a.txt"), "utf8")).toBe("first build\n");
+
+      await gitService.createBranch(repoDir, "viberglass/task-1-claude-code");
+      fs.writeFileSync(path.join(repoDir, "a.txt"), "fork build\n");
+      await gitService.commitChanges(repoDir, "fork run 1");
+      await gitService.pushBranch(repoDir, "viberglass/task-1-claude-code");
+      expect(git(remote, "log", "--format=%s", "viberglass/task-1-claude-code").split("\n")).toEqual(["fork run 1", "build run 1", "base"]);
+    });
+
+    it("starts at the branch's head without a commit", async () => {
+      const repoDir = await cloneMain();
+
+      await gitService.checkoutForkBase(repoDir, { branch: "viberglass/task-1", commit: null });
+
+      expect(fs.readFileSync(path.join(repoDir, "a.txt"), "utf8")).toBe("first build\n");
+    });
+
+    it("stays on the base branch when origin no longer has the branch", async () => {
+      const repoDir = await cloneMain();
+
+      await expect(gitService.checkoutForkBase(repoDir, { branch: "viberglass/gone", commit: null })).resolves.toBe(false);
+
+      expect(git(repoDir, "rev-parse", "--abbrev-ref", "HEAD")).toBe("main");
+    });
+  });
 });

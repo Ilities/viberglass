@@ -23,7 +23,7 @@ export class TaskBranchDAO {
    * The branch work on the task goes to: its latest pull request's, until that
    * is merged or closed, when the build continues it (no `parts`) or it covers
    * `parts` already; else a new branch for `parts`, named `name`, or `name-2`
-   * and so on when that's taken. A pull request whose parts were marked
+   * and so on when a task in the space has it. A pull request whose parts were marked
    * finished doesn't cover the next ones, so they get a branch of their own.
    */
   async claim(ticketId: string, name: string, parts: PartRange | null): Promise<string> {
@@ -41,8 +41,16 @@ export class TaskBranchDAO {
       const live = latest && latest.state !== "merged" && latest.state !== "closed";
       if (live && (!parts || coversRange({ first: latest.first_part, last: latest.last_part }, parts))) return latest.branch;
 
+      // Tasks in a space share its repository, so a branch another task took is taken too.
       const taken = new Set(
-        (await trx.selectFrom("task_pull_requests").select("branch").where("ticket_id", "=", ticketId).execute()).map((row) => row.branch),
+        (
+          await trx
+            .selectFrom("task_pull_requests as p")
+            .innerJoin("tickets as t", "t.id", "p.ticket_id")
+            .select("p.branch")
+            .where("t.project_id", "=", (eb) => eb.selectFrom("tickets").select("project_id").where("id", "=", ticketId))
+            .execute()
+        ).map((row) => row.branch),
       );
       let branch = name;
       for (let suffix = 2; taken.has(branch); suffix++) branch = `${name}-${suffix}`;

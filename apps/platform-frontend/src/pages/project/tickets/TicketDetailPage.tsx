@@ -11,6 +11,7 @@ import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { CompareAgentsDialog, type ForkPoint } from './compare-agents-dialog'
 import { CopyTaskDialog } from './copy-task-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
@@ -28,6 +29,8 @@ import { codeProgress, decideTaskNextMove, TASK_STEPS, type TaskStep } from './t
 import { WatchButton } from './task-people'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
+import { ComparisonForkBanner, TaskComparisons } from './task-comparisons'
+import { useTaskComparisons } from './use-task-comparisons'
 import { TaskThread } from './task-thread'
 import { TaskViewSwitch } from './task-view-switch'
 import { useTaskPage, workingSession } from './use-task-page'
@@ -56,6 +59,8 @@ export function TicketDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
+  // Undefined while closed; null forks the task as it is now.
+  const [compareFrom, setCompareFrom] = useState<ForkPoint | null | undefined>(undefined)
   // Hidden panels stay mounted so switching preserves a draft and its scroll position.
   const wide = useMediaQuery('(min-width: 1280px)')
   const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
@@ -85,6 +90,10 @@ export function TicketDetailPage() {
   }, [searchParams, setSearchParams])
 
   const filesSpace = space?.backingKind === 'files'
+  const comparisons = useTaskComparisons(
+    data?.ticket.id,
+    data ? [...data.runs.map((run) => `${run.jobId}:${run.status}`), data.ticket.updatedAt].join('|') : ''
+  )
   // A Files task delivers an artifact; it's loaded again as the task's runs change.
   const artifacts = useTaskArtifacts(
     space?.id,
@@ -134,6 +143,8 @@ export function TicketDetailPage() {
     filesSpace && data.capabilities ? { ...data, capabilities: { ...data.capabilities, canAskForCode: false } } : data
   const { ticket } = data
   const currentStep = ticket.workflowPhase
+  // Forks run side by side on their own branches, which a Files space's shared files can't do.
+  const canCompare = canInspectRuns && !filesSpace && Boolean(capabilities?.canAsk)
   const move = decideTaskNextMove({
     ticket,
     runs: data.runs,
@@ -227,10 +238,12 @@ export function TicketDetailPage() {
                 onArchive={() => void archive()}
                 onDelete={() => setIsDeleteDialogOpen(true)}
                 onCopy={canInspectRuns ? () => setIsCopyDialogOpen(true) : undefined}
+                onCompare={canCompare ? () => setCompareFrom(null) : undefined}
               />
             </>
           }
         />
+        {comparisons.view?.armOf && <ComparisonForkBanner armOf={comparisons.view.armOf} space={project} />}
         <TaskContextLine ticket={ticket} people={people} />
         <TaskDescription key={ticket.id} description={ticket.description} />
 
@@ -284,6 +297,18 @@ export function TicketDetailPage() {
           </section>
 
           <div hidden={!wide && narrowView !== 'conversation'} className="min-w-0 space-y-4 xl:order-first">
+            {comparisons.view && (
+              <TaskComparisons
+                taskId={ticket.id}
+                view={comparisons.view}
+                space={project}
+                canPick={canCompare}
+                onChanged={(view) => {
+                  comparisons.setView(view)
+                  changed()
+                }}
+              />
+            )}
             {canInspectRuns && <TaskRunHistory key={ticket.id} runs={data.runs} open={requestedView === 'runs'} />}
             <TaskThread
               taskId={ticket.id}
@@ -312,6 +337,7 @@ export function TicketDetailPage() {
               runnableAgents={runnableAgents(data.clankers)}
               clankers={data.clankers}
               onAsked={changed}
+              onCompareFrom={canCompare ? setCompareFrom : undefined}
               suggestionInput={{
                 ticket,
                 plan: data.plan,
@@ -346,6 +372,17 @@ export function TicketDetailPage() {
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to update task')
           }
+        }}
+      />
+      <CompareAgentsDialog
+        taskId={ticket.id}
+        agents={runnableAgents(data.clankers)}
+        open={compareFrom !== undefined}
+        from={compareFrom ?? null}
+        onClose={() => setCompareFrom(undefined)}
+        onStarted={(view) => {
+          comparisons.setView(view)
+          changed()
         }}
       />
       <CopyTaskDialog ticket={ticket} open={isCopyDialogOpen} onClose={() => setIsCopyDialogOpen(false)} onCopied={changed} />

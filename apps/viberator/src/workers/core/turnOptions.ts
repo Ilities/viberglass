@@ -1,5 +1,5 @@
 import type { TaskTurnAction } from "@viberglass/types";
-import type { WorkerPayload } from "./types";
+import type { ForkBase, WorkerPayload } from "./types";
 
 /** What a task turn's run knows about its turn, beyond the job: its session, step and branch. */
 export interface TurnOptions {
@@ -14,6 +14,7 @@ export interface TurnOptions {
   conversationStateUrl?: string;
   lastAgentCommit?: string;
   taskBranch?: string;
+  forkBase?: ForkBase;
 }
 
 /** The turn's options from its bootstrap payload; a scheduled job has none of them. */
@@ -29,5 +30,6 @@ export function turnOptionsOf(payload: WorkerPayload): TurnOptions {
     conversationStateUrl: payload.conversationStateUrl,
     lastAgentCommit: payload.lastAgentCommit ?? undefined,
     taskBranch: payload.taskBranch ?? undefined,
+    forkBase: payload.forkBase ?? undefined,
   };
 }

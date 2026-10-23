@@ -8,6 +8,7 @@ import type { Clanker, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/t
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
+import type { ForkPoint } from './compare-agents-dialog'
 import { BringInAgent, type BringableAgent } from './bring-in-agent'
 import { CommentEntry, commentStatuses, isFullComment } from './comment-entry'
 import { NextAgentLine } from './next-agent-line'
@@ -58,6 +59,8 @@ interface TaskThreadProps {
   filesSpace?: boolean
   /** The task's space, for links to the artifacts its turns produced. */
   space?: { id: string; slug: string }
+  /** Set for those who may compare agents: forks the task as it was after a finished turn. */
+  onCompareFrom?: (point: ForkPoint) => void
 }
 
 /** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
@@ -81,6 +84,7 @@ export function TaskThread({
   runs = [],
   filesSpace = false,
   space,
+  onCompareFrom,
 }: TaskThreadProps) {
   const { user } = useAuth()
   const personName = usePersonName()
@@ -171,6 +175,11 @@ export function TaskThread({
         space={space}
         summaryVersion={summaries.versionByTurn.get(entry.id)}
         retry={retry && entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />}
+        onCompare={
+          onCompareFrom && entry.status === 'completed'
+            ? () => onCompareFrom({ turnId: entry.id, label: `${entry.agent.name}'s turn` })
+            : undefined
+        }
       />
     ) : entry.kind === 'question' ? (
       <QuestionEntry key={entry.id} entry={entry} answerBelow={canPost} />

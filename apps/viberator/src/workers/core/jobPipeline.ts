@@ -13,7 +13,7 @@ import {
 import { JOB_FAILURE_CODE, type FilesWorkspacePayload, type TaskTurnAction, type WorkerMcpServer, type WorkerSkill } from "@viberglass/types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
-import { CodingJobData, JobOverrides, ProjectConfigPayload } from "./types";
+import { CodingJobData, JobOverrides, ProjectConfigPayload, type ForkBase } from "./types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
 import type { GitAuth } from "../../services/gitAuth";
 import { InstructionFileManager, type MaterializedFile } from "../runtime/InstructionFileManager";
@@ -65,6 +65,8 @@ export interface JobRunnerParams {
   lastAgentCommit?: string;
   /** The task's branch as the platform named it, once for the task. */
   taskBranch?: string;
+  /** Where a forked task's run starts when its branch isn't on origin yet. */
+  forkBase?: ForkBase;
   /** What git authenticates to the repository with: the space's token, and the username its code host takes. */
   gitAuth?: GitAuth;
   /** The runner's workspace MCP servers; task turns offer them to the agent. */
@@ -230,6 +232,10 @@ async function prepareGitWorkspace(
   // works on top of the earlier builds, and of what people pushed there, and
   // a build's pull request gains commits.
   const taskBranch = params.taskBranch ? await prepareTaskBranch(params, params.taskBranch, repoDir) : undefined;
+  if (params.forkBase && !taskBranch?.continued) {
+    const forkBase = params.forkBase;
+    await failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () => params.gitService.checkoutForkBase(repoDir, forkBase, params.gitAuth));
+  }
 
   // The exact commit the run starts from, captured before instruction files
   // are written and before the agent touches anything. "base branch was main"

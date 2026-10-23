@@ -1,12 +1,15 @@
 import { TaskBranchNamer } from "../../../../services/tasks/TaskBranchNamer";
 
-function setup(stored: string | null, template: string | null = null) {
+type Arm = { comparison: { parentTicketId: string }; runner: { id: string; slug: string } };
+
+function setup(stored: string | null, template: string | null = null, arm: Arm | null = null) {
   const deps = {
     // The DAO keeps the open pull request's branch, else names a new one.
     branches: { get: jest.fn().mockResolvedValue(stored), claim: jest.fn(async (_id: string, name: string) => stored ?? name) },
     tickets: { getTicket: jest.fn().mockResolvedValue({ id: "t-1", projectId: "p-1", externalTicketId: "WEB-1" }) },
     scm: { getByProjectId: jest.fn().mockResolvedValue({ branchNameTemplate: template }) },
     sessions: { getLatestClankerIdByTicket: jest.fn().mockResolvedValue("claude") },
+    comparisons: { armOf: jest.fn().mockResolvedValue(arm) },
   };
   return { deps, namer: new TaskBranchNamer(deps) };
 }
@@ -48,5 +51,16 @@ describe("TaskBranchNamer", () => {
     const { deps, namer } = setup(null);
     expect(await namer.preview("t-1", "t-1")).toBe("viberglass/t-1");
     expect(deps.branches.claim).not.toHaveBeenCalled();
+  });
+
+  it("names a comparison fork's branch as its original's, followed by its runner", async () => {
+    const { deps, namer } = setup(null, "fix/{{ originalTicket }}-{{ clanker }}", {
+      comparison: { parentTicketId: "t-1" },
+      runner: { id: "opencode-id", slug: "opencode-glm" },
+    });
+
+    expect(await namer.nameFor("t-9", "job-1")).toBe("fix/WEB-1-opencode-id-opencode-glm");
+    expect(deps.tickets.getTicket).toHaveBeenCalledWith("t-1");
+    expect(deps.branches.claim).toHaveBeenCalledWith("t-9", "fix/WEB-1-opencode-id-opencode-glm", { first: 1, last: null });
   });
 });

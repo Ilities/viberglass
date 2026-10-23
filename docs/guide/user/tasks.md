@@ -58,11 +58,22 @@ Under the turn, a small line says whether the agent picked up its earlier conver
 
 Members and admins also see Live log and Cancel run while the agent works, and Run details afterwards. Run details opens the record of the run: what the agent did step by step, its tool calls, the prompt it got, the worker's log, and the model, time and cost where the agent reports them.
 
+## Comparing agents
+
+To see how different agents or models handle the same work, choose Compare agents in the Actions menu, or Compare agents from here under one of the agent's finished turns. Pick two to four agents, what to ask each of them (Plan, Build or Reply), and optionally a message, then choose Compare.
+
+Each agent gets a fork: a task of its own in the same space, titled after the original and the agent, such as "Add dark mode · Claude Code". A fork starts from the task as it was at that moment, whether now or when the chosen turn finished. It gets what people had written in the thread, the plan, the summary, the parts marked finished, and the code on the task's branch at that point. The agents' own replies stay with the original, so every agent starts fresh from the same record. Nothing on a fork goes back to the issue tracker the original came from.
+
+Each fork works on its own branch, named after the original's with the agent added, such as `viberglass/<task>-claude-code`, and opens its own pull request. You can carry on talking to the agent in a fork like in any task.
+
+Forks don't appear in the space's task list. The original shows them under Agent comparisons, side by side: where each stands, what its latest turn set out to do, the model, how many runs, how long they took and what they cost, the branch and the pull request. Choose Pick this on the one you want to keep; the original marks it Picked and says so in its thread. Picking closes and merges nothing. A fork's page says which task it was forked from and links back to the comparison.
+
 ## The Actions menu
 
 - Edit details: change the title, description and other details.
 - View screenshots: open attached media.
 - Copy link: copy the task's address.
+- Compare agents: run the task with two to four agents side by side. See [Comparing agents](#comparing-agents). Members and admins have it, in spaces with a repository.
 - Copy to another space: start a task with the same title and description in another space, for work that needs that space's repository. Both threads link to each other; the plan and runs stay with the original. Members and admins have it.
 - Finish task: close the task by hand. Its history stays, and nothing is merged. Reopen task opens it again. In a Files space this is Mark done.
 - Archive: take the task out of the space's working lists while keeping its record.

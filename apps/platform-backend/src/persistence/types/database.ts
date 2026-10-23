@@ -107,6 +107,26 @@ export interface TaskPullRequestsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface TaskComparisonsTable {
+  id: Generated<string>;
+  parent_ticket_id: string;
+  forked_from_turn_id: string | null;
+  forked_at: Timestamp;
+  base_branch: string | null;
+  base_commit: string | null;
+  winner_ticket_id: string | null;
+  created_by: string | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TaskComparisonArmsTable {
+  ticket_id: string;
+  comparison_id: string;
+  clanker_id: string;
+  position: number;
+  created_at: Generated<Timestamp>;
+}
+
 export interface TaskPlanPartMarksTable {
   ticket_id: string;
   part_number: number;
@@ -884,6 +904,8 @@ export interface Database {
   tickets: TicketsTable;
   task_pull_requests: TaskPullRequestsTable;
   task_plan_part_marks: TaskPlanPartMarksTable;
+  task_comparisons: TaskComparisonsTable;
+  task_comparison_arms: TaskComparisonArmsTable;
   integrations: IntegrationsTable;
   project_integrations: ProjectIntegrationsTable;
   integration_credentials: IntegrationCredentialsTable;

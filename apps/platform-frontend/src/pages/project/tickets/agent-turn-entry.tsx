@@ -102,10 +102,12 @@ interface AgentTurnEntryProps {
   filesSpace?: boolean
   /** The task's space, for links to the artifacts a turn produced. */
   space?: { id: string; slug: string }
+  /** Forks the task as it was after this turn, to compare agents from here. */
+  onCompare?: () => void
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace = false, space }: AgentTurnEntryProps) {
+export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace = false, space, onCompare }: AgentTurnEntryProps) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
@@ -226,6 +228,11 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
           <Link href={runLink} className="inline-flex items-center gap-1.5 text-[var(--gray-11)] hover:text-[var(--accent-11)]">
             Run details <ExternalLinkIcon className="size-3" />
           </Link>
+          {onCompare && (
+            <button type="button" onClick={onCompare} className="text-[var(--gray-11)] hover:text-[var(--accent-11)]">
+              Compare agents from here
+            </button>
+          )}
         </div>
       )}
       {(facts.length > 0 || outcome?.compacted) && (
