@@ -15,6 +15,7 @@ For product managers, support and QA leads, designers, reviewers and engineers.
 - [Home and notifications](user/home-and-notifications.md): what needs you, Overview, Slack DMs and email.
 - [Slack](user/slack.md): starting and following tasks from a Slack thread.
 - [Schedules](user/schedules.md): agent work that runs on a timer.
+- [Track record](user/track-record.md): how each agent and model's tasks in a space went, side by side.
 - [Chrome extension](user/chrome-extension.md): creating a task from the page you're on, with a screenshot and the page's details.
 - [MCP server](user/mcp.md): working with Viberglass from Claude, Cursor or another MCP client.
 

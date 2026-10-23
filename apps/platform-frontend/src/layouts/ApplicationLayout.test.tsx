@@ -176,7 +176,7 @@ describe('ApplicationLayout navigation', () => {
     expect(within(drawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
   })
 
-  it('keeps the same sidebar inside a space, with that space expanded in place', async () => {
+  it('keeps the same sidebar inside a space', async () => {
     renderLayout('/')
     const outside = linkNames(await openDrawer())
     cleanup()
@@ -185,11 +185,7 @@ describe('ApplicationLayout navigation', () => {
     const drawer = await openDrawer()
     const inside = linkNames(drawer)
 
-    expect(inside.filter((name) => !outside.includes(name))).toEqual([
-      'Runs /spaces/viberglass/runs',
-      'Schedules /spaces/viberglass/schedules',
-      'Space settings /spaces/viberglass/settings',
-    ])
+    expect(inside.filter((name) => !outside.includes(name))).toEqual([])
     expect(outside.filter((name) => !inside.includes(name))).toEqual([])
   })
 
@@ -202,17 +198,15 @@ describe('ApplicationLayout navigation', () => {
     expect(within(drawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
   })
 
-  it("shows guests and viewers no Runs, Schedules, New space or Settings, which they can't use", async () => {
+  it("shows guests and viewers no New space or Settings, which they can't use", async () => {
     for (const role of ['guest', 'viewer'] as const) {
       asRole(role)
       renderLayout('/spaces/viberglass')
       const drawer = await openDrawer()
 
-      for (const label of ['Runs', 'Schedules', 'New space', 'Settings']) {
+      for (const label of ['New space', 'Settings']) {
         expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
       }
-      // The space's settings stay: everyone may read how a space works.
-      expect(linkNames(drawer)).toContain('Space settings /spaces/viberglass/settings')
       cleanup()
     }
   })

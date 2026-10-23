@@ -95,6 +95,7 @@ export * from './taskChangePolicy'
 export * from './taskTimeline'
 export * from './taskTurn'
 export * from './taskComparison'
+export * from './agentTrackRecord'
 
 // Where a comment sits in a document
 export * from './documentAnchor'

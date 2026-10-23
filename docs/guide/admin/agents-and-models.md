@@ -65,7 +65,7 @@ When someone asks without naming an agent, the task's next request goes to the f
 
 The line above a task's suggested actions shows which one and why. People can pick another agent by mentioning it with @ in the thread.
 
-To give a space its own default agent, open the space's Space settings → Task defaults and choose one under Default agent. Its maintainers and workspace admins can change it. A space whose default can't run, for example because its key is missing, falls back to the workspace's default; if the space's default agent is deleted, the space goes back to using the workspace's default.
+To give a space its own default agent, open the space's Settings tab → Task defaults and choose one under Default agent. Its maintainers and workspace admins can change it. A space whose default can't run, for example because its key is missing, falls back to the workspace's default; if the space's default agent is deleted, the space goes back to using the workspace's default.
 
 ## Connected models
 

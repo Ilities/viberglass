@@ -48,7 +48,7 @@ export function SettingsLayout() {
       <aside className="hidden lg:block lg:w-48 lg:flex-none lg:border-r lg:border-zinc-950/10 dark:lg:border-white/10">
         <SettingsNav sections={[{ items }]} />
       </aside>
-      <main className="min-w-0 flex-1 p-6 lg:p-8">
+      <main className="min-w-0 flex-1 lg:pt-6 lg:pl-8">
         <Outlet />
       </main>
     </div>

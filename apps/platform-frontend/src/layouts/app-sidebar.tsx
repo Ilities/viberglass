@@ -14,7 +14,7 @@ import {
 } from '@/components/sidebar'
 import type { AuthUser } from '@/service/api/auth-api'
 import type { Project } from '@/service/api/project-api'
-import { ActivityLogIcon, ChevronUpIcon, ClockIcon, FileTextIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon, ReaderIcon } from '@radix-ui/react-icons'
+import { ActivityLogIcon, ChevronUpIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon } from '@radix-ui/react-icons'
 import { isRunner } from '@/lib/roles'
 import clsx from 'clsx'
 import { useContext } from 'react'
@@ -26,7 +26,7 @@ interface AppSidebarProps {
   user: AuthUser
   pathname: string
   spaces: Project[]
-  /** The space the page is in, expanded in place. */
+  /** The space the page is in. */
   currentSpace?: string
   needsYou: number
   onSignOut: () => void
@@ -50,51 +50,9 @@ function NavBadge({ count }: { count?: number }) {
   )
 }
 
-function SpaceChildren({
-  slug,
-  pathname,
-  canSeeRuns,
-  files,
-}: {
-  slug: string
-  pathname: string
-  canSeeRuns: boolean
-  /** A Files space, which has working files and artifacts to show. */
-  files: boolean
-}) {
-  const collapsed = useContext(SidebarCollapsedContext)
-  const base = `/spaces/${slug}`
-  const children = [
-    ...(files
-      ? [
-          { href: `${base}/files`, label: 'Files', icon: <FileTextIcon /> },
-          { href: `${base}/artifacts`, label: 'Artifacts', icon: <ReaderIcon /> },
-        ]
-      : []),
-    ...(canSeeRuns
-      ? [
-          { href: `${base}/runs`, label: 'Runs', icon: <ActivityLogIcon /> },
-          { href: `${base}/schedules`, label: 'Schedules', icon: <ClockIcon /> },
-        ]
-      : []),
-    { href: `${base}/settings`, label: 'Space settings', icon: <GearIcon /> },
-  ]
-  return (
-    // Sidebar items are inline spans that need a flex column to lay out as rows.
-    <div className={clsx('flex flex-col gap-0.5', !collapsed && 'pl-5')}>
-      {children.map((child) => (
-        <SidebarItem key={child.href} href={child.href} current={pathname.startsWith(child.href)}>
-          <NavIcon>{child.icon}</NavIcon>
-          <SidebarLabel>{child.label}</SidebarLabel>
-        </SidebarItem>
-      ))}
-    </div>
-  )
-}
-
 /**
- * The same navigation everywhere: Home and Overview, the spaces (the one
- * you're in expands in place), Settings, and you.
+ * The same navigation everywhere: Home and Overview, the spaces, Settings,
+ * and you. A space's own pages are tabs in its header, not rows here.
  */
 export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onSignOut }: AppSidebarProps) {
   const runner = isRunner(user.role)
@@ -132,21 +90,16 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
         <SidebarSection aria-label="Spaces">
           <SidebarHeading>Spaces</SidebarHeading>
           {spaces.map((space) => {
-            const base = `/spaces/${space.slug}`
-            const expanded = space.slug === currentSpace
             return (
-              <div key={space.id} className="flex flex-col gap-0.5">
-                <SidebarItem href={base} current={pathname === base || pathname.startsWith(`${base}/tasks`)}>
-                  <SpaceAvatar space={space} slot="avatar" />
-                  <SidebarLabel>{space.name}</SidebarLabel>
-                  {space.isPrivate && !collapsed && (
-                    <NavIcon>
-                      <LockClosedIcon aria-label="Private" />
-                    </NavIcon>
-                  )}
-                </SidebarItem>
-                {expanded && <SpaceChildren slug={space.slug} pathname={pathname} canSeeRuns={runner} files={space.backingKind === 'files'} />}
-              </div>
+              <SidebarItem key={space.id} href={`/spaces/${space.slug}`} current={space.slug === currentSpace}>
+                <SpaceAvatar space={space} slot="avatar" />
+                <SidebarLabel>{space.name}</SidebarLabel>
+                {space.isPrivate && !collapsed && (
+                  <NavIcon>
+                    <LockClosedIcon aria-label="Private" />
+                  </NavIcon>
+                )}
+              </SidebarItem>
             )
           })}
           {runner && (

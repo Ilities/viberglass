@@ -31,6 +31,7 @@ export class RunManifestDAO {
       project_id: manifest.projectId ?? null,
       clanker_id: manifest.clankerId ?? null,
       requested_agent: manifest.requestedAgent ?? null,
+      requested_model: manifest.requestedModel ?? null,
       repository: manifest.repository,
       base_branch: manifest.baseBranch ?? null,
       worker_type: manifest.workerType ?? null,

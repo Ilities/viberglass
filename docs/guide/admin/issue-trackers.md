@@ -5,7 +5,7 @@ Connect GitHub Issues, Jira or Shortcut, and issues become tasks in Viberglass. 
 Setting it up has two halves:
 
 - A workspace admin connects the tracker once, under Settings → Connections. The connection holds the token Viberglass posts with, and one webhook the tracker sends its events to.
-- Each space chooses which issues it takes, under Space settings → Incoming issues. A space maintainer does this, and can change it any time.
+- Each space chooses which issues it takes, under the space's Settings tab → Incoming issues. A space maintainer does this, and can change it any time.
 
 ## Before you start
 
@@ -58,7 +58,7 @@ On Jira Data Center, set the bot account to the bot's username instead of an acc
 
 ## Choose which issues a space takes
 
-Open the space's Space settings → Incoming issues. There's a row for each tracker connection; choose Edit on one to change it.
+Open the space's Settings tab → Incoming issues. There's a row for each tracker connection; choose Edit on one to change it.
 
 ![A space's Incoming issues: labels for Jira and Shortcut, and its repository for GitHub](../images/incoming-issues.png)
 

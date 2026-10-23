@@ -5,7 +5,7 @@ function manifest(jobId: string, minute: number, pullRequestUrl: string | null =
   const at = new Date(Date.UTC(2026, 8, 30, 10, minute));
   return {
     job_id: jobId, manifest_version: 1, tenant_id: "tenant-1", job_kind: "execution",
-    ticket_id: null, project_id: "project-1", clanker_id: null, requested_agent: null,
+    ticket_id: null, project_id: "project-1", clanker_id: null, requested_agent: null, requested_model: null,
     repository: "https://github.com/acme/app", base_branch: "main", worker_type: null,
     compute_image: null, config_hash: null, instructions_hash: null,
     granted_credential_names: null, dispatched_at: at, agent: "opencode",

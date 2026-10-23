@@ -38,7 +38,7 @@ Deactivate on Settings → Members stops someone signing in. Their history stays
 
 A space holds the tasks for one product or repository. Members and admins create spaces with New space in the sidebar.
 
-In a space's Space settings:
+In a space's Settings tab:
 
 - General: the space's name, and Private space. Open spaces are visible to every member and viewer, and membership sets defaults and notifications. A private space is visible only to its members and admins. General also shows the space's backing, Git repository or Files, and archives or deletes the space.
 - Members: the people in the space, each with a space role, and Add someone. Maintainers manage the space's settings, members and defaults, and can steer its tasks. Members belong to it.

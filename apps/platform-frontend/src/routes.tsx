@@ -39,6 +39,8 @@ import { JobsPage } from '@/pages/project/jobs/JobsPage'
 
 // Claws pages
 import { ClawsPage } from '@/pages/project/claws/ClawsPage'
+import { TrackRecordPage } from '@/pages/project/track-record/TrackRecordPage'
+import { SpaceSectionLayout } from '@/layouts/SpaceSectionLayout'
 import { ArtifactPage } from '@/pages/project/artifacts/ArtifactPage'
 import { ArtifactsPage } from '@/pages/project/artifacts/ArtifactsPage'
 import { FilesPage } from '@/pages/project/files/FilesPage'
@@ -109,32 +111,35 @@ export function AppRoutes() {
           <Route path="/settings/audit-log" element={<AuditLogPage />} />
         </Route>
 
-        {/* A space is its tasks */}
-        <Route path="/spaces/:project" element={<SpacePage />} />
-        <Route path="/spaces/:project/tasks/:id" element={<TicketDetailPage />} />
-        <Route path="/spaces/:project/tasks/:id/media" element={<TicketMediaPage />} />
-        <Route path="/spaces/:project/files" element={<FilesPage />} />
-        <Route path="/spaces/:project/artifacts" element={<ArtifactsPage />} />
-        <Route path="/spaces/:project/artifacts/:artifactId" element={<ArtifactPage />} />
-
-        {/* Only for those who run agents */}
-        <Route element={<RunnersOnly />}>
-          <Route path="/spaces/:project/tasks/new" element={<CreateTicketPage />} />
-          <Route path="/spaces/:project/runs" element={<JobsPage />} />
-          <Route path="/spaces/:project/runs/:jobId" element={<JobDetailPage />} />
-          <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
+        {/* A space's own pages, under its header and tabs */}
+        <Route element={<SpaceSectionLayout />}>
+          <Route path="/spaces/:project" element={<SpacePage />} />
+          <Route path="/spaces/:project/files" element={<FilesPage />} />
+          <Route path="/spaces/:project/artifacts" element={<ArtifactsPage />} />
+          <Route element={<RunnersOnly />}>
+            <Route path="/spaces/:project/track-record" element={<TrackRecordPage />} />
+            <Route path="/spaces/:project/runs" element={<JobsPage />} />
+            <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
+          </Route>
+          <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="general" replace />} />
+            <Route path="general" element={<SpaceGeneralSettings />} />
+            <Route path="repository" element={<SpaceRepositoryPage />} />
+            <Route path="issues" element={<SpaceIssuesPage />} />
+            <Route path="task-defaults" element={<SpaceTaskDefaultsPage />} />
+            <Route path="members" element={<SpaceMembersPage />} />
+            <Route path="connections" element={<ProjectIntegrationsPage />} />
+            <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />
+          </Route>
         </Route>
 
-        {/* Project settings with nested routes */}
-        <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="general" replace />} />
-          <Route path="general" element={<SpaceGeneralSettings />} />
-          <Route path="repository" element={<SpaceRepositoryPage />} />
-          <Route path="issues" element={<SpaceIssuesPage />} />
-          <Route path="task-defaults" element={<SpaceTaskDefaultsPage />} />
-          <Route path="members" element={<SpaceMembersPage />} />
-          <Route path="connections" element={<ProjectIntegrationsPage />} />
-          <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />
+        {/* A space's single records, which link back to it */}
+        <Route path="/spaces/:project/tasks/:id" element={<TicketDetailPage />} />
+        <Route path="/spaces/:project/tasks/:id/media" element={<TicketMediaPage />} />
+        <Route path="/spaces/:project/artifacts/:artifactId" element={<ArtifactPage />} />
+        <Route element={<RunnersOnly />}>
+          <Route path="/spaces/:project/tasks/new" element={<CreateTicketPage />} />
+          <Route path="/spaces/:project/runs/:jobId" element={<JobDetailPage />} />
         </Route>
       </Route>
 

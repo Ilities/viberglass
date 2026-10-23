@@ -6,7 +6,7 @@ A Files space is a space without a Git repository, for work that isn't code: doc
 
 When you create a space, set Space backing to Files instead of Git repository. The backing can't be changed after the space is created. Members and admins create spaces.
 
-A Files space has two more pages in the sidebar under its name: Files and Artifacts.
+A Files space has two more tabs under its name: Files and Artifacts.
 
 ## The space's files
 

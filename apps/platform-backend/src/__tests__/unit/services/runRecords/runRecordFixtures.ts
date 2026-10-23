@@ -4,7 +4,7 @@ export function runRecordRow(overrides: Partial<RunRecordRow> = {}): RunRecordRo
   const at = new Date("2026-09-30T10:00:00.000Z");
   return {
     job_id: "job-1", manifest_version: 1, tenant_id: "tenant-1", job_kind: "execution",
-    ticket_id: "ticket-1", project_id: "project-1", clanker_id: null, requested_agent: "opencode",
+    ticket_id: "ticket-1", project_id: "project-1", clanker_id: null, requested_agent: "opencode", requested_model: null,
     repository: "https://github.com/acme/app", base_branch: "main", worker_type: "docker",
     compute_image: null, config_hash: "cfg", instructions_hash: "ins", granted_credential_names: null,
     dispatched_at: at, agent: "opencode", harness_version: null, model_snapshot: null,

@@ -1,6 +1,4 @@
 import { Button } from '@/components/button'
-import { Link } from '@/components/link'
-import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
 import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
@@ -105,18 +103,8 @@ export function JobsPage() {
   return (
     <>
       <PageMeta title={`${space?.name ?? project} | Runs`} />
-      <PageHeader
-        eyebrow={
-          <Link href={`/spaces/${project}`} className="hover:underline">
-            {space?.name ?? project}
-          </Link>
-        }
-        title="Runs"
-        className="mb-0"
-      />
-
       {loadError ? (
-        <div className="mt-8 space-y-3 text-sm">
+        <div className="space-y-3 text-sm">
           <p className="text-red-700 dark:text-red-400">{loadError}</p>
           <Button outline onClick={() => setReload((count) => count + 1)}>
             Try again
@@ -124,7 +112,7 @@ export function JobsPage() {
         </div>
       ) : (
         <>
-          <div className="mt-8 flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <div className="min-w-75 flex-2">
               <SearchInput
                 placeholder="Search runs..."

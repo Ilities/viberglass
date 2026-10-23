@@ -2,14 +2,13 @@ import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
 import { Link } from '@/components/link'
 import { ListPanel } from '@/components/list-panel'
-import { PageHeader } from '@/components/page-header'
+import { SpacePageBar } from '@/components/space-page-bar'
 import { PageMeta } from '@/components/page-meta'
 import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { SectionHeader } from '@/components/section-header'
 import { SegmentedControl } from '@/components/segmented-control'
 import { useProject } from '@/context/project-context'
 import { archiveTickets, unarchiveTickets, type TicketListParams } from '@/service/api/ticket-api'
-import { LockClosedIcon } from '@radix-ui/react-icons'
 import { TICKET_ARCHIVE_FILTER, TICKET_STATUS, type Ticket } from '@viberglass/types'
 import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -151,20 +150,12 @@ export function SpacePage() {
   return (
     <>
       <PageMeta title={space?.name ?? slug} />
-      <PageHeader
-        eyebrow={`${space?.isPrivate ? 'Private' : 'Open'} space · ${space?.name ?? slug}`}
-        title={
-          <span className="flex items-center gap-2">
-            {space?.name ?? slug}
-            {space?.isPrivate && <LockClosedIcon aria-label="Private space" className="size-4 text-[var(--gray-10)]" />}
-            {showArchived && <span className="text-[var(--gray-10)]"> · Archived</span>}
-          </span>
-        }
+      <SpacePageBar
         description={
           isLoading
             ? undefined
             : showArchived
-              ? 'Tasks put away. Restore one to bring it back.'
+              ? 'Archived: tasks put away. Restore one to bring it back.'
               : activeCount === 0
                 ? 'Nothing in progress.'
                 : `${countLine(activeCount)} in progress.`

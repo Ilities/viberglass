@@ -1,6 +1,9 @@
 import { registerProjectReadinessRoutes } from "./projectReadinessRoutes";
 import { registerProjectScmRoutes } from "./projectScmRoutes";
 import { registerProjectPromptRoutes } from "./projectPromptRoutes";
+import { registerAgentTrackRecordRoutes } from "./agentTrackRecordRoutes";
+import { AgentTrackRecordService } from "../../services/tasks/AgentTrackRecordService";
+import { AgentTrackRecordDAO } from "../../persistence/ticketing/AgentTrackRecordDAO";
 import { spaceFilesRouter } from "./spaceFilesRoutes";
 import { SpaceFilesEditService } from "../../services/spaceFiles/SpaceFilesEditService";
 import { ArtifactService } from "../../services/artifacts/ArtifactService";
@@ -303,6 +306,8 @@ registerProjectReadinessRoutes(router, projectReadinessService);
 registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectIntegrationLinkDAO, integrationDAO, integrationCredentialDAO, secrets: new SecretResolutionService() });
 
 registerProjectPromptRoutes(router, promptTemplateService);
+
+registerAgentTrackRecordRoutes(router, new AgentTrackRecordService(new AgentTrackRecordDAO()));
 
 router.use(spaceFilesRouter(new SpaceFilesEditService(), new ArtifactService(), spaceAccess));
 

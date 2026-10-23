@@ -28,6 +28,8 @@ export interface DispatchManifest {
   clankerId?: string;
   /** Agent plugin id requested at dispatch — may differ from what ran. */
   requestedAgent?: string;
+  /** The model the runner was set to use, when its config names one. */
+  requestedModel?: string;
   repository: string;
   baseBranch?: string;
   workerType?: string;

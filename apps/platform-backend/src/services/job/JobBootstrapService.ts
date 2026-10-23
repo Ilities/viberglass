@@ -1,6 +1,7 @@
 import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
 import type { JobStatus } from "../../types/Job";
 import { isObjectRecord } from "@viberglass/types";
+import { configuredModel } from "../../clanker-config/configuredModel";
 import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import { createChildLogger } from "../../config/logger";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
@@ -71,6 +72,7 @@ export class JobBootstrapService {
         projectId: projectConfig?.id,
         clankerId: readString("clankerId"),
         requestedAgent: readString("agent"),
+        requestedModel: configuredModel(payload.clankerConfig),
         repository: readString("repository") ?? "unknown",
         baseBranch: scm?.baseBranch ?? readString("baseBranch"),
         workerType: readString("workerType"),

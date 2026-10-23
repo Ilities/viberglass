@@ -44,14 +44,10 @@ function renderSidebar(current: string) {
 }
 
 describe('AppSidebar', () => {
-  it('shows a Files space its files and artifacts', () => {
+  it("leaves a space's own pages to its tabs", () => {
     renderSidebar('deck')
-    expect(screen.getByRole('link', { name: /Files/ })).toHaveAttribute('href', '/spaces/deck/files')
-    expect(screen.getByRole('link', { name: /Artifacts/ })).toHaveAttribute('href', '/spaces/deck/artifacts')
-  })
-
-  it('shows a Git space neither', () => {
-    renderSidebar('web')
-    expect(screen.queryByRole('link', { name: /Artifacts/ })).not.toBeInTheDocument()
+    for (const label of [/^Files$/, /^Artifacts$/, /^Runs$/, /Space settings/]) {
+      expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument()
+    }
   })
 })

@@ -35,7 +35,7 @@ The sidebar has Home, Overview, and your spaces.
 
 - Home shows your conversations and anything that needs you: a question from the agent, a review request, a mention, or your move on a task you own. See [Home and notifications](home-and-notifications.md).
 - Overview shows work across every space you can see: what needs attention, what agents are working on now, what waits on people, and what hasn't started.
-- A space shows its tasks as a list or a table, grouped by where they stand, with search and filters. Open a space in the sidebar to see its other pages: Files and Artifacts in a Files space, Runs and Schedules for members and admins, and Space settings.
+- A space shows its tasks as a list or a table, grouped by where they stand, with search and filters. Its other pages are tabs under the space's name: Files and Artifacts in a Files space, Schedules, Track record and Runs for members and admins, and Settings (About for those who don't maintain the space).
 - Your name at the bottom of the sidebar opens your notification settings and, for members and admins, API tokens. Admins also have Settings for the whole workspace.
 
 ![Home, with Needs you and your conversations](../images/home-needs-you.png)

@@ -8,7 +8,7 @@ Agents work in GitHub repositories: they read them, push a branch per task and o
 
 Setup connects the first repository from a pasted access token. Use a fine-grained token limited to the repository, with write access to Contents and Pull requests. Setup's "Create a token with the right permissions" link opens GitHub's form with these filled in.
 
-To change a space's repository, open the space's Space settings:
+To change a space's repository, open the space's Settings tab:
 
 - Repository: the code host connection, the repository address (the one you'd clone), the default branch and the access token.
 - Under Advanced: Open pull requests in another repository, for forks or mirrors; Pull request target branch, when it isn't the default branch; and Branch names, with a live example of the branch a task gets.

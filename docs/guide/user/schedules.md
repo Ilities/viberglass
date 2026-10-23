@@ -2,7 +2,7 @@
 
 Schedules run agent work on a timer, such as updating dependencies every Monday or checking for security patches each night. Each space has its own task templates and schedules.
 
-Open a space and choose Schedules in the sidebar. Members and admins create, edit, pause and delete templates and schedules; guests and viewers don't see Schedules. The page has two tabs, Schedules and Task templates.
+Open a space and choose its Schedules tab. Members and admins create, edit, pause and delete templates and schedules; guests and viewers don't see Schedules. The page has two tabs, Schedules and Task templates.
 
 ## Task templates
 

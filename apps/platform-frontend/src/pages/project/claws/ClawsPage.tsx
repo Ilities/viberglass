@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
-import { TabButton } from '@/components/tab-button'
+import { SegmentedControl } from '@/components/segmented-control'
 import { useProject } from '@/context/project-context'
 import { SchedulesTab } from './schedules-tab'
 import { TemplatesTab } from './templates-tab'
@@ -42,20 +41,14 @@ export function ClawsPage() {
     <>
       <PageMeta title={projectSlug ? `${projectSlug} | Schedules` : 'Schedules'} />
 
-      <div className="flex items-end justify-between">
-        <Heading>Schedules</Heading>
-      </div>
-
-      <div className="mt-6 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="flex gap-1">
-          <TabButton active={activeTab === 'schedules'} onClick={() => showTab('schedules')}>
-            Schedules
-          </TabButton>
-          <TabButton active={activeTab === 'templates'} onClick={() => showTab('templates')}>
-            Task templates
-          </TabButton>
-        </div>
-      </div>
+      <SegmentedControl
+        value={activeTab}
+        onChange={(value) => showTab(resolveTab(value))}
+        options={[
+          { value: 'schedules', label: 'Schedules' },
+          { value: 'templates', label: 'Task templates' },
+        ]}
+      />
 
       <div className="mt-6">
         {activeTab === 'schedules' && (

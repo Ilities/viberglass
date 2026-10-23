@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
-import { PageHeader } from '@/components/page-header'
+import { SpacePageBar } from '@/components/space-page-bar'
 import { PageMeta } from '@/components/page-meta'
 import { Timestamp } from '@/components/timestamp'
 import { useProject } from '@/context/project-context'
@@ -78,9 +78,7 @@ export function FilesPage() {
   return (
     <>
       <PageMeta title={`${project.name} | Files`} />
-      <PageHeader
-        eyebrow={`Files space · ${project.name}`}
-        title="Files"
+      <SpacePageBar
         description={
           snapshot ? (
             <span>

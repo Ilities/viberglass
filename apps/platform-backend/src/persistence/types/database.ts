@@ -319,6 +319,7 @@ export interface JobRunManifestsTable {
   project_id: string | null;
   clanker_id: string | null;
   requested_agent: string | null;
+  requested_model: string | null;
   repository: string;
   base_branch: string | null;
   worker_type: string | null;
