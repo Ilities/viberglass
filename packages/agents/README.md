@@ -7,6 +7,7 @@ This directory contains the harness plugin packages. Each harness lives in its o
 ```
 packages/agents/
 ├── agent-antigravity/     @viberglass/agent-antigravity
+├── agent-deepseek-harness/ @viberglass/agent-deepseek-harness
 ├── agent-claude-code/     @viberglass/agent-claude-code
 ├── agent-codex/           @viberglass/agent-codex
 ├── agent-fake/            @viberglass/agent-fake (end-to-end tests only)
