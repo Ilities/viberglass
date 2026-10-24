@@ -64,7 +64,7 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
 test("routes a resolved custom endpoint through the plugin's declared capability", () => {
   const factory = new ClankerAgentEndpointEnvironmentFactory();
   const endpoint = { name: "EU models", baseUrl: "https://eu.example.com/v1", apiFormat: "openai-chat",
-    auth: { scheme: "none" }, extraHeaders: {}, model: "qwen", mayColdStart: false };
+    auth: { scheme: "bearer" }, extraHeaders: {}, model: "qwen", mayColdStart: false };
   const clankerConfig = { agent: "opencode", deploymentConfig: { resolvedModelEndpoint: endpoint } };
   const env = factory.create({ requestedAgent: "opencode", clankerConfig, logger }).resolve();
   expect(env.OPENCODE_MODEL).toBe("viberglass/qwen");
@@ -77,4 +77,9 @@ test("routes a resolved custom endpoint through the plugin's declared capability
   const piEnv = factory.create({ requestedAgent: "pi", clankerConfig, logger }).resolve();
   expect(sanitizeAgentEnvironment(piEnv, { passthrough: Object.keys(piEnv) }).env.PI_CUSTOM_MODELS).toBe(piEnv.PI_CUSTOM_MODELS);
   expect(JSON.parse(piEnv.PI_CUSTOM_MODELS).providers.viberglass.models[0].id).toBe("qwen");
+  const deepseekEnv = factory.create({ requestedAgent: "deepseek-harness", clankerConfig: { agent: "deepseek-harness", resolvedModelEndpoint: endpoint }, logger }).resolve();
+  expect(deepseekEnv.DEEPSEEK_BASE_URL).toBe(endpoint.baseUrl);
+  expect(deepseekEnv.DEEPSEEK_API_KEY).toBe("MODEL_ENDPOINT_API_KEY");
+  expect(deepseekEnv.DSH_MODEL).toBe("qwen");
+  expect(deepseekEnv.DSH_ACP_ENDPOINT_HEADERS).toContain("Authorization");
 });

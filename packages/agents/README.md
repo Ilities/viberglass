@@ -9,6 +9,7 @@ packages/agents/
 ├── agent-antigravity/     @viberglass/agent-antigravity
 ├── agent-claude-code/     @viberglass/agent-claude-code
 ├── agent-codex/           @viberglass/agent-codex
+├── agent-deepseek-harness/ @viberglass/agent-deepseek-harness
 ├── agent-fake/            @viberglass/agent-fake (end-to-end tests only)
 ├── agent-kimi/            @viberglass/agent-kimi
 ├── agent-mistral-vibe/    @viberglass/agent-mistral-vibe

@@ -14,6 +14,7 @@ Viberglass runs these coding agents, each in its own worker image:
 | Qwen CLI | Alibaba Cloud Model Studio, Alibaba Coding Plan |
 | Mistral Vibe | Mistral |
 | Kimi Code | Kimi Code, Moonshot AI |
+| DeepSeek Harness | DeepSeek |
 | OpenCode | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq, and workspace models |
 | Pi | Anthropic, workspace models, and providers set in its `models.json` |
 

@@ -113,7 +113,7 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
       default: true,
       model: "openrouter/anthropic/claude-sonnet-5",
     },
-    { provider: "deepseek", envVar: "DEEPSEEK_API_KEY", default: true, model: "deepseek/deepseek-v4-pro" },
+    { provider: "deepseek", envVar: "DEEPSEEK_API_KEY", model: "deepseek/deepseek-v4-pro" },
     { provider: "xai", envVar: "XAI_API_KEY", default: true, model: "xai/grok-4.7" },
     { provider: "groq", envVar: "GROQ_API_KEY", default: true, model: "groq/qwen/qwen3.8-27b" },
   ],
