@@ -20,6 +20,7 @@ export const HARNESSES: HarnessUnderTest[] = [
   { agent: "mistral-vibe", name: "Mistral Vibe", apiFormat: "openai-chat", dockerfile: "mistral" },
   { agent: "claude-code", name: "Claude Code", apiFormat: "anthropic-messages", dockerfile: "claude" },
   { agent: "codex", name: "Codex", apiFormat: "openai-responses", dockerfile: "codex" },
+  { agent: "deepseek-harness", name: "DeepSeek Harness", apiFormat: "openai-chat", dockerfile: "deepseek-harness" },
 ];
 
 export function harnessImage(harness: HarnessUnderTest): string {
