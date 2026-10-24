@@ -150,6 +150,8 @@ The backend runs database migrations on startup. To upgrade, run `docker compose
 
 With compose, the backend's environment is set in the compose file, and optional settings go in a `.env` file in the repository root. Running the backend outside compose, it reads `apps/platform-backend/.env` (start from `.env.example`).
 
+The backend refuses to start until the required variables are set, and lists every one that is missing: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` (or `DATABASE_URL`), `SECRETS_ENCRYPTION_KEY`, `WEBHOOK_SECRET_ENCRYPTION_KEY` and `PLATFORM_FRONTEND_URL`. Everything else in the table is optional.
+
 | Variable                                                  | Description                                                                             |
 |-----------------------------------------------------------|-----------------------------------------------------------------------------------------|
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL connection                                                                   |

@@ -95,6 +95,8 @@ Fill in `.env`:
 - `VIBERGLASS_VERSION`: the same release tag, so the images match. `latest` follows the main branch.
 - `VIBERGLASS_PREVIEW_URL` and `VIBERGLASS_PREVIEW_DOMAIN`: the preview host's HTTPS address and its domain. Leave both empty to turn previews off.
 
+The backend refuses to start until the required variables are set, listing every one that is missing; `.env.production.example` marks them.
+
 Then start it with HTTPS:
 
 ```bash

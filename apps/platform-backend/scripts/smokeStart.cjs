@@ -78,6 +78,15 @@ async function main() {
     PORT: String(port),
     HOST: "127.0.0.1",
     NODE_ENV: process.env.NODE_ENV || "test",
+    // Valid-looking values: the check only proves the process starts, and no
+    // database is contacted when migrations are off.
+    DB_HOST: process.env.DB_HOST || "127.0.0.1",
+    DB_PORT: process.env.DB_PORT || "5432",
+    DB_NAME: process.env.DB_NAME || "viberglass-smoke",
+    DB_USER: process.env.DB_USER || "viberglass",
+    DB_PASSWORD: process.env.DB_PASSWORD || "viberglass",
+    SECRETS_ENCRYPTION_KEY: process.env.SECRETS_ENCRYPTION_KEY || "smoke-secrets-key",
+    WEBHOOK_SECRET_ENCRYPTION_KEY: process.env.WEBHOOK_SECRET_ENCRYPTION_KEY || "smoke-webhook-key",
     RUN_MIGRATIONS_ON_STARTUP: "false",
     DISABLE_BACKGROUND_SWEEPERS: "true",
   };
