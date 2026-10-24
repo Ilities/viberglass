@@ -99,6 +99,7 @@ Files backed spaces support "artifacts" where an agent makes a deliverable such 
 | [Qwen Code](https://github.com/QwenLM/qwen-code)              | Alibaba                                                           |
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe)     | Mistral                                                           |
 | [Kimi Code](https://github.com/MoonshotAI/kimi-code)          | Moonshot                                                          |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | DeepSeek                                                    |
 | [OpenCode](https://github.com/opencode-ai/opencode)           | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq and custom endpoints |
 | [Pi](https://pi.dev)                                          | Many providers and custom endpoints                               |
 

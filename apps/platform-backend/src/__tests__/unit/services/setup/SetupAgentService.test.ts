@@ -135,6 +135,20 @@ describe("SetupAgentService", () => {
     );
   });
 
+  it("gives DeepSeek keys DeepSeek Harness, the provider's default harness", async () => {
+    const { service, createClanker } = build();
+
+    await service.prepareDefaultAgent({ provider: "deepseek" });
+
+    expect(createClanker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deploymentConfig: expect.objectContaining({
+          agent: { type: "deepseek-harness", model: "deepseek-v4-pro" },
+        }),
+      }),
+    );
+  });
+
   it("leaves a running default agent alone when nothing changed", async () => {
     const first = build();
     await first.service.prepareDefaultAgent({ provider: "anthropic" });

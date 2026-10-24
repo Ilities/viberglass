@@ -1,0 +1,3 @@
+# Lambda fragment: DeepSeek Harness (Amazon Linux, as root)
+# dsh needs Node ^22.19 or >=24; the Lambda image ships Node >= 22.19 like the Debian workers.
+RUN npm install -g @deepseek-ai/dsh@0.2.1-rc.2 @openma/deepseek-harness-acp@0.4.39
