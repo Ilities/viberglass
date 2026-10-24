@@ -26,10 +26,17 @@
     "default": false
   },
   {
-    "agent": "opencode",
+    "agent": "deepseek-harness",
     "provider": "deepseek",
     "envVar": "DEEPSEEK_API_KEY",
     "default": true,
+    "model": "deepseek-v4-pro"
+  },
+  {
+    "agent": "opencode",
+    "provider": "deepseek",
+    "envVar": "DEEPSEEK_API_KEY",
+    "default": false,
     "model": "deepseek/deepseek-v4-pro"
   },
   {

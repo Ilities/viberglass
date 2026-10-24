@@ -68,6 +68,9 @@ ENV PATH="/opt/agy-acp:${PATH}"
 # Lambda fragment: Pi coding agent (Amazon Linux, as root)
 RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
 
+# Lambda fragment: DeepSeek Harness agent (Amazon Linux, as root)
+RUN npm install -g @deepseek-ai/dsh@0.0.6 @openma/deepseek-harness-acp@0.0.7
+
 
 # Copy package files and install production dependencies
 COPY package*.json ${LAMBDA_TASK_ROOT}/

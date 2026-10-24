@@ -338,5 +338,41 @@
     "signInMethods": [],
     "lambdaUnsupportedReason": null,
     "rejectedKeyNote": null
+  },
+  {
+    "agent": "deepseek-harness",
+    "label": "DeepSeek Harness",
+    "description": "DeepSeek's official coding agent with ACP support via dsh-acp.",
+    "logo": "/logos/agents/deepseek-harness.svg",
+    "default": false,
+    "testOnly": false,
+    "endpointRank": null,
+    "apiKey": [
+      "DEEPSEEK_API_KEY"
+    ],
+    "endpoint": [
+      "DEEPSEEK_BASE_URL"
+    ],
+    "harnessConfigFiles": [],
+    "modelApiFormats": [
+      "openai-chat"
+    ],
+    "settings": [
+      {
+        "key": "model",
+        "label": "Model",
+        "type": "string",
+        "env": [
+          "DSH_MODEL"
+        ],
+        "options": [],
+        "allowCustom": true,
+        "providerDefault": "model"
+      }
+    ],
+    "harnessConfigEditor": null,
+    "signInMethods": [],
+    "lambdaUnsupportedReason": null,
+    "rejectedKeyNote": null
   }
 ]
