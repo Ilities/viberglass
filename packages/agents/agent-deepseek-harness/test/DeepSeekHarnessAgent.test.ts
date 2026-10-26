@@ -1,5 +1,6 @@
-import { createLogger, transports } from "winston";
-import { DeepSeekHarnessAgent, DeepSeekHarnessModelEndpointEnvironment } from "../src";
+import { createLogger as createWinstonLogger, transports } from "winston";
+import { DeepSeekHarnessAgent } from "../src";
+import { DeepSeekHarnessModelEndpointEnvironment } from "../src/DeepSeekHarnessModelEndpointEnvironment";
 import type { DeepSeekHarnessConfig } from "../src";
 import { MODEL_ENDPOINT_KEY_ENV_VAR, type WorkerModelEndpoint } from "@viberglass/types";
 import type { AgentCLIResult, ExecutionContext } from "@viberglass/agent-core";
@@ -20,7 +21,7 @@ class TestDeepSeekHarnessAgent extends DeepSeekHarnessAgent {
   private readonly exitCode: number;
 
   constructor(config: DeepSeekHarnessConfig, missingBinaries: string[] = [], exitCode = 0) {
-    const logger = createLogger({
+    const logger = createWinstonLogger({
       silent: true,
       transports: [new transports.Console({ silent: true })],
     });
@@ -93,7 +94,7 @@ function createExecutionContext(): ExecutionContext {
 }
 
 function createLogger() {
-  return createLogger({ silent: true, transports: [] });
+  return createWinstonLogger({ silent: true, transports: [] });
 }
 
 function createEndpoint(overrides: Partial<WorkerModelEndpoint> = {}): WorkerModelEndpoint {

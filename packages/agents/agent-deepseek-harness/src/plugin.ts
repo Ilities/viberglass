@@ -61,7 +61,7 @@ const deepSeekHarnessPlugin: AgentPlugin<DeepSeekHarnessConfig> = {
       description: "The DeepSeek model to run.",
       options: [
         { value: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
-        { value: "deepseek-flash", label: "DeepSeek V4.1 Flash" },
+        { value: "deepseek-v4.1-flash", label: "DeepSeek V4.1 Flash" },
       ],
       allowCustom: true,
       providerDefault: "model",

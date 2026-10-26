@@ -37,7 +37,7 @@ export class DeepSeekHarnessAgent extends BaseAgent<DeepSeekHarnessConfig> {
   private dshEnvironment(): NodeJS.ProcessEnv {
     const env: NodeJS.ProcessEnv = { DSH_PERMISSION_MODE: "workspace-write" };
     if (this.config.apiKey) {
-      env.DEPSEEK_API_KEY = this.config.apiKey;
+      env.DEEPSEEK_API_KEY = this.config.apiKey;
     }
     return env;
   }

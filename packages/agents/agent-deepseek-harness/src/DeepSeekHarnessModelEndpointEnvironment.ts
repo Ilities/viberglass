@@ -17,7 +17,7 @@ export class DeepSeekHarnessModelEndpointEnvironment implements AgentEndpointEnv
     };
     const key = process.env[MODEL_ENDPOINT_KEY_ENV_VAR];
     if (endpoint.auth.scheme === "bearer" && key) {
-      env.DEPSEEK_API_KEY = key;
+      env.DEEPSEEK_API_KEY = key;
     }
     return env;
   }
