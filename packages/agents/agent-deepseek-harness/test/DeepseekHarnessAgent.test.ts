@@ -35,7 +35,7 @@ describe("DeepseekHarnessAgent", () => {
       DEEPSEEK_API_KEY: "test-key",
       DSH_MODEL: "deepseek-v4-pro",
       DSH_HOME: "/tmp/harness-config/deepseek-harness",
-      DSH_SESSION_ROOT: "/tmp/harness-config/deepseek-harness/sessions",
+      DSH_SESSION_ROOT: `${process.env.HOME ?? "/root"}/.dsh-acp/sessions`,
     });
   });
 
@@ -48,5 +48,8 @@ describe("DeepseekHarnessAgent", () => {
     const env = new DeepseekHarnessAgent(config, logger).getRunEnvironment("/tmp/job");
     expect(env.DSH_HOME).toBe("/tmp/job/.dsh");
     expect(env.DSH_SESSION_ROOT).toBe("/tmp/job/.dsh-acp/sessions");
+    expect(env.DEEPSEEK_API_KEY).toBe("test-key");
+    expect(env.DSH_PERMISSION_MODE).toBe("workspace-write");
+    expect(env.DSH_MODEL).toBe("deepseek-v4-pro");
   });
 });

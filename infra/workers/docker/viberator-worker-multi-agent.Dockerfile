@@ -126,7 +126,7 @@ RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
 
 RUN which pi || echo "Warning: pi not found in PATH"
 
-# Fragment: DeepSeek Harness (dsh requires Node >= 22.15)
+# Fragment: DeepSeek Harness (dsh requires Node ^22.19 or >=24)
 # Source: https://github.com/deepseek-ai/deepseek-harness
 # ACP bridge: https://github.com/openma-ai/deepseek-harness-acp
 RUN npm install -g @deepseek-ai/dsh@0.2.1-rc.2 @openma/deepseek-harness-acp@0.4.39

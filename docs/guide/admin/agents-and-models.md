@@ -15,8 +15,8 @@ Viberglass runs these coding agents, each in its own worker image:
 | Mistral Vibe | Mistral |
 | Kimi Code | Kimi Code, Moonshot AI |
 | DeepSeek Harness | DeepSeek |
-| OpenCode | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq, and workspace models |
 | Pi | Anthropic, workspace models, and providers set in its `models.json` |
+| OpenCode | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq, and workspace models |
 
 The agents on offer are the harness plugins listed in `viberglass.plugins.json` at the repository root, built into the backend and worker images. Adding or removing one means building your own images; see the [agent plugins README](https://github.com/Ilities/viberglass/blob/main/packages/agents/README.md).
 

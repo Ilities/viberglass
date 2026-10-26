@@ -7,7 +7,7 @@ FROM ${BASE_IMAGE} AS deepseek-harness-worker
 ENV NPM_CONFIG_PREFIX=/home/viberator/.npm-global
 ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
-# Fragment: DeepSeek Harness (dsh requires Node >= 22.15)
+# Fragment: DeepSeek Harness (dsh requires Node ^22.19 or >=24)
 # Source: https://github.com/deepseek-ai/deepseek-harness
 # ACP bridge: https://github.com/openma-ai/deepseek-harness-acp
 RUN npm install -g @deepseek-ai/dsh@0.2.1-rc.2 @openma/deepseek-harness-acp@0.4.39

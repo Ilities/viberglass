@@ -30,11 +30,8 @@ export class DeepseekHarnessAgent extends BaseAgent<DeepseekHarnessConfig> {
     if (this.config.endpoint) env.DEEPSEEK_BASE_URL = this.config.endpoint;
     else if (process.env.DEEPSEEK_BASE_URL) env.DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL;
     if (this.config.model) env.DSH_MODEL = this.config.model;
-    if (harnessConfigDir) {
-      const settingsDir = path.join(harnessConfigDir, "deepseek-harness");
-      env.DSH_HOME = settingsDir;
-      env.DSH_SESSION_ROOT = path.join(settingsDir, "sessions");
-    }
+    env.DSH_SESSION_ROOT = this.sessionDirectory();
+    if (harnessConfigDir) env.DSH_HOME = path.join(harnessConfigDir, "deepseek-harness");
     return env;
   }
 
@@ -75,10 +72,15 @@ export class DeepseekHarnessAgent extends BaseAgent<DeepseekHarnessConfig> {
   }
 
   public getRunEnvironment(workDir: string): NodeJS.ProcessEnv {
-    const env = { ...process.env, ...this.getAcpEnvironment("") };
-    env.HOME = this.resolveHomeDirectory(env.HOME);
-    env.DSH_HOME = path.join(workDir, ".dsh");
-    env.DSH_SESSION_ROOT = path.join(workDir, ".dsh-acp", "sessions");
-    return env;
+    const harnessConfigDir = path.join(workDir, ".harness-config");
+    return {
+      ...this.getAcpEnvironment(harnessConfigDir),
+      DSH_HOME: path.join(workDir, ".dsh"),
+      DSH_SESSION_ROOT: path.join(workDir, ".dsh-acp", "sessions"),
+    };
+  }
+
+  private sessionDirectory(): string {
+    return path.join(this.resolveHomeDirectory(process.env.HOME), ".dsh-acp", "sessions");
   }
 }
