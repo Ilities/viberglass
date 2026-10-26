@@ -1,3 +1,4 @@
-export { DeepseekHarnessAgent } from "./DeepseekHarnessAgent";
-export type { DeepseekHarnessConfig } from "./config";
+export { DeepSeekHarnessAgent } from "./DeepSeekHarnessAgent";
+export { DeepSeekHarnessModelEndpointEnvironment } from "./DeepSeekHarnessModelEndpointEnvironment";
+export type { DeepSeekHarnessConfig } from "./config";
 export { default } from "./plugin";

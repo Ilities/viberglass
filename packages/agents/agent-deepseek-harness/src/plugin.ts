@@ -1,18 +1,18 @@
-import { ModelEndpointConfigEnvironment } from "@viberglass/agent-core";
 import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import { GEN_AI_PROVIDER_NAME_VALUE_DEEPSEEK } from "@viberglass/telemetry";
-import type { DeepseekHarnessConfig } from "./config";
-import { DeepseekHarnessAgent } from "./DeepseekHarnessAgent";
+import type { DeepSeekHarnessConfig } from "./config";
+import { DeepSeekHarnessAgent } from "./DeepSeekHarnessAgent";
+import { DeepSeekHarnessModelEndpointEnvironment } from "./DeepSeekHarnessModelEndpointEnvironment";
 
-const deepseekHarnessPlugin: AgentPlugin<DeepseekHarnessConfig> = {
+const deepSeekHarnessPlugin: AgentPlugin<DeepSeekHarnessConfig> = {
   id: "deepseek-harness",
   label: "DeepSeek Harness",
-  description: "DeepSeek's official coding agent with ACP support via dsh-acp.",
+  description: "DeepSeek's official coding agent, run through the community ACP adapter.",
   logo: "logo.svg",
   telemetryProvider: GEN_AI_PROVIDER_NAME_VALUE_DEEPSEEK,
 
   create(config, logger, gitService?: IAgentGitService) {
-    return new DeepseekHarnessAgent(config, logger, gitService);
+    return new DeepSeekHarnessAgent(config, logger, gitService);
   },
 
   defaultConfig: {
@@ -34,20 +34,25 @@ const deepseekHarnessPlugin: AgentPlugin<DeepseekHarnessConfig> = {
     endpoint: ["DEEPSEEK_BASE_URL"],
   },
 
+  // dsh's DeepSeek route speaks the Anthropic Messages wire format.
   customEndpoints: {
-    apiFormats: ["openai-chat"],
-    environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
+    apiFormats: ["anthropic-messages"],
+    environment: (endpoint) => new DeepSeekHarnessModelEndpointEnvironment(endpoint),
   },
 
-  stateDirs: [".dsh", ".deepseek-harness"],
-  stateExcludes: [".dsh/auth.json"],
+  // dsh keeps profiles and credentials under ~/.dsh; dsh-acp keeps session logs separately.
+  stateDirs: [".dsh", ".dsh-acp"],
+  stateExcludes: [".dsh/.credentials.yaml"],
 
   settings: [
     {
       key: "model",
       label: "Model",
       type: "string",
-      options: ["deepseek-v4-pro", "deepseek-v4.1-flash"],
+      options: [
+        { value: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+        { value: "deepseek-flash", label: "DeepSeek V4.1 Flash" },
+      ],
       allowCustom: true,
       providerDefault: "model",
       env: ["DSH_MODEL"],
@@ -65,4 +70,4 @@ const deepseekHarnessPlugin: AgentPlugin<DeepseekHarnessConfig> = {
   },
 };
 
-export default deepseekHarnessPlugin;
+export default deepSeekHarnessPlugin;

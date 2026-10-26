@@ -342,7 +342,7 @@
   {
     "agent": "deepseek-harness",
     "label": "DeepSeek Harness",
-    "description": "DeepSeek's official coding agent with ACP support via dsh-acp.",
+    "description": "DeepSeek's official coding agent, run through the community ACP adapter.",
     "logo": "/logos/agents/deepseek-harness.svg",
     "default": false,
     "testOnly": false,
@@ -355,7 +355,7 @@
     ],
     "harnessConfigFiles": [],
     "modelApiFormats": [
-      "openai-chat"
+      "anthropic-messages"
     ],
     "settings": [
       {
@@ -365,7 +365,16 @@
         "env": [
           "DSH_MODEL"
         ],
-        "options": [],
+        "options": [
+          {
+            "value": "deepseek-v4-pro",
+            "label": "DeepSeek V4 Pro"
+          },
+          {
+            "value": "deepseek-flash",
+            "label": "DeepSeek V4.1 Flash"
+          }
+        ],
         "allowCustom": true,
         "providerDefault": "model"
       }

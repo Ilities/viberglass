@@ -10,7 +10,7 @@ ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viber
 # Fragment: DeepSeek Harness agent
 # Source: https://github.com/deepseek-ai/deepseek-harness (dsh)
 # ACP bridge: https://github.com/openma/deepseek-harness-acp (dsh-acp)
-RUN npm install -g @deepseek-ai/dsh@0.0.6 @openma/deepseek-harness-acp@0.0.7
+RUN npm install -g @deepseek-ai/dsh@0.2.1-rc.2 @openma/deepseek-harness-acp@0.4.40
 
 RUN which dsh || echo "Warning: dsh not found in PATH"
 RUN which dsh-acp || echo "Warning: dsh-acp not found in PATH"

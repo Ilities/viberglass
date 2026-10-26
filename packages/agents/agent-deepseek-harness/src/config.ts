@@ -1,7 +1,8 @@
 import type { BaseAgentConfig } from "@viberglass/agent-core";
 
-export interface DeepseekHarnessConfig extends BaseAgentConfig {
+// DeepSeek Harness (`dsh`), run through the community ACP adapter `dsh-acp`.
+export interface DeepSeekHarnessConfig extends BaseAgentConfig {
   name: "deepseek-harness";
-  // TODO: add agent-specific config fields here
-  // e.g. model?: string;
+  apiKey: string; // DEEPSEEK_API_KEY
+  model?: string; // DSH_MODEL
 }
