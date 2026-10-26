@@ -28,7 +28,7 @@ export function mergeWorkerSettings(params: {
   overrides?: JobOverrides;
 }): ResolvedWorkerSettings {
   const { defaults, jobSettings, clankerConfig, projectConfig, overrides } = params;
-  const clankerSettings = getWorkerSettings(clankerConfig?.settings);
+  const clankerSettings = getWorkerSettings(runnerSettingsOf(clankerConfig));
   const projectSettings = projectConfig?.workerSettings || {};
   const overrideSettings = overrides?.settings || {};
 
@@ -69,6 +69,16 @@ export function mergeWorkerSettings(params: {
       jobSettings?.maxExecutionTime ??
       defaults.maxExecutionTime,
   };
+}
+
+function recordOf(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+/** A runner's settings sit in its deployment config's runtime; some workers get the whole runner, others just that config. */
+function runnerSettingsOf(clankerConfig: Record<string, unknown> | undefined): unknown {
+  const deploymentConfig = recordOf(clankerConfig?.deploymentConfig) ?? clankerConfig;
+  return recordOf(deploymentConfig?.runtime)?.settings;
 }
 
 function getWorkerSettings(source: unknown): WorkerSettings {

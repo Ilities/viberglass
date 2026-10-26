@@ -6,8 +6,9 @@ import type { AgentSessionEventType } from "../../types/agentSession";
 
 type AgentSessionEventRow = Selectable<Database["agent_session_events"]>;
 
-function serializeJson(value: JsonValue): string {
-  return JSON.stringify(value);
+/** Postgres jsonb rejects NUL characters, which agent output can carry from binary files. */
+export function serializeEventPayload(value: JsonValue): string {
+  return JSON.stringify(value, (_key, v: unknown) => (typeof v === "string" ? v.split("\u0000").join("") : v));
 }
 
 export interface AgentSessionEvent {
@@ -49,7 +50,7 @@ export class AgentSessionEventDAO {
         job_id: input.jobId ?? null,
         sequence: input.sequence,
         event_type: input.eventType,
-        payload_json: serializeJson(input.payloadJson),
+        payload_json: serializeEventPayload(input.payloadJson),
         user_id: input.userId ?? null,
       })
       .returningAll()
@@ -74,7 +75,7 @@ export class AgentSessionEventDAO {
           job_id: input.jobId ?? null,
           sequence: input.sequence,
           event_type: input.eventType,
-          payload_json: serializeJson(input.payloadJson),
+          payload_json: serializeEventPayload(input.payloadJson),
           user_id: input.userId ?? null,
         })),
       )

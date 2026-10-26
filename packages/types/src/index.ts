@@ -29,6 +29,7 @@ export * from './agentCatalog'
 export * from './agentSettings'
 export * from './agentSignIn'
 export * from './clankerConfig'
+export * from './fargateSizes'
 export * from './runnerReadiness'
 export * from './job'
 

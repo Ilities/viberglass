@@ -136,6 +136,26 @@ describe("EcsProvisioningHandler", () => {
     expect(result.deploymentConfig).toBeTruthy();
   });
 
+  it("registers the runner's size over the size of the definition it copies", async () => {
+    const { client, describeTaskDefinition, registerTaskDefinition } = buildEcsClient();
+    describeTaskDefinition.mockResolvedValue({
+      family: "viberator-worker-test",
+      cpu: "1024",
+      memory: "2048",
+      containerDefinitions: [{ name: "worker", image: "worker:latest" }],
+    });
+    const clanker = buildClanker("ecs", {
+      version: 1,
+      strategy: {
+        type: "ecs", executionRoleArn: "arn:exec", taskRoleArn: "arn:task", clusterArn: "arn:cluster",
+        taskDefinitionArn: "arn:aws:ecs:region:1:task-definition/test:1", cpu: "2048", memory: "8192",
+      },
+      agent: { type: "claude-code" },
+    });
+    await new EcsProvisioningHandler(client).provision(clanker);
+    expect(registerTaskDefinition).toHaveBeenCalledWith(expect.objectContaining({ cpu: "2048", memory: "8192" }));
+  });
+
   it("registers the public Pi worker image when no image is configured", async () => {
     const { client, registerTaskDefinition } = buildEcsClient();
     const clanker = buildClanker("ecs", {

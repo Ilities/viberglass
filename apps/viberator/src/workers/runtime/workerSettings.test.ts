@@ -13,13 +13,15 @@ describe("mergeWorkerSettings", () => {
         maxExecutionTime: 100,
       },
       clankerConfig: {
-        settings: {
-          maxChanges: 2,
-          testRequired: true,
-          codingStandards: "clanker",
-          runTests: true,
-          testCommand: "npm run clanker-test",
-          maxExecutionTime: 200,
+        runtime: {
+          settings: {
+            maxChanges: 2,
+            testRequired: true,
+            codingStandards: "clanker",
+            runTests: true,
+            testCommand: "npm run clanker-test",
+            maxExecutionTime: 200,
+          },
         },
       },
       projectConfig: {
@@ -71,5 +73,13 @@ describe("mergeWorkerSettings", () => {
       testCommand: "npm test",
       maxExecutionTime: 1500,
     });
+  });
+
+  test("reads the runner's time limit whether the worker gets the whole runner or its deployment config", () => {
+    const runtime = { settings: { maxExecutionTime: 5400 } };
+    const fromRunner = mergeWorkerSettings({ defaults: { maxExecutionTime: 2700 }, clankerConfig: { id: "r1", deploymentConfig: { version: 1, runtime } } });
+    const fromConfig = mergeWorkerSettings({ defaults: { maxExecutionTime: 2700 }, clankerConfig: { version: 1, runtime } });
+    expect(fromRunner.maxExecutionTime).toBe(5400);
+    expect(fromConfig.maxExecutionTime).toBe(5400);
   });
 });

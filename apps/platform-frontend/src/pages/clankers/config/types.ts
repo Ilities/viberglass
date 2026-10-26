@@ -21,10 +21,16 @@ export interface ClankerConfigFormState extends AgentSettings {
   kubernetesDeadline: string
   clusterArn: string
   taskDefinitionArn: string
+  /** Fargate CPU units; empty uses the platform default. */
+  ecsCpu: string
+  /** MiB, one Fargate allows with `ecsCpu`. */
+  ecsMemory: string
   functionArn: string
   lambdaMemorySize: string
   lambdaTimeout: string
   lambdaEphemeralStorage: string
+  /** How long the agent gets for one turn, in minutes; empty uses the platform default. */
+  timeLimitMinutes: string
 }
 
 export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
@@ -36,10 +42,13 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   kubernetesDeadline: '',
   clusterArn: '',
   taskDefinitionArn: '',
+  ecsCpu: '',
+  ecsMemory: '',
   functionArn: '',
   lambdaMemorySize: '',
   lambdaTimeout: '',
   lambdaEphemeralStorage: '',
+  timeLimitMinutes: '',
   values: {},
   signInMethod: '',
   loginSecretId: '',

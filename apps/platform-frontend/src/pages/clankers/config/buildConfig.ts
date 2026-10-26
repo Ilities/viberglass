@@ -32,6 +32,7 @@ function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
       provisioningMode: form.provisioningMode,
       clusterArn: form.provisioningMode === 'prebuilt' ? form.clusterArn : undefined,
       taskDefinitionArn: form.provisioningMode === 'prebuilt' ? form.taskDefinitionArn : undefined,
+      ...(form.provisioningMode === 'managed' && form.ecsCpu && form.ecsMemory ? { cpu: form.ecsCpu, memory: form.ecsMemory } : {}),
     }
   }
 
@@ -87,12 +88,23 @@ function keepUnshownAgentSettings(built: ClankerAgentConfig, existing: unknown):
   return { ...unshown, ...built }
 }
 
+/** The stored runtime with the form's time limit; blanking the limit clears it. */
+function buildRuntime(form: BuildConfigInput['form'], existing: unknown): Record<string, unknown> | null {
+  const { settings: storedSettings, ...rest } = isObjectRecord(existing) ? existing : {}
+  const { maxExecutionTime: _replaced, ...settings } = isObjectRecord(storedSettings) ? storedSettings : {}
+  const minutes = Number(form.timeLimitMinutes.trim())
+  if (Number.isInteger(minutes) && minutes > 0) settings.maxExecutionTime = minutes * 60
+  const next = Object.keys(settings).length > 0 ? { ...rest, settings } : rest
+  return Object.keys(next).length > 0 ? next : null
+}
+
 export function buildClankerDeploymentConfig(input: BuildConfigInput): Record<string, unknown> {
   const existing = isObjectRecord(input.existing) && input.existing.version === 1 ? input.existing : null
+  const runtime = buildRuntime(input.form, existing?.runtime)
   return {
     version: 1,
     strategy: buildStrategy(input),
     agent: keepUnshownAgentSettings(buildAgent(input.selectedAgent || DEFAULT_AGENT_TYPE, input), existing?.agent),
-    ...(existing && isObjectRecord(existing.runtime) ? { runtime: existing.runtime } : {}),
+    ...(runtime ? { runtime } : {}),
   }
 }

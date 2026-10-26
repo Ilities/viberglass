@@ -2,7 +2,7 @@ import { modelEndpoints } from "../../services/modelEndpoints";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Clanker, SecretBinding } from "@viberglass/types";
-import { agentStrategyUnsupportedReason, DEFAULT_AGENT_TYPE, isClankerConfigV1 } from "@viberglass/types";
+import { agentStrategyUnsupportedReason, DEFAULT_AGENT_TYPE, fargateSizeProblem, isClankerConfigV1 } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { DeploymentStrategyDAO } from "../../persistence/clanker/DeploymentStrategyDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
@@ -138,6 +138,21 @@ async function validateAgentCompute({ agent, deploymentStrategyId, deploymentCon
   }
 }
 
+/** Refuses an ECS size Fargate wouldn't run, and a time limit that isn't a whole number of seconds. */
+function validateRunnerLimits(deploymentConfig: unknown): void {
+  if (!isClankerConfigV1(deploymentConfig)) return;
+  const { strategy, runtime } = deploymentConfig;
+  const sizeProblem = strategy.type === "ecs" ? fargateSizeProblem(strategy.cpu, strategy.memory) : null;
+  const limit = runtime?.settings?.maxExecutionTime;
+  const limitProblem = limit !== undefined && !(Number.isInteger(limit) && limit > 0)
+    ? "The time limit must be a whole number of minutes above zero."
+    : null;
+  const problem = sizeProblem ?? limitProblem;
+  if (problem) {
+    throw new ClankerServiceError(CLANKER_SERVICE_ERROR_CODE.PROVISIONING_CONFIG_ERROR, problem);
+  }
+}
+
 // GET /api/clankers - List all clankers
 router.get(
   "/",
@@ -182,6 +197,7 @@ router.post(
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
     validateImageSource(req.body.deploymentConfig);
+    validateRunnerLimits(req.body.deploymentConfig);
     await validateAgentCompute(req.body);
     await modelEndpoints.validateSelection(req.body.modelEndpoint, req.body.agent);
     const clanker = await clankerService.createClanker(req.body);
@@ -211,6 +227,7 @@ router.put(
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
     validateImageSource(req.body.deploymentConfig);
+    validateRunnerLimits(req.body.deploymentConfig);
     await validateAgentCompute({
       agent: req.body.agent === undefined ? existing.agent : req.body.agent,
       deploymentStrategyId:

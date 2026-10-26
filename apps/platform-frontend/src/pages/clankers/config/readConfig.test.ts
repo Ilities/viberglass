@@ -112,3 +112,15 @@ test('reads Kubernetes image and resource bounds for editing', () => {
   const result = readClankerDeploymentConfig({ deploymentConfig: { version: 1, strategy: { type: 'kubernetes', containerImage: 'worker:1', cpu: '250m', memory: '512Mi', ephemeralStorage: '2Gi', activeDeadlineSeconds: 120 }, agent: { type: 'opencode' } } })
   expect(result.form).toMatchObject({ containerImage: 'worker:1', kubernetesCpu: '250m', kubernetesMemory: '512Mi', kubernetesStorage: '2Gi', kubernetesDeadline: '120' })
 })
+
+test("reads an ECS runner's size and its time limit in minutes", () => {
+  const { form } = readClankerDeploymentConfig({
+    deploymentConfig: {
+      version: 1,
+      strategy: { type: 'ecs', provisioningMode: 'managed', cpu: '2048', memory: '8192' },
+      agent: { type: 'opencode' },
+      runtime: { settings: { maxExecutionTime: 5400 } },
+    },
+  })
+  expect(form).toMatchObject({ ecsCpu: '2048', ecsMemory: '8192', timeLimitMinutes: '90' })
+})

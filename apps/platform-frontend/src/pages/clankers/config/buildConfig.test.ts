@@ -238,3 +238,27 @@ describe('buildClankerDeploymentConfig', () => {
 test('builds a prebuilt Kubernetes worker with resource bounds', () => {
   expect(buildClankerDeploymentConfig({ strategyName: 'kubernetes', selectedAgent: 'opencode', form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, containerImage: 'worker:1', kubernetesCpu: '250m', kubernetesMemory: '512Mi', kubernetesStorage: '2Gi', kubernetesDeadline: '120' } }).strategy).toEqual({ type: 'kubernetes', provisioningMode: 'prebuilt', containerImage: 'worker:1', cpu: '250m', memory: '512Mi', ephemeralStorage: '2Gi', activeDeadlineSeconds: 120 })
 })
+
+describe('ECS size and time limit', () => {
+  const ecsForm = { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, provisioningMode: 'managed' as const, ecsCpu: '2048', ecsMemory: '8192', timeLimitMinutes: '90' }
+
+  test('a managed ECS runner keeps its size, and every runner its time limit in seconds', () => {
+    const result = buildClankerDeploymentConfig({ strategyName: 'ecs', selectedAgent: 'opencode', form: ecsForm })
+    expect(result.strategy).toEqual({ type: 'ecs', provisioningMode: 'managed', clusterArn: undefined, taskDefinitionArn: undefined, cpu: '2048', memory: '8192' })
+    expect(result.runtime).toEqual({ settings: { maxExecutionTime: 5400 } })
+  })
+
+  test('a pre-built ECS runner uses its own task definition size', () => {
+    const result = buildClankerDeploymentConfig({ strategyName: 'ecs', selectedAgent: 'opencode', form: { ...ecsForm, provisioningMode: 'prebuilt' } })
+    expect(result.strategy).not.toHaveProperty('cpu')
+    expect(result.strategy).not.toHaveProperty('memory')
+  })
+
+  test('blanking the time limit clears it and keeps the runtime settings the form does not show', () => {
+    const existing = { version: 1, strategy: { type: 'ecs' }, agent: { type: 'opencode' }, runtime: { settings: { maxExecutionTime: 5400, maxChanges: 3 } } }
+    const result = buildClankerDeploymentConfig({ strategyName: 'ecs', selectedAgent: 'opencode', existing, form: { ...ecsForm, timeLimitMinutes: '' } })
+    expect(result.runtime).toEqual({ settings: { maxChanges: 3 } })
+    const cleared = buildClankerDeploymentConfig({ strategyName: 'ecs', selectedAgent: 'opencode', form: { ...ecsForm, timeLimitMinutes: '' } })
+    expect(cleared).not.toHaveProperty('runtime')
+  })
+})

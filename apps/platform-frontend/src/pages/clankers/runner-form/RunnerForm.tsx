@@ -1,6 +1,6 @@
 import { useModelEndpoints } from './useModelEndpoints'
 import { Button } from '@/components/button'
-import { FieldGroup, Field, Label } from '@/components/fieldset'
+import { Description, FieldGroup, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Textarea } from '@/components/textarea'
 import { getDeploymentStrategies } from '@/service/api/clanker-api'
@@ -212,10 +212,13 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
             kubernetesDeadline: field('kubernetesDeadline'),
             clusterArn: field('clusterArn'),
             taskDefinitionArn: field('taskDefinitionArn'),
+            ecsCpu: field('ecsCpu'),
+            ecsMemory: field('ecsMemory'),
             functionArn: field('functionArn'),
             lambdaMemorySize: field('lambdaMemorySize'),
             lambdaTimeout: field('lambdaTimeout'),
             lambdaEphemeralStorage: field('lambdaEphemeralStorage'),
+            timeLimitMinutes: field('timeLimitMinutes'),
           },
         }),
         configFiles,
@@ -306,6 +309,11 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
                 canBuildFromSource={selectedStrategy?.canBuildFromSource === true}
                 defaults={initialForm}
               />
+              <Field>
+                <Label>Time limit (minutes)</Label>
+                <Description>How long the agent gets for one turn before it's stopped. Empty uses the platform default of 45 minutes.</Description>
+                <Input name="timeLimitMinutes" type="number" min={1} step={1} defaultValue={initialForm.timeLimitMinutes} placeholder="45" />
+              </Field>
             </FieldGroup>
           </Section>
 

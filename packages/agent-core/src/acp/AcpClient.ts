@@ -67,7 +67,6 @@ function spawnAcpProcess(
   env: NodeJS.ProcessEnv,
   onLine: (line: string) => void,
   onStderr: (chunk: string) => void,
-  timeoutMs: number,
 ): ChildProcess {
   const [cmd, ...args] = command;
   if (!cmd) throw new Error("ACP command is empty");
@@ -93,9 +92,6 @@ function spawnAcpProcess(
 
   child.stderr?.on("data", (data: Buffer) => onStderr(data.toString().trim()));
 
-  const tid = setTimeout(() => signalProcessGroup(child, "SIGTERM"), timeoutMs);
-  child.on("close", () => clearTimeout(tid));
-
   return child;
 }
 
@@ -120,6 +116,8 @@ export class AcpClient {
   private readonly totalsProbe?: AcpSessionTotalsProbe;
   private contextUsage?: AcpContextUsage;
   private compactCommand: string | null = null;
+  /** Why the harness process went away, once it has; requests after that fail straight away. */
+  private exitReason?: string;
 
   constructor(
     private readonly command: string[],
@@ -145,18 +143,27 @@ export class AcpClient {
       this.command, this.workDir, this.env,
       (line) => this.processLine(line),
       (chunk) => this.logger.warn(`[acp:stderr] ${chunk}`),
-      this.timeoutMs,
     );
 
-    this.child.on("error", (err) => {
+    const child = this.child;
+    // Failing the turn right away lets cleanup escalate to SIGKILL if the harness ignores SIGTERM.
+    const timer = setTimeout(() => {
+      this.failPending(`Agent timed out after ${Math.round(this.timeoutMs / 60_000)} minutes`);
+      signalProcessGroup(child, "SIGTERM");
+    }, this.timeoutMs);
+
+    child.on("error", (err) => {
       this.logger.error("AcpClient process spawn error", {
         command: this.command.join(" "),
         error: err.message,
       });
+      this.failPending(`Agent process failed to start: ${err.message}`);
     });
 
-    this.child.on("close", (code, signal) => {
+    child.on("close", (code, signal) => {
+      clearTimeout(timer);
       this.logger.info("AcpClient process exited", { code, signal });
+      this.failPending(`Agent process exited unexpectedly (${signal ?? `code ${code}`})`);
     });
 
     try {
@@ -296,6 +303,7 @@ export class AcpClient {
 
   private sendRequest(method: string, params: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
+      if (this.exitReason) return reject(new Error(this.exitReason));
       const id = this.nextId++;
       this.pending.set(id, { resolve, reject });
       const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
@@ -305,9 +313,14 @@ export class AcpClient {
     });
   }
 
-  private async cleanup(): Promise<void> {
-    for (const p of this.pending.values()) p.reject(new Error("ACP client closed"));
+  private failPending(reason: string): void {
+    this.exitReason ??= reason;
+    for (const p of this.pending.values()) p.reject(new Error(reason));
     this.pending.clear();
+  }
+
+  private async cleanup(): Promise<void> {
+    this.failPending("ACP client closed");
     const child = this.child;
     this.child = undefined;
     if (child) await stopAcpProcess(child);

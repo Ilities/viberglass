@@ -32,6 +32,8 @@ export class EcsTaskDefinitionProvisioner {
 
     const nextTaskDefinition: RegisterTaskDefinitionCommandInput = {
       ...taskDefinition,
+      // The runner's size wins over the copied definition's, so changing it takes effect.
+      ...(config.cpu && config.memory ? { cpu: config.cpu, memory: config.memory } : {}),
     };
 
     if (
