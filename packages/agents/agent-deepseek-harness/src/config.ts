@@ -1,7 +1,8 @@
 import type { BaseAgentConfig } from "@viberglass/agent-core";
 
-export interface DeepseekHarnessConfig extends BaseAgentConfig {
+// DeepSeek Harness (dsh) configuration
+// ACP bridge: https://github.com/openma-ai/deepseek-harness-acp (standalone dsh-acp)
+export interface DeepSeekHarnessConfig extends BaseAgentConfig {
   name: "deepseek-harness";
-  // TODO: add agent-specific config fields here
-  // e.g. model?: string;
+  model?: string; // DSH_MODEL
 }

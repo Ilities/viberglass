@@ -1,7 +1,7 @@
 {
   "name": "@viberglass/agent-deepseek-harness",
   "version": "1.0.0",
-  "description": "Deepseek Harness agent plugin for Viberglass",
+  "description": "DeepSeek Harness agent plugin for Viberglass",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

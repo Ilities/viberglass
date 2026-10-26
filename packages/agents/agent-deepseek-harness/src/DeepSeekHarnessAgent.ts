@@ -1,20 +1,20 @@
 import * as path from "path";
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, currentModelEndpoint, modelEndpointKey } from "@viberglass/agent-core";
 import type { AgentCLIResult, ExecutionContext, IAgentGitService } from "@viberglass/agent-core";
 import type { Logger } from "winston";
-import type { DeepseekHarnessConfig } from "./config";
+import type { DeepSeekHarnessConfig } from "./config";
 
 /**
  * DeepSeek Harness. Task turns talk to it over ACP via `dsh-acp`; one-shot
- * jobs run `dsh` in headless mode.
+ * jobs run `dsh headless`, which answers one task and exits.
  */
-export class DeepseekHarnessAgent extends BaseAgent<DeepseekHarnessConfig> {
-  constructor(config: DeepseekHarnessConfig, logger: Logger, gitService?: IAgentGitService) {
+export class DeepSeekHarnessAgent extends BaseAgent<DeepSeekHarnessConfig> {
+  constructor(config: DeepSeekHarnessConfig, logger: Logger, gitService?: IAgentGitService) {
     super(config, logger, gitService);
   }
 
   protected requiresApiKey(): boolean {
-    return true;
+    return !currentModelEndpoint();
   }
 
   /** The command that starts the harness's ACP server on stdio. */
@@ -22,16 +22,23 @@ export class DeepseekHarnessAgent extends BaseAgent<DeepseekHarnessConfig> {
     return ["dsh-acp"];
   }
 
-  public override getAcpEnvironment(harnessConfigDir: string): NodeJS.ProcessEnv {
-    const env: NodeJS.ProcessEnv = {};
-    if (this.config.apiKey) {
-      env.DEEPSEEK_API_KEY = this.config.apiKey;
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+    const endpoint = currentModelEndpoint();
+    if (endpoint) {
+      return {
+        DEEPSEEK_BASE_URL: endpoint.baseUrl,
+        // dsh-acp only reads the key from DEEPSEEK_API_KEY; an unauthenticated
+        // endpoint still needs a value to pass its credential gate.
+        DEEPSEEK_API_KEY: endpoint.auth.scheme === "none" ? "unused" : modelEndpointKey(),
+        DSH_MODEL: endpoint.model,
+        DSH_PERMISSION_MODE: "workspace-write",
+      };
     }
-    env.DSH_PERMISSION_MODE = "workspace-write";
-    if (this.config.model) {
-      env.DSH_MODEL = this.config.model;
-    }
-    return env;
+    return {
+      ...(this.config.apiKey ? { DEEPSEEK_API_KEY: this.config.apiKey } : {}),
+      ...(this.config.model ? { DSH_MODEL: this.config.model } : {}),
+      DSH_PERMISSION_MODE: "workspace-write",
+    };
   }
 
   protected async executeAgentCLI(
@@ -44,11 +51,9 @@ export class DeepseekHarnessAgent extends BaseAgent<DeepseekHarnessConfig> {
       const repoDir = path.join(workDir, "repo");
       this.logger.info("Executing DeepSeek Harness (one-shot)", { repoDir });
 
-      const args = ["--profile", "headless", prompt];
-
       let result;
       try {
-        result = await this.executeCommand("dsh", args, {
+        result = await this.executeCommand("dsh", ["headless", prompt], {
           cwd: repoDir,
           env: this.getAcpEnvironment(path.join(workDir, ".harness-config")),
           timeout: this.config.executionTimeLimit * 1000,

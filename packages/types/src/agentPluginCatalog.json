@@ -342,7 +342,7 @@
   {
     "agent": "deepseek-harness",
     "label": "DeepSeek Harness",
-    "description": "DeepSeek's official coding agent with ACP support via dsh-acp.",
+    "description": "DeepSeek's official coding agent, run over ACP through dsh-acp.",
     "logo": "/logos/agents/deepseek-harness.svg",
     "default": false,
     "testOnly": false,
@@ -365,7 +365,16 @@
         "env": [
           "DSH_MODEL"
         ],
-        "options": [],
+        "options": [
+          {
+            "value": "deepseek-flash",
+            "label": "DeepSeek Flash"
+          },
+          {
+            "value": "deepseek-v4-pro",
+            "label": "DeepSeek V4 Pro"
+          }
+        ],
         "allowCustom": true,
         "providerDefault": "model"
       }

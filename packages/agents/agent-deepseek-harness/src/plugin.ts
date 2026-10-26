@@ -1,18 +1,18 @@
 import { ModelEndpointConfigEnvironment } from "@viberglass/agent-core";
 import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import { GEN_AI_PROVIDER_NAME_VALUE_DEEPSEEK } from "@viberglass/telemetry";
-import type { DeepseekHarnessConfig } from "./config";
-import { DeepseekHarnessAgent } from "./DeepseekHarnessAgent";
+import type { DeepSeekHarnessConfig } from "./config";
+import { DeepSeekHarnessAgent } from "./DeepSeekHarnessAgent";
 
-const deepseekHarnessPlugin: AgentPlugin<DeepseekHarnessConfig> = {
+const deepSeekHarnessPlugin: AgentPlugin<DeepSeekHarnessConfig> = {
   id: "deepseek-harness",
   label: "DeepSeek Harness",
-  description: "DeepSeek's official coding agent with ACP support via dsh-acp.",
+  description: "DeepSeek's official coding agent, run over ACP through dsh-acp.",
   logo: "logo.svg",
   telemetryProvider: GEN_AI_PROVIDER_NAME_VALUE_DEEPSEEK,
 
   create(config, logger, gitService?: IAgentGitService) {
-    return new DeepseekHarnessAgent(config, logger, gitService);
+    return new DeepSeekHarnessAgent(config, logger, gitService);
   },
 
   defaultConfig: {
@@ -39,15 +39,20 @@ const deepseekHarnessPlugin: AgentPlugin<DeepseekHarnessConfig> = {
     environment: (endpoint) => new ModelEndpointConfigEnvironment(endpoint),
   },
 
-  stateDirs: [".dsh", ".deepseek-harness"],
-  stateExcludes: [".dsh/auth.json"],
+  // $DSH_HOME holds dsh's profiles, sessions and credentials; dsh-acp keeps its
+  // own ACP session store under ~/.dsh-acp.
+  stateDirs: [".dsh", ".dsh-acp"],
+  stateExcludes: [".dsh/.credentials.yaml"],
 
   settings: [
     {
       key: "model",
       label: "Model",
       type: "string",
-      options: ["deepseek-v4-pro", "deepseek-v4.1-flash"],
+      options: [
+        { value: "deepseek-flash", label: "DeepSeek Flash" },
+        { value: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+      ],
       allowCustom: true,
       providerDefault: "model",
       env: ["DSH_MODEL"],
@@ -65,4 +70,4 @@ const deepseekHarnessPlugin: AgentPlugin<DeepseekHarnessConfig> = {
   },
 };
 
-export default deepseekHarnessPlugin;
+export default deepSeekHarnessPlugin;
