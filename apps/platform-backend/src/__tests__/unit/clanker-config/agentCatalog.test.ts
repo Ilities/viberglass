@@ -33,7 +33,7 @@ describe("agent catalog", () => {
 
   it("runs a custom endpoint on the lowest-ranked harness that speaks its format", () => {
     expect(agentForModelApiFormat("openai-chat")).toBe("opencode");
-    // Pi ranks ahead of Claude Code, which also speaks Anthropic Messages but isn't ranked.
-    expect(agentForModelApiFormat("anthropic-messages")).toBe("pi");
+    expect(agentForModelApiFormat("anthropic-messages")).toBe("opencode");
+    expect(agentForModelApiFormat("openai-responses")).toBe("pi");
   });
 });

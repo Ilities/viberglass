@@ -1,5 +1,5 @@
 import { ModelEndpointInputValidator } from "../../../../services/modelEndpoints/ModelEndpointInputValidator";
-import type { ModelEndpoint, ModelEndpointInput } from "@viberglass/types";
+import type { ModelApiFormat, ModelEndpoint, ModelEndpointInput } from "@viberglass/types";
 import { ModelEndpointService } from "../../../../services/modelEndpoints/ModelEndpointService";
 import { ModelEndpointChecker } from "../../../../services/modelEndpoints/ModelEndpointChecker";
 import { RunnerModelEndpointResolver } from "../../../../services/modelEndpoints/RunnerModelEndpointResolver";
@@ -147,20 +147,23 @@ describe("workspace model endpoints", () => {
     await expect(
       service.update(endpoint.id, {
         ...input,
-        apiFormat: "anthropic-messages",
+        apiFormat: "openai-responses",
       }),
     ).rejects.toMatchObject({ code: "MODEL_ENDPOINT_IN_USE" });
     expect(dao.delete).not.toHaveBeenCalled();
     expect(dao.update).not.toHaveBeenCalled();
   });
 
-  test("resolves a runner's endpoint into metadata and a credential reference", async () => {
-    const resolver = new RunnerModelEndpointResolver(fixture().service);
+  test.each<ModelApiFormat>(["openai-chat", "anthropic-messages"])("resolves a runner's %s endpoint into metadata and a credential reference", async (apiFormat) => {
+    const { service, dao } = fixture();
+    dao.get.mockResolvedValue({ ...endpoint, apiFormat });
+    const resolver = new RunnerModelEndpointResolver(service);
     const result = await resolver.resolve({
       agent: "opencode",
       modelEndpoint: { endpointId: endpoint.id, model: "qwen" },
     });
     expect(result.endpoint).toMatchObject({
+      apiFormat,
       baseUrl: input.baseUrl,
       model: "qwen",
       auth: input.auth,

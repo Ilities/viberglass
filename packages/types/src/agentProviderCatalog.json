@@ -20,6 +20,13 @@
     "default": true
   },
   {
+    "agent": "opencode",
+    "provider": "anthropic",
+    "envVar": "ANTHROPIC_API_KEY",
+    "default": false,
+    "model": "anthropic/claude-sonnet-4-5"
+  },
+  {
     "agent": "pi",
     "provider": "anthropic",
     "envVar": "ANTHROPIC_API_KEY",

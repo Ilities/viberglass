@@ -21,6 +21,17 @@ describe('modelKey', () => {
     )
   })
 
+  test('offers Anthropic for OpenCode and recognizes its saved key', () => {
+    expect(providerOptionsForAgent('opencode')).toContainEqual(expect.objectContaining({
+      provider: 'anthropic', envVar: 'ANTHROPIC_API_KEY', model: expect.stringMatching(/^anthropic\//),
+    }))
+    expect(splitRunnerBindings(
+      [{ envVar: 'ANTHROPIC_API_KEY', secretId: 'anthropic-key' }],
+      [secret('anthropic-key', { provider: 'anthropic' })],
+      'opencode',
+    )).toEqual({ provider: 'anthropic', modelKey: { envVar: 'ANTHROPIC_API_KEY', secretId: 'anthropic-key' }, extras: [] })
+  })
+
   test('splits off the model key and finds its provider from the secret', () => {
     const team = secret('team', { provider: 'openrouter' })
     const keys = splitRunnerBindings(

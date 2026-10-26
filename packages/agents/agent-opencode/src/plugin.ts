@@ -8,7 +8,7 @@ import * as path from "path";
 const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
   id: "opencode",
   label: "OpenCode",
-  description: "OpenAI-compatible orchestration with customizable base URL and model.",
+  description: "Coding agent with multiple model providers and customizable endpoints.",
   logo: "logo.ico",
 
   create(config, logger, gitService?: IAgentGitService) {
@@ -45,7 +45,7 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
 
   agentEnv: ["OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG_CONTENT"],
 
-  customEndpoints: { apiFormats: ["openai-chat"], environment: (endpoint) => new OpenCodeModelEndpointEnvironment(endpoint), rank: 0 },
+  customEndpoints: { apiFormats: ["openai-chat", "anthropic-messages"], environment: (endpoint) => new OpenCodeModelEndpointEnvironment(endpoint), rank: 0 },
 
   stateDirs: [".local/share/opencode"],
   stateExcludes: [".local/share/opencode/auth.json", ".local/share/opencode/log"],
@@ -106,6 +106,7 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
   // OpenCode reads each provider's key from the env var models.dev names, and
   // needs a `<provider>/<model>` because it serves many providers.
   providers: [
+    { provider: "anthropic", envVar: "ANTHROPIC_API_KEY", model: "anthropic/claude-sonnet-4-5" },
     { provider: "opencode-go", envVar: "OPENCODE_API_KEY", default: true, model: "opencode-go/deepseek-v4.1-flash" },
     {
       provider: "openrouter",

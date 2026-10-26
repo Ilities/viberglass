@@ -58,6 +58,10 @@ test('provider and endpoint groups contain selectable Radix items', async () => 
   fireEvent.keyDown(screen.getByRole('combobox', { name: 'Provider' }), { key: 'ArrowDown' })
   fireEvent.click(await screen.findByRole('option', { name: 'OpenRouter' }))
   expect(onProviderChange).toHaveBeenCalledWith('openrouter')
+
+  fireEvent.keyDown(screen.getByRole('combobox', { name: 'Provider' }), { key: 'ArrowDown' })
+  fireEvent.click(await screen.findByRole('option', { name: 'Anthropic' }))
+  expect(onProviderChange).toHaveBeenCalledWith('anthropic')
 })
 
 test('a selected endpoint offers its model list and replaces the built-in model fields', () => {
@@ -149,6 +153,7 @@ test("explains that an agent without endpoint support can't use one, instead of 
 })
 
 test('offers only endpoints that speak an API the agent understands', async () => {
+  const onEndpointChange = jest.fn()
   render(
     <Theme>
       <ModelSection
@@ -157,10 +162,14 @@ test('offers only endpoints that speak an API the agent understands', async () =
         modelKeyId=""
         secrets={[]}
         settings={DEFAULT_CLANKER_CONFIG_FORM_STATE}
-        endpoints={[endpoint, { ...endpoint, id: 'endpoint-2', name: 'Anthropic proxy', apiFormat: 'anthropic-messages' }]}
+        endpoints={[
+          endpoint,
+          { ...endpoint, id: 'endpoint-2', name: 'Anthropic proxy', apiFormat: 'anthropic-messages' },
+          { ...endpoint, id: 'endpoint-3', name: 'Responses proxy', apiFormat: 'openai-responses' },
+        ]}
         endpointSelection={null}
         onProviderChange={jest.fn()}
-        onEndpointChange={jest.fn()}
+        onEndpointChange={onEndpointChange}
         onEndpointModelChange={jest.fn()}
         onEndpointSaved={jest.fn()}
         onModelKeyChange={jest.fn()}
@@ -173,5 +182,7 @@ test('offers only endpoints that speak an API the agent understands', async () =
 
   fireEvent.keyDown(screen.getByRole('combobox', { name: 'Provider' }), { key: 'ArrowDown' })
   expect(await screen.findByRole('option', { name: 'EU models' })).toBeInTheDocument()
-  expect(screen.queryByRole('option', { name: 'Anthropic proxy' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Responses proxy' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('option', { name: 'Anthropic proxy' }))
+  expect(onEndpointChange).toHaveBeenCalledWith('endpoint-2')
 })

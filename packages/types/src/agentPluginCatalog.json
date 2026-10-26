@@ -122,7 +122,7 @@
   {
     "agent": "opencode",
     "label": "OpenCode",
-    "description": "OpenAI-compatible orchestration with customizable base URL and model.",
+    "description": "Coding agent with multiple model providers and customizable endpoints.",
     "logo": "/logos/agents/opencode.ico",
     "default": false,
     "testOnly": false,
@@ -140,7 +140,8 @@
       "opencode.json"
     ],
     "modelApiFormats": [
-      "openai-chat"
+      "openai-chat",
+      "anthropic-messages"
     ],
     "settings": [
       {

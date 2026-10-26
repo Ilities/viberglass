@@ -202,7 +202,7 @@ describe("SetupAgentService", () => {
   });
 
   it("picks Pi for an endpoint OpenCode can't speak", async () => {
-    const { service } = build({ endpoint: { ...ZAI, apiFormat: "anthropic-messages" } });
+    const { service } = build({ endpoint: { ...ZAI, apiFormat: "openai-responses" } });
     await expect(service.prepareDefaultAgent({ endpointId: ZAI.id, model: "glm-4.7-flash" })).resolves.toMatchObject({ agent: "pi" });
   });
 
