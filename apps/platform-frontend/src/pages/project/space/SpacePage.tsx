@@ -171,7 +171,7 @@ export function SpacePage() {
 
       {space && access?.canMaintain && (
         <div className="mb-6 empty:hidden">
-          <ProjectReadinessBanner projectId={space.id} firstTaskHref={`/spaces/${slug}/tasks/new`} />
+          <ProjectReadinessBanner projectId={space.id} firstTaskHref={`/spaces/${slug}/tasks/new`} showDemoNotice={false} />
         </div>
       )}
 
@@ -273,7 +273,7 @@ export function SpacePage() {
               </summary>
               <p className="mt-2 mb-3 text-sm text-[var(--gray-10)]">
                 Completed work stays available here and in search.{' '}
-                <Link href={`/spaces/${slug}?archived=1`} className="underline">
+                <Link href={`/spaces/${slug}/tasks?archived=1`} className="underline">
                   Archived tasks
                 </Link>
               </p>
@@ -290,7 +290,7 @@ export function SpacePage() {
 
       {showArchived && (
         <p className="mt-10 text-sm">
-          <Link href={`/spaces/${slug}`} className="text-[var(--gray-10)] underline">
+          <Link href={`/spaces/${slug}/tasks`} className="text-[var(--gray-10)] underline">
             Back to the space's tasks
           </Link>
         </p>

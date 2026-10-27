@@ -55,20 +55,21 @@ export class TaskThreadFactsDAO {
   }
 
   /** The agents' unanswered questions on each task: the people they're for, and since when the oldest waits. */
-  async openQuestions(ticketIds: string[]): Promise<Map<string, { askedOf: TaskPerson[]; since: Date }>> {
-    const open = new Map<string, { askedOf: TaskPerson[]; since: Date }>();
+  async openQuestions(ticketIds: string[]): Promise<Map<string, { askedOf: TaskPerson[]; since: Date; requests: Array<{ id: string; userId: string | null; text: string }> }>> {
+    const open = new Map<string, { askedOf: TaskPerson[]; since: Date; requests: Array<{ id: string; userId: string | null; text: string }> }>();
     if (ticketIds.length === 0) return open;
     const rows = await db
       .selectFrom("agent_pending_requests as r")
       .innerJoin("agent_sessions as s", "s.id", "r.session_id")
       .leftJoin("users as u", "u.id", "r.addressee_user_id")
-      .select(["s.ticket_id", "r.created_at", "u.id as user_id", "u.name as user_name"])
+      .select(["s.ticket_id", "r.id as request_id", "r.prompt_markdown", "r.created_at", "u.id as user_id", "u.name as user_name"])
       .where("s.ticket_id", "in", ticketIds)
       .where("r.status", "=", "open")
       .orderBy("r.created_at", "asc")
       .execute();
     for (const row of rows) {
-      const entry = open.get(row.ticket_id) ?? { askedOf: [], since: row.created_at };
+      const entry = open.get(row.ticket_id) ?? { askedOf: [], since: row.created_at, requests: [] };
+      entry.requests.push({ id: row.request_id, userId: row.user_id, text: row.prompt_markdown });
       if (row.user_id && row.user_name && !entry.askedOf.some((person) => person.id === row.user_id)) {
         entry.askedOf.push({ id: row.user_id, name: row.user_name });
       }
@@ -90,5 +91,13 @@ export class TaskThreadFactsDAO {
       .orderBy("created_at", "desc")
       .execute();
     return new Map(rows.flatMap((row) => (row.merged_by ? [[row.ticket_id, row.merged_by]] : [])));
+  }
+
+  async completions(ticketIds: string[]): Promise<Map<string, { at: Date; kind: "task_done" | "pull_request_merged" }>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db.selectFrom("task_activity").distinctOn("ticket_id").select(["ticket_id", "kind", "created_at"])
+      .where("ticket_id", "in", ticketIds).where("kind", "in", ["task_done", "pull_request_merged"])
+      .orderBy("ticket_id").orderBy("created_at", "desc").execute();
+    return new Map(rows.flatMap((row) => row.kind === "task_done" || row.kind === "pull_request_merged" ? [[row.ticket_id, { at: row.created_at, kind: row.kind }]] : []));
   }
 }

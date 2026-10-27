@@ -1,12 +1,14 @@
 import { FunLoading } from '@/components/fun-loading'
 import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
+import { Link } from '@/components/link'
 import { Select } from '@/components/select'
 import { getOverview } from '@/service/api/home-api'
 import { useApiRefresh } from '@/hooks/useApiRefresh'
 import type { OverviewData, OverviewGroup } from '@viberglass/types'
 import { useEffect, useState } from 'react'
-import { overviewMetrics } from './overview-metrics'
+import { DashboardMetrics } from './dashboard-metrics'
+import { CollapsedOverviewSection } from './collapsed-overview-section'
 import { OverviewOutcomes } from './overview-outcomes'
 import { OverviewSection } from './overview-section'
 
@@ -24,7 +26,7 @@ const LISTS: Array<{
   {
     key: 'needsAttention',
     title: 'Needs attention',
-    empty: 'Nothing is failed, paused, asking, or waiting long.',
+    empty: 'Nothing is failed or asking a question.',
     badged: true,
   },
   {
@@ -59,6 +61,7 @@ export function OverviewPage() {
         .then((data) => {
           if (cancelled) return
           setOverview(data)
+          setFailed(false)
           // The filter lists every space with work, so keep the unfiltered list.
           if (!space) setSpaces(data.spaces)
         })
@@ -77,7 +80,6 @@ export function OverviewPage() {
     <>
       <PageMeta title="Overview" />
       <PageHeader
-        eyebrow="Overview"
         title="Work across your spaces"
         description="Progress, blockers, and completed outcomes."
         actions={
@@ -104,22 +106,29 @@ export function OverviewPage() {
       )}
       {overview && (
         <>
-          <dl aria-label="Totals" className="mb-6 grid grid-cols-3 gap-4 max-sm:gap-1.5">
-            {overviewMetrics(overview).map((metric) => (
-              <div
-                key={metric.title}
-                className="rounded-lg border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-5 max-sm:p-3"
-              >
-                <dt className="text-xs text-[var(--gray-10)]">{metric.title}</dt>
-                <dd className="my-1 text-[29px] font-semibold text-[var(--gray-12)] max-sm:text-2xl">{metric.value}</dd>
-                <dd className="text-xs text-[var(--gray-10)]">{metric.detail}</dd>
-              </div>
-            ))}
-          </dl>
-          {LISTS.map(({ key: group, ...list }) => (
-            <OverviewSection key={group} id={`overview-${group}`} {...list} tasks={overview[group]} />
-          ))}
-          <OverviewOutcomes tasks={overview.doneThisWeek} />
+          <DashboardMetrics overview={overview} />
+          <div className="grid gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+            <div>
+              <OverviewSection id="overview-needsAttention" title="Needs attention" empty="Nothing is failed or asking a question." badged tasks={overview.needsAttention} />
+              {!space && spaces.length > 0 && (
+                <section aria-labelledby="overview-spaces" className="mb-8">
+                  <h2 id="overview-spaces" className="mb-3 text-base font-semibold">Spaces with work</h2>
+                  <div className="divide-y divide-[var(--gray-5)] border-y border-[var(--gray-5)]">
+                    {spaces.map((entry) => (
+                      <Link key={entry.slug} href={`/spaces/${entry.slug}`} className="flex flex-wrap items-center justify-between gap-3 py-4 hover:bg-[var(--gray-2)]">
+                        <span className="font-medium">{entry.name}</span>
+                        <span className="text-xs text-[var(--gray-10)]">{entry.liveNow} working · {entry.waiting} waiting · {entry.needsAttention} need attention</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+              {LISTS.filter(({ key }) => key !== 'needsAttention').map(({ key: group, title, empty }) => (
+                <CollapsedOverviewSection key={group} id={`overview-${group}`} title={title} empty={empty} tasks={overview[group]} />
+              ))}
+            </div>
+            <OverviewOutcomes tasks={overview.doneThisWeek} />
+          </div>
         </>
       )}
     </>

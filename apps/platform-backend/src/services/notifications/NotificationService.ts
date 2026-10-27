@@ -7,6 +7,7 @@ import { EmailChannel } from "./EmailChannel";
 import type { NotificationChannel } from "./NotificationChannel";
 import { resolveNotifications } from "./resolveNotifications";
 import { ChatDmChannel } from "./ChatDmChannel";
+import { TaskAttentionDAO } from "../../persistence/ticketing/TaskAttentionDAO";
 
 const logger = createChildLogger({ service: "NotificationService" });
 
@@ -23,6 +24,7 @@ interface Dependencies {
   tasks: Pick<TicketDAO, "getSummary">;
   channels: NotificationChannel[];
   frontendUrl: string | undefined;
+  attention: Pick<TaskAttentionDAO, "defersQuestion">;
 }
 
 /**
@@ -39,6 +41,7 @@ export class NotificationService {
       tasks: new TicketDAO(),
       channels: [new ChatDmChannel(), new EmailChannel()],
       frontendUrl: process.env.PLATFORM_FRONTEND_URL,
+      attention: new TaskAttentionDAO(),
       ...deps,
     };
   }
@@ -59,6 +62,7 @@ export class NotificationService {
     const link = base && task ? `${base}/spaces/${task.spaceSlug}/tasks/${task.key}` : null;
 
     for (const recipient of recipients) {
+      if (recipient.kind === "question_reminder" && typeof activity.payload.questionId === "string" && await this.deps.attention.defersQuestion(recipient.userId, activity.ticketId, activity.payload.questionId)) continue;
       const notification = {
         recipientId: recipient.userId,
         kind: recipient.kind,

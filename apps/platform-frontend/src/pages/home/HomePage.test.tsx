@@ -11,7 +11,8 @@ jest.mock('@/context/auth-context', () => ({
 }))
 jest.mock('@/pages/setup/useSetupRedirect', () => ({ useSetupRedirect: () => undefined }))
 const mockHome = jest.fn()
-jest.mock('@/service/api/home-api', () => ({ getHome: () => mockHome() }))
+const mockAttention = jest.fn()
+jest.mock('@/service/api/home-api', () => ({ getHome: () => mockHome(), updateAttention: (...args: unknown[]) => mockAttention(...args) }))
 const mockDone = jest.fn()
 jest.mock('@/service/api/discussion-api', () => ({ markMentionsDone: (...args: unknown[]) => mockDone(...args) }))
 jest.mock('sonner', () => ({ toast: { error: jest.fn() } }))
@@ -152,6 +153,21 @@ describe('HomePage', () => {
       'href',
       '/spaces/web/tasks/new'
     )
+  })
+
+  it('acknowledges a request while keeping its task open', async () => {
+    const question = thread('4', {
+      situation: { state: 'question', label: 'Question for Maria', waitingOn: { kind: 'people', people: [{ id: 'me', name: 'Maria' }] }, since: 't', yourMove: true },
+      questionText: 'Which workspace should be connected?',
+      attention: { source: 'question|1', status: 'new', reason: null, remindAt: null, questionIds: ['q-1'] },
+    })
+    mockHome.mockResolvedValue({ needsYou: [question], threads: [], waiting: [], later: [], newCount: 1 })
+    mockAttention.mockResolvedValue(undefined)
+    renderHome()
+    const row = await screen.findByRole('listitem', { name: 'Task 4' })
+    expect(within(row).getByText('Which workspace should be connected?')).toBeInTheDocument()
+    await userEvent.click(within(row).getByRole('button', { name: 'Keep in Now' }))
+    expect(mockAttention).toHaveBeenCalledWith('4', { source: 'question|1', mode: 'acknowledged', reason: '', remindAt: undefined })
   })
 
   it('sends viewers to Overview', async () => {

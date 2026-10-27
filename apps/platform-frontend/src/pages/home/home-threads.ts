@@ -35,11 +35,14 @@ export function turnLine(situation: TaskSituation): string | null {
 
 /** Whether the agent is what needs you: it asked, or it finished something for you to review. */
 export function agentNeedsYou(thread: HomeThread): boolean {
+  if (thread.attention?.kind === 'mention') return thread.situation.state === 'artifact_ready' && !thread.lastMessage
   return thread.situation.state === 'question' || (thread.situation.state === 'artifact_ready' && thread.mentionsYou)
 }
 
 /** Why a thread needs you, as its row's badge: the agent asked, something is ready for review, someone mentioned you, or it's your move. */
 export function needsYouReason(thread: HomeThread): string {
+  if (thread.attention?.kind === 'mention') return agentNeedsYou(thread) ? 'Ready for your review' : thread.lastMessage?.author ? `${thread.lastMessage.author.name.split(' ')[0]} mentioned you` : 'You were mentioned'
+  if (thread.attention?.kind === 'failure') return thread.situation.label
   if (thread.situation.state === 'question') return 'Agent asked you'
   // Nobody wrote after the artifact, so the mention is the agent's own, asking for review.
   if (thread.situation.state === 'artifact_ready' && thread.mentionsYou) return 'Ready for your review'

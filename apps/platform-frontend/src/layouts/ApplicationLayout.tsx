@@ -1,6 +1,6 @@
 import { DemoWorkspaceBanner } from '@/components/demo-workspace-banner'
 import { Dropdown, DropdownButton } from '@/components/dropdown'
-import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '@/components/navbar'
+import { Navbar, NavbarItem, NavbarSection } from '@/components/navbar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
@@ -68,7 +68,6 @@ export function ApplicationLayout() {
         navbar={
           <Navbar>
             <SpaceSwitcher current={currentSpace} spaces={spaces} canCreate={isRunner(user.role)} />
-            <NavbarSpacer />
             <NavbarSection>
               <Dropdown>
                 <DropdownButton as={NavbarItem} aria-label="Account">

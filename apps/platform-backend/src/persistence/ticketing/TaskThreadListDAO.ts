@@ -65,7 +65,7 @@ function toRow(row: {
 /** The task lists Home and Overview start from. */
 export class TaskThreadListDAO {
   /** Every task someone is on, in any role, in spaces they can see, latest first. */
-  async listFor(userId: string, projectIds: string[] | null, limit = 200): Promise<Array<ThreadTaskRow & { roles: TaskParticipantRole[] }>> {
+  async listFor(userId: string, projectIds: string[] | null): Promise<Array<ThreadTaskRow & { roles: TaskParticipantRole[] }>> {
     if (projectIds && projectIds.length === 0) return [];
     const rows = await tasksInSpaces(projectIds)
       .innerJoin("task_participants as tp", "tp.ticket_id", "t.id")
@@ -73,19 +73,17 @@ export class TaskThreadListDAO {
       .where("tp.user_id", "=", userId)
       .groupBy([...GROUPED_COLUMNS])
       .orderBy("t.updated_at", "desc")
-      .limit(limit)
       .execute();
     return rows.map((row) => ({ ...toRow(row), roles: row.roles.filter(isTaskParticipantRole) }));
   }
 
   /** Open tasks, and those done since `doneSince`, in spaces someone can see. */
-  async listCurrent(projectIds: string[] | null, doneSince: Date, limit = 500): Promise<ThreadTaskRow[]> {
+  async listCurrent(projectIds: string[] | null, doneSince: Date): Promise<ThreadTaskRow[]> {
     if (projectIds && projectIds.length === 0) return [];
     const rows = await tasksInSpaces(projectIds)
       .select([...TASK_COLUMNS])
       .where((eb) => eb.or([eb("t.ticket_status", "!=", "resolved"), eb("t.updated_at", ">=", doneSince)]))
       .orderBy("t.updated_at", "desc")
-      .limit(limit)
       .execute();
     return rows.map(toRow);
   }

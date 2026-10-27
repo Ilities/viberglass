@@ -13,6 +13,13 @@ export async function getHome(): Promise<HomeData> {
   return read(await apiFetch(`${API_BASE_URL}/api/home`), 'Failed to load your tasks')
 }
 
+export async function updateAttention(taskId: string, data: { source: string; mode: 'acknowledged' | 'waiting' | 'later' | 'clear' | 'handled'; reason?: string; remindAt?: string }): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/home/attention/${encodeURIComponent(taskId)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to update the request')
+}
+
 export async function getNeedsYouCount(): Promise<number> {
   return (await read<{ needsYou: number }>(await apiFetch(`${API_BASE_URL}/api/home/count`), 'Failed to load your tasks')).needsYou
 }

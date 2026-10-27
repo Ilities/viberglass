@@ -562,6 +562,17 @@ export interface TaskReadsTable {
   last_read_at: Generated<Timestamp>;
 }
 
+export interface TaskAttentionTable {
+  ticket_id: string;
+  user_id: string;
+  source: string;
+  mode: "acknowledged" | "waiting" | "later";
+  reason: string | null;
+  remind_at: Timestamp | null;
+  question_ids: string[];
+  updated_at: Generated<Timestamp>;
+}
+
 export interface TaskActivityTable {
   id: Generated<string>;
   ticket_id: string;
@@ -944,6 +955,7 @@ export interface Database {
   task_issue_links: TaskIssueLinksTable;
   tracker_issue_rules: TrackerIssueRulesTable;
   task_reads: TaskReadsTable;
+  task_attention: TaskAttentionTable;
   task_summaries: TaskSummariesTable;
   task_activity: TaskActivityTable;
   audit_log: AuditLogTable;

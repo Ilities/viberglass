@@ -35,6 +35,8 @@ export interface TaskSituation {
   since: string
   /** Whether it's the move of the person who asked. */
   yourMove: boolean
+  /** A paused or failed setup needs a workspace administrator. */
+  requiresAction?: boolean
 }
 
 /** A task's output: its plan, its pull request, or in a Files space an artifact it made. */
@@ -121,7 +123,7 @@ export function taskSituation(input: TaskSituationInput, viewer: SituationViewer
   const yourMove =
     (situation.waitingOn.kind === 'people' && situation.waitingOn.people.some((person) => person.id === viewer.id)) ||
     (setupFailure && viewer.isAdmin)
-  return { ...situation, yourMove }
+  return { ...situation, yourMove, ...(setupFailure ? { requiresAction: true } : {}) }
 }
 
 function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {

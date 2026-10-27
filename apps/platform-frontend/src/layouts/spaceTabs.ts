@@ -21,7 +21,8 @@ export function spaceTabs({
 }): SpaceTab[] {
   const base = `/spaces/${slug}`
   const tabs = [
-    { label: 'Tasks', href: base },
+    { label: 'Summary', href: base },
+    { label: 'Tasks', href: `${base}/tasks` },
     ...(files
       ? [
           { label: 'Files', href: `${base}/files` },

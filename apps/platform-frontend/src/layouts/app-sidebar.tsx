@@ -37,12 +37,12 @@ function NavBadge({ count }: { count?: number }) {
   if (!count) return null
   return (
     <span
-      aria-label={`${count} need you`}
-      title="Questions and mentions waiting for you"
+      aria-label={`${count} new request${count === 1 ? '' : 's'}`}
+      title="New requests for you"
       className={clsx(
-        'rounded-full bg-[var(--accent-9)] px-1.5 text-[11px] font-semibold text-white',
+        'rounded-full bg-[var(--gray-4)] px-1.5 text-[11px] font-semibold text-[var(--gray-12)]',
         // Collapsed, the item is just its icon, so the count sits on its corner.
-        collapsed ? 'absolute top-0.5 right-1.5 text-[10px]' : 'ml-auto'
+        collapsed ? 'absolute top-0.5 right-1.5 text-[11px]' : 'ml-auto'
       )}
     >
       {count > 99 ? '99+' : count}

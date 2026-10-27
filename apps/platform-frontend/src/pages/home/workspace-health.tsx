@@ -16,7 +16,7 @@ export function WorkspaceHealth() {
   return (
     <div
       role="status"
-      className="rounded-[7px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+      className="rounded-[7px] border border-warning-300 bg-warning-50 p-4 text-sm text-warning-950 dark:border-warning-900 dark:bg-warning-950/30 dark:text-warning-100"
     >
       <p className="font-semibold">Workspace needs attention</p>
       <p className="mt-1 mb-3">No agent is running, so nobody can ask for anything yet.</p>

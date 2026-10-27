@@ -37,11 +37,14 @@ export interface DescribedTask {
   mentionsYou: boolean;
   lastMessage: HomeThread["lastMessage"];
   latestActivityAt: string;
+  /** Independent requests addressed to this viewer. */
+  attentionRequests: Array<{ source: string; kind: "question" | "mention" | "failure"; questionIds: string[]; questionText: string | null; mentionMessage?: HomeThread["lastMessage"] }>;
+  completion: { at: string; kind: "task_done" | "pull_request_merged" } | null;
 }
 
 interface Dependencies {
   turns: Pick<TaskTurnFactsDAO, "running" | "paused" | "lastFinished" | "aggregates">;
-  thread: Pick<TaskThreadFactsDAO, "latestRevisions" | "lastMessages" | "openQuestions" | "mergedBy">;
+  thread: Pick<TaskThreadFactsDAO, "latestRevisions" | "lastMessages" | "openQuestions" | "mergedBy" | "completions">;
   mentions: Pick<TaskMentionDAO, "listOpen">;
   participants: Pick<TaskParticipantDAO, "listDrivers">;
   takeovers: Pick<TaskTakeoverDAO, "listFor">;
@@ -100,7 +103,7 @@ export class TaskSituationService {
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked, backings, made] = await Promise.all([
+    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers, partsMerged, marked, backings, made, completions] = await Promise.all([
       this.deps.turns.running(ids),
       this.deps.turns.paused(ids),
       this.deps.turns.lastFinished(ids),
@@ -116,6 +119,7 @@ export class TaskSituationService {
       this.deps.marks.listFor(ids),
       this.deps.spaces.backingKinds(ids),
       this.deps.artifacts.latestForTickets(ids),
+      this.deps.thread.completions(ids),
     ]);
 
     return new Map(
@@ -167,8 +171,19 @@ export class TaskSituationService {
             : null;
         const latestActivityAt = newest(task.createdAt, message?.at, lastTurn?.at, revision?.at, codeAt, turnRunning?.since) ?? task.createdAt;
 
-        const mentionsYou = input.openMentions.some((mention) => mention.person.id === viewer.id);
-        return [task.id, { situation: taskSituation(input, viewer), mentionsYou, lastMessage, latestActivityAt: iso(latestActivityAt) }];
+        const personalMentions = (mentions.get(task.id) ?? []).filter((mention) => mention.person.id === viewer.id);
+        const mentionsYou = personalMentions.length > 0;
+        const situation = taskSituation(input, viewer);
+        const personalQuestions = (question?.requests ?? []).filter((request) => request.userId === viewer.id || (!request.userId && situation.yourMove));
+        const attentionRequests: DescribedTask["attentionRequests"] = situation.state === "done" ? [] : [
+          ...personalQuestions.map((request): DescribedTask["attentionRequests"][number] => ({ source: `question:${request.id}`, kind: "question", questionIds: [request.id], questionText: preview(request.text) })),
+          ...personalMentions.map((mention): DescribedTask["attentionRequests"][number] => ({ source: `mention:${mention.id}`, kind: "mention", questionIds: [], questionText: null, mentionMessage: mention.message ? { ...mention.message, text: preview(mention.message.text) } : null })),
+        ];
+        if (situation.yourMove && (situation.state === "failed" || (situation.state === "paused" && situation.requiresAction))) {
+          attentionRequests.push({ source: `failure:${situation.since}`, kind: "failure", questionIds: [], questionText: null });
+        }
+        const done = completions.get(task.id);
+        return [task.id, { situation, mentionsYou, lastMessage, latestActivityAt: iso(latestActivityAt), attentionRequests, completion: done ? { at: iso(done.at), kind: done.kind } : null }];
       }),
     );
   }

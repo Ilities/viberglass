@@ -5,19 +5,20 @@ const labels = (options: Partial<Parameters<typeof spaceTabs>[0]>) =>
 
 describe('spaceTabs', () => {
   it('puts the work first, then schedules, the track record, runs and settings', () => {
-    expect(labels({})).toEqual(['Tasks', 'Schedules', 'Track record', 'Runs', 'Settings'])
-    expect(labels({ files: true })).toEqual(['Tasks', 'Files', 'Artifacts', 'Schedules', 'Track record', 'Runs', 'Settings'])
+    expect(labels({})).toEqual(['Summary', 'Tasks', 'Schedules', 'Track record', 'Runs', 'Settings'])
+    expect(labels({ files: true })).toEqual(['Summary', 'Tasks', 'Files', 'Artifacts', 'Schedules', 'Track record', 'Runs', 'Settings'])
   })
 
   it('gives guests and viewers the tasks and what the space is', () => {
-    expect(labels({ runner: false, canMaintain: false })).toEqual(['Tasks', 'About'])
+    expect(labels({ runner: false, canMaintain: false })).toEqual(['Summary', 'Tasks', 'About'])
   })
 
   it('marks the page you are on, Tasks only on the space itself', () => {
     const current = (pathname: string) =>
       spaceTabs({ slug: 'web', pathname, files: false, runner: true, canMaintain: true }).find((tab) => tab.current)?.label
 
-    expect(current('/spaces/web')).toBe('Tasks')
+    expect(current('/spaces/web')).toBe('Summary')
+    expect(current('/spaces/web/tasks')).toBe('Tasks')
     expect(current('/spaces/web/settings/members')).toBe('Settings')
     expect(current('/spaces/web/runs')).toBe('Runs')
     expect(current('/spaces/web/runs-elsewhere')).toBeUndefined()

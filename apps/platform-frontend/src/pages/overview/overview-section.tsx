@@ -5,6 +5,7 @@ import { Timestamp } from '@/components/timestamp'
 import { taskPath } from '@/lib/taskPath'
 import { turnLine } from '@/pages/home/home-threads'
 import type { OverviewTask } from '@viberglass/types'
+import { useState } from 'react'
 import { attentionBadge } from './overview-metrics'
 
 interface OverviewSectionProps {
@@ -18,6 +19,8 @@ interface OverviewSectionProps {
 
 /** One of Overview's lists: each task with where it stands, whose move it is, and since when. */
 export function OverviewSection({ id, title, tasks, empty, badged = false }: OverviewSectionProps) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? tasks : tasks.slice(0, 5)
   return (
     <section aria-labelledby={id} className="mb-8">
       <SectionHeader id={id} title={title} />
@@ -25,7 +28,7 @@ export function OverviewSection({ id, title, tasks, empty, badged = false }: Ove
         <p className="text-sm text-[var(--gray-10)]">{empty}</p>
       ) : (
         <ListPanel>
-          {tasks.map((entry) => {
+          {visible.map((entry) => {
             const { task, situation } = entry
             const badge = badged ? attentionBadge(entry) : null
             return (
@@ -50,6 +53,11 @@ export function OverviewSection({ id, title, tasks, empty, badged = false }: Ove
             )
           })}
         </ListPanel>
+      )}
+      {tasks.length > 5 && (
+        <button type="button" className="mt-3 text-sm text-[var(--gray-11)] underline" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? 'Show less' : `View all ${tasks.length} tasks`}
+        </button>
       )}
     </section>
   )

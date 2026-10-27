@@ -4,7 +4,7 @@ import { fakeChatProvider } from "../../../helpers/fakeChatProvider";
 import { EmailChannel } from "../../../../services/notifications/EmailChannel";
 import type { NotificationChannel, OutgoingNotification } from "../../../../services/notifications/NotificationChannel";
 
-function service(channels: NotificationChannel[]) {
+function service(channels: NotificationChannel[], deferred = false) {
   return new NotificationService({
     participants: { list: jest.fn().mockResolvedValue([{ userId: "reviewer", name: "R", email: "r@x", role: "reviewer", addedAt: "" }]) },
     users: {
@@ -14,6 +14,7 @@ function service(channels: NotificationChannel[]) {
     tasks: { getSummary: jest.fn().mockResolvedValue({ title: "Dark mode", key: "WEB-4", spaceSlug: "web" }) },
     channels,
     frontendUrl: "https://vg.example.com/",
+    attention: { defersQuestion: jest.fn().mockResolvedValue(deferred) },
   });
 }
 
@@ -52,6 +53,15 @@ describe("NotificationService", () => {
     await service([broken, inbox]).onActivity({ ticketId: "t-1", kind: "reviewer_added", actorId: "pm", payload: { userId: "reviewer" } });
 
     expect(inbox.deliver).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses reminders for a deferred question without suppressing new questions", async () => {
+    const channel = { name: "chat", deliver: jest.fn().mockResolvedValue(undefined) };
+    const notifier = service([channel], true);
+    await notifier.onActivity({ ticketId: "t-1", kind: "question_reminded", actorId: null, payload: { userId: "reviewer", questionId: "q-1" } });
+    expect(channel.deliver).not.toHaveBeenCalled();
+    await notifier.onActivity({ ticketId: "t-1", kind: "question_asked", actorId: null, payload: { userId: "reviewer", questionId: "q-2" } });
+    expect(channel.deliver).toHaveBeenCalledTimes(1);
   });
 });
 

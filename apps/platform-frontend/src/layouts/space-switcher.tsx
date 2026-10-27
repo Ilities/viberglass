@@ -11,9 +11,9 @@ export function SpaceSwitcher({ current, spaces, canCreate }: { current?: string
   const currentName = spaces.find((space) => space.slug === current)?.name
   return (
     <Dropdown>
-      <DropdownButton as={NavbarItem}>
+      <DropdownButton as={NavbarItem} className="min-w-0 flex-1 [&>button]:w-full [&>button]:max-w-full">
         <Avatar src="/teams/viberglass.svg" />
-        <NavbarLabel>{currentName ?? 'Spaces'}</NavbarLabel>
+        <NavbarLabel className="min-w-0 flex-1" title={currentName ?? 'Spaces'}>{currentName ?? 'Spaces'}</NavbarLabel>
         <NavIcon>
           <ChevronDownIcon />
         </NavIcon>

@@ -19,6 +19,7 @@ function setup() {
       lastMessages: jest.fn().mockResolvedValue(new Map()),
       openQuestions: jest.fn().mockResolvedValue(new Map()),
       mergedBy: jest.fn().mockResolvedValue(new Map()),
+      completions: jest.fn().mockResolvedValue(new Map()),
     },
     mentions: { listOpen: jest.fn().mockResolvedValue(new Map()) },
     participants: { listDrivers: jest.fn().mockResolvedValue(new Map([["t-1", OLLI]])) },
@@ -146,5 +147,18 @@ describe("TaskSituationService", () => {
     expect(deps.turns.running).toHaveBeenCalledWith(["t-1", "t-2"]);
     expect(deps.artifacts.latestForTickets).toHaveBeenCalledTimes(1);
     expect(deps.artifacts.latestForTickets).toHaveBeenCalledWith(["t-1", "t-2"]);
+  });
+
+  it("keeps independently addressed questions and mentions separate, and clears them when the task is done", async () => {
+    const { deps, service } = setup();
+    deps.thread.openQuestions.mockResolvedValue(new Map([["t-1", { since: at("09:00"), askedOf: [TOMI], requests: [
+      { id: "q-1", userId: "tomi", text: "First question?" },
+      { id: "q-2", userId: "tomi", text: "Second question?" },
+      { id: "q-3", userId: "owner", text: "Someone else's question?" },
+    ] }]]));
+    deps.mentions.listOpen.mockResolvedValue(new Map([["t-1", [{ id: "m-1", person: TOMI, at: at("10:00").toISOString() }]]]));
+    const result = (await service.describe([TASK], viewer("tomi"))).get("t-1");
+    expect(result?.attentionRequests.map((request) => request.source)).toEqual(["question:q-1", "question:q-2", "mention:m-1"]);
+    expect((await service.describe([{ ...TASK, status: "resolved" }], viewer("tomi"))).get("t-1")?.attentionRequests).toEqual([]);
   });
 });

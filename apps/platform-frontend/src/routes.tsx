@@ -27,6 +27,7 @@ import { NewClankerPage } from '@/pages/clankers/NewClankerPage'
 
 // Space pages
 import { SpacePage } from '@/pages/project/space/SpacePage'
+import { SpaceSummary } from '@/pages/project/space/SpaceSummary'
 
 // Tickets pages
 import { CreateTicketPage } from '@/pages/project/tickets/CreateTicketPage'
@@ -113,7 +114,8 @@ export function AppRoutes() {
 
         {/* A space's own pages, under its header and tabs */}
         <Route element={<SpaceSectionLayout />}>
-          <Route path="/spaces/:project" element={<SpacePage />} />
+          <Route path="/spaces/:project" element={<SpaceSummary />} />
+          <Route path="/spaces/:project/tasks" element={<SpacePage />} />
           <Route path="/spaces/:project/files" element={<FilesPage />} />
           <Route path="/spaces/:project/artifacts" element={<ArtifactsPage />} />
           <Route element={<RunnersOnly />}>
