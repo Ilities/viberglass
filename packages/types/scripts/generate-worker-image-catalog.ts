@@ -23,6 +23,7 @@ import {
   type AgentSettingField,
   type HarnessConfigEditor,
 } from "../src/agentSettings";
+import { assertSettingRenderable } from "./settingFormCheck";
 import { readDefaultAgent, readPlugins, WORKSPACE_ROOT } from "../../../scripts/plugins/pluginConfig.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -150,12 +151,13 @@ function checkedSettings(packageName: string, raw: unknown): AgentSettingField[]
     throw new Error(`Plugin ${packageName} has a malformed setting: each needs a key, a label, a type of string or select, and env.`);
   }
   const keys = new Set<string>();
-  for (const setting of settings) {
+  settings.forEach((setting, index) => {
     if (RESERVED_SETTING_KEYS.has(setting.key) || keys.has(setting.key)) {
       throw new Error(`Plugin ${packageName} can't use the setting key '${setting.key}': it's reserved or used twice.`);
     }
     keys.add(setting.key);
-  }
+    assertSettingRenderable(packageName, setting, raw[index]);
+  });
   return settings;
 }
 
