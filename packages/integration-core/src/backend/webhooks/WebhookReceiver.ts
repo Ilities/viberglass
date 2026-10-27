@@ -1,4 +1,4 @@
-import type { InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
+import type { AuthCredentials, InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
 
 /** What routing and the delivery log need from an event, whatever sent it. */
 export interface WebhookEventMetadata {
@@ -33,6 +33,8 @@ export type InboundWebhookAction =
 export interface WebhookReadSettings {
   /** The account whose mention asks the agent, and whose comments are never read back. */
   botUsername: string | null
+  /** The connection's credentials, for a read that fetches details from the tracker's API. */
+  credentials?: AuthCredentials
 }
 
 /**
@@ -52,7 +54,24 @@ export interface WebhookReceiver {
   verifySignature(rawBody: Buffer, signature: string, secret: string): boolean
   /** Throws InvalidWebhookPayloadError when the sender should fix its request. */
   parseEvent(payload: unknown, headers: Record<string, string>): InboundWebhookEvent
+  /**
+   * When a delivery carries several events at once, parse them all; the
+   * platform processes each as its own delivery. Absent means one event.
+   */
+  parseEvents?(payload: unknown, headers: Record<string, string>): InboundWebhookEvent[]
   /** Headers that let a stored delivery be parsed again when it's retried. */
   retryHeaders(delivery: { deliveryId: string; eventType: string }): Record<string, string>
   read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction
+  /**
+   * When a read needs the tracker's API for details the delivery omits, do it
+   * here; the platform awaits it and passes the connection's credentials in
+   * settings. Absent means the synchronous read is enough.
+   */
+  readAsync?(event: InboundWebhookEvent, settings: WebhookReadSettings): Promise<InboundWebhookAction>
+  /**
+   * When the sender opens a webhook by a handshake the target must answer,
+   * recognise it from the headers and return the secret to echo back and keep
+   * for verifying later deliveries. Absent means there is no handshake.
+   */
+  handshake?(headers: Record<string, string>): { secret: string } | undefined
 }

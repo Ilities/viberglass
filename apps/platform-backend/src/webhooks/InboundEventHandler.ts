@@ -1,4 +1,5 @@
-import type { InboundWebhookEvent, WebhookReceiver } from "@viberglass/integration-core";
+import type { InboundWebhookEvent, WebhookReadSettings, WebhookReceiver } from "@viberglass/integration-core";
+import type { AuthCredentials } from "@viberglass/types";
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 import type { TrackerContext, TrackerIssueInbound } from "../services/trackers/TrackerIssueInbound";
 import type { WebhookTaskCreator } from "./WebhookTaskCreator";
@@ -31,11 +32,16 @@ export class InboundEventHandler {
   constructor(
     private readonly issues: Pick<TrackerIssueInbound, "issue" | "commented">,
     private readonly tasks: Pick<WebhookTaskCreator, "create">,
+    /** Resolves the connection's credentials, for a read that fetches details from the tracker's API. */
+    private readonly connectionCredentials?: (integrationId: string) => Promise<AuthCredentials | null>,
   ) {}
 
   async handle(context: InboundEventContext): Promise<EventProcessingResult> {
     const { event, config, receiver } = context;
-    const action = receiver.read(event, { botUsername: config.botUsername });
+    const settings = await this.readSettings(config);
+    const action = receiver.readAsync
+      ? await receiver.readAsync(event, settings)
+      : receiver.read(event, settings);
     switch (action.kind) {
       case "ignored":
         return { ignoredReason: action.reason };
@@ -50,6 +56,15 @@ export class InboundEventHandler {
         return tracker ? this.issues.commented(tracker, action.comment) : NO_CONNECTION;
       }
     }
+  }
+
+  private async readSettings(config: WebhookConfig): Promise<WebhookReadSettings> {
+    const settings: WebhookReadSettings = { botUsername: config.botUsername };
+    if (config.integrationId && this.connectionCredentials) {
+      const credentials = await this.connectionCredentials(config.integrationId);
+      if (credentials) settings.credentials = credentials;
+    }
+    return settings;
   }
 }
 

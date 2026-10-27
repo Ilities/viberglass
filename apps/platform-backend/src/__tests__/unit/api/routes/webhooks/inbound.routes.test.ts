@@ -53,6 +53,18 @@ describe("inbound webhook route", () => {
     expect(response.body).toEqual(body);
   });
 
+  it("echoes the secret back when the service completes a handshake", async () => {
+    const processWebhook = jest.fn().mockResolvedValue({ status: "handshake", secret: "shhh" });
+
+    const response = await request(createApp(processWebhook))
+      .post("/api/webhooks/asana/cfg-1")
+      .set("x-hook-secret", "shhh")
+      .expect(200);
+
+    expect(response.headers["x-hook-secret"]).toBe("shhh");
+    expect(response.body).toEqual({ message: "Webhook handshake complete" });
+  });
+
   it("answers 500 when processing throws", async () => {
     const processWebhook = jest.fn().mockRejectedValue(new Error("boom"));
 
