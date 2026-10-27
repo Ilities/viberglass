@@ -67,6 +67,36 @@ export function readSettingFields(value: unknown): AgentSettingField[] {
   return Array.isArray(value) ? value.flatMap(readSettingField) : []
 }
 
+// Keys the agent config already uses for something else.
+const RESERVED_SETTING_KEYS = new Set(['type', 'signIn'])
+
+/**
+ * A plugin's settings, validated for the runner form; throws naming the plugin and the setting key.
+ * A `string` renders as a plain text input, so it ignores `options`/`allowCustom`; a `select` with no
+ * options renders an empty dropdown. Both are mistakes a plugin author can't see on the form.
+ */
+export function checkedSettings(packageName: string, raw: unknown): AgentSettingField[] {
+  if (raw === undefined) return []
+  const settings = readSettingFields(raw)
+  if (!Array.isArray(raw) || settings.length !== raw.length) {
+    throw new Error(`Plugin ${packageName} has a malformed setting: each needs a key, a label, a type of string or select, and env.`)
+  }
+  const keys = new Set<string>()
+  for (const setting of settings) {
+    if (RESERVED_SETTING_KEYS.has(setting.key) || keys.has(setting.key)) {
+      throw new Error(`Plugin ${packageName} can't use the setting key '${setting.key}': it's reserved or used twice.`)
+    }
+    keys.add(setting.key)
+    if (setting.type === 'string' && (setting.options !== undefined || setting.allowCustom !== undefined)) {
+      throw new Error(`Plugin ${packageName} can't render the setting '${setting.key}': a string setting ignores options and allowCustom.`)
+    }
+    if (setting.type === 'select' && (setting.options === undefined || setting.options.length === 0)) {
+      throw new Error(`Plugin ${packageName} can't render the setting '${setting.key}': a select needs at least one option.`)
+    }
+  }
+  return settings
+}
+
 export function readHarnessConfigEditor(value: unknown): HarnessConfigEditor | null {
   if (!isObjectRecord(value)) return null
   const { fileType, label, envReferences, template } = value
