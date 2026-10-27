@@ -27,9 +27,9 @@ export class WebhookService {
   constructor(
     private receivers: WebhookReceivers,
     private deduplication: Pick<DeduplicationService, "shouldProcessDelivery" | "getFailedDeliveries">,
-    private secretService: Pick<WebhookSecretService, "getSecret">,
+    private secretService: Pick<WebhookSecretService, "getSecret" | "encryptSecret">,
     private handler: Pick<InboundEventHandler, "handle">,
-    private configResolver: Pick<WebhookConfigResolver, "resolveInboundConfig">,
+    private configResolver: Pick<WebhookConfigResolver, "resolveInboundConfig" | "updateConfig">,
     private deliveryLifecycle: InboundWebhookDeliveryLifecycle,
     private retryService: Pick<WebhookRetryService, "retryDelivery">,
     private config: WebhookServiceConfig = {},
@@ -50,9 +50,16 @@ export class WebhookService {
       return { status: "not_found", reason: "No webhook with this address" };
     }
 
-    let event: InboundWebhookEvent;
+    const handshakeSecret = receiver.handshakeOf?.(normalizedHeaders);
+    if (handshakeSecret !== undefined) {
+      return this.completeHandshake(dbConfig, handshakeSecret);
+    }
+
+    let events: InboundWebhookEvent[];
     try {
-      event = receiver.parseEvent(payload, normalizedHeaders);
+      events = receiver.parseEvents
+        ? receiver.parseEvents(payload, normalizedHeaders)
+        : [receiver.parseEvent(payload, normalizedHeaders)];
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Unknown error";
       return error instanceof InvalidWebhookPayloadError
@@ -62,94 +69,98 @@ export class WebhookService {
 
     if (!dbConfig.active) {
       const reason = `Webhook configuration '${dbConfig.id}' is inactive`;
-      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
-      return {
-        status: "ignored",
-        reason,
-      };
+      for (const event of events) {
+        await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
+      }
+      return { status: "ignored", reason };
     }
 
-    if (!isEventAllowed(event, dbConfig)) {
-      const allowedCandidates = getAllowedEventCandidates(event).join(", ");
-      const reason = `The webhook isn't set to receive '${allowedCandidates}'`;
-      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
-      return {
-        status: "ignored",
-        reason,
-      };
+    if (events.length === 0) {
+      return { status: "ignored", reason: "No events in this delivery" };
     }
 
-    const signatureResult = await verifySignature({
-      secretService: this.secretService,
-      receiver,
-      config: dbConfig,
-      signature: receiver.signatureOf(normalizedHeaders),
-      rawBody,
-      tenantId,
-    });
-    if (!signatureResult.valid) {
-      const reason = `Rejected: ${signatureResult.reason ?? "Invalid signature"}`;
-      await this.deliveryLifecycle.recordRejected(event, dbConfig, reason);
-      return {
-        status: "rejected",
-        reason: signatureResult.reason ?? "Invalid signature",
-      };
-    }
+    let signature: { valid: boolean; reason?: string } | undefined;
+    let result: WebhookProcessingResult | undefined;
+    for (const event of events) {
+      if (!isEventAllowed(event, dbConfig)) {
+        const allowedCandidates = getAllowedEventCandidates(event).join(", ");
+        const reason = `The webhook isn't set to receive '${allowedCandidates}'`;
+        await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
+        result = { status: "ignored", reason };
+        continue;
+      }
 
-    const { shouldProcess, existingId } =
-      await this.deduplication.shouldProcessDelivery(
+      signature ??= await verifySignature({
+        secretService: this.secretService,
+        receiver,
+        config: dbConfig,
+        signature: receiver.signatureOf(normalizedHeaders),
+        rawBody,
+        tenantId,
+      });
+      if (!signature.valid) {
+        const reason = `Rejected: ${signature.reason ?? "Invalid signature"}`;
+        await this.deliveryLifecycle.recordRejected(event, dbConfig, reason);
+        result = { status: "rejected", reason: signature.reason ?? "Invalid signature" };
+        continue;
+      }
+
+      const { shouldProcess, existingId } = await this.deduplication.shouldProcessDelivery(
         event.deduplicationId,
         dbConfig.id,
       );
-    if (!shouldProcess) {
-      return {
-        status: "duplicate",
-        reason: "Delivery already processed",
-        existingId,
-      };
-    }
-
-    const delivery = await this.deliveryLifecycle.recordStart({
-      provider: dbConfig.provider,
-      webhookConfigId: dbConfig.id,
-      deliveryId: event.deduplicationId,
-      eventType: event.eventType,
-      payload,
-    });
-
-    try {
-      const result = await this.handler.handle({
-        event,
-        config: dbConfig,
-        receiver,
-        tenantId,
-        defaultTenantId: this.config.defaultTenantId,
-      });
-      await this.deliveryLifecycle.recordSuccess(delivery.id, result);
-
-      if (result.ignoredReason) {
-        return {
-          status: "ignored",
-          reason: result.ignoredReason,
-        };
+      if (!shouldProcess) {
+        result = { status: "duplicate", reason: "Delivery already processed", existingId };
+        continue;
       }
 
-      return {
-        status: "processed",
-        ticketId: result.ticketId,
-        jobId: result.jobId,
-      };
-    } catch (error) {
-      await this.deliveryLifecycle.recordFailure(
-        delivery.id,
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      const delivery = await this.deliveryLifecycle.recordStart({
+        provider: dbConfig.provider,
+        webhookConfigId: dbConfig.id,
+        deliveryId: event.deduplicationId,
+        eventType: event.eventType,
+        payload,
+      });
 
-      return {
-        status: "failed",
-        reason: error instanceof Error ? error.message : "Unknown error",
-      };
+      try {
+        const handled = await this.handler.handle({
+          event,
+          config: dbConfig,
+          receiver,
+          tenantId,
+          defaultTenantId: this.config.defaultTenantId,
+        });
+        await this.deliveryLifecycle.recordSuccess(delivery.id, handled);
+
+        if (handled.ignoredReason) {
+          result = { status: "ignored", reason: handled.ignoredReason };
+          continue;
+        }
+
+        result = { status: "processed", ticketId: handled.ticketId, jobId: handled.jobId };
+      } catch (error) {
+        await this.deliveryLifecycle.recordFailure(
+          delivery.id,
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        result = { status: "failed", reason: error instanceof Error ? error.message : "Unknown error" };
+      }
     }
+
+    return result ?? { status: "ignored", reason: "No events in this delivery" };
+  }
+
+  /** Stores a setup handshake's secret as the webhook's signing secret, to be echoed back. */
+  private async completeHandshake(
+    config: WebhookConfig,
+    secret: string,
+  ): Promise<WebhookProcessingResult> {
+    const encrypted = await this.secretService.encryptSecret(secret);
+    await this.configResolver.updateConfig(config.id, {
+      secretLocation: "database",
+      webhookSecretEncrypted: encrypted,
+    });
+    return { status: "handshake", secret };
   }
 
   async getFailedDeliveries(
