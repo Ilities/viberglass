@@ -255,6 +255,33 @@ describe("LambdaProvisioningHandler", () => {
     }
   });
 
+  it("gives a managed function the bucket for conversation state, and leaves a prebuilt one's environment alone", async () => {
+    const { client, getFunction, updateFunctionConfiguration } = buildLambdaClient();
+    getFunction.mockResolvedValue({ Configuration: { FunctionName: "fn", FunctionArn: "arn:fn" }, Code: { ImageUri: "image" } });
+    delete process.env.S3_BUCKET;
+    process.env.AWS_S3_BUCKET = "uploads";
+    const handler = new LambdaProvisioningHandler(client);
+
+    await handler.provision(buildClanker("lambda", {
+      version: 1,
+      strategy: { type: "lambda", imageUri: "image", environment: { LOG_LEVEL: "debug" } },
+      agent: { type: "claude-code" },
+    }));
+    expect(updateFunctionConfiguration).toHaveBeenLastCalledWith(expect.objectContaining({
+      Environment: { Variables: { AWS_S3_BUCKET: "uploads", LOG_LEVEL: "debug" } },
+    }));
+
+    updateFunctionConfiguration.mockClear();
+    await handler.provision(buildClanker("lambda", {
+      version: 1,
+      strategy: { type: "lambda", provisioningMode: "prebuilt", functionName: "fn", imageUri: "image" },
+      agent: { type: "claude-code" },
+    }));
+    for (const [update] of updateFunctionConfiguration.mock.calls) {
+      expect(update).not.toHaveProperty("Environment");
+    }
+  });
+
   it("turns off Lambda's own retries for the functions it manages, and goes on when that's refused", async () => {
     const { client, getFunction, putFunctionEventInvokeConfig } = buildLambdaClient();
     getFunction.mockResolvedValue({ Configuration: { FunctionName: "fn", FunctionArn: "arn:fn" }, Code: { ImageUri: "image" } });

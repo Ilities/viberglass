@@ -3,19 +3,19 @@
  *
  * Each CLI agent persists its conversation state to a well-known directory
  * inside $HOME (e.g. ~/.claude/, ~/.codex/). This helper packages those
- * directories into a tar.gz archive and stores it either on S3 (production)
- * or the local filesystem (Docker/local dev).
+ * directories into a tar.gz archive and stores it in object storage, or on the
+ * local filesystem for Docker/local dev workers that run on one host.
  *
  * - `captureAndStore()` / `retrieveAndRestore()` are the high-level API.
  * - `captureConversationState()` / `restoreConversationState()` are internal
  *   helpers that deal with tar.gz creation/extraction only.
  */
 
-import { objectStorageBucket, objectStorageClientConfig } from "@viberglass/types";
+import { objectStorageBucket } from "@viberglass/types";
 import * as fs from "fs";
 import * as path from "path";
 import { execFile } from "child_process";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3WorkerStorage } from "../infrastructure/S3WorkerStorage";
 import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { Logger } from "winston";
 import { agentRegistry } from "../../agents/registerPlugins";
@@ -155,83 +155,6 @@ async function restoreConversationState(
 }
 
 // ---------------------------------------------------------------------------
-// S3 helpers
-// ---------------------------------------------------------------------------
-
-async function uploadToS3(
-  archiveBuffer: Buffer,
-  sessionId: string,
-  logger: Logger,
-): Promise<string | undefined> {
-  const bucketName = objectStorageBucket(process.env);
-  if (!bucketName) {
-    logger.warn("S3_BUCKET / AWS_S3_BUCKET not configured, skipping S3 upload");
-    return undefined;
-  }
-
-  try {
-    const s3Client = new S3Client(objectStorageClientConfig(process.env));
-
-    const key = `conversation-state/${sessionId}/${Date.now()}.tar.gz`;
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: bucketName,
-        Key: key,
-        Body: archiveBuffer,
-        ContentType: "application/gzip",
-      }),
-    );
-
-    const s3Url = `s3://${bucketName}/${key}`;
-    logger.info("Conversation state archive uploaded to S3", {
-      sessionId,
-      s3Key: key,
-      sizeBytes: archiveBuffer.length,
-    });
-    return s3Url;
-  } catch (err) {
-    logger.warn("Failed to upload conversation state to S3", {
-      sessionId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return undefined;
-  }
-}
-
-async function downloadFromS3(
-  s3Url: string,
-  logger: Logger,
-): Promise<Buffer | undefined> {
-  try {
-    const match = s3Url.match(/^s3:\/\/([^/]+)\/(.+)$/);
-    if (!match) {
-      logger.warn("Invalid S3 URL format for conversation state", { s3Url });
-      return undefined;
-    }
-
-    const [, bucket, key] = match;
-    const s3Client = new S3Client(objectStorageClientConfig(process.env));
-
-    const response = await s3Client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
-    );
-
-    if (!response.Body) {
-      return undefined;
-    }
-
-    const bytes = await response.Body.transformToByteArray();
-    return Buffer.from(bytes);
-  } catch (err) {
-    logger.warn("Failed to download conversation state from S3", {
-      s3Url,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return undefined;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Local filesystem helpers
 // ---------------------------------------------------------------------------
 
@@ -282,10 +205,11 @@ function readFromLocalStorage(
 /**
  * Captures the agent's conversation state and stores it.
  *
- * If `AWS_S3_BUCKET` is set → uploads to S3 → returns `s3://` URL.
- * Otherwise → writes to local filesystem → returns `file://` URL.
+ * With `storage` (remote workers) → stores there, and throws if it can't.
+ * Otherwise, if a bucket is configured → uploads to S3 → returns `s3://` URL.
+ * Otherwise, or if that upload fails → writes to local filesystem → returns `file://` URL.
  *
- * Returns `undefined` if there was nothing to archive or storage failed.
+ * Returns `undefined` if there was nothing to archive.
  */
 export async function captureAndStore(
   agentName: string,
@@ -298,16 +222,25 @@ export async function captureAndStore(
   if (!archiveBuffer) {
     return undefined;
   }
-  if (storage) return storage.upload(archiveBuffer);
-
-  // Prefer S3 when configured (production)
-  if (objectStorageBucket(process.env)) {
-    const s3Url = await uploadToS3(archiveBuffer, sessionId, logger);
-    if (s3Url) return s3Url;
-    // Fall through to local if S3 upload fails
+  if (storage) {
+    const url = await storage.upload(archiveBuffer, sessionId);
+    logger.info("Conversation state archive stored", { sessionId, url, sizeBytes: archiveBuffer.length });
+    return url;
   }
 
-  // Local filesystem fallback
+  if (objectStorageBucket(process.env)) {
+    try {
+      const url = await new S3WorkerStorage().upload(archiveBuffer, sessionId);
+      logger.info("Conversation state archive stored", { sessionId, url, sizeBytes: archiveBuffer.length });
+      return url;
+    } catch (err) {
+      logger.warn("Failed to upload conversation state to S3", {
+        sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return writeToLocalStorage(archiveBuffer, sessionId, logger);
 }
 
@@ -327,7 +260,7 @@ export async function retrieveAndRestore(
   if (storage && !url.startsWith("s3://")) throw new Error("Remote workers require durable object-storage session state");
 
   if (url.startsWith("s3://")) {
-    archiveBuffer = storage ? await storage.download(url) : await downloadFromS3(url, logger);
+    archiveBuffer = await (storage ?? new S3WorkerStorage()).download(url);
   } else if (url.startsWith("file://")) {
     archiveBuffer = readFromLocalStorage(url, logger);
   } else {

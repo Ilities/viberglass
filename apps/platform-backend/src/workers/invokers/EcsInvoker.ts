@@ -3,7 +3,7 @@ import {
   RunTaskCommand,
   RunTaskCommandOutput,
 } from "@aws-sdk/client-ecs";
-import type { Clanker, Project } from "@viberglass/types";
+import { objectStorageBucket, type Clanker, type Project } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
@@ -129,6 +129,12 @@ export class EcsInvoker implements WorkerInvoker {
         name: "SSM_PARAMETER_PREFIX",
         value: process.env.SSM_PARAMETER_PREFIX,
       });
+    }
+
+    // The worker saves the agent's conversation state here between turns.
+    const bucket = objectStorageBucket(process.env);
+    if (bucket) {
+      environment.push({ name: "AWS_S3_BUCKET", value: bucket });
     }
 
     if (process.env.PLATFORM_API_URL) {

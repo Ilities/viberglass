@@ -511,6 +511,29 @@ describe("EcsInvoker", () => {
         expect(payload.instructionFiles).toEqual([]);
       });
 
+      it("gives the worker the bucket to save conversation state in", async () => {
+        const previous = { s3: process.env.S3_BUCKET, aws: process.env.AWS_S3_BUCKET };
+        delete process.env.S3_BUCKET;
+        process.env.AWS_S3_BUCKET = "uploads";
+        try {
+          mockSend.mockResolvedValueOnce({
+            $metadata: {},
+            tasks: [{ taskArn: "arn:aws:ecs:eu-west-1:123456789:task/viberator/bucket" }],
+            failures: [],
+          });
+
+          await invoker.invoke(mockJob, mockClanker);
+
+          const override = mockSend.mock.calls[0][0].input.overrides.containerOverrides[0];
+          expect(override.environment).toContainEqual({ name: "AWS_S3_BUCKET", value: "uploads" });
+        } finally {
+          if (previous.s3 === undefined) delete process.env.S3_BUCKET;
+          else process.env.S3_BUCKET = previous.s3;
+          if (previous.aws === undefined) delete process.env.AWS_S3_BUCKET;
+          else process.env.AWS_S3_BUCKET = previous.aws;
+        }
+      });
+
       it("should use job-ref command when bootstrap payload is pre-stored", async () => {
         const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
         process.env.PLATFORM_API_URL = "https://platform.example.com";

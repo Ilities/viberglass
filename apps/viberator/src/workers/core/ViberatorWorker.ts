@@ -4,6 +4,7 @@ import { CodingJobData, JobResult, WorkerPayload } from "./types";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import { PresignedWorkerStorage } from "../infrastructure/PresignedWorkerStorage";
+import { S3WorkerStorage } from "../infrastructure/S3WorkerStorage";
 import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
@@ -63,7 +64,10 @@ export class ViberatorWorker {
       this.credentialProvider = new CredentialProvider(this.logger, payload?.workerType === "kubernetes"
         ? { suppliedCredentials: payload.credentials ?? {}, ssmEnabled: false }
         : undefined);
-      this.objectStorage = payload?.workerType === "kubernetes" ? new PresignedWorkerStorage(payload) : undefined;
+      this.objectStorage = payload?.workerType === "kubernetes" ? new PresignedWorkerStorage(payload)
+        // Each run gets a fresh container, so state kept on its disk could never be read back.
+        : payload?.workerType === "ecs" || payload?.workerType === "lambda" ? new S3WorkerStorage()
+        : undefined;
       this.configLoader = new ConfigLoader(this.logger, undefined, this.objectStorage);
       this.instructionFileManager = new InstructionFileManager(this.logger);
       this.environmentManager = new EnvironmentManager(this.logger);

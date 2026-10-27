@@ -39,6 +39,16 @@ describe("SessionStateManager", () => {
     expect(fs.existsSync(path.join(turnTwo, ".opencode"))).toBe(false);
   });
 
+  it("keeps a remote worker's state off its own disk when its storage can't take it", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "home-remote-"));
+    write(home, ".local/share/opencode/opencode.db", "sessions");
+    const { S3WorkerStorage } = await import("../infrastructure/S3WorkerStorage");
+
+    await expect(captureAndStore("opencode", "session-3", home, logger, new S3WorkerStorage({})))
+      .rejects.toThrow("AWS_S3_BUCKET is not set");
+    expect(fs.existsSync(path.join(stateRoot, "session-3"))).toBe(false);
+  });
+
   it("stores nothing when the harness has no state yet", async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "home-empty-"));
     expect(await captureAndStore("opencode", "session-2", home, logger)).toBeUndefined();

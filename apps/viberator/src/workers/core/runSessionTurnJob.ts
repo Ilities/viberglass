@@ -215,7 +215,7 @@ async function saveConversationState(
     await callbackClient.turn.sendConversationStateUrl(data.id, data.tenantId, url);
     return url;
   } catch (err) {
-    logger.warn("Failed to capture conversation state", {
+    logger.error("Failed to capture conversation state; the next turn will start a fresh session", {
       jobId: data.id,
       error: err instanceof Error ? err.message : String(err),
     });

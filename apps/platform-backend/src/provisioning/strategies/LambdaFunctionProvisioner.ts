@@ -1,7 +1,7 @@
 import type {
   UpdateFunctionConfigurationCommandInput,
 } from "@aws-sdk/client-lambda";
-import type { Clanker } from "@viberglass/types";
+import { objectStorageBucket, type Clanker } from "@viberglass/types";
 import type {
   LambdaClientPort,
   LambdaFunctionResponse,
@@ -21,6 +21,13 @@ import {
 } from "./lambdaTypes";
 
 const logger = createChildLogger({ service: "LambdaFunctionProvisioner" });
+
+/** A managed function also gets the bucket its worker saves conversation state in; a prebuilt one keeps its own. */
+function functionEnvironment(config: LambdaProvisioningConfig): Record<string, string> | undefined {
+  const bucket = objectStorageBucket(process.env);
+  if (config.provisioningMode === "prebuilt" || !bucket) return config.environment;
+  return { AWS_S3_BUCKET: bucket, ...config.environment };
+}
 
 export class LambdaFunctionProvisioner {
   constructor(private readonly lambdaClient: LambdaClientPort) {}
@@ -128,8 +135,9 @@ export class LambdaFunctionProvisioner {
     if (config.ephemeralStorage !== undefined) {
       configurationUpdate.EphemeralStorage = { Size: config.ephemeralStorage };
     }
-    if (config.environment) {
-      configurationUpdate.Environment = { Variables: config.environment };
+    const environment = functionEnvironment(config);
+    if (environment) {
+      configurationUpdate.Environment = { Variables: environment };
     }
 
     if (config.vpc) {
@@ -156,6 +164,7 @@ export class LambdaFunctionProvisioner {
       throw new Error("Lambda creation requires imageUri and roleArn");
     }
 
+    const environment = functionEnvironment(config);
     await progress?.(`Creating Lambda function ${functionName}...`);
     await this.lambdaClient.createFunction({
       FunctionName: functionName,
@@ -167,9 +176,7 @@ export class LambdaFunctionProvisioner {
       EphemeralStorage: config.ephemeralStorage !== undefined
         ? { Size: config.ephemeralStorage }
         : { Size: 2048 },
-      Environment: config.environment
-        ? { Variables: config.environment }
-        : undefined,
+      Environment: environment ? { Variables: environment } : undefined,
       Architectures: config.architecture ? [config.architecture] : undefined,
       VpcConfig: config.vpc
         ? {
