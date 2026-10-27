@@ -352,7 +352,7 @@ npm run test:harnesses -w @viberator/e2e-tests -- --project=harness-opencode
 - `apps/viberator/jest.config.js` - Orchestrator unit tests
 - `apps/platform-backend/jest.config.js` - Backend tests; `test:unit` and `test:integration` select by path
 - `apps/platform-frontend/jest.config.js` - Frontend unit tests
-- `jest.config.js` in each plugin package, `packages/cli`, `packages/telemetry` and `packages/agent-core`
+- `jest.config.js` in each plugin package, `packages/cli`, `packages/telemetry`, `packages/types` and `packages/agent-core`
 
 ### Playwright Configuration
 
