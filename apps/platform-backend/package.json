@@ -43,6 +43,7 @@
     "@types/node": "^20.10.0",
     "@types/pg": "^8.10.9",
     "@types/uuid": "^9.0.7",
+    "@viberglass/integration-asana": "*",
     "@viberglass/integration-bitbucket": "*",
     "@viberglass/integration-core": "*",
     "@viberglass/integration-custom": "*",
