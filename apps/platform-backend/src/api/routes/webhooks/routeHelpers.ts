@@ -57,6 +57,12 @@ export function respondWithWebhookResult(
       return res.status(404).json({
         error: 'Webhook configuration not found',
       });
+    case 'handshake':
+      // The sender opened the webhook and waits for its secret echoed back.
+      res.setHeader('X-Hook-Secret', result.secret ?? '');
+      return res.status(200).json({
+        message: 'Webhook handshake complete',
+      });
     case 'failed':
       return res.status(failedStatusCode).json({
         error: failedError,
@@ -76,4 +82,12 @@ export function getRequestRawBody(req: Request): Buffer {
   }
 
   return rawBody;
+}
+
+/**
+ * The raw body, or an empty buffer when there is none. A webhook handshake can
+ * arrive with no body, and the service still has to see its headers.
+ */
+export function getWebhookRawBody(req: Request): Buffer {
+  return (req as ExtendedRequest).rawBody ?? Buffer.alloc(0);
 }

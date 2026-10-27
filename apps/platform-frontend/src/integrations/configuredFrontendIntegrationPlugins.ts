@@ -9,6 +9,7 @@ import integrationLinearFrontend from '@viberglass/integration-linear/frontend'
 import integrationMondayFrontend from '@viberglass/integration-monday/frontend'
 import integrationShortcutFrontend from '@viberglass/integration-shortcut/frontend'
 import integrationCustomFrontend from '@viberglass/integration-custom/frontend'
+import integrationAsanaFrontend from '@viberglass/integration-asana/frontend'
 
 export const configuredFrontendIntegrationPlugins: readonly IntegrationFrontendPlugin[] = [
   integrationGithubFrontend,
@@ -20,4 +21,5 @@ export const configuredFrontendIntegrationPlugins: readonly IntegrationFrontendP
   integrationMondayFrontend,
   integrationShortcutFrontend,
   integrationCustomFrontend,
+  integrationAsanaFrontend,
 ]
