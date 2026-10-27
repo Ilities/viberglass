@@ -1,4 +1,4 @@
-import type { InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
+import type { AuthCredentials, InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
 
 /** What routing and the delivery log need from an event, whatever sent it. */
 export interface WebhookEventMetadata {
@@ -55,4 +55,17 @@ export interface WebhookReceiver {
   /** Headers that let a stored delivery be parsed again when it's retried. */
   retryHeaders(delivery: { deliveryId: string; eventType: string }): Record<string, string>
   read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction
+  /**
+   * Set when the sender sends a handshake before its events: the secret it
+   * sent, which the webhook must echo back and keep to verify later signatures.
+   */
+  handshakeSecretOf?(headers: Record<string, string>): string | undefined
+  /** Set when a delivery can carry several events: each one is parsed, verified and read on its own. */
+  splitEvents?(payload: unknown): unknown[]
+  /**
+   * Set for events that don't carry what they change: fetches it with the
+   * connection's credentials before `read`. A thrown error fails the delivery,
+   * which can then be retried.
+   */
+  enrich?(event: InboundWebhookEvent, credentials: AuthCredentials): Promise<InboundWebhookEvent>
 }

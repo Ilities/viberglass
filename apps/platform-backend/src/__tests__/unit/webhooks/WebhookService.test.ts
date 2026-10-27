@@ -96,7 +96,8 @@ function createHarness(params: { config?: WebhookConfig | null; action?: Inbound
     commented: jest.fn().mockResolvedValue({ ticketId: "ticket-1" }),
   };
 
-  const handler = new InboundEventHandler(issues, new WebhookTaskCreator(tickets, planner));
+  const enricher = { enrich: jest.fn(async (event: InboundWebhookEvent) => event) };
+  const handler = new InboundEventHandler(issues, new WebhookTaskCreator(tickets, planner), enricher);
   const configResolver = new WebhookConfigResolver(configDAO);
   const lifecycle = new InboundWebhookDeliveryLifecycle(deduplication, deliveryDAO);
   const serviceConfig = { defaultTenantId: "tenant-default" };
