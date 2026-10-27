@@ -1,4 +1,4 @@
-import type { InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
+import type { AuthCredentials, InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
 
 /** What routing and the delivery log need from an event, whatever sent it. */
 export interface WebhookEventMetadata {
@@ -20,6 +20,8 @@ export interface InboundWebhookEvent {
   timestamp: string
   payload: unknown
   metadata: WebhookEventMetadata
+  /** Additional events carried in a provider batch. */
+  batch?: InboundWebhookEvent[]
 }
 
 /** What Viberglass does with an event. */
@@ -33,6 +35,8 @@ export type InboundWebhookAction =
 export interface WebhookReadSettings {
   /** The account whose mention asks the agent, and whose comments are never read back. */
   botUsername: string | null
+  /** Connection credentials for webhook providers that expand compact events via their API. */
+  credentials?: AuthCredentials
 }
 
 /**
@@ -49,10 +53,12 @@ export interface WebhookReceiver {
   readonly targetsOneSpace: boolean
   /** The signature a delivery carries, from its (lower-cased) headers. */
   signatureOf(headers: Record<string, string>): string | undefined
+  /** Echoed headers for webhook providers that require a registration handshake. */
+  handshakeHeaders?(headers: Record<string, string>): Record<string, string> | undefined
   verifySignature(rawBody: Buffer, signature: string, secret: string): boolean
   /** Throws InvalidWebhookPayloadError when the sender should fix its request. */
   parseEvent(payload: unknown, headers: Record<string, string>): InboundWebhookEvent
   /** Headers that let a stored delivery be parsed again when it's retried. */
   retryHeaders(delivery: { deliveryId: string; eventType: string }): Record<string, string>
-  read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction
+  read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction | InboundWebhookAction[] | Promise<InboundWebhookAction | InboundWebhookAction[]>
 }
