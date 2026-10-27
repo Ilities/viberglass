@@ -42,6 +42,8 @@ export interface DispatchTurnInput {
   summary: string;
   /** The last commit an agent pushed to the task's branch, so the worker can tell it what people pushed since. */
   lastAgentCommit: string | null;
+  /** A stopped or stalled turn's kept commit, for the worker to tell the agent about and deliver. */
+  keptCommit: string | null;
   /** Images attached to the thread messages this turn answers. */
   messageImages?: MediaAsset[];
 }
@@ -179,6 +181,7 @@ export class TaskTurnJobDispatcher {
         ? {}
         : {
             lastAgentCommit: input.lastAgentCommit,
+            keptCommit: input.keptCommit,
             // A build names its pull request's branch; other turns read the code on the latest one, if there's one.
             taskBranch:
               action === "code"

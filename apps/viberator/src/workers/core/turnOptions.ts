@@ -13,6 +13,7 @@ export interface TurnOptions {
   acpSessionId?: string;
   conversationStateUrl?: string;
   lastAgentCommit?: string;
+  keptCommit?: string;
   taskBranch?: string;
   forkBase?: ForkBase;
 }
@@ -29,6 +30,7 @@ export function turnOptionsOf(payload: WorkerPayload): TurnOptions {
     acpSessionId: payload.acpSessionId,
     conversationStateUrl: payload.conversationStateUrl,
     lastAgentCommit: payload.lastAgentCommit ?? undefined,
+    keptCommit: payload.keptCommit ?? undefined,
     taskBranch: payload.taskBranch ?? undefined,
     forkBase: payload.forkBase ?? undefined,
   };

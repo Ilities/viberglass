@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { keepPartialWork, type PartialWorkRun } from "./keepPartialWork";
+import { keepPartialCode, keepPartialWork, type PartialWorkRun } from "./keepPartialWork";
 import { materializeArtifacts } from "./turnArtifacts";
 
 function repo(): string {
@@ -68,5 +68,15 @@ describe("keepPartialWork", () => {
     const stopped = run(true);
     await keepPartialWork(stopped, { repoDir: dir, snapshot: materializeArtifacts(dir, {}), taskBranch: undefined, filesSaved: true });
     expect(stopped.sent).toHaveBeenCalledWith("job-1", "tenant", { documents: {}, commitHash: undefined, branch: undefined });
+  });
+
+  it("returns the commit it kept, for a stalled build's failure to carry", async () => {
+    const dir = repo();
+    fs.writeFileSync(path.join(dir, "app.js"), "one\ntwo\n");
+    const stalled = run(true);
+
+    await expect(keepPartialCode(stalled, dir, { name: "viberglass/t-1", continued: true })).resolves.toEqual({ commitHash: "wip123", branch: "viberglass/t-1" });
+    expect(stalled.git.createBranch).not.toHaveBeenCalled();
+    expect(stalled.sent).not.toHaveBeenCalled();
   });
 });

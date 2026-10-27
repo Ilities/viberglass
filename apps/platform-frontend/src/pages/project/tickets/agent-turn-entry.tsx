@@ -165,6 +165,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-red-700 dark:text-red-400" title={run?.failure?.summary}>
             {run?.failure?.title ?? 'This turn failed'}
+            {outcome?.stoppedPartway && outcome.produced.length > 0 && `. It kept ${keptWork(outcome.produced)}.`}
           </p>
           {retry}
           {reported && <p className="basis-full font-mono text-xs break-words text-[var(--gray-11)]">{reported}</p>}

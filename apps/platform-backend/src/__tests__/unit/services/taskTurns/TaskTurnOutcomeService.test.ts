@@ -70,6 +70,18 @@ describe("TaskTurnOutcomeService", () => {
     expect(deps.documents.saveDocument.mock.invocationCallOrder[0]).toBeLessThan(deps.workerEvents.batchIngest.mock.invocationCallOrder[0]);
   });
 
+  it("records the code a failed turn kept as stopped partway, asking nobody to review it", async () => {
+    const { deps, service } = setup(["Building it: adding the check."]);
+
+    const recorded = await service.record("job-1", SESSION, { id: "turn-1", action: "code" }, { success: false, commitHash: "wip1" });
+
+    expect(deps.turns.update).toHaveBeenCalledWith("turn-1", expect.objectContaining({
+      contentJson: expect.objectContaining({ produced: ["code"], commit: "wip1", stoppedPartway: true, mentioned: [] }),
+    }));
+    expect(recorded).toBeNull();
+    expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [{ eventType: "turn_failed", payload: { produced: ["code"] } }]);
+  });
+
   it("records a turn that only answered, and one whose code was thrown away", async () => {
     const { deps, service } = setup(["Answering: it's per device."]);
 

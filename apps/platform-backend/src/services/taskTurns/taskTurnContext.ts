@@ -48,6 +48,8 @@ export interface TaskTurnContext {
   people: TurnPerson[];
   /** The last commit an agent's build pushed to the task's branch; what people pushed since is news to it. */
   lastAgentCommit: string | null;
+  /** The work-in-progress commit a stopped or stalled turn kept on the task's branch, when no turn has delivered since. */
+  keptCommit: string | null;
   /** The latest summary of the conversation; empty before the first. */
   summary: string;
   /** When this agent was last prompted on the task; null on its first turn. */

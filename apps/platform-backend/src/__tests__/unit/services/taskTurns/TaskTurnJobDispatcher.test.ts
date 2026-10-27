@@ -98,6 +98,7 @@ function input(action: TaskTurnAction, overrides: Partial<DispatchTurnInput> = {
     documents: { plan: "" },
     summary: "",
     lastAgentCommit: null,
+    keptCommit: null,
     ...overrides,
   };
 }
@@ -195,7 +196,7 @@ describe("TaskTurnJobDispatcher in a Files space", () => {
 
     const saved = bootstraps.saveBootstrapPayload.mock.calls.at(-1)?.[1];
     expect(saved).toMatchObject({ files: { spaceId: "p-1", baseSnapshotId: "snap-1", checkpointSnapshotId: "snap-2" } });
-    for (const key of ["repository", "baseBranch", "scm", "taskBranch", "lastAgentCommit"]) expect(saved).not.toHaveProperty(key);
+    for (const key of ["repository", "baseBranch", "scm", "taskBranch", "lastAgentCommit", "keptCommit"]) expect(saved).not.toHaveProperty(key);
     expect(branches.existing).not.toHaveBeenCalled();
     expect(workers.executeJob).toHaveBeenCalled();
   });

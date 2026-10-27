@@ -122,6 +122,7 @@ export class SessionTurnContinuationService {
           documents: context.documents,
           summary: context.summary,
           lastAgentCommit: context.lastAgentCommit,
+          keptCommit: context.keptCommit,
           messageImages: asked.flatMap((messageId) => images.get(messageId) ?? []),
         },
         async (submitted) => {

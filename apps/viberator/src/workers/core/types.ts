@@ -144,6 +144,8 @@ export interface BaseWorkerPayload {
   conversationStateUrl?: string;
   /** The last commit an agent pushed to the task's branch; the turn is told what people pushed after it. */
   lastAgentCommit?: string | null;
+  /** The work-in-progress commit a stopped or stalled turn left on the task's branch, until a later turn delivers it. */
+  keptCommit?: string | null;
   /** The task's branch, named once by the platform; absent for runs outside a task. */
   taskBranch?: string | null;
   /** On a forked task without a pull request of its own: the code its original had when it was forked. */

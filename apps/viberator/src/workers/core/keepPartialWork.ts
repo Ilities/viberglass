@@ -33,18 +33,28 @@ export interface PartialWorkInput {
  */
 export async function keepPartialWork(run: PartialWorkRun, input: PartialWorkInput): Promise<void> {
   const documents = collectArtifacts(input.repoDir, input.snapshot);
-  let commitHash: string | undefined;
-  let branch: string | undefined;
-  if (run.allowCode && input.taskBranch) {
-    await restoreArtifactFiles(input.repoDir);
-    if ((await listCodeChanges(input.repoDir)).length > 0) {
-      if (!input.taskBranch.continued) await run.git.createBranch(input.repoDir, input.taskBranch.name);
-      commitHash = await run.git.commitChanges(input.repoDir, "Work in progress: the run was stopped partway");
-      await run.git.pushBranch(input.repoDir, input.taskBranch.name, run.gitAuth);
-      branch = input.taskBranch.name;
-    }
-  }
-  if (Object.keys(documents).length === 0 && !commitHash && !input.filesSaved) return;
-  run.logger.info("Keeping what the stopped turn had done", { jobId: run.jobId, documents: Object.keys(documents), commitHash });
-  await run.callbacks.sendPartialResult(run.jobId, run.tenantId, { documents, commitHash, branch });
+  const code = await keepPartialCode(run, input.repoDir, input.taskBranch);
+  if (Object.keys(documents).length === 0 && !code && !input.filesSaved) return;
+  run.logger.info("Keeping what the stopped turn had done", { jobId: run.jobId, documents: Object.keys(documents), commitHash: code?.commitHash });
+  await run.callbacks.sendPartialResult(run.jobId, run.tenantId, { documents, commitHash: code?.commitHash, branch: code?.branch });
+}
+
+export interface KeptCode {
+  commitHash: string;
+  branch: string;
+}
+
+/** A build's unfinished code changes as a work-in-progress commit pushed to the task's branch; null when there were none. */
+export async function keepPartialCode(
+  run: Pick<PartialWorkRun, "allowCode" | "gitAuth" | "git">,
+  repoDir: string,
+  taskBranch: TaskBranch | undefined,
+): Promise<KeptCode | null> {
+  if (!run.allowCode || !taskBranch) return null;
+  await restoreArtifactFiles(repoDir);
+  if ((await listCodeChanges(repoDir)).length === 0) return null;
+  if (!taskBranch.continued) await run.git.createBranch(repoDir, taskBranch.name);
+  const commitHash = await run.git.commitChanges(repoDir, "Work in progress: the run was stopped partway");
+  await run.git.pushBranch(repoDir, taskBranch.name, run.gitAuth);
+  return { commitHash, branch: taskBranch.name };
 }

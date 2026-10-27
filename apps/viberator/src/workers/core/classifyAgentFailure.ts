@@ -5,6 +5,9 @@ const QUOTA =
 const CREDENTIAL =
   /invalid[_ ]api[_ ]key|invalid x-api-key|incorrect api key|authentication[_ ]error|authentication required|auth[_ ]required|unauthori[sz]ed|\b401\b|not logged in|please (run )?log ?in|api key (is )?(missing|not set|required)/i;
 
+/** The watchdog's own message, from AcpClient. */
+const STALLED = /^Agent stalled:/;
+
 const CONTEXT =
   /context[_ ]length[_ ]exceeded|maximum context length|context window|context exceeds|exceeds the context|ContextOverflow|prompt is too long/i;
 
@@ -18,6 +21,7 @@ const CONTEXT =
  */
 export function classifyAgentFailure(errorMessage: string | undefined): JobFailureCode {
   const message = errorMessage ?? "";
+  if (STALLED.test(message)) return JOB_FAILURE_CODE.AGENT_STALLED;
   if (CONTEXT.test(message)) return JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED;
   if (QUOTA.test(message)) return JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED;
   if (CREDENTIAL.test(message)) return JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID;

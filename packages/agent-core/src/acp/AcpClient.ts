@@ -103,6 +103,11 @@ interface PendingRequest {
 /** A fresh session has used nothing before its first turn. */
 const NOTHING_YET: AcpSessionTotals = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, costUsd: 0 };
 
+/** Long enough for a quiet tool call such as a test suite; a working harness streams updates while its model runs. */
+const STALL_AFTER_MS = 20 * 60_000;
+
+const minutes = (ms: number) => `${Math.round(ms / 60_000)} minutes`;
+
 export class AcpClient {
   private child?: ChildProcess;
   private nextId = 1;
@@ -118,6 +123,9 @@ export class AcpClient {
   private compactCommand: string | null = null;
   /** Why the harness process went away, once it has; requests after that fail straight away. */
   private exitReason?: string;
+  private stallTimer?: NodeJS.Timeout;
+  /** Halfway to the stall, so people watching the run hear before it's stopped. */
+  private stallWarningTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly command: string[],
@@ -128,6 +136,7 @@ export class AcpClient {
     private readonly timeoutMs: number,
     mapper?: AcpEventMapper,
     usageProbe?: AcpUsageProbe,
+    private readonly stallAfterMs = STALL_AFTER_MS,
   ) {
     this.mapper = mapper ?? defaultAcpEventMapper;
     if (usageProbe) this.totalsProbe = new AcpSessionTotalsProbe(usageProbe);
@@ -148,9 +157,19 @@ export class AcpClient {
     const child = this.child;
     // Failing the turn right away lets cleanup escalate to SIGKILL if the harness ignores SIGTERM.
     const timer = setTimeout(() => {
-      this.failPending(`Agent timed out after ${Math.round(this.timeoutMs / 60_000)} minutes`);
+      this.failPending(`Agent timed out after ${minutes(this.timeoutMs)}`);
       signalProcessGroup(child, "SIGTERM");
     }, this.timeoutMs);
+    this.stallTimer = setTimeout(() => {
+      this.stopStallTimer();
+      this.failPending(`Agent stalled: its harness sent nothing for ${minutes(this.stallAfterMs)}`);
+      signalProcessGroup(child, "SIGTERM");
+    }, this.stallAfterMs);
+    this.stallWarningTimer = setTimeout(() => {
+      const text = `The agent hasn't sent anything for ${minutes(this.stallAfterMs / 2)}. If it stays quiet, the run stops as stalled after ${minutes(this.stallAfterMs)}, keeping its changes.`;
+      this.logger.warn("AcpClient harness has gone quiet", { quietForMs: this.stallAfterMs / 2 });
+      this.onEvent({ eventType: "progress", payload: { text } });
+    }, this.stallAfterMs / 2);
 
     child.on("error", (err) => {
       this.logger.error("AcpClient process spawn error", {
@@ -162,6 +181,7 @@ export class AcpClient {
 
     child.on("close", (code, signal) => {
       clearTimeout(timer);
+      this.stopStallTimer();
       this.logger.info("AcpClient process exited", { code, signal });
       this.failPending(`Agent process exited unexpectedly (${signal ?? `code ${code}`})`);
     });
@@ -253,6 +273,8 @@ export class AcpClient {
   }
 
   private processLine(line: string): void {
+    this.stallTimer?.refresh();
+    this.stallWarningTimer?.refresh();
     let msg: unknown;
     try { msg = JSON.parse(line); } catch { return; }
     if (!isRecord(msg)) return;
@@ -311,6 +333,14 @@ export class AcpClient {
         if (err) { this.pending.delete(id); reject(err); }
       });
     });
+  }
+
+  /** Dropped rather than only cleared: refreshing a fired or cleared timer starts it again. */
+  private stopStallTimer(): void {
+    clearTimeout(this.stallTimer);
+    clearTimeout(this.stallWarningTimer);
+    this.stallTimer = undefined;
+    this.stallWarningTimer = undefined;
   }
 
   private failPending(reason: string): void {

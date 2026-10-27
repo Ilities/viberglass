@@ -3,7 +3,7 @@ import type { SpaceFilesRunService } from "./SpaceFilesRunService";
 
 /** A Files run gets no repository, branch or SCM credential: its files come from the space. */
 export function withoutRepository(bootstrap: Record<string, unknown>): void {
-  for (const key of ["repository", "branch", "baseBranch", "scm", "taskBranch", "lastAgentCommit"]) delete bootstrap[key];
+  for (const key of ["repository", "branch", "baseBranch", "scm", "taskBranch", "lastAgentCommit", "keptCommit"]) delete bootstrap[key];
 }
 
 /**

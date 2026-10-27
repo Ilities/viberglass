@@ -1,6 +1,7 @@
 // A scripted ACP agent that opens a session and never answers its prompt. Behaviour comes from env:
 //   AGENT_IGNORE_TERM=1   it ignores SIGTERM, and only goes when its input closes
 //   AGENT_EXIT_ON_PROMPT=1  it exits mid-turn instead of hanging
+//   AGENT_CHATTER_MS=<ms>   it keeps sending session updates at this interval, busy rather than stalled
 const readline = require("readline");
 
 const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n");
@@ -18,4 +19,8 @@ input.on("line", (line) => {
   if (msg.method === "initialize") send({ id: msg.id, result: { protocolVersion: 1, agentCapabilities: {} } });
   else if (msg.method === "session/new") send({ id: msg.id, result: { sessionId: "sess_new" } });
   else if (msg.method === "session/prompt" && process.env.AGENT_EXIT_ON_PROMPT) process.exit(3);
+  else if (msg.method === "session/prompt" && process.env.AGENT_CHATTER_MS) {
+    const update = { sessionId: msg.params.sessionId, update: { sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "…" } } };
+    setInterval(() => send({ method: "session/update", params: update }), Number(process.env.AGENT_CHATTER_MS));
+  }
 });

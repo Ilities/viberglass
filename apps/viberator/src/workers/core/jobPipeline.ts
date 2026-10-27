@@ -63,6 +63,8 @@ export interface JobRunnerParams {
   conversationStateUrl?: string;
   /** The last commit an agent pushed to the task's branch. */
   lastAgentCommit?: string;
+  /** A stopped or stalled turn's work-in-progress commit on the task's branch, not yet delivered. */
+  keptCommit?: string;
   /** The task's branch as the platform named it, once for the task. */
   taskBranch?: string;
   /** Where a forked task's run starts when its branch isn't on origin yet. */

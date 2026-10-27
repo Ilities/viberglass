@@ -45,6 +45,7 @@ function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
     parts: { building: null, adding: null, addedTo: null, built: null },
     people: [],
     lastAgentCommit: null,
+    keptCommit: null,
     summary: "",
     since: null,
     earlier: { messages: [], openComments: [] },

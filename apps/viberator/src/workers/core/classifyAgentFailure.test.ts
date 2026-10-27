@@ -2,6 +2,10 @@ import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { classifyAgentFailure } from "./classifyAgentFailure";
 
 describe("classifyAgentFailure", () => {
+  it("recognises a harness that went quiet", () => {
+    expect(classifyAgentFailure("Agent stalled: its harness sent nothing for 20 minutes")).toBe(JOB_FAILURE_CODE.AGENT_STALLED);
+  });
+
   it.each([
     ['{"type":"error","error":{"type":"insufficient_quota"}}'],
     ["Your credit balance is too low to access the Anthropic API"],

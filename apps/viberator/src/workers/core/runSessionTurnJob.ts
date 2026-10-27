@@ -15,7 +15,10 @@ import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./wor
 import { QuestionRelay } from "../../questions/QuestionRelay";
 import { httpMcpServersOf } from "../runtime/workerMcpServers";
 import { peoplesChanges } from "./peoplesChanges";
-import { keepPartialWork } from "./keepPartialWork";
+import { keepPartialCode, keepPartialWork } from "./keepPartialWork";
+import { keptWorkFiles, keptWorkNote } from "./keptWork";
+import { JobFailureError } from "./JobFailureError";
+import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { onStop } from "../runtime/stopSignal";
 import { localTaskMedia, taskMediaDir, withTaskMedia } from "./taskMedia";
 
@@ -36,12 +39,13 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
     await restoreConversationState(params);
     const files = data.files ? filesRunOf(params, data.files) : null;
-    const pushed = setup.taskBranch?.continued
-      ? await peoplesChanges(repoDir, params.lastAgentCommit ?? `origin/${checkoutBaseBranch}`)
-      : null;
+    const continued = setup.taskBranch?.continued ?? false;
+    const kept = continued && params.keptCommit ? await keptWorkNote(repoDir, params.keptCommit) : null;
+    const pushed = continued ? await peoplesChanges(repoDir, params.lastAgentCommit ?? `origin/${checkoutBaseBranch}`) : null;
+    const preface = [kept, pushed].filter(Boolean).join("\n\n");
     const media = await localTaskMedia(data.context?.ticketMedia || [], taskMediaDir(repoDir), logger);
     const withPushed = (prompt: string | undefined) =>
-      withTaskMedia(prompt && pushed ? `${pushed}\n\n${prompt}` : prompt, media);
+      withTaskMedia(prompt && preface ? `${preface}\n\n${prompt}` : prompt, media);
     const snapshot = materializeArtifacts(repoDir, {
       plan: data.context?.planDocument,
       summary: data.context?.summaryDocument,
@@ -101,6 +105,11 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       .catch(async (error: unknown) => {
         // A failed agent may still have done work worth keeping; the run fails either way.
         if (files) await savePartialFiles(files, repoDir, setup.materializedFiles, logger);
+        // A stalled build is kept like a stopped one, so the next turn carries on from it.
+        if (!files && error instanceof JobFailureError && error.code === JOB_FAILURE_CODE.AGENT_STALLED) {
+          const code = await keepPartialCode(partialRun, repoDir, setup.taskBranch);
+          if (code) throw new JobFailureError(error.code, error.message, code);
+        }
         throw error;
       })
       .finally(() => {
@@ -138,7 +147,8 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       contextUsage: result.acpContextUsage,
       compacted: result.acpCompacted,
     };
-    if (changedFiles.length === 0) return turn;
+    const keptFiles = changedFiles.length === 0 ? await keptWorkToDeliver(params, repoDir, checkoutBaseBranch) : null;
+    if (changedFiles.length === 0 && !keptFiles) return turn;
 
     if (!params.allowCode) {
       logger.info("Discarding code changes from a turn that wasn't asked for code", { jobId: data.id, changedFiles });
@@ -146,15 +156,26 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       return { ...turn, changedFiles: [], codeDiscarded: true };
     }
     if (!setup.taskBranch) throw new Error("The platform named no branch for this task, so the build has nowhere to go");
+    if (keptFiles) logger.info("Delivering the work an earlier run kept", { jobId: data.id, keptCommit: params.keptCommit });
     const delivered = await deliverPullRequest(params, {
       repoDir,
       checkoutBaseBranch,
-      changedFiles,
+      changedFiles: keptFiles ?? changedFiles,
       testsWereRequested: executionContext.runTests,
       taskBranch: setup.taskBranch,
     });
     return { ...turn, ...delivered };
   });
+}
+
+/**
+ * A build that changed nothing still opens the pull request when the branch
+ * carries a stopped turn's kept work, which only a pull request delivers.
+ */
+async function keptWorkToDeliver(params: JobRunnerParams, repoDir: string, baseBranch: string): Promise<string[] | null> {
+  if (!params.allowCode || !params.keptCommit) return null;
+  const files = await keptWorkFiles(repoDir, params.keptCommit, `origin/${baseBranch}`);
+  return files && files.length > 0 ? files : null;
 }
 
 /** The worker's bundle puts the MCP server next to its entry point. */

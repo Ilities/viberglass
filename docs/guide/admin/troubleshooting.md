@@ -16,6 +16,7 @@ Each failure has a title on the task and in the run's record.
 | Agent couldn't start | No worker could be started for the run. | Check the runner's compute: Docker, the cluster, or the AWS stack. |
 | Worker ran out of memory | The worker used more memory than its runner allows and was stopped. | Give the runner more memory, then try again. |
 | Agent failed | The agent itself failed or gave up. | Try again; more detail in the task's description often helps. |
+| Agent stalled | The agent's harness sent nothing for 20 minutes partway through its turn, so the run was stopped. The run's log warns after 10 quiet minutes. Code it had changed is kept on the task's branch. | Try again; the next run is told about the kept work and carries on from it. If it repeats, try another model. |
 | No document written | The agent finished without writing the plan. | Try again. |
 | No code changes | The build finished without changing any code. | Read its reply; the plan may need to be clearer. |
 | Files couldn't be restored | A run in a Files space couldn't load the space's saved files, so the agent didn't start. | Check that workers reach the object storage, then try again. |

@@ -36,6 +36,8 @@ export const JOB_FAILURE_CODE = {
   AGENT_CONTEXT_EXCEEDED: 'AGENT_CONTEXT_EXCEEDED',
   /** The agent itself failed or gave up. */
   AGENT_FAILED: 'AGENT_FAILED',
+  /** The agent's harness went quiet partway through its turn and was stopped. */
+  AGENT_STALLED: 'AGENT_STALLED',
   /** The agent finished without writing the plan. */
   AGENT_NO_DOCUMENT: 'AGENT_NO_DOCUMENT',
   /** The agent finished execution without changing any code. */

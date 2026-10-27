@@ -9,6 +9,8 @@ export class JobFailureError extends Error {
   constructor(
     readonly code: JobFailureCode,
     message: string,
+    /** Work the failed run committed to the task's branch before it gave up. */
+    readonly kept?: { commitHash: string; branch: string },
   ) {
     super(message);
     this.name = "JobFailureError";

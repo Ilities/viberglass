@@ -67,7 +67,11 @@ function message(id: string, createdAt: string) {
   return { id, ticketId: "t", author: { id: "u", name: "Maria" }, body: id, createdAt, editedAt: null };
 }
 
-function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[]; summary?: { content: string; createdAt: Date } } = {}) {
+type AgentTurnOutcomes = Array<{ id: string; outcome: { commit: string | null; stoppedPartway?: boolean } | null }>;
+
+function loader(
+  sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[]; summary?: { content: string; createdAt: Date }; agentTurns?: AgentTurnOutcomes } = {},
+) {
   const summary = sources.summary ?? null;
   const revisions = { listHandEditsSince: jest.fn().mockResolvedValue([]) };
   const pullRequest = { forTask: jest.fn() };
@@ -92,11 +96,13 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
     },
     questions: { questionsAnsweredBy: jest.fn().mockResolvedValue(new Map([["after", "Which warehouse?"]])) },
     agentTurns: {
-      listForTask: jest.fn().mockResolvedValue([
-        { id: "a", outcome: { commit: "abc123" } },
-        { id: "b", outcome: { commit: null } },
-        { id: "c", outcome: null },
-      ]),
+      listForTask: jest.fn().mockResolvedValue(
+        sources.agentTurns ?? [
+          { id: "a", outcome: { commit: "abc123" } },
+          { id: "b", outcome: { commit: null } },
+          { id: "c", outcome: null },
+        ],
+      ),
     },
     parts: { state: jest.fn().mockResolvedValue(PARTS) },
   });
@@ -119,11 +125,24 @@ describe("TaskTurnContextLoader", () => {
     expect(context.documents).toEqual({ plan: "# P" });
   });
 
+  it("names the commit a stopped turn kept until a later turn delivers one", async () => {
+    const stopped = { id: "a", outcome: { commit: "wip1", stoppedPartway: true } };
+    const answered = { id: "b", outcome: { commit: null } };
+
+    const kept = await loader({ agentTurns: [stopped, answered] }).instance.load(input);
+    expect(kept.keptCommit).toBe("wip1");
+    expect(kept.lastAgentCommit).toBe("wip1");
+
+    const delivered = await loader({ agentTurns: [stopped, { id: "c", outcome: { commit: "wip1" } }] }).instance.load(input);
+    expect(delivered.keptCommit).toBeNull();
+  });
+
   it("names the people on the task with their roles, and marks the answers to the agent's questions", async () => {
     const context = await loader().instance.load(input);
 
     // People pushed after this commit is what the next turn is told about.
     expect(context.lastAgentCommit).toBe("abc123");
+    expect(context.keptCommit).toBeNull();
     expect(context.people).toEqual([
       { name: "Maria", roles: ["requester", "owner"] },
       { name: "Tomi", roles: ["reviewer"] },

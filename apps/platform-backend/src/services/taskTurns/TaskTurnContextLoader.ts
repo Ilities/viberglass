@@ -117,6 +117,7 @@ export class TaskTurnContextLoader {
         via: "session" as const,
       })),
     ].sort((a, b) => a.at.getTime() - b.at.getTime());
+    const lastCommitted = agentTurns.filter((turn) => turn.outcome?.commit).at(-1)?.outcome;
     const isFresh = (at: Date) => !since || at > since;
     const afterSummary = (at: Date) => !summary || at > summary.createdAt;
 
@@ -130,7 +131,8 @@ export class TaskTurnContextLoader {
       documents: { plan: plan.content.trim() },
       parts: describeTurnParts(parts, buildParts),
       people,
-      lastAgentCommit: agentTurns.flatMap((turn) => (turn.outcome?.commit ? [turn.outcome.commit] : [])).at(-1) ?? null,
+      lastAgentCommit: lastCommitted?.commit ?? null,
+      keptCommit: lastCommitted?.stoppedPartway ? (lastCommitted.commit ?? null) : null,
       summary: summary?.content.trim() ?? "",
       since,
       earlier: {

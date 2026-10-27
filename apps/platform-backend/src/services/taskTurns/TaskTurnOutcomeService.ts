@@ -111,8 +111,11 @@ export class TaskTurnOutcomeService {
         await this.deps.summaries.create(session.ticketId, summary, turn.id);
         produced.push("summary");
       }
+    } else if (result.commitHash) {
+      produced.push("code");
     }
-    const steps = produced.flatMap((product) => PRODUCT_STEP[product] ?? []);
+    // A failed turn's kept code is unfinished: no step of the task, and nobody to ask for a review.
+    const steps = result.success ? produced.flatMap((product) => PRODUCT_STEP[product] ?? []) : [];
 
     const reply = (await this.deps.events.listAssistantMessagesByTurn(turn.id))
       .map((message) => message.trim())
@@ -133,7 +136,9 @@ export class TaskTurnOutcomeService {
       mentioned,
       contextUsage: result.contextUsage ?? null,
       compacted: result.compacted ?? false,
-      commit: result.success ? (result.commitHash ?? null) : null,
+      commit: result.commitHash ?? null,
+      // A failed turn reports a commit only for the unfinished work it kept, as a stalled build does.
+      ...(!result.success && result.commitHash ? { stoppedPartway: true } : {}),
     };
     await this.deps.turns.update(turn.id, { contentMarkdown: reply, contentJson: { ...outcome } });
     // Open until each person next posts in the thread, which is what makes it their move.

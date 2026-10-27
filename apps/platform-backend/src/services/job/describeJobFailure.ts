@@ -54,6 +54,13 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "agent",
     retryable: true,
   },
+  [JOB_FAILURE_CODE.AGENT_STALLED]: {
+    title: "Agent stalled",
+    summary:
+      "The agent stopped making progress partway through, so the run was stopped. Any code it had changed was kept on the task's branch.",
+    category: "agent",
+    retryable: true,
+  },
   [JOB_FAILURE_CODE.AGENT_NO_DOCUMENT]: {
     title: "No document written",
     summary: "The agent finished without writing the document it was asked for.",

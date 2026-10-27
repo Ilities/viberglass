@@ -129,6 +129,7 @@ async function runJobLifecycle(
       error instanceof Error ? error.message : "Unknown error";
     const failureCode =
       error instanceof JobFailureError ? error.code : JOB_FAILURE_CODE.RUN_FAILED;
+    const kept = error instanceof JobFailureError ? error.kept : undefined;
 
     await sendProgress("failed", `${jobLabel} failed`, {
       error: errorMessage,
@@ -147,6 +148,8 @@ async function runJobLifecycle(
       success: false,
       executionTime,
       errorMessage,
+      branch: kept?.branch,
+      commitSha: kept?.commitHash,
       changedFileCount: 0,
     });
 
@@ -158,6 +161,7 @@ async function runJobLifecycle(
         failureCode,
         logs: [],
         changedFiles: [],
+        ...(kept ? { branch: kept.branch, commitHash: kept.commitHash } : {}),
         runManifest: failureManifest,
       });
     } catch (callbackError) {
