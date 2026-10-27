@@ -52,7 +52,19 @@ export interface WebhookReceiver {
   verifySignature(rawBody: Buffer, signature: string, secret: string): boolean
   /** Throws InvalidWebhookPayloadError when the sender should fix its request. */
   parseEvent(payload: unknown, headers: Record<string, string>): InboundWebhookEvent
+  /**
+   * Some senders put several events in one delivery. When set, it parses them
+   * all; the platform acts on each. Unset means one event, from parseEvent.
+   */
+  parseEvents?(payload: unknown, headers: Record<string, string>): InboundWebhookEvent[]
   /** Headers that let a stored delivery be parsed again when it's retried. */
   retryHeaders(delivery: { deliveryId: string; eventType: string }): Record<string, string>
   read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction
+  /**
+   * A sender that hands over its signing secret when a webhook is first set up
+   * sends a handshake instead of an event. When set, it names the secret the
+   * delivery carries from its (lower-cased) headers, or undefined for a normal
+   * delivery. The platform stores it as the webhook's secret and echoes it back.
+   */
+  handshakeOf?(headers: Record<string, string>): string | undefined
 }
