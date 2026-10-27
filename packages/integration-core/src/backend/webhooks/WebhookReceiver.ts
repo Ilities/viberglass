@@ -1,4 +1,4 @@
-import type { InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
+import type { AuthCredentials, InboundComment, InboundIssue, InboundTask } from '@viberglass/types'
 
 /** What routing and the delivery log need from an event, whatever sent it. */
 export interface WebhookEventMetadata {
@@ -33,6 +33,11 @@ export type InboundWebhookAction =
 export interface WebhookReadSettings {
   /** The account whose mention asks the agent, and whose comments are never read back. */
   botUsername: string | null
+  /**
+   * The connection's credentials and settings, for a receiver that reads the
+   * event's subject back from the tracker's API.
+   */
+  config?: AuthCredentials & Record<string, unknown>
 }
 
 /**
@@ -47,6 +52,10 @@ export interface WebhookReceiver {
    * its issues they take.
    */
   readonly targetsOneSpace: boolean
+  /** Whether `read` needs the connection's credentials in its settings. */
+  readonly needsConnectionConfig?: boolean
+  /** The headers that complete a subscription handshake, when the sender asks to set one up. */
+  handshake?(headers: Record<string, string>): Record<string, string> | null
   /** The signature a delivery carries, from its (lower-cased) headers. */
   signatureOf(headers: Record<string, string>): string | undefined
   verifySignature(rawBody: Buffer, signature: string, secret: string): boolean
@@ -54,5 +63,7 @@ export interface WebhookReceiver {
   parseEvent(payload: unknown, headers: Record<string, string>): InboundWebhookEvent
   /** Headers that let a stored delivery be parsed again when it's retried. */
   retryHeaders(delivery: { deliveryId: string; eventType: string }): Record<string, string>
-  read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction
+  read(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction | Promise<InboundWebhookAction>
+  /** Reads every event in a delivery that batches several, when the sender does. */
+  readAll?(event: InboundWebhookEvent, settings: WebhookReadSettings): InboundWebhookAction[] | Promise<InboundWebhookAction[]>
 }

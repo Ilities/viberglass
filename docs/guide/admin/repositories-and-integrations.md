@@ -37,6 +37,7 @@ A space can take its tasks from a tracker. Each issue is linked to the task it c
 | GitHub Issues | Ready |
 | Jira Cloud | Ready |
 | Shortcut | Ready |
+| Asana | Ready |
 | Custom webhook | Ready, for any system that can send JSON |
 | GitLab, Bitbucket, Linear, Monday | Not available yet |
 

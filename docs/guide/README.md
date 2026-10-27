@@ -29,7 +29,7 @@ For whoever installs and looks after the workspace.
 - [Install on AWS](admin/install-aws.md): the Pulumi stacks.
 - [Agents and models](admin/agents-and-models.md): runners, coding agents, model keys, and connected and deployed models.
 - [Repositories and integrations](admin/repositories-and-integrations.md): GitHub, Files spaces and what they need, custom webhooks, the Slack app and email.
-- [Issue trackers](admin/issue-trackers.md): GitHub Issues, Jira and Shortcut, and which issues each space takes.
+- [Issue trackers](admin/issue-trackers.md): GitHub Issues, Jira, Shortcut and Asana, and which issues each space takes.
 - [People and access](admin/people-and-access.md): members, guests, viewers, spaces and invites.
 - [Secrets](admin/secrets.md): where keys and tokens are kept and how runners get them.
 - [Security](admin/security.md): what runs where, and what an agent can see.

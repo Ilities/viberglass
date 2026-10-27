@@ -12,14 +12,22 @@ import { getRequestRawBody, respondWithWebhookResult } from './routeHelpers';
 
 const logger = createChildLogger({ service: 'InboundWebhookRoute' });
 
-export function createInboundRoutes(getWebhookService: () => Pick<WebhookService, 'processWebhook'>) {
+type InboundWebhookService = Pick<WebhookService, 'processWebhook'> & Partial<Pick<WebhookService, 'handshake'>>
+
+export function createInboundRoutes(getWebhookService: () => InboundWebhookService) {
   const router = express.Router();
 
   router.post('/:provider/:configId', async (req: Request, res: Response) => {
     const { provider, configId } = req.params;
     const context = { provider, configId, tenantId: req.tenantId };
     try {
-      const result = await getWebhookService().processWebhook(
+      const service = getWebhookService();
+      const handshake = service.handshake?.(provider, req.headers);
+      if (handshake) {
+        logger.info('Webhook handshake answered', context);
+        return res.status(200).set(handshake).send();
+      }
+      const result = await service.processWebhook(
         req.headers,
         req.body,
         getRequestRawBody(req),

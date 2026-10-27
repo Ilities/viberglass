@@ -22,6 +22,8 @@ import { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecyc
 import { WebhookRetryService } from "./WebhookRetryService";
 import { getCredentialFactory } from "../config/credentials";
 import { WebhookService } from "./WebhookService";
+import { IntegrationDAO } from "../persistence/integrations";
+import { ConnectionCredentialsResolver } from "../services/trackers/ConnectionCredentialsResolver";
 
 let webhookService: WebhookService | null = null;
 
@@ -46,7 +48,17 @@ export function getWebhookService(): WebhookService {
       turns: taskTurns,
       answers: new AgentQuestionAnswerService({ asker: taskTurns }),
     });
-    const handler = new InboundEventHandler(issues, new WebhookTaskCreator(ticketDAO, planner));
+    const integrationDAO = new IntegrationDAO();
+    const credentials = new ConnectionCredentialsResolver();
+    const handler = new InboundEventHandler(
+      issues,
+      new WebhookTaskCreator(ticketDAO, planner),
+      async (webhookConfig) => {
+        if (!webhookConfig.integrationId) return undefined;
+        const integration = await integrationDAO.getIntegration(webhookConfig.integrationId);
+        return integration ? credentials.resolve(integration) : undefined;
+      },
+    );
 
     const serviceConfig = {
       enableAutoExecute: true,
