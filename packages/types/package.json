@@ -15,7 +15,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "generate:catalog": "tsx scripts/generate-worker-image-catalog.ts"
+    "generate:catalog": "tsx scripts/generate-worker-image-catalog.ts",
+    "test:catalog": "tsx --test scripts/generate-worker-image-catalog.test.ts"
   },
   "devDependencies": {
     "tsup": "^8.5.1",
