@@ -9,6 +9,7 @@ import agentMistralVibe from "@viberglass/agent-mistral-vibe";
 import agentAntigravity from "@viberglass/agent-antigravity";
 import agentPi from "@viberglass/agent-pi";
 import agentFake from "@viberglass/agent-fake";
+import agentDeepseekHarness from "@viberglass/agent-deepseek-harness";
 
 export const configuredAgentPlugins: readonly AgentPlugin[] = [
   agentClaudeCode,
@@ -20,4 +21,5 @@ export const configuredAgentPlugins: readonly AgentPlugin[] = [
   agentAntigravity,
   agentPi,
   agentFake,
+  agentDeepseekHarness,
 ];
