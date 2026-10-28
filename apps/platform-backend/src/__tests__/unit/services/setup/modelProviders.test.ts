@@ -21,6 +21,14 @@ describe("model provider catalog", () => {
     });
   });
 
+  it("runs DeepSeek keys on DeepSeek Harness with a DeepSeek model", () => {
+    expect(getDefaultAgentBindingForProvider("deepseek")).toMatchObject({
+      agent: "deepseek-harness",
+      envVar: "DEEPSEEK_API_KEY",
+      model: "deepseek-v4-pro",
+    });
+  });
+
   it("runs Google keys on Antigravity", () => {
     expect(getDefaultAgentBindingForProvider("google")).toMatchObject({
       agent: "antigravity",
