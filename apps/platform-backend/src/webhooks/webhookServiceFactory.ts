@@ -16,6 +16,7 @@ import { WebhookPlanRequester } from "./WebhookPlanRequester";
 import { TrackerIssueInbound } from "../services/trackers/TrackerIssueInbound";
 import { AgentQuestionAnswerService } from "../services/questions/AgentQuestionAnswerService";
 import { InboundEventHandler } from "./InboundEventHandler";
+import { IntegrationDAO } from "../persistence/integrations/IntegrationDAO";
 import { WebhookTaskCreator } from "./WebhookTaskCreator";
 import { WebhookConfigResolver } from "./WebhookConfigResolver";
 import { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
@@ -46,7 +47,7 @@ export function getWebhookService(): WebhookService {
       turns: taskTurns,
       answers: new AgentQuestionAnswerService({ asker: taskTurns }),
     });
-    const handler = new InboundEventHandler(issues, new WebhookTaskCreator(ticketDAO, planner));
+    const handler = new InboundEventHandler(issues, new WebhookTaskCreator(ticketDAO, planner), new IntegrationDAO());
 
     const serviceConfig = {
       enableAutoExecute: true,

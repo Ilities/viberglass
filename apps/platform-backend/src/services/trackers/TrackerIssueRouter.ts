@@ -13,6 +13,7 @@ export interface IssueRouting {
   labels: string[];
   /** `owner/repo`, for a tracker whose issues belong to a repository. */
   repository: string | null;
+  projectIds?: string[];
 }
 
 export interface RoutingResult {
@@ -40,8 +41,16 @@ export class TrackerIssueRouter {
     if (all.length === 0) return { spaces: [], reason: "No space takes this connection's issues" };
 
     const inRepository = issue.repository ? await this.spacesUsing(issue.repository) : null;
-    const rules = inRepository ? all.filter((rule) => inRepository.has(rule.projectId)) : all;
-    if (rules.length === 0) return { spaces: [], reason: `No space taking this connection's issues uses the repository '${issue.repository}'` };
+    const inProjects = issue.projectIds?.length ? new Set(issue.projectIds) : null;
+    const rules = all.filter((rule) =>
+      (!inRepository || inRepository.has(rule.projectId)) && (!inProjects || inProjects.has(rule.projectId)),
+    );
+    if (rules.length === 0) {
+      const reason = issue.projectIds?.length
+        ? "No space taking this connection's issues takes this tracker project"
+        : `No space taking this connection's issues uses the repository '${issue.repository}'`;
+      return { spaces: [], reason };
+    }
 
     const plans = new Map<string, boolean>();
     for (const rule of rules) {

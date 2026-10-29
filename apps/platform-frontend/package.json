@@ -20,6 +20,7 @@
     "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/themes": "^3.0.0",
     "@tanstack/react-virtual": "^3.13.22",
+    "@viberglass/integration-asana": "*",
     "@viberglass/integration-bitbucket": "*",
     "@viberglass/integration-core": "*",
     "@viberglass/integration-custom": "*",

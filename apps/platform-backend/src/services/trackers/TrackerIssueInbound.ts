@@ -83,7 +83,10 @@ export class TrackerIssueInbound {
 
     const first: TrackerEventResult = linked[0] ? { ticketId: linked[0].ticketId, projectId: linked[0].projectId } : {};
     if (issue.stateChange === "closed") return linked.length > 0 ? first : { ignoredReason: `The ${context.provider} issue is closed` };
-    const { spaces, reason } = await this.deps.router.route(context, issue);
+    const projectIds = Array.isArray(issue.metadata.projectIds)
+      ? issue.metadata.projectIds.filter((entry): entry is string => typeof entry === "string")
+      : undefined;
+    const { spaces, reason } = await this.deps.router.route(context, { ...issue, projectIds });
     const fresh = spaces.filter((space) => !linked.some((task) => task.projectId === space.projectId));
     if (fresh.length === 0) return linked.length > 0 ? first : { ignoredReason: reason ?? "No space takes the issue" };
     if (!title) return { ...first, ignoredReason: `The ${context.provider} event doesn't carry the issue's title` };
