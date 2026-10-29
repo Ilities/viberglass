@@ -22,6 +22,9 @@ import { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecyc
 import { WebhookRetryService } from "./WebhookRetryService";
 import { getCredentialFactory } from "../config/credentials";
 import { WebhookService } from "./WebhookService";
+import { WebhookEventEnricher } from "./WebhookEventEnricher";
+import { WebhookHandshake } from "./WebhookHandshake";
+import { WebhookDeliveryProcessor } from "./WebhookDeliveryProcessor";
 
 let webhookService: WebhookService | null = null;
 
@@ -46,7 +49,7 @@ export function getWebhookService(): WebhookService {
       turns: taskTurns,
       answers: new AgentQuestionAnswerService({ asker: taskTurns }),
     });
-    const handler = new InboundEventHandler(issues, new WebhookTaskCreator(ticketDAO, planner));
+    const handler = new InboundEventHandler(issues, new WebhookTaskCreator(ticketDAO, planner), new WebhookEventEnricher());
 
     const serviceConfig = {
       enableAutoExecute: true,
@@ -79,4 +82,21 @@ export function getWebhookService(): WebhookService {
   }
 
   return webhookService;
+}
+
+let deliveryProcessor: WebhookDeliveryProcessor | null = null;
+
+/** Takes each delivery to its webhook, answering handshakes and splitting batched events. */
+export function getWebhookDeliveryProcessor(): WebhookDeliveryProcessor {
+  if (!deliveryProcessor) {
+    const configDAO = new WebhookConfigDAO();
+    const secretService = new WebhookSecretService(getCredentialFactory());
+    deliveryProcessor = new WebhookDeliveryProcessor(
+      webhookReceiversFrom(integrationRegistry),
+      new WebhookConfigResolver(configDAO),
+      new WebhookHandshake(configDAO, secretService),
+      getWebhookService(),
+    );
+  }
+  return deliveryProcessor;
 }
