@@ -31,6 +31,8 @@ import { RunRecordService } from "../../services/runRecords/RunRecordService";
 import { spaceFilesRuns } from "../../services/spaceFiles/SpaceFilesRunService";
 import { registerFilesWorkerRoutes } from "./jobs/filesWorkerRoutes";
 import { registerRunFilesRoute } from "./jobs/runFilesRoute";
+import { registerReleaseRoutes } from "./jobs/releaseRoutes";
+import { ReleaseCallbackService } from "../../services/apps/ReleaseCallbackService";
 
 const router = Router();
 // Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
@@ -233,6 +235,7 @@ registerJobWorkerCallbackRoutes(router, workerStorage);
 registerWorkerStorageRoute(router, workerStorage);
 registerFilesWorkerRoutes(router, spaceFilesRuns);
 registerRunFilesRoute(router, spaceFilesRuns);
+registerReleaseRoutes(router, new ReleaseCallbackService());
 registerJobResultRoute(router);
 registerAgentLoginRoute(router);
 registerQuestionCallbackRoute(router);

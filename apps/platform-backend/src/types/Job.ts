@@ -1,4 +1,4 @@
-import type { JobFailure, JobKind, TicketSystem, TicketWorkflowPhase } from "@viberglass/types";
+import type { JobFailure, JobKind, ReleaseBuildPayload, TicketSystem, TicketWorkflowPhase } from "@viberglass/types";
 
 interface InstructionFile {
   fileType: string;
@@ -103,12 +103,18 @@ export interface ClawJobContext extends BaseJobContext {
 /** A login-only job: it signs the runner's agent in and touches no repository. */
 export type AgentLoginJobContext = BaseJobContext;
 
+/** Builds one commit of an App space's app into a release bundle. */
+export interface BuildReleaseJobContext extends BaseJobContext, ReleaseBuildPayload {
+  projectId: string;
+}
+
 export type JobContext =
   | { jobKind: "execution"; context: TicketJobContext }
   | { jobKind: "planning"; context: PlanningJobContext }
   | { jobKind: "reply"; context: TicketJobContext }
   | { jobKind: "claw"; context: ClawJobContext }
-  | { jobKind: "agent_login"; context: AgentLoginJobContext };
+  | { jobKind: "agent_login"; context: AgentLoginJobContext }
+  | { jobKind: "build_release"; context: BuildReleaseJobContext };
 
 // Discriminated union for JobData based on jobKind
 export interface BaseJobData {
@@ -157,12 +163,18 @@ export interface AgentLoginJobData extends BaseJobData {
   context: AgentLoginJobContext;
 }
 
+export interface BuildReleaseJobData extends BaseJobData {
+  jobKind: "build_release";
+  context: BuildReleaseJobContext;
+}
+
 export type JobData =
   | TicketJobData
   | PlanningJobData
   | ReplyJobData
   | ClawJobData
-  | AgentLoginJobData;
+  | AgentLoginJobData
+  | BuildReleaseJobData;
 
 export interface JobResult {
   success: boolean;

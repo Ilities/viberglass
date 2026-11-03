@@ -7,7 +7,7 @@ import type { ProvisioningStrategyName } from "../types";
 import { getOptionalString } from "./configHelpers";
 import { resolveClankerConfig } from "../../clanker-config";
 
-function buildImageUrl(
+export function buildImageUrl(
   registry: string,
   prefix: string,
   repositoryName: string,

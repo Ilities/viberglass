@@ -15,6 +15,7 @@ import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { runClawJob } from "./runClawJob";
 import { runAgentLoginJob } from "./runAgentLoginJob";
+import { runBuildReleaseJob } from "./runBuildReleaseJob";
 import type { JobRunnerParams } from "./jobPipeline";
 import { runSessionTurnJob } from "./runSessionTurnJob";
 import { cleanupJobWorkspace, cloneFreshRepository, sendWorkerProgress } from "./workerHelpers";
@@ -89,7 +90,8 @@ export class ViberatorWorker {
       });
 
       if (payload) {
-        await this.services.agentAuthLifecycle.materializeFromEnvironment();
+        // A release build runs no agent, so there's no agent sign-in to set up.
+        if (payload.jobKind !== "build_release") await this.services.agentAuthLifecycle.materializeFromEnvironment();
         this.instructionFiles =
           await this.instructionFileManager.loadFromPayload(
             payload,
@@ -131,13 +133,16 @@ export class ViberatorWorker {
     const gitAuth = scmToken && data.scm?.gitUsername ? { username: data.scm.gitUsername, token: scmToken } : undefined;
 
     try {
+      const release = data.release;
       const jobRunner =
         data.jobKind === "agent_login"
           ? (params: JobRunnerParams) =>
               runAgentLoginJob({ ...params, agentName: this.settings.requestedAgent ?? "" })
-          : data.jobKind === "claw"
-            ? runClawJob
-            : runSessionTurnJob;
+          : data.jobKind === "build_release" && release
+            ? (params: JobRunnerParams) => runBuildReleaseJob({ ...params, release })
+            : data.jobKind === "claw"
+              ? runClawJob
+              : runSessionTurnJob;
 
       return await jobRunner({
         data,

@@ -201,6 +201,9 @@ async function main() {
     if (!payload.task) {
       throw new Error("Missing required field: task");
     }
+    if (payload.jobKind === "build_release" && !payload.release) {
+      throw new Error("Missing required field: release");
+    }
     if (payload.workerType !== "docker" && payload.workerType !== "ecs" && payload.workerType !== "kubernetes") {
       throw new Error(
         `Invalid workerType: ${payload.workerType}. Expected 'docker', 'ecs', or 'kubernetes' for CLI worker.`,
@@ -229,6 +232,7 @@ async function main() {
           tenantId: payload.tenantId,
           repository: payload.repository,
           files: payload.files,
+          release: payload.release,
           task: payload.task,
           branch: payload.branch,
           baseBranch: payload.baseBranch,

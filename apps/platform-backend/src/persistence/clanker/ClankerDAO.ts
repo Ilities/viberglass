@@ -30,7 +30,7 @@ type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
 
 const logger = createChildLogger({ dao: "ClankerDAO" });
 // Joined query result type with aliased columns from deployment_strategies
-type ClankerWithStrategyRow = Omit<ClankersRow, "deleted_at"> & {
+type ClankerWithStrategyRow = Omit<ClankersRow, "deleted_at" | "purpose"> & {
   strategy_id: string | null;
   strategy_name: string | null;
   strategy_description: string | null;
@@ -200,6 +200,7 @@ export class ClankerDAO {
       ])
       .where("clankers.slug", "=", slug)
       .where("clankers.deleted_at", "is", null)
+      .where("clankers.purpose", "is", null)
       .executeTakeFirst();
 
     if (!row) return null;
@@ -279,6 +280,7 @@ export class ClankerDAO {
         "deployment_strategies.created_at as strategy_created_at",
       ])
       .where("clankers.deleted_at", "is", null)
+      .where("clankers.purpose", "is", null)
       .orderBy("clankers.name", "asc")
       .limit(limit)
       .offset(offset)

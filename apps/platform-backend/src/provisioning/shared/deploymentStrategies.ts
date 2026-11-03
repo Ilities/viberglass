@@ -12,15 +12,17 @@ export function isAwsDeployment(): boolean {
   );
 }
 
+/** Where workers run on this installation unless a runner says otherwise. */
+export function defaultDeploymentStrategyName(): "ecs" | "kubernetes" | "docker" {
+  if (isAwsDeployment()) return "ecs";
+  return process.env.KUBERNETES_WORKER_NAMESPACE?.trim() ? "kubernetes" : "docker";
+}
+
 export function availableDeploymentStrategies(
   strategies: DeploymentStrategy[],
 ): DeploymentStrategy[] {
   const aws = isAwsDeployment();
-  const defaultName = aws
-    ? "ecs"
-    : process.env.KUBERNETES_WORKER_NAMESPACE?.trim()
-      ? "kubernetes"
-      : "docker";
+  const defaultName = defaultDeploymentStrategyName();
   return strategies
     .filter((strategy) =>
       aws

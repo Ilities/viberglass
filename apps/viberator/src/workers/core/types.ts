@@ -87,6 +87,8 @@ export interface BaseWorkerPayload {
   repository?: string;
   /** A Files run: the space's saved files to start from and where its own go. Absent on a Git run. */
   files?: FilesWorkspacePayload;
+  /** A release build: the commit to build and the release it becomes. */
+  release?: ReleaseBuildPayload;
   task: string;
   branch?: string;
   baseBranch?: string;
@@ -253,6 +255,8 @@ export interface CodingJobData {
   repository?: string;
   /** A Files run's space files; absent on a Git run. */
   files?: FilesWorkspacePayload;
+  /** A release build: the commit to build and the release it becomes. */
+  release?: ReleaseBuildPayload;
   task: string;
   branch?: string;
   baseBranch?: string;
@@ -317,7 +321,7 @@ export interface JobResult {
    */
   runManifest?: ExecutionManifest;
 }
-import type { CredentialRequest, FilesCheckpointResult, FilesWorkspacePayload, JobKind, TaskTurnAction, WorkerMcpServer, WorkerSkill } from "@viberglass/types";
+import type { CredentialRequest, FilesCheckpointResult, FilesWorkspacePayload, JobKind, ReleaseBuildPayload, TaskTurnAction, WorkerMcpServer, WorkerSkill } from "@viberglass/types";
 import type { AcpContextUsage, AcpSessionStart } from "@viberglass/agent-core";
 import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";

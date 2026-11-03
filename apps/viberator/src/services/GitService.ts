@@ -125,6 +125,29 @@ class GitService {
     }
   }
 
+  /** Fetches only `commit` into `workDir/repo` and checks it out, detached; the commit needn't be a branch head any more. */
+  public async fetchCommit(
+    repoUrl: string,
+    commit: string,
+    workDir: string,
+    auth?: GitAuth,
+  ): Promise<string> {
+    const repoPath = path.join(workDir, "repo");
+    this.logger.info("Fetching commit", { repoUrl, commit });
+    try {
+      await simpleGit({ baseDir: workDir }).init([repoPath]);
+      const git = simpleGit({ baseDir: repoPath, ...AUTHENTICATED_GIT_OPTIONS });
+      await git.addRemote("origin", toRemoteUrl(repoUrl));
+      await git.env(this.buildGitEnvironment(repoUrl, auth)).fetch(["--depth", "1", "origin", commit]);
+      await git.checkout(["--detach", "FETCH_HEAD"]);
+      return repoPath;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error("Git fetch of a commit failed", { error: errorMessage });
+      throw new Error(`Git fetch failed: ${errorMessage}`);
+    }
+  }
+
   /**
    * Parse changed files from git diff
    */

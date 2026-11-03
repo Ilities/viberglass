@@ -35,3 +35,27 @@ export interface AppManifest {
   start: string
   settings: AppManifestSetting[]
 }
+
+/** The manifest, or what's wrong with it in a sentence the build log can show. */
+export function parseAppManifest(value: unknown): { manifest: AppManifest } | { error: string } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { error: `${APP_MANIFEST_FILE} must be a JSON object` }
+  const record: Record<string, unknown> = { ...value }
+  const { build, start } = record
+  if (typeof build !== 'string' || !build.trim()) return { error: `${APP_MANIFEST_FILE} needs a "build" command` }
+  if (typeof start !== 'string' || !start.trim()) return { error: `${APP_MANIFEST_FILE} needs a "start" command` }
+  const settings = record.settings ?? []
+  if (!Array.isArray(settings)) return { error: `"settings" in ${APP_MANIFEST_FILE} must be a list` }
+  const parsed: AppManifestSetting[] = []
+  for (const setting of settings) {
+    const entry: Record<string, unknown> = typeof setting === 'object' && setting !== null ? { ...setting } : {}
+    if (typeof entry.name !== 'string' || !APP_SETTING_NAME_PATTERN.test(entry.name)) {
+      return { error: `Each setting in ${APP_MANIFEST_FILE} needs a name such as SLACK_WEBHOOK_URL` }
+    }
+    parsed.push({
+      name: entry.name,
+      secret: entry.secret === true,
+      ...(typeof entry.description === 'string' ? { description: entry.description } : {}),
+    })
+  }
+  return { manifest: { build, start, settings: parsed } }
+}

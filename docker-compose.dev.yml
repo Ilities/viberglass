@@ -124,6 +124,8 @@ services:
       PREVIEW_PUBLIC_URL: http://127.0.0.1:8890
       # Apps run on <app>.apps.localhost; browsers send *.localhost to loopback.
       APPS_DOMAIN: apps.localhost
+      # Release builds run in this image; `npm run build:app-images` builds it locally.
+      APP_BUILDER_IMAGE: ${APP_BUILDER_IMAGE:-viberglass-app-builder-node:latest}
       # Email (invite links, notifications). Empty means unset: nothing is emailed.
       # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
       EMAIL_FROM: ${EMAIL_FROM:-}

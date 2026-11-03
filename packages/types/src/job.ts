@@ -6,6 +6,8 @@ export const JOB_KIND = {
   CLAW: 'claw',
   /** Signs a runner's agent in (e.g. a ChatGPT login for Codex) and stores the login; runs nothing else. */
   AGENT_LOGIN: 'agent_login',
+  /** Builds an App space's app at one commit into a release bundle; runs no agent. */
+  BUILD_RELEASE: 'build_release',
 } as const
 
 export type JobKind = (typeof JOB_KIND)[keyof typeof JOB_KIND]
@@ -48,6 +50,8 @@ export const JOB_FAILURE_CODE = {
   FILES_SAVE_FAILED: 'FILES_SAVE_FAILED',
   /** A run asked for an artifact declared none, or declared one that isn't valid. */
   ARTIFACT_INVALID: 'ARTIFACT_INVALID',
+  /** The app's own build command failed, or it has no valid manifest. */
+  APP_BUILD_FAILED: 'APP_BUILD_FAILED',
   /** No worker could be started for the run. */
   RUNNER_UNAVAILABLE: 'RUNNER_UNAVAILABLE',
   /** The worker used more memory than its runner allows and was killed. */

@@ -21,6 +21,7 @@ import { JobService } from "../services/JobService";
 import { WorkerStopperChain } from "../workers/WorkerStopperChain";
 import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
 import { PeriodicSweeper } from "../workers/PeriodicSweeper";
+import { createAppReleasePoller } from "../services/apps/createAppReleasePoller";
 import { QuestionReminderService } from "../services/questions/QuestionReminderService";
 import { CredentialExpiryWarner } from "../services/notifications/CredentialExpiryWarner";
 import { registerActivityListener } from "../services/tasks/activityListeners";
@@ -97,6 +98,7 @@ spaceFilesRuns.setLauncher((run) => turnDispatcher.launchWaiting(run));
 spaceFilesRuns.setWaitingChanges(new SpaceFileChangeQueue(spaceFilesRuns));
 
 const questionReminders = new QuestionReminderService();
+const appReleasePoller = createAppReleasePoller();
 const credentialExpiry = new CredentialExpiryWarner();
 const periodicSweepers = shouldRunBackgroundSweepers
   ? [
@@ -114,6 +116,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         "Files retention",
         async () => (await new SpaceFilesRetention().sweep()) + (await new SpaceFilesOrphanCleanup().sweep()),
         parseInt(process.env.SPACE_FILES_RETENTION_SWEEP_INTERVAL_MS || "600000", 10),
+      ),
+      new PeriodicSweeper(
+        "App space releases",
+        (now) => appReleasePoller.sweep(now),
+        parseInt(process.env.APP_RELEASE_POLL_INTERVAL_MS || "60000", 10),
       ),
       new PeriodicSweeper(
         "credential expiry warnings",

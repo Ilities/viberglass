@@ -178,6 +178,21 @@ export interface WorkspaceSettingsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface AppReleasesTable {
+  id: Generated<string>;
+  project_id: string;
+  commit_sha: string;
+  status: Generated<"building" | "ready" | "failed">;
+  job_id: string | null;
+  bundle_sha256: string | null;
+  bundle_bytes: ColumnType<string | null, number | null, number | null>;
+  node_version: string | null;
+  build_log: string | null;
+  failure_reason: string | null;
+  created_at: Generated<Timestamp>;
+  finished_at: Timestamp | null;
+}
+
 export interface ProjectScmConfigsTable {
   id: Generated<string>;
   project_id: string;
@@ -246,6 +261,8 @@ export interface ClankersTable {
   secret_bindings: Generated<Json>;
   status: Generated<"active" | "inactive" | "deploying" | "failed">;
   status_message: string | null;
+  /** Set on a runner the platform owns; people never see or pick it. */
+  purpose: Generated<"app_builder" | null>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -306,7 +323,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"planning" | "execution" | "reply" | "claw" | "agent_login">;
+  job_kind: Generated<"planning" | "execution" | "reply" | "claw" | "agent_login" | "build_release">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -915,6 +932,7 @@ export interface SpaceFileChangesTable {
 
 export interface Database {
   workspace_settings: WorkspaceSettingsTable;
+  app_releases: AppReleasesTable;
   space_file_snapshots: SpaceFileSnapshotsTable;
   space_file_changes: SpaceFileChangesTable;
   space_file_state: SpaceFileStateTable;

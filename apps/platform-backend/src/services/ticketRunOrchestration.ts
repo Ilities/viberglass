@@ -153,7 +153,7 @@ function mergeSecretBindings(bindings: SecretBinding[]): SecretBinding[] {
 }
 
 /** The space's chosen token, else its connection's default, the same one pull requests are opened with. */
-async function resolveScmCredentialSecretId(
+export async function resolveScmCredentialSecretId(
   integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById" | "getDefaultForIntegration">,
   scmConfig: ProjectScmConfigWithLegacySecret | null,
 ): Promise<string | null> {

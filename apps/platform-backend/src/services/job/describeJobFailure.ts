@@ -92,6 +92,12 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "agent",
     retryable: true,
   },
+  [JOB_FAILURE_CODE.APP_BUILD_FAILED]: {
+    title: "App didn't build",
+    summary: "The app's build failed, so this commit has no release.",
+    category: "agent",
+    retryable: false,
+  },
   [JOB_FAILURE_CODE.RUNNER_UNAVAILABLE]: {
     title: "Agent couldn't start",
     summary: "No agent runner could be started for this run.",

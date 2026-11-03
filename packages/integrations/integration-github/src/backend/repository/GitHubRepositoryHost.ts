@@ -1,6 +1,7 @@
 import type { PullRequestToOpen, RepositoryCreator, RepositoryHost, RepositoryRef } from '@viberglass/integration-core'
 import type { PullRequestOutcome, PullRequestReview, RepositoryAccess } from '@viberglass/types'
 import { checkGitHubAccess } from './checkGitHubAccess'
+import { fetchGitHubBranchHead } from './fetchGitHubBranchHead'
 import { fetchGitHubPullRequestOutcome } from './fetchGitHubPullRequestOutcome'
 import { fetchGitHubPullRequestReview } from './fetchGitHubPullRequestReview'
 import type { GitHubApi, GitHubFetch } from './gitHubApi'
@@ -55,6 +56,10 @@ export class GitHubRepositoryHost implements RepositoryHost {
 
   fetchPullRequestOutcome(url: string, token: string): Promise<PullRequestOutcome> {
     return fetchGitHubPullRequestOutcome(this.api, url, token)
+  }
+
+  fetchBranchHead(repository: RepositoryRef, branch: string, token: string): Promise<string | null> {
+    return fetchGitHubBranchHead(this.api, repository, branch, token)
   }
 
   fetchPullRequestReview(url: string, token: string, since: Date | null): Promise<PullRequestReview> {

@@ -2,6 +2,7 @@ import { Logger } from "winston";
 import { TurnCallbackClient } from "./TurnCallbackClient";
 import { RepositoryCallbackClient } from "./RepositoryCallbackClient";
 import { FilesCallbackClient } from "./FilesCallbackClient";
+import { ReleaseCallbackClient } from "./ReleaseCallbackClient";
 import type { ExecutionManifest } from "@viberglass/telemetry";
 import type { FilesCheckpointResult, SkillFile } from "@viberglass/types";
 import {
@@ -43,11 +44,12 @@ export interface CallbackResult {
   runManifest?: ExecutionManifest;
 }
 
-/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`, a repository's on `repository`, a Files space's on `files`. */
+/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`, a repository's on `repository`, a Files space's on `files`, a release build's on `release`. */
 export class CallbackClient {
   readonly turn: TurnCallbackClient;
   readonly repository: RepositoryCallbackClient;
   readonly files: FilesCallbackClient;
+  readonly release: ReleaseCallbackClient;
   private apiUrl: string;
   private maxRetries: number;
   private retryDelay: number;
@@ -78,6 +80,7 @@ export class CallbackClient {
     this.turn = new TurnCallbackClient(logger, target);
     this.repository = new RepositoryCallbackClient(target);
     this.files = new FilesCallbackClient(target);
+    this.release = new ReleaseCallbackClient(target);
   }
 
   async sendResult(

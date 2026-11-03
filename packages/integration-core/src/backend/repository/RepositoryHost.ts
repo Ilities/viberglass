@@ -41,6 +41,8 @@ export interface RepositoryHost {
   /** Whether a pull request address is one of this host's. */
   ownsPullRequest(url: string): boolean
   fetchPullRequestOutcome(url: string, token: string): Promise<PullRequestOutcome>
+  /** The commit a branch points at; null when the branch doesn't exist yet, as in an empty repository. */
+  fetchBranchHead(repository: RepositoryRef, branch: string, token: string): Promise<string | null>
   /** Unresolved review threads, and review summaries and comments written after `since`. */
   fetchPullRequestReview(url: string, token: string, since: Date | null): Promise<PullRequestReview>
 }

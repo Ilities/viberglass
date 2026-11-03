@@ -43,6 +43,7 @@
   "scripts": {
     "dev": "concurrently -n be,fe \"npm run dev -w @viberglass/platform-backend\" \"npm run dev -w @viberglass/frontend\"",
     "build": "npm run build -w @viberglass/types && npm run build -w @viberglass/telemetry && npm run build -w @viberglass/agent-core && npm run build -w @viberglass/platform-ui && npm run build -w @viberglass/integration-core && npm run build --workspaces --if-present",
+    "build:app-images": "docker build -f infra/apps/docker/app-node.Dockerfile --target runtime -t viberglass-app-runtime-node:latest . && docker build -f infra/apps/docker/app-node.Dockerfile --target builder -t viberglass-app-builder-node:latest .",
     "build:worker": "npm run build -w @viberglass/types && npm run build -w @viberglass/telemetry && npm run build -w @viberglass/agent-core && npm run build $(node scripts/plugins/list.mjs agents) && npm run build -w @viberator/orchestrator",
     "generate:plugins": "node scripts/plugins/generate.mjs",
     "generate:catalog": "npm run generate:catalog -w @viberglass/types",
