@@ -2,7 +2,7 @@ import type { Integration, IntegrationCredential } from "@viberglass/types";
 import { SetupRepositoryService } from "../../../../services/setup/SetupRepositoryService";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
 import { RepositoryAccessError } from "@viberglass/integration-core";
-import { fakeRepositoryHost } from "../../../helpers/fakeRepositoryHost";
+import { fakeCreatingRepositoryHost, fakeRepositoryHost } from "../../../helpers/fakeRepositoryHost";
 
 jest.mock("../../../../persistence/integrations/IntegrationDAO", () => ({ IntegrationDAO: jest.fn() }));
 jest.mock("../../../../persistence/integrations/IntegrationCredentialDAO", () => ({
@@ -46,7 +46,7 @@ function credential(overrides: Partial<IntegrationCredential> = {}): Integration
 }
 
 function build(options: { integrations?: Integration[]; credentials?: IntegrationCredential[] } = {}) {
-  const host = fakeRepositoryHost();
+  const host = fakeCreatingRepositoryHost();
   // Reads owner/name and github.com addresses, the way the GitHub host does.
   host.parseRepository.mockImplementation((input: string) => {
     const match = input.match(/^(?:https:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
@@ -67,7 +67,7 @@ function build(options: { integrations?: Integration[]; credentials?: Integratio
     { listByIntegrationId, create, update },
     { saveByName, replaceById },
   );
-  return { service, check, createIntegration, create, update, saveByName, replaceById };
+  return { service, host, check, createIntegration, create, update, saveByName, replaceById };
 }
 
 describe("SetupRepositoryService", () => {
@@ -157,5 +157,71 @@ describe("SetupRepositoryService", () => {
     await expect(service.saveRepository("acme/web", "t")).rejects.toThrow("can't push");
     expect(saveByName).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
+  });
+
+  describe("creating a repository", () => {
+    const CREATED = { ...ACCESS, fullName: "acme/laptops", url: "https://github.com/acme/laptops" };
+
+    it("lists where the token can create one", async () => {
+      const { service, host } = build();
+      host.creator.listOwners.mockResolvedValue([{ name: "jane", kind: "user" }]);
+
+      await expect(service.listOwners(" ghp_abc ")).resolves.toEqual([{ name: "jane", kind: "user" }]);
+      expect(host.creator.listOwners).toHaveBeenCalledWith("ghp_abc");
+    });
+
+    it("creates it, checks the token can push to it, and saves the token like a pasted repository", async () => {
+      const { service, host, check, saveByName } = build();
+      host.creator.createRepository.mockResolvedValue(CREATED);
+      check.mockResolvedValue(CREATED);
+
+      const saved = await service.createRepository({ owner: "acme", name: "laptops" }, "ghp_abc");
+
+      expect(host.creator.createRepository).toHaveBeenCalledWith({ owner: "acme", name: "laptops" }, "ghp_abc");
+      expect(check).toHaveBeenCalledWith({ fullName: "acme/laptops", url: "https://github.com/acme/laptops" }, "ghp_abc");
+      expect(saveByName).toHaveBeenCalledWith("GITHUB_TOKEN", "ghp_abc");
+      expect(saved).toEqual({ ...CREATED, integrationId: "integration-new", credentialId: "credential-new" });
+    });
+
+    it("says what the token needs when the host won't create it, and saves nothing", async () => {
+      const { service, host, saveByName } = build();
+      host.creator.createRepository.mockRejectedValue(
+        new RepositoryAccessError("CREATE_FORBIDDEN", "This token can't create repositories in acme: it needs more."),
+      );
+
+      await expect(service.createRepository({ owner: "acme", name: "laptops" }, "t")).rejects.toMatchObject({
+        code: SETUP_SERVICE_ERROR_CODE.CREATE_FORBIDDEN,
+        statusCode: 422,
+        message: "This token can't create repositories in acme: it needs more.",
+      });
+      expect(saveByName).not.toHaveBeenCalled();
+    });
+
+    it("says the repository was created when the token then can't push to it", async () => {
+      const { service, host, check, saveByName } = build();
+      host.creator.createRepository.mockResolvedValue(CREATED);
+      check.mockRejectedValue(new RepositoryAccessError("REPOSITORY_NOT_FOUND", "Couldn't find acme/laptops with this token."));
+
+      await expect(service.createRepository({ owner: "acme", name: "laptops" }, "t")).rejects.toMatchObject({
+        code: SETUP_SERVICE_ERROR_CODE.REPOSITORY_NOT_FOUND,
+        message: expect.stringMatching(/^Created acme\/laptops, but this token can't work in it yet\. Couldn't find/),
+      });
+      expect(saveByName).not.toHaveBeenCalled();
+    });
+
+    it("refuses a token with spaces before contacting the host", async () => {
+      const { service, host } = build();
+
+      await expect(service.createRepository({ owner: "acme", name: "laptops" }, "two words")).rejects.toMatchObject({
+        code: SETUP_SERVICE_ERROR_CODE.TOKEN_FORMAT_INVALID,
+      });
+      expect(host.creator.createRepository).not.toHaveBeenCalled();
+    });
+
+    it("explains when the code host can't create repositories", async () => {
+      const service = new SetupRepositoryService(() => ({ system: "github", label: "GitHub", repository: fakeRepositoryHost() }));
+
+      await expect(service.listOwners("t")).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("can't create repositories") });
+    });
   });
 });

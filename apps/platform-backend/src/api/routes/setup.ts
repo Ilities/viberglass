@@ -8,6 +8,8 @@ import {
 import {
   validateSetupModelKey,
   validateSetupRepository,
+  validateSetupRepositoryOwners,
+  validateSetupNewRepository,
   validateSetupSpace,
   validateSetupAgent,
 } from "../middleware/validation";
@@ -92,6 +94,25 @@ router.post(
   asyncHandler(async (req, res) => {
     const saved = await repositoryService.saveRepository(req.body.repository, req.body.token);
     res.json({ success: true, data: saved });
+  }),
+);
+
+// POST /api/setup/repository/owners - Accounts the token can create a repository under (POST keeps the token out of the URL)
+router.post(
+  "/repository/owners",
+  validateSetupRepositoryOwners,
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: await repositoryService.listOwners(req.body.token) });
+  }),
+);
+
+// POST /api/setup/repository/new - Create a repository with the token and save it as the connection's token
+router.post(
+  "/repository/new",
+  validateSetupNewRepository,
+  asyncHandler(async (req, res) => {
+    const saved = await repositoryService.createRepository({ owner: req.body.owner, name: req.body.name }, req.body.token);
+    res.status(201).json({ success: true, data: saved });
   }),
 );
 

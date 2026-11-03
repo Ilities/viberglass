@@ -14,6 +14,7 @@ import {
   updateProject,
   upsertProjectScmConfig,
 } from '@/service/api/project-api'
+import { createSpaceRepository, getRepositoryOwners } from '@/service/api/repository-api'
 import { SpaceRepositoryPage } from './SpaceRepositoryPage'
 import { useSpaceRepositoryForm } from './useSpaceRepositoryForm'
 import type { Project } from '@/service/api/project-api'
@@ -28,6 +29,11 @@ jest.mock('@/service/api/integration-api', () => ({
   getIntegrationManifests: jest.fn(),
   getIntegrationCredentials: jest.fn(),
   getProjectIntegrations: jest.fn(),
+}))
+
+jest.mock('@/service/api/repository-api', () => ({
+  createSpaceRepository: jest.fn(),
+  getRepositoryOwners: jest.fn(),
 }))
 
 jest.mock('@/service/api/project-api', () => ({
@@ -199,6 +205,80 @@ describe('SpaceRepositoryPage', () => {
     mockedUpdateProject.mockResolvedValue(PROJECT as unknown as Project)
     mockedUpsertProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as unknown as ProjectScmConfig)
     mockedDeleteProjectScmConfig.mockResolvedValue()
+  })
+
+  describe('creating a repository', () => {
+    const SPACE: Project = {
+      backingKind: 'git',
+      ...PROJECT,
+      autoFixTags: [],
+      isPrivate: false,
+      defaultReviewerIds: [],
+      questionReminderHours: 4,
+      primaryScmIntegrationId: INITIAL_SCM_CONFIG.integrationId,
+    }
+    const CREATED = {
+      fullName: 'acme/viberglass',
+      url: 'https://github.com/acme/viberglass',
+      defaultBranch: 'trunk',
+      isPrivate: true,
+    }
+
+    beforeEach(() => {
+      mockedGetIntegrationManifests.mockResolvedValue([
+        { id: 'github', label: 'GitHub', category: 'scm', description: '', configFields: [], status: 'ready', createsRepositories: true },
+      ])
+      jest.mocked(getRepositoryOwners).mockResolvedValue([{ name: 'acme', kind: 'organization' }])
+      jest.mocked(createSpaceRepository).mockResolvedValue(CREATED)
+    })
+
+    it('creates the repository with the space\'s code host, then saves it as the space\'s repository', async () => {
+      mockedGetProjectScmConfig.mockResolvedValue(null)
+      const { result } = renderHook(() => useSpaceRepositoryForm(SPACE))
+      await waitFor(() => expect(result.current.newRepository).toBeDefined())
+      await waitFor(() => expect(result.current.isLoadingConnections).toBe(false))
+
+      act(() => result.current.newRepository?.setSource('new'))
+      await waitFor(() => expect(result.current.newRepository?.owner).toBe('acme'))
+      expect(result.current.newRepository?.name).toBe('viberglass')
+      await act(async () => result.current.save())
+
+      expect(createSpaceRepository).toHaveBeenCalledWith(PROJECT.id, {
+        integrationId: INITIAL_SCM_CONFIG.integrationId,
+        integrationCredentialId: null,
+        owner: 'acme',
+        name: 'viberglass',
+      })
+      expect(mockedUpsertProjectScmConfig).toHaveBeenCalledWith(
+        PROJECT.id,
+        expect.objectContaining({ sourceRepository: CREATED.url, baseBranch: 'trunk' })
+      )
+      expect(result.current.repositoryAddress).toBe(CREATED.url)
+      expect(result.current.newRepository).toBeUndefined()
+    })
+
+    it("treats the created repository as an existing one when saving it fails, so a retry doesn't create another", async () => {
+      mockedGetProjectScmConfig.mockResolvedValue(null)
+      mockedUpsertProjectScmConfig.mockRejectedValueOnce(new Error("This token can't push to acme/viberglass."))
+      const { result } = renderHook(() => useSpaceRepositoryForm(SPACE))
+      await waitFor(() => expect(result.current.isLoadingConnections).toBe(false))
+      act(() => result.current.newRepository?.setSource('new'))
+      await waitFor(() => expect(result.current.newRepository?.owner).toBe('acme'))
+
+      await act(async () => result.current.save())
+      expect(result.current.error).toBe("This token can't push to acme/viberglass.")
+      await act(async () => result.current.save())
+
+      expect(createSpaceRepository).toHaveBeenCalledTimes(1)
+      expect(mockedUpsertProjectScmConfig).toHaveBeenLastCalledWith(PROJECT.id, expect.objectContaining({ sourceRepository: CREATED.url }))
+    })
+
+    it("doesn't offer it once the space has a repository", async () => {
+      const { result } = renderHook(() => useSpaceRepositoryForm(SPACE))
+      await waitFor(() => expect(result.current.isLoadingConnections).toBe(false))
+
+      expect(result.current.newRepository).toBeUndefined()
+    })
   })
 
   it('keeps the save confirmation when the space context refreshes', async () => {

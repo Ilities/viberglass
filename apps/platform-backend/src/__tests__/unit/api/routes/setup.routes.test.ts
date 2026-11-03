@@ -6,7 +6,7 @@ import {
 } from "../../../../services/errors/SetupServiceError";
 
 const mockModelKeyService = { saveModelKey: jest.fn() };
-const mockRepositoryService = { saveRepository: jest.fn() };
+const mockRepositoryService = { saveRepository: jest.fn(), listOwners: jest.fn(), createRepository: jest.fn() };
 const mockSpaceService = { createSpace: jest.fn() };
 
 jest.mock("../../../../api/middleware/authentication", () => ({
@@ -111,6 +111,45 @@ describe("setup routes", () => {
   it("requires a token", async () => {
     await request(app).post("/api/setup/repository").send({ repository: "acme/web" }).expect(400);
     expect(mockRepositoryService.saveRepository).not.toHaveBeenCalled();
+  });
+
+  it("lists where the token can create a repository", async () => {
+    mockRepositoryService.listOwners.mockResolvedValue([{ name: "jane", kind: "user" }]);
+
+    const response = await request(app).post("/api/setup/repository/owners").send({ token: "ghp_abc" }).expect(200);
+
+    expect(response.body.data).toEqual([{ name: "jane", kind: "user" }]);
+    expect(mockRepositoryService.listOwners).toHaveBeenCalledWith("ghp_abc");
+  });
+
+  it("creates a repository and saves its token", async () => {
+    mockRepositoryService.createRepository.mockResolvedValue({ fullName: "acme/laptops" });
+
+    const response = await request(app)
+      .post("/api/setup/repository/new")
+      .send({ owner: "acme", name: "laptops", token: "ghp_abc" })
+      .expect(201);
+
+    expect(response.body.data).toEqual({ fullName: "acme/laptops" });
+    expect(mockRepositoryService.createRepository).toHaveBeenCalledWith({ owner: "acme", name: "laptops" }, "ghp_abc");
+  });
+
+  it("returns why the repository couldn't be created", async () => {
+    mockRepositoryService.createRepository.mockRejectedValue(
+      new SetupServiceError(SETUP_SERVICE_ERROR_CODE.CREATE_FORBIDDEN, "This token can't create repositories in acme: it needs more."),
+    );
+
+    const response = await request(app)
+      .post("/api/setup/repository/new")
+      .send({ owner: "acme", name: "laptops", token: "ghp_abc" })
+      .expect(422);
+
+    expect(response.body).toMatchObject({ error: "This token can't create repositories in acme: it needs more.", code: "CREATE_FORBIDDEN" });
+  });
+
+  it("needs a name for the new repository", async () => {
+    await request(app).post("/api/setup/repository/new").send({ owner: "acme", token: "ghp_abc" }).expect(400);
+    expect(mockRepositoryService.createRepository).not.toHaveBeenCalled();
   });
 
   it("creates the first space", async () => {

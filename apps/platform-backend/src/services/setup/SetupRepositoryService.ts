@@ -1,7 +1,8 @@
 import type {
   Integration,
   IntegrationCredential,
-  RepositoryAccess,
+  NewRepository,
+  RepositoryOwner,
   SavedRepository,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
@@ -17,7 +18,8 @@ import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
-import { RepositoryAccessError, type RepositoryRef } from "@viberglass/integration-core";
+import { RepositoryAccessError, type RepositoryCreator } from "@viberglass/integration-core";
+import { createCheckedRepository } from "../repositories/createCheckedRepository";
 import { SetupSecretStore } from "./SetupSecretStore";
 import { findSetupCodeHost, requireSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
 
@@ -34,9 +36,10 @@ interface Credentials {
 
 /**
  * Setup step "Point at your repository": checks that the token can read and
- * push to the repository, then saves it as the code host connection's default
- * credential. The connection and credential are reused when they exist, so
- * running setup again replaces the token instead of adding another.
+ * push to the repository, or creates one with it, then saves it as the code
+ * host connection's default credential. The connection and credential are
+ * reused when they exist, so running setup again replaces the token instead
+ * of adding another.
  */
 export class SetupRepositoryService {
   constructor(
@@ -55,29 +58,40 @@ export class SetupRepositoryService {
         `Enter the repository as owner/name or its ${codeHost.label} address, for example acme/web.`,
       );
     }
-    const token = rawToken.trim();
-    if (!token || /\s/.test(token)) {
-      throw new SetupServiceError(
-        SETUP_SERVICE_ERROR_CODE.TOKEN_FORMAT_INVALID,
-        "Paste the access token on its own; a token doesn't contain spaces.",
-      );
-    }
-
-    const access = await this.checkAccess(codeHost, ref, token);
-    const integration = await this.findOrCreateIntegration(codeHost);
-    const credentialId = await this.saveToken(codeHost, integration.id, token);
-    return { ...access, integrationId: integration.id, credentialId };
+    const token = readToken(rawToken);
+    const access = await asSetupError(codeHost.repository.checkAccess(ref, token));
+    return { ...access, ...(await this.saveConnection(codeHost, token)) };
   }
 
-  private async checkAccess(codeHost: SetupCodeHost, ref: RepositoryRef, token: string): Promise<RepositoryAccess> {
-    try {
-      return await codeHost.repository.checkAccess(ref, token);
-    } catch (error) {
-      if (error instanceof RepositoryAccessError) {
-        throw new SetupServiceError(SETUP_SERVICE_ERROR_CODE[error.code], error.message);
-      }
-      throw error;
+  async listOwners(rawToken: string): Promise<RepositoryOwner[]> {
+    const { creator } = this.requireCreator();
+    return asSetupError(creator.listOwners(readToken(rawToken)));
+  }
+
+  async createRepository(repository: NewRepository, rawToken: string): Promise<SavedRepository> {
+    const { codeHost, creator } = this.requireCreator();
+    const token = readToken(rawToken);
+    const access = await asSetupError(createCheckedRepository(codeHost.repository, creator, repository, token));
+    return { ...access, ...(await this.saveConnection(codeHost, token)) };
+  }
+
+  private requireCreator(): { codeHost: SetupCodeHost; creator: RepositoryCreator } {
+    const codeHost = requireSetupCodeHost(this.codeHost);
+    const creator = codeHost.repository.creator;
+    if (!creator) {
+      throw new SetupServiceError(
+        SETUP_SERVICE_ERROR_CODE.HOST_ERROR,
+        `${codeHost.label} can't create repositories from here. Create it on ${codeHost.label}, then use it as an existing repository.`,
+        400,
+      );
     }
+    return { codeHost, creator };
+  }
+
+  private async saveConnection(codeHost: SetupCodeHost, token: string): Promise<{ integrationId: string; credentialId: string }> {
+    const integration = await this.findOrCreateIntegration(codeHost);
+    const credentialId = await this.saveToken(codeHost, integration.id, token);
+    return { integrationId: integration.id, credentialId };
   }
 
   private async findOrCreateIntegration(codeHost: SetupCodeHost): Promise<Integration> {
@@ -106,5 +120,27 @@ export class SetupRepositoryService {
       isDefault: true,
     });
     return created.id;
+  }
+}
+
+function readToken(rawToken: string): string {
+  const token = rawToken.trim();
+  if (!token || /\s/.test(token)) {
+    throw new SetupServiceError(
+      SETUP_SERVICE_ERROR_CODE.TOKEN_FORMAT_INVALID,
+      "Paste the access token on its own; a token doesn't contain spaces.",
+    );
+  }
+  return token;
+}
+
+async function asSetupError<T>(work: Promise<T>): Promise<T> {
+  try {
+    return await work;
+  } catch (error) {
+    if (error instanceof RepositoryAccessError) {
+      throw new SetupServiceError(SETUP_SERVICE_ERROR_CODE[error.code], error.message);
+    }
+    throw error;
   }
 }

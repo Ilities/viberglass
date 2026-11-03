@@ -27,6 +27,8 @@ export interface IntegrationManifest extends PluginManifest {
   receivesWebhooks?: boolean
   /** Events a new webhook subscribes to; all of them when unset. */
   defaultInboundEvents?: string[]
+  /** Set by the platform when the integration's code host can create repositories. */
+  createsRepositories?: boolean
 }
 
 /** Whether a chat service's bot runs: its connection holds what it needs, and why the service turned it down if it did. */

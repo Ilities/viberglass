@@ -1,6 +1,7 @@
 import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ModelEndpoint, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
 import type { Project } from "@viberglass/types";
 import { SetupStatusService } from "../../../../services/setup/SetupStatusService";
+import { fakeCreatingRepositoryHost, fakeRepositoryHost } from "../../../helpers/fakeRepositoryHost";
 
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
@@ -74,7 +75,7 @@ function runner(status: ClankerStatus): Clanker {
   };
 }
 
-function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; files?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[] }) {
+function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; files?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[]; creates?: boolean }) {
   const defaultAgent = state.agent ? runner(state.agent) : null;
   return new SetupStatusService({
     secrets: {
@@ -82,6 +83,7 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
         state.secrets?.includes(provider) ? { id: provider } : null,
     },
     integrations: { listIntegrations: async () => (state.github ? [GITHUB] : []) },
+    codeHost: () => ({ system: "github", label: "GitHub", repository: state.creates === false ? fakeRepositoryHost() : fakeCreatingRepositoryHost() }),
     credentials: { getDefaultForIntegration: async () => (state.github ? TOKEN : null) },
     projects: { listProjects: async () => [...(state.files ? [{ ...PROJECT, id: "files-space", backingKind: "files" as const }] : []), ...(state.space ? [PROJECT] : [])] },
     scmConfigs: { getByProjectId: async () => (state.space ? SCM : null) },
@@ -108,6 +110,7 @@ describe("SetupStatusService", () => {
       connectedProviders: [],
       connectedEndpoints: [],
       repositoryConnected: false,
+      createsRepositories: true,
       space: null,
       agent: null,
       complete: false,
@@ -122,11 +125,16 @@ describe("SetupStatusService", () => {
       connectedProviders: ["opencode-go"],
       connectedEndpoints: [],
       repositoryConnected: true,
+      createsRepositories: true,
       space: { projectId: "project-1", name: "Web", slug: "web", backingKind: "git", repositoryUrl: "https://github.com/acme/web" },
       agent: { clankerId: "clanker-1", agentName: "OpenCode", status: "deploying", statusMessage: "Docker image ready" },
       complete: false,
       demo: null,
     });
+  });
+
+  it("doesn't offer to create a repository when the code host can't", async () => {
+    expect((await service({ creates: false }).getStatus()).createsRepositories).toBe(false);
   });
 
   it("is complete once a space exists and a runner is active", async () => {

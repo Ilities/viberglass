@@ -1,7 +1,9 @@
 import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Link } from '@/components/link'
+import { NewRepositoryFields, RepositorySourceField } from '@/components/new-repository-fields'
 import { Select } from '@/components/select'
+import type { NewRepositoryForm } from '@/hooks/useNewRepository'
 import { gitHubTokenUrl } from '@/lib/repositoryAddress'
 import type { IntegrationCredential } from '@viberglass/types'
 
@@ -11,6 +13,8 @@ export const NO_SELECTION = '__none__'
 export interface ConnectionOption {
   id: string
   label: string
+  /** Its code host can create repositories. */
+  createsRepositories?: boolean
 }
 
 /** A connection's name, followed by its provider when the name doesn't already say it. */
@@ -34,6 +38,18 @@ interface RepositoryFieldsProps {
   onTokenChange: (id: string) => void
   isLoadingTokens: boolean
   tokensError: string | null
+  /** Offers to create the repository when the chosen code host can. */
+  newRepository?: NewRepositoryForm
+}
+
+/** Whether the form is set to create the repository with the chosen code host. */
+export function isCreatingRepository(
+  codeHosts: ConnectionOption[],
+  codeHostId: string,
+  newRepository: NewRepositoryForm | undefined
+): boolean {
+  const codeHost = codeHosts.find((candidate) => candidate.id === codeHostId)
+  return Boolean(codeHost?.createsRepositories && newRepository?.source === 'new')
 }
 
 /** Ignores the empty value Radix emits while its options reconcile. */
@@ -47,6 +63,61 @@ function ignoringEmpty(onChange: (value: string) => void) {
 export function RepositoryFields(props: RepositoryFieldsProps) {
   const hasCodeHost = props.codeHostId !== NO_SELECTION
   const noCodeHosts = !props.isLoadingCodeHosts && props.codeHosts.length === 0
+  const canCreate = Boolean(
+    props.newRepository && props.codeHosts.find((codeHost) => codeHost.id === props.codeHostId)?.createsRepositories
+  )
+  const creating = isCreatingRepository(props.codeHosts, props.codeHostId, props.newRepository)
+
+  const tokenField = (
+    <Field>
+      <Label>Access token</Label>
+      <Description>
+        {creating
+          ? 'Needs to create repositories, push branches and open pull requests.'
+          : 'Needs to push branches and open pull requests.'}{' '}
+        <Link
+          href={gitHubTokenUrl(props.repositoryAddress, { createsRepositories: creating })}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[var(--accent-11)] underline underline-offset-2"
+        >
+          Create a token with the right permissions
+        </Link>
+        {creating
+          ? ' with access to All repositories, then add it to the connection.'
+          : ', choose this repository under Repository access, then add the token to the connection.'}
+      </Description>
+      <Select
+        name="integration_credential_id"
+        value={props.tokenId}
+        onChange={ignoringEmpty(props.onTokenChange)}
+        disabled={!hasCodeHost || props.isLoadingTokens}
+      >
+        <option value={NO_SELECTION}>{props.isLoadingTokens ? 'Loading tokens…' : 'Choose a token'}</option>
+        {props.tokens.map((token) => (
+          <option key={token.id} value={token.id}>
+            {token.name}
+            {token.isDefault ? ' (default)' : ''}
+          </option>
+        ))}
+      </Select>
+      {props.tokensError ? (
+        <Description className="mt-2 text-red-600 dark:text-red-400">{props.tokensError}</Description>
+      ) : null}
+      {hasCodeHost && !props.isLoadingTokens && !props.tokensError && props.tokens.length === 0 ? (
+        <Description className="mt-2">
+          No tokens yet.{' '}
+          <Link
+            href={`/settings/connections/${props.codeHostId}`}
+            className="text-[var(--accent-11)] underline underline-offset-2"
+          >
+            Add one to the connection
+          </Link>
+          .
+        </Description>
+      ) : null}
+    </Field>
+  )
 
   return (
     <FieldGroup className="space-y-4">
@@ -75,67 +146,42 @@ export function RepositoryFields(props: RepositoryFieldsProps) {
         ) : null}
       </Field>
 
-      <Field>
-        <Label>Repository address</Label>
-        <Input
-          name="source_repository"
-          placeholder="acme/storefront or https://github.com/acme/storefront"
-          value={props.repositoryAddress}
-          onChange={(event) => props.onRepositoryAddressChange(event.target.value)}
-          disabled={!hasCodeHost}
-        />
-      </Field>
+      {canCreate && props.newRepository && (
+        <RepositorySourceField value={props.newRepository.source} onChange={props.newRepository.setSource} hideLabel />
+      )}
 
-      <Field>
-        <Label>Default branch</Label>
-        <Input
-          name="base_branch"
-          placeholder="main"
-          value={props.defaultBranch}
-          onChange={(event) => props.onDefaultBranchChange(event.target.value)}
-          disabled={!hasCodeHost}
-        />
-      </Field>
+      {creating && props.newRepository ? (
+        <>
+          {tokenField}
+          <NewRepositoryFields form={props.newRepository} />
+        </>
+      ) : (
+        <>
+          <Field>
+            <Label>Repository address</Label>
+            <Input
+              name="source_repository"
+              placeholder="acme/storefront or https://github.com/acme/storefront"
+              value={props.repositoryAddress}
+              onChange={(event) => props.onRepositoryAddressChange(event.target.value)}
+              disabled={!hasCodeHost}
+            />
+          </Field>
 
-      <Field>
-        <Label>Access token</Label>
-        <Description>
-          Needs to push branches and open pull requests.{' '}
-          <Link href={gitHubTokenUrl(props.repositoryAddress)} target="_blank" rel="noreferrer" className="text-[var(--accent-11)] underline underline-offset-2">
-            Create a token with the right permissions
-          </Link>
-          , choose this repository under Repository access, then add the token to the connection.
-        </Description>
-        <Select
-          name="integration_credential_id"
-          value={props.tokenId}
-          onChange={ignoringEmpty(props.onTokenChange)}
-          disabled={!hasCodeHost || props.isLoadingTokens}
-        >
-          <option value={NO_SELECTION}>{props.isLoadingTokens ? 'Loading tokens…' : 'Choose a token'}</option>
-          {props.tokens.map((token) => (
-            <option key={token.id} value={token.id}>
-              {token.name}
-              {token.isDefault ? ' (default)' : ''}
-            </option>
-          ))}
-        </Select>
-        {props.tokensError ? (
-          <Description className="mt-2 text-red-600 dark:text-red-400">{props.tokensError}</Description>
-        ) : null}
-        {hasCodeHost && !props.isLoadingTokens && !props.tokensError && props.tokens.length === 0 ? (
-          <Description className="mt-2">
-            No tokens yet.{' '}
-            <Link
-              href={`/settings/connections/${props.codeHostId}`}
-              className="text-[var(--accent-11)] underline underline-offset-2"
-            >
-              Add one to the connection
-            </Link>
-            .
-          </Description>
-        ) : null}
-      </Field>
+          <Field>
+            <Label>Default branch</Label>
+            <Input
+              name="base_branch"
+              placeholder="main"
+              value={props.defaultBranch}
+              onChange={(event) => props.onDefaultBranchChange(event.target.value)}
+              disabled={!hasCodeHost}
+            />
+          </Field>
+        </>
+      )}
+
+      {!creating && tokenField}
     </FieldGroup>
   )
 }

@@ -15,15 +15,33 @@ export function repositoryWebUrl(repository: string): string | null {
   return first.includes('.') ? `https://${repository.replace(/\.git$/, '')}` : null
 }
 
-/** GitHub's new fine-grained token form, prefilled with what the agent needs (push a branch, open a PR). */
-export function gitHubTokenUrl(repository: string): string {
+/**
+ * GitHub's new fine-grained token form, prefilled with what the agent needs (push a branch, open a PR),
+ * plus Administration when the token should create the repository too.
+ */
+export function gitHubTokenUrl(repository: string, options: { createsRepositories?: boolean } = {}): string {
   const params = new URLSearchParams({
     name: 'Viberglass',
-    description: 'Lets Viberglass agents push branches and open pull requests',
+    description: options.createsRepositories
+      ? 'Lets Viberglass create repositories, push branches and open pull requests'
+      : 'Lets Viberglass agents push branches and open pull requests',
     contents: 'write',
     pull_requests: 'write',
   })
+  if (options.createsRepositories) params.set('administration', 'write')
   const owner = /^(?:https?:\/\/)?(?:www\.)?(?:git@)?(?:github\.com[/:])?([A-Za-z0-9_.-]+)\/[A-Za-z0-9_.-]+/.exec(repository.trim())?.[1]
   if (owner) params.set('target_name', owner)
   return `https://github.com/settings/personal-access-tokens/new?${params.toString()}`
+}
+
+/** A repository name from what someone called the thing, e.g. "Laptop tracker" → "laptop-tracker". */
+export function repositoryNameFrom(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, 100)
 }

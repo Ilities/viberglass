@@ -20,6 +20,8 @@ import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { chatBotStatus } from "../../chat";
 import { SecretService } from "../../services/SecretService";
 import { spaceParamGuard } from "../middleware/spaceAccessGuards";
+import { registerRepositoryOwnerRoutes } from "./repositoryCreationRoutes";
+import { createConnectionRepositoryCreator } from "../../services/repositories/createConnectionRepositoryCreator";
 
 const router = express.Router();
 const integrationManagementService = new IntegrationManagementService();
@@ -377,6 +379,8 @@ router.post(
     },
   ),
 );
+
+registerRepositoryOwnerRoutes(router, createConnectionRepositoryCreator());
 
 // ============================================================================
 // Integration Credentials (SCM Credentials)

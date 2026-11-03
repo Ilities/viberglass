@@ -1,6 +1,7 @@
 import { RepositoryAccessError, type RepositoryRef } from '@viberglass/integration-core'
 import { isObjectRecord, type RepositoryAccess } from '@viberglass/types'
 import { type GitHubApi, type GitHubResponse, restHeaders } from './gitHubApi'
+import { tokenError, unreachable } from './gitHubRequest'
 
 const CHECK_TIMEOUT_MS = 10_000
 const WRITE_ACCESS_HINT =
@@ -25,10 +26,7 @@ export async function checkGitHubAccess(api: GitHubApi, repository: RepositoryRe
       signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
     })
   } catch {
-    throw new RepositoryAccessError(
-      'HOST_UNREACHABLE',
-      "Couldn't reach GitHub from this server. Check that the server can make outgoing HTTPS requests, then try again.",
-    )
+    throw unreachable()
   }
 
   const body: unknown = await response.json().catch(() => null)
@@ -69,18 +67,8 @@ function toAccess(name: string, repository: Record<string, unknown>, headers: He
 }
 
 function toError(name: string, status: number, headers: Headers, gitHubMessage: string | undefined): RepositoryAccessError {
-  if (status === 401) {
-    return new RepositoryAccessError(
-      'TOKEN_REJECTED',
-      "GitHub rejected this token. Check that it was copied in full and hasn't expired or been revoked.",
-    )
-  }
-  if (status === 429 || (status === 403 && headers.get('x-ratelimit-remaining') === '0')) {
-    return new RepositoryAccessError(
-      'HOST_RATE_LIMITED',
-      'GitHub is rate limiting this token right now. Wait a few minutes, then try again.',
-    )
-  }
+  const refused = tokenError(status, headers)
+  if (refused) return refused
   if (status === 403) {
     return new RepositoryAccessError(
       'REPOSITORY_FORBIDDEN',

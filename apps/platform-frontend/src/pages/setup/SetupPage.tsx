@@ -111,6 +111,7 @@ export function SetupPage() {
         )}
         {step === 'repository' && (
           <RepositoryStep
+            createsRepositories={loaded.status.createsRepositories}
             onChooseFiles={() => {
               setRepository(null)
               setStep('space')

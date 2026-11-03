@@ -64,6 +64,7 @@ function GitRepositorySettings({ project }: { project: Project }) {
                 onTokenChange={form.setTokenId}
                 isLoadingTokens={form.isLoadingTokens}
                 tokensError={form.tokensError}
+                newRepository={form.newRepository}
               />
 
               <IssueTrackerField

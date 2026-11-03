@@ -7,6 +7,8 @@ import type {
   DefaultAgent,
   DemoWorkspace,
   ModelProviderId,
+  NewRepository,
+  RepositoryOwner,
   SavedModelKey,
   SavedRepository,
   SetupModelChoice,
@@ -51,6 +53,14 @@ export async function saveModelKey(provider: ModelProviderId, key: string): Prom
 
 export async function saveRepository(repository: string, token: string): Promise<SavedRepository> {
   return readData(await post('repository', { repository, token }), "Couldn't check the repository")
+}
+
+export async function listSetupRepositoryOwners(token: string): Promise<RepositoryOwner[]> {
+  return readData(await post('repository/owners', { token }), "Couldn't check the token")
+}
+
+export async function createSetupRepository(repository: NewRepository, token: string): Promise<SavedRepository> {
+  return readData(await post('repository/new', { ...repository, token }), "Couldn't create the repository")
 }
 
 export async function createSpace(input: CreateSetupSpaceRequest): Promise<CreatedSpace> {

@@ -351,6 +351,27 @@ export const setupRepositorySchema = Joi.object({
   token: Joi.string().trim().min(1).max(1000).required(),
 });
 
+export const setupRepositoryOwnersSchema = Joi.object({
+  token: Joi.string().trim().min(1).max(1000).required(),
+});
+
+const newRepositoryFields = {
+  owner: Joi.string().trim().min(1).max(200).required(),
+  name: Joi.string().trim().min(1).max(200).required(),
+};
+
+export const setupNewRepositorySchema = Joi.object({
+  ...newRepositoryFields,
+  token: Joi.string().trim().min(1).max(1000).required(),
+});
+
+/** A repository created with a code host connection's token: the chosen credential, else its default. */
+export const newConnectionRepositorySchema = Joi.object({
+  ...newRepositoryFields,
+  integrationId: Joi.string().uuid().required(),
+  integrationCredentialId: Joi.string().uuid().allow(null),
+});
+
 /** A provider whose key setup stored, or a workspace model endpoint and the model to run on it. */
 export const setupAgentSchema = Joi.alternatives().try(
   Joi.object({

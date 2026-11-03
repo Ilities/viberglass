@@ -1,5 +1,7 @@
 import { registerProjectReadinessRoutes } from "./projectReadinessRoutes";
 import { registerProjectScmRoutes } from "./projectScmRoutes";
+import { registerSpaceRepositoryCreationRoutes } from "./repositoryCreationRoutes";
+import { createConnectionRepositoryCreator } from "../../services/repositories/createConnectionRepositoryCreator";
 import { registerProjectPromptRoutes } from "./projectPromptRoutes";
 import { registerAgentTrackRecordRoutes } from "./agentTrackRecordRoutes";
 import { AgentTrackRecordService } from "../../services/tasks/AgentTrackRecordService";
@@ -304,6 +306,8 @@ router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req,
 registerProjectReadinessRoutes(router, projectReadinessService);
 
 registerProjectScmRoutes(router, { projectService, projectScmConfigDAO, projectIntegrationLinkDAO, integrationDAO, integrationCredentialDAO, secrets: new SecretResolutionService() });
+
+registerSpaceRepositoryCreationRoutes(router, { projects: projectService, links: projectIntegrationLinkDAO, creator: createConnectionRepositoryCreator() });
 
 registerProjectPromptRoutes(router, promptTemplateService);
 

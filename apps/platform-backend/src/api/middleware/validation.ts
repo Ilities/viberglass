@@ -28,6 +28,9 @@ import {
   updateSecretSchema,
   setupModelKeySchema,
   setupRepositorySchema,
+  setupRepositoryOwnersSchema,
+  setupNewRepositorySchema,
+  newConnectionRepositorySchema,
   setupSpaceSchema,
   setupAgentSchema,
   registerSchema,
@@ -159,6 +162,15 @@ export const validateSetupModelKey = createValidator(setupModelKeySchema, {
 });
 export const validateSetupRepository = createValidator(setupRepositorySchema, {
   name: "setupRepository",
+});
+export const validateSetupRepositoryOwners = createValidator(setupRepositoryOwnersSchema, {
+  name: "setupRepositoryOwners",
+});
+export const validateSetupNewRepository = createValidator(setupNewRepositorySchema, {
+  name: "setupNewRepository",
+});
+export const validateNewConnectionRepository = createValidator(newConnectionRepositorySchema, {
+  name: "newConnectionRepository",
 });
 export const validateSetupSpace = createValidator(setupSpaceSchema, { name: "setupSpace" });
 export const validateSetupAgent = createValidator(setupAgentSchema, { name: "setupAgent" });

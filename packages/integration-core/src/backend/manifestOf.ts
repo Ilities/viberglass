@@ -13,5 +13,6 @@ export function manifestOf(plugin: IntegrationPlugin): IntegrationManifest {
     credentialUse: plugin.credentialUse,
     receivesWebhooks: plugin.receivesWebhooks,
     defaultInboundEvents: plugin.defaultInboundEvents,
+    createsRepositories: plugin.repository?.creator !== undefined,
   }
 }

@@ -1,9 +1,10 @@
-import type { PullRequestToOpen, RepositoryHost, RepositoryRef } from '@viberglass/integration-core'
+import type { PullRequestToOpen, RepositoryCreator, RepositoryHost, RepositoryRef } from '@viberglass/integration-core'
 import type { PullRequestOutcome, PullRequestReview, RepositoryAccess } from '@viberglass/types'
 import { checkGitHubAccess } from './checkGitHubAccess'
 import { fetchGitHubPullRequestOutcome } from './fetchGitHubPullRequestOutcome'
 import { fetchGitHubPullRequestReview } from './fetchGitHubPullRequestReview'
 import type { GitHubApi, GitHubFetch } from './gitHubApi'
+import { GitHubRepositoryCreator } from './GitHubRepositoryCreator'
 import { gitHubWebHost, parseGitHubPullRequestUrl, parseGitHubRepository } from './gitHubRepositoryNames'
 import { openGitHubPullRequest } from './openGitHubPullRequest'
 
@@ -16,6 +17,7 @@ export interface GitHubRepositoryHostOptions {
 /** GitHub repositories and pull requests, through GitHub's REST and GraphQL APIs. */
 export class GitHubRepositoryHost implements RepositoryHost {
   readonly gitUsername = 'x-access-token'
+  readonly creator: RepositoryCreator
   private readonly api: GitHubApi
 
   constructor(options: GitHubRepositoryHostOptions = {}) {
@@ -25,6 +27,7 @@ export class GitHubRepositoryHost implements RepositoryHost {
       webHost: gitHubWebHost(baseUrl),
       fetch: options.fetch ?? ((url, init) => fetch(url, init)),
     }
+    this.creator = new GitHubRepositoryCreator(this.api)
   }
 
   get webHost(): string {

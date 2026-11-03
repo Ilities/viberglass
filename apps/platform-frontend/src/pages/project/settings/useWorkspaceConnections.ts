@@ -26,6 +26,7 @@ export function useWorkspaceConnections(codeHostId: string) {
             id: connection.id,
             label: connectionOptionLabel(connection.name, type?.label ?? connection.system),
             category: type?.category ?? 'ticketing',
+            createsRepositories: type?.createsRepositories === true,
           }
         })
         setCodeHosts(options.filter((option) => option.category === 'scm'))

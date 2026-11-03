@@ -4,6 +4,7 @@
 - **Date:** 2026-10-12
 - **Decider:** Jussi Hallila
 - **Amends:** [ADR 0001](./0001-collaborative-workspace-for-software-companies.md) (Git-only backing and deferred knowledge connectors), [ADR 0008](./0008-tasks-are-conversations.md) (storage and completion for Files tasks)
+- **Amended by:** [ADR 0017](./0017-app-spaces-host-what-they-build.md) (App backing), 2026-11-03
 
 ## Context
 

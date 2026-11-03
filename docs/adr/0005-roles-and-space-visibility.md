@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Decider:** Jussi Hallila
+- **Amended by:** [ADR 0017](./0017-app-spaces-host-what-they-build.md) (the App user role), 2026-11-03
 
 ## Context
 Phase 2 adds people: invites, space membership, participants and approvals. Today `users.role` is admin or member, any member can approve, and space membership (`user_projects`) exists but is stale and enforced nowhere. The role and visibility model has to be settled before invites and membership are built.

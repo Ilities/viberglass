@@ -6,14 +6,22 @@ import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
 import { SpaceBackingField } from '@/components/space-backing-field'
 import type { SpaceBackingKind } from '@viberglass/types'
+import { useNewRepository } from '@/hooks/useNewRepository'
 import { getErrorMessage } from '@/lib/project-form'
+import { repositoryNameFrom } from '@/lib/repositoryAddress'
 import { IssueTrackerField } from '@/pages/project/settings/IssueTrackerField'
-import { NO_SELECTION, RepositoryFields, type ConnectionOption } from '@/pages/project/settings/RepositoryFields'
+import {
+  NO_SELECTION,
+  RepositoryFields,
+  isCreatingRepository,
+  type ConnectionOption,
+} from '@/pages/project/settings/RepositoryFields'
 import { SpaceAdvancedSettings } from '@/pages/project/settings/SpaceAdvancedSettings'
 import { useWorkspaceConnections } from '@/pages/project/settings/useWorkspaceConnections'
 import { linkIntegrationToProject } from '@/service/api/integration-api'
 import { createProject, updateProject, upsertProjectScmConfig } from '@/service/api/project-api'
-import { useState } from 'react'
+import { createSpaceRepository, getRepositoryOwners } from '@/service/api/repository-api'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const WORKSPACE_CONNECTIONS = '/settings/connections'
@@ -36,6 +44,7 @@ export function NewProjectPage() {
 
   // Kept so a failed repository step can be retried without creating the space twice.
   const [created, setCreated] = useState<{ id: string; slug: string } | null>(null)
+  const linkedIntegrationIds = useRef(new Set<string>())
 
   const [trackerId, setTrackerId] = useState<string>(NO_SELECTION)
   const [codeHostId, setCodeHostId] = useState<string>(NO_SELECTION)
@@ -47,10 +56,22 @@ export function NewProjectPage() {
   const [tokenId, setTokenId] = useState<string>(NO_SELECTION)
 
   const connections = useWorkspaceConnections(codeHostId)
+  const chosenTokenId = tokenId !== NO_SELECTION ? tokenId : null
+  const newRepository = useNewRepository(
+    codeHostId !== NO_SELECTION ? `${codeHostId}:${tokenId}` : null,
+    () => getRepositoryOwners(codeHostId, chosenTokenId),
+    repositoryNameFrom(name)
+  )
 
   function changeCodeHost(id: string) {
     setCodeHostId(id)
     setTokenId(NO_SELECTION)
+  }
+
+  async function linkOnce(spaceId: string, integrationId: string) {
+    if (linkedIntegrationIds.current.has(integrationId)) return
+    await linkIntegrationToProject(spaceId, integrationId, true)
+    linkedIntegrationIds.current.add(integrationId)
   }
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
@@ -67,20 +88,38 @@ export function NewProjectPage() {
 
       const tracker = findOption(connections.trackers, trackerId)
       if (tracker) {
-        await linkIntegrationToProject(space.id, tracker.id, true)
+        await linkOnce(space.id, tracker.id)
         await updateProject(space.id, { primaryTicketingIntegrationId: tracker.id })
       }
 
       if (backingKind === 'git' && codeHostId !== NO_SELECTION) {
         const codeHost = findOption(connections.codeHosts, codeHostId)
         if (!codeHost) throw new Error('Choose a code host, or choose None.')
-        if (!repositoryAddress.trim())
+        const creating = isCreatingRepository(connections.codeHosts, codeHostId, newRepository)
+        if (creating && !newRepository.isReady) throw new Error('Choose an owner and a name for the new repository.')
+        if (!creating && !repositoryAddress.trim())
           throw new Error('Enter the repository address, e.g. https://github.com/acme/storefront, or choose None.')
-        await linkIntegrationToProject(space.id, codeHost.id, true)
+        await linkOnce(space.id, codeHost.id)
+        let address = repositoryAddress.trim()
+        let branch = normalizeOptionalText(defaultBranch) || 'main'
+        if (creating) {
+          const repository = await createSpaceRepository(space.id, {
+            integrationId: codeHost.id,
+            integrationCredentialId: chosenTokenId,
+            owner: newRepository.owner,
+            name: newRepository.name.trim(),
+          })
+          // From here on it's an existing repository, so a retry after a failed save doesn't create it again.
+          address = repository.url
+          branch = repository.defaultBranch
+          setRepositoryAddress(address)
+          setDefaultBranch(branch)
+          newRepository.setSource('existing')
+        }
         await upsertProjectScmConfig(space.id, {
           integrationId: codeHost.id,
-          sourceRepository: repositoryAddress.trim(),
-          baseBranch: normalizeOptionalText(defaultBranch) || 'main',
+          sourceRepository: address,
+          baseBranch: branch,
           pullRequestRepository: normalizeOptionalText(pullRequestRepository),
           pullRequestBaseBranch: normalizeOptionalText(pullRequestBaseBranch),
           branchNameTemplate: normalizeOptionalText(branchNameTemplate),
@@ -152,6 +191,7 @@ export function NewProjectPage() {
                     onTokenChange={setTokenId}
                     isLoadingTokens={connections.isLoadingTokens}
                     tokensError={connections.tokensError}
+                    newRepository={newRepository}
                   />
 
                   <SpaceAdvancedSettings

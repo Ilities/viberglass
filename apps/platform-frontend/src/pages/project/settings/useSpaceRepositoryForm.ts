@@ -1,4 +1,6 @@
+import { useNewRepository } from '@/hooks/useNewRepository'
 import { getErrorMessage } from '@/lib/project-form'
+import { repositoryNameFrom } from '@/lib/repositoryAddress'
 import {
   getIntegrationManifests,
   getIntegrationCredentials,
@@ -13,9 +15,10 @@ import {
   type Project,
   type ProjectScmConfig,
 } from '@/service/api/project-api'
+import { createSpaceRepository, getRepositoryOwners } from '@/service/api/repository-api'
 import type { IntegrationCategory, IntegrationCredential, IntegrationManifest, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
-import { NO_SELECTION, connectionOptionLabel, type ConnectionOption } from './RepositoryFields'
+import { NO_SELECTION, connectionOptionLabel, isCreatingRepository, type ConnectionOption } from './RepositoryFields'
 
 interface LinkedConnection extends ConnectionOption {
   system: TicketSystem
@@ -38,6 +41,7 @@ function mapLinkedConnections(
       label: connectionOptionLabel(link.integration.name, type?.label ?? link.integration.system),
       system: link.integration.system,
       category: type?.category ?? 'inbound',
+      createsRepositories: type?.createsRepositories === true,
     }
   })
 }
@@ -75,6 +79,15 @@ export function useSpaceRepositoryForm(project: Project | null) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Offered only while the space has no repository, so saving never swaps one out for a new one by accident.
+  const offersNewRepository = !isLoadingScmConfig && !initialScmConfig
+  const chosenTokenId = tokenId !== NO_SELECTION ? tokenId : null
+  const newRepository = useNewRepository(
+    offersNewRepository && codeHostId !== NO_SELECTION ? `${codeHostId}:${tokenId}` : null,
+    () => getRepositoryOwners(codeHostId, chosenTokenId),
+    project ? repositoryNameFrom(project.name) : ''
+  )
 
   const trackers = useMemo(() => linked.filter((connection) => connection.category === 'ticketing'), [linked])
   const codeHosts = useMemo(() => linked.filter((connection) => connection.category === 'scm'), [linked])
@@ -224,14 +237,31 @@ export function useSpaceRepositoryForm(project: Project | null) {
       if (codeHostId !== NO_SELECTION) {
         const codeHost = codeHosts.find((candidate) => candidate.id === codeHostId)
         if (!codeHost) throw new Error('Choose a code host linked to this space under Connections, or choose None.')
-        const address = repositoryAddress.trim()
-        if (!address)
+        const creating = offersNewRepository && isCreatingRepository(codeHosts, codeHostId, newRepository)
+        if (creating && !newRepository.isReady) throw new Error('Choose an owner and a name for the new repository.')
+        let address = repositoryAddress.trim()
+        let branch = normalizeOptionalText(defaultBranch) || 'main'
+        if (!creating && !address)
           throw new Error('Enter the repository address, e.g. https://github.com/acme/storefront, or choose None.')
+        if (creating) {
+          const created = await createSpaceRepository(project.id, {
+            integrationId: codeHost.id,
+            integrationCredentialId: chosenTokenId,
+            owner: newRepository.owner,
+            name: newRepository.name.trim(),
+          })
+          // From here on it's an existing repository, so a retry after a failed save doesn't create it again.
+          address = created.url
+          branch = created.defaultBranch
+          setRepositoryAddress(address)
+          setDefaultBranch(branch)
+          newRepository.setSource('existing')
+        }
         setInitialScmConfig(
           await upsertProjectScmConfig(project.id, {
             integrationId: codeHost.id,
             sourceRepository: address,
-            baseBranch: normalizeOptionalText(defaultBranch) || 'main',
+            baseBranch: branch,
             pullRequestRepository: normalizeOptionalText(pullRequestRepository),
             pullRequestBaseBranch: normalizeOptionalText(pullRequestBaseBranch),
             branchNameTemplate: normalizeOptionalText(branchNameTemplate),
@@ -275,6 +305,7 @@ export function useSpaceRepositoryForm(project: Project | null) {
     setTokenId,
     isLoadingTokens,
     tokensError,
+    newRepository: offersNewRepository ? newRepository : undefined,
     isSubmitting,
     error,
     success,

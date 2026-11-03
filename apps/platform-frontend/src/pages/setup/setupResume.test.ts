@@ -5,6 +5,7 @@ const FRESH: SetupStatus = {
   connectedProviders: [],
   connectedEndpoints: [],
   repositoryConnected: false,
+  createsRepositories: true,
   space: null,
   agent: null,
   complete: false,

@@ -82,6 +82,7 @@ export class SetupStatusService {
       connectedProviders,
       connectedEndpoints: endpoints.map((endpoint) => ({ id: endpoint.id, name: endpoint.name, models: endpoint.models })),
       repositoryConnected,
+      createsRepositories: this.deps.codeHost()?.repository.creator !== undefined,
       space,
       agent,
       complete: space !== null && hasActiveRunner,

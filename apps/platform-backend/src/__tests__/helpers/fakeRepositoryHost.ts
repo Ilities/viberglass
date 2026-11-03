@@ -1,4 +1,4 @@
-import type { RepositoryHost } from "@viberglass/integration-core";
+import type { RepositoryCreator, RepositoryHost } from "@viberglass/integration-core";
 
 /** A code host whose every call is a jest mock; tests set what each returns. */
 export function fakeRepositoryHost() {
@@ -12,4 +12,13 @@ export function fakeRepositoryHost() {
     fetchPullRequestOutcome: jest.fn(),
     fetchPullRequestReview: jest.fn(),
   } satisfies RepositoryHost;
+}
+
+/** A code host that can create repositories; tests set what each call returns. */
+export function fakeCreatingRepositoryHost() {
+  const creator = {
+    listOwners: jest.fn(),
+    createRepository: jest.fn(),
+  } satisfies RepositoryCreator;
+  return { ...fakeRepositoryHost(), creator };
 }

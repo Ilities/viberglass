@@ -1,4 +1,4 @@
-import { addressPath, repositoryWebUrl, gitHubTokenUrl } from './repositoryAddress'
+import { addressPath, repositoryNameFrom, repositoryWebUrl, gitHubTokenUrl } from './repositoryAddress'
 
 describe('repositoryAddress', () => {
   it('shows an address by its path, whatever the host', () => {
@@ -29,4 +29,29 @@ describe('gitHubTokenUrl', () => {
       expect(new URL(gitHubTokenUrl(repository)).searchParams.get('target_name')).toBe('acme')
     },
   )
+})
+
+describe('gitHubTokenUrl for creating repositories', () => {
+  it('also asks for Administration, which creating a repository needs', () => {
+    const url = new URL(gitHubTokenUrl('', { createsRepositories: true }))
+    expect(url.searchParams.get('administration')).toBe('write')
+    expect(url.searchParams.get('contents')).toBe('write')
+    expect(new URL(gitHubTokenUrl('')).searchParams.has('administration')).toBe(false)
+  })
+})
+
+describe('repositoryNameFrom', () => {
+  it.each([
+    ['Laptop tracker', 'laptop-tracker'],
+    ['  Café orders! ', 'cafe-orders'],
+    ['web.shop_v2', 'web.shop_v2'],
+    ['--Hello--', 'hello'],
+    ['', ''],
+  ])('names "%s" %s', (text, name) => {
+    expect(repositoryNameFrom(text)).toBe(name)
+  })
+
+  it('stays within the 100 characters a repository name allows', () => {
+    expect(repositoryNameFrom('a'.repeat(150))).toHaveLength(100)
+  })
 })

@@ -69,6 +69,7 @@ The backend entry is the package's main export and the frontend entry is `@viber
 | `createCommenter(config)` | Trackers: posting back to the issues tasks are linked to | `TrackerCommenter` |
 | `webhook` | Integrations that `receivesWebhooks`: verifying a delivery's signature, parsing it, and reading it as an issue, comment or task | `WebhookReceiver` |
 | `repository` | Code hosts: reading and checking a repository, opening pull requests, and reading their outcome and review | `RepositoryHost` |
+| `repository.creator` | Code hosts that can create repositories: the owners a token can create under, and creating a private repository with a README. Setup and the space forms offer "Create a new repository" only for these | `RepositoryCreator` |
 | `chat` | Chat services: the bot adapter and handlers, direct messages, finding an account by email. The platform passes it its connection's settings and credentials through `configure`, and rebuilds the bot when the connection changes | `ChatProvider` |
 
 `config` is the connection's credentials plus its `configFields` values. The worker never talks to an integration: it clones and pushes with the username the code host's `RepositoryHost` names, and asks the platform to open the pull request.

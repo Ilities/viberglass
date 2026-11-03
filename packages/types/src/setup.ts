@@ -33,6 +33,18 @@ export interface RepositoryAccess {
   isPrivate: boolean
 }
 
+/** An account a token can create repositories under: its own, or an organisation it belongs to. */
+export interface RepositoryOwner {
+  name: string
+  kind: 'user' | 'organization'
+}
+
+/** A new repository: private, and started with a README so its default branch exists. */
+export interface NewRepository {
+  owner: string
+  name: string
+}
+
 export interface SavedRepository extends RepositoryAccess {
   integrationId: string
   credentialId: string
@@ -74,6 +86,8 @@ export interface SetupStatus {
   /** Workspace model endpoints, which setup can run the default agent on instead of a provider's key. */
   connectedEndpoints: Array<{ id: string; name: string; models: string[] }>
   repositoryConnected: boolean
+  /** The code host setup connects can create repositories, so setup offers to make one. */
+  createsRepositories: boolean
   space: Pick<CreatedSpace, 'projectId' | 'name' | 'slug' | 'backingKind' | 'repositoryUrl'> | null
   agent: { clankerId: string; agentName: string; status: ClankerStatus; statusMessage: string | null } | null
   /** A space exists and a runner can work on it; setup has nothing left to ask. */
