@@ -14,6 +14,10 @@ export interface AppRelease {
   nodeVersion: string | null
   buildLog: string | null
   failureReason: string | null
+  /** When it became the app's current release. */
+  wentLiveAt: string | null
+  /** Why it didn't, such as a failed health check; it isn't tried again. */
+  liveFailure: string | null
   createdAt: string
   finishedAt: string | null
 }

@@ -22,6 +22,7 @@ import { WorkerStopperChain } from "../workers/WorkerStopperChain";
 import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
 import { PeriodicSweeper } from "../workers/PeriodicSweeper";
 import { createAppReleasePoller } from "../services/apps/createAppReleasePoller";
+import { appHosting } from "../services/apps/createAppHosting";
 import { QuestionReminderService } from "../services/questions/QuestionReminderService";
 import { CredentialExpiryWarner } from "../services/notifications/CredentialExpiryWarner";
 import { registerActivityListener } from "../services/tasks/activityListeners";
@@ -121,6 +122,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         "App space releases",
         (now) => appReleasePoller.sweep(now),
         parseInt(process.env.APP_RELEASE_POLL_INTERVAL_MS || "60000", 10),
+      ),
+      new PeriodicSweeper(
+        "apps",
+        (now) => appHosting().sweep.sweep(now),
+        parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
       ),
       new PeriodicSweeper(
         "credential expiry warnings",

@@ -26,6 +26,8 @@ const RELEASE: AppRelease = {
   nodeVersion: null,
   buildLog: null,
   failureReason: null,
+  wentLiveAt: null,
+  liveFailure: null,
   createdAt: "",
   finishedAt: null,
 };

@@ -34,6 +34,40 @@ export class AppReleaseDAO {
     return row ? toRelease(row) : null;
   }
 
+  /** Newest first. */
+  async listForProject(projectId: string, limit: number): Promise<AppRelease[]> {
+    const rows = await db
+      .selectFrom("app_releases")
+      .selectAll()
+      .where("project_id", "=", projectId)
+      .orderBy("created_at", "desc")
+      .limit(limit)
+      .execute();
+    return rows.map(toRelease);
+  }
+
+  /** The newest built release that hasn't failed to go live. */
+  async newestLiveCandidate(projectId: string): Promise<AppRelease | null> {
+    const row = await db
+      .selectFrom("app_releases")
+      .selectAll()
+      .where("project_id", "=", projectId)
+      .where("status", "=", "ready")
+      .where("live_failure", "is", null)
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .executeTakeFirst();
+    return row ? toRelease(row) : null;
+  }
+
+  async markLive(releaseId: string): Promise<void> {
+    await db.updateTable("app_releases").set({ went_live_at: new Date(), live_failure: null }).where("id", "=", releaseId).execute();
+  }
+
+  async markLiveFailure(releaseId: string, reason: string): Promise<void> {
+    await db.updateTable("app_releases").set({ live_failure: reason.slice(0, 2000) }).where("id", "=", releaseId).execute();
+  }
+
   async getByJobId(jobId: string): Promise<AppRelease | null> {
     const row = await db.selectFrom("app_releases").selectAll().where("job_id", "=", jobId).executeTakeFirst();
     return row ? toRelease(row) : null;
@@ -105,6 +139,8 @@ function toRelease(row: AppReleaseRow): AppRelease {
     nodeVersion: row.node_version,
     buildLog: row.build_log,
     failureReason: row.failure_reason,
+    wentLiveAt: row.went_live_at ? row.went_live_at.toISOString() : null,
+    liveFailure: row.live_failure,
     createdAt: row.created_at.toISOString(),
     finishedAt: row.finished_at ? row.finished_at.toISOString() : null,
   };

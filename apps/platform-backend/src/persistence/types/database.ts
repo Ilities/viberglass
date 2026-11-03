@@ -189,8 +189,30 @@ export interface AppReleasesTable {
   node_version: string | null;
   build_log: string | null;
   failure_reason: string | null;
+  went_live_at: Timestamp | null;
+  live_failure: string | null;
   created_at: Generated<Timestamp>;
   finished_at: Timestamp | null;
+}
+
+export interface AppsTable {
+  project_id: string;
+  power: Generated<"on" | "off">;
+  state: Generated<"off" | "starting" | "running" | "stopping" | "failed">;
+  status_message: string | null;
+  current_release_id: string | null;
+  busy_since: Timestamp | null;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface AppDataBackupsTable {
+  id: Generated<string>;
+  project_id: string;
+  reason: "release";
+  release_id: string | null;
+  objects: number;
+  bytes: ColumnType<string, number, number>;
+  created_at: Generated<Timestamp>;
 }
 
 export interface ProjectScmConfigsTable {
@@ -933,6 +955,8 @@ export interface SpaceFileChangesTable {
 export interface Database {
   workspace_settings: WorkspaceSettingsTable;
   app_releases: AppReleasesTable;
+  apps: AppsTable;
+  app_data_backups: AppDataBackupsTable;
   space_file_snapshots: SpaceFileSnapshotsTable;
   space_file_changes: SpaceFileChangesTable;
   space_file_state: SpaceFileStateTable;

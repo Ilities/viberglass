@@ -44,4 +44,17 @@ chmod 755 /tmp/start-app
 
 # A database already on the volume is newer than its replica.
 litestream restore -config "$CONFIG" -no-expand-env -if-db-not-exists -if-replica-exists "$DATABASE"
-exec litestream replicate -config "$CONFIG" -no-expand-env -exec /tmp/start-app
+litestream replicate -config "$CONFIG" -no-expand-env -exec /tmp/start-app &
+REPLICATING=$!
+trap 'kill -TERM "$REPLICATING" 2>/dev/null || true' TERM INT
+STATUS=0
+wait "$REPLICATING" || STATUS=$?
+# A stop signal ends the first wait while Litestream is still stopping the app.
+if kill -0 "$REPLICATING" 2>/dev/null; then
+  STATUS=0
+  wait "$REPLICATING" || STATUS=$?
+fi
+
+# Litestream doesn't send the changes since its last sync when it stops, so send them now.
+litestream replicate -config "$CONFIG" -no-expand-env -once
+exit "$STATUS"

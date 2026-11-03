@@ -80,6 +80,8 @@ export const SPACE_AUDIT: AuditRule[] = [
   { method: "PUT", path: "/:projectId/scm-config", action: "space.updated", targetType: "space", targetParam: "projectId", details: () => ({ fields: ["repository"] }) },
   { method: "DELETE", path: "/:projectId/scm-config", action: "space.updated", targetType: "space", targetParam: "projectId", details: () => ({ fields: ["repository"] }) },
   { method: "DELETE", path: "/:id", action: "space.deleted", targetType: "space", targetParam: "id" },
+  { method: "POST", path: "/:projectId/app/on", action: "app.turned_on", targetType: "space", targetParam: "projectId" },
+  { method: "POST", path: "/:projectId/app/off", action: "app.turned_off", targetType: "space", targetParam: "projectId" },
   {
     method: "PUT",
     path: "/:id/members/:userId",

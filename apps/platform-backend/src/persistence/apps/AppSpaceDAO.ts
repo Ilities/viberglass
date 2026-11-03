@@ -12,4 +12,14 @@ export class AppSpaceDAO {
       .execute();
     return rows.map((row) => row.id);
   }
+
+  async isAppSpace(projectId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom("projects")
+      .select("id")
+      .where("id", "=", projectId)
+      .where("backing_kind", "=", "app")
+      .executeTakeFirst();
+    return Boolean(row);
+  }
 }

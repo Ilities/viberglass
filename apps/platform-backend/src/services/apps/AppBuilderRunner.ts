@@ -6,7 +6,7 @@ import { PlatformRunnerDAO } from "../../persistence/clanker/PlatformRunnerDAO";
 import { resolveClankerConfig } from "../../clanker-config";
 import { defaultDeploymentStrategyName } from "../../provisioning/shared/deploymentStrategies";
 import { ClankerStartService } from "../ClankerStartService";
-import { appBuilderImage } from "./appBuilderImage";
+import { appBuilderImage } from "./appImages";
 
 type StrategyName = ReturnType<typeof defaultDeploymentStrategyName>;
 

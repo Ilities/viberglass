@@ -44,6 +44,7 @@ import { TrackRecordPage } from '@/pages/project/track-record/TrackRecordPage'
 import { SpaceSectionLayout } from '@/layouts/SpaceSectionLayout'
 import { ArtifactPage } from '@/pages/project/artifacts/ArtifactPage'
 import { ArtifactsPage } from '@/pages/project/artifacts/ArtifactsPage'
+import { AppPage } from '@/pages/project/app/AppPage'
 import { FilesPage } from '@/pages/project/files/FilesPage'
 
 // Prompt templates pages
@@ -118,6 +119,7 @@ export function AppRoutes() {
         <Route element={<SpaceSectionLayout />}>
           <Route path="/spaces/:project" element={<SpaceSummary />} />
           <Route path="/spaces/:project/tasks" element={<SpacePage />} />
+          <Route path="/spaces/:project/app" element={<AppPage />} />
           <Route path="/spaces/:project/files" element={<FilesPage />} />
           <Route path="/spaces/:project/artifacts" element={<ArtifactsPage />} />
           <Route element={<RunnersOnly />}>

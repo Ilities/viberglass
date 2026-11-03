@@ -126,6 +126,9 @@ services:
       APPS_DOMAIN: apps.localhost
       # Release builds run in this image; `npm run build:app-images` builds it locally.
       APP_BUILDER_IMAGE: ${APP_BUILDER_IMAGE:-viberglass-app-builder-node:latest}
+      APP_RUNTIME_IMAGE: ${APP_RUNTIME_IMAGE:-viberglass-app-runtime-node:latest}
+      # Joins each app's network, so the app's Litestream reaches it as `storage`.
+      APPS_STORAGE_CONTAINER: viberglass-dev-storage
       # Email (invite links, notifications). Empty means unset: nothing is emailed.
       # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
       EMAIL_FROM: ${EMAIL_FROM:-}

@@ -48,6 +48,7 @@ This repository holds one small internal app. Viberglass builds it, runs it, bac
 
 - All persistent state lives in one SQLite database at \`${APP_DATABASE_PATH}\`. Nothing else on disk survives a restart or a new release, so never write files you need to keep anywhere else. Store uploaded files in the database.
 - Open the database in WAL mode (\`PRAGMA journal_mode = WAL\`); backups depend on it. Don't delete, move or replace the database file.
+- Set a busy timeout when opening it (\`PRAGMA busy_timeout = 5000\`). Replication briefly locks the database, and without one a write fails with "database is locked".
 - Run the app's own migrations at startup, before \`${APP_HEALTH_PATH}\` answers 200. Keep them in the repository as numbered SQL or code files, record which ones ran in a table, and only ever add new ones: a migration that already ran on live data must never change.
 - Migrations must work on existing data. Add columns with defaults, backfill, and never drop data people still need.
 - While you work on the app yourself, \`/data\` may not exist or be writable. Let an optional \`APP_DATABASE_PATH\` environment variable override the path for that, and default to \`${APP_DATABASE_PATH}\`.

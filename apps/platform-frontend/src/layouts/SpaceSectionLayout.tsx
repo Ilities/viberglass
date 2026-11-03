@@ -17,6 +17,7 @@ export function SpaceSectionLayout() {
     slug,
     pathname,
     files: space?.backingKind === 'files',
+    app: space?.backingKind === 'app',
     runner: isRunner(user?.role),
     canMaintain: Boolean(space?.viewerAccess?.canMaintain),
   })

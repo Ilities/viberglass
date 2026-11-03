@@ -45,6 +45,8 @@ import { spaceParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards"
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipService";
 import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
+import { registerAppRoutes } from "./appRoutes";
+import { appHosting } from "../../services/apps/createAppHosting";
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { ClawSchedulingEngine } from "../../services/claw/ClawSchedulingEngine";
@@ -90,6 +92,7 @@ router.param("projectId", spaceGuard);
 router.param("name", spaceGuard);
 
 registerSpaceMemberRoutes(router, new SpaceMembershipService());
+registerAppRoutes(router, appHosting().service, spaceAccess);
 
 /**
  * Enrich project with derived ticket system from primaryTicketingIntegrationId
