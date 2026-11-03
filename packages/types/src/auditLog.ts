@@ -23,6 +23,8 @@ export const AUDIT_ACTION_TEXT = {
   'connection.linked': 'linked a connection to a space',
   'connection.unlinked': 'unlinked a connection from a space',
   'connection.made_primary': "changed a space's primary connection",
+  'connection.app_home_set': 'set where App spaces are created',
+  'connection.app_home_cleared': 'removed the App home',
   'secret.created': 'added a secret',
   'secret.updated': 'changed a secret',
   'secret.deleted': 'deleted a secret',

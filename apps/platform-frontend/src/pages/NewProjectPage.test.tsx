@@ -4,12 +4,16 @@ import { MemoryRouter } from 'react-router-dom'
 import { getIntegrationManifests, getIntegrations, linkIntegrationToProject } from '@/service/api/integration-api'
 import { NewProjectPage } from './NewProjectPage'
 import { createProject, upsertProjectScmConfig } from '@/service/api/project-api'
+import { getAppHome } from '@/service/api/app-home-api'
 
 jest.mock('@/service/api/integration-api', () => ({
   getIntegrationManifests: jest.fn(),
   getIntegrations: jest.fn(),
   getIntegrationCredentials: jest.fn(async () => []),
   linkIntegrationToProject: jest.fn(),
+}))
+jest.mock('@/service/api/app-home-api', () => ({
+  getAppHome: jest.fn(async () => ({ home: null, availability: { available: false, missing: ['app_home'] } })),
 }))
 jest.mock('@/service/api/project-api', () => ({
   createProject: jest.fn(),
@@ -44,6 +48,32 @@ describe('NewProjectPage', () => {
     await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Slides', backingKind: 'files' }))
     expect(upsertProjectScmConfig).not.toHaveBeenCalled()
   });
+  it('creates an App space in one step when the workspace offers them', async () => {
+    jest.mocked(getIntegrationManifests).mockResolvedValue([])
+    jest.mocked(getIntegrations).mockResolvedValue([])
+    jest.mocked(getAppHome).mockResolvedValueOnce({
+      home: { integrationId: 'github-1', credentialId: null, owner: 'acme' },
+      availability: { available: true, missing: [] },
+    })
+    jest.mocked(createProject).mockResolvedValue({ id: 'app-1', name: 'Laptops', slug: 'laptops', backingKind: 'app', ticketSystem: 'native', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'LAP', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
+    render(<Theme><MemoryRouter><NewProjectPage /></MemoryRouter></Theme>)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Space backing' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'App' }))
+    expect(screen.queryByText('Repository address')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Laptops' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create space' }))
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Laptops', backingKind: 'app' }))
+    expect(upsertProjectScmConfig).not.toHaveBeenCalled()
+  })
+  it("doesn't offer App spaces until the workspace is set up for them", async () => {
+    jest.mocked(getIntegrationManifests).mockResolvedValue([])
+    jest.mocked(getIntegrations).mockResolvedValue([])
+    render(<Theme><MemoryRouter><NewProjectPage /></MemoryRouter></Theme>)
+    await waitFor(() => expect(getAppHome).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('combobox', { name: 'Space backing' }))
+    expect(await screen.findByRole('option', { name: 'Files' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'App' })).not.toBeInTheDocument()
+  })
   it('asks for the repository in the same words as the space settings, with the rest folded under Advanced', async () => {
     jest.mocked(getIntegrationManifests).mockResolvedValue([])
     jest.mocked(getIntegrations).mockResolvedValue([])

@@ -3,18 +3,32 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Text } from '@/components/text'
 import { createSpace, prepareDefaultAgent } from '@/service/api/setup-api'
-import type { CreatedSpace, DefaultAgent, RepositoryAccess, SetupModelChoice } from '@viberglass/types'
+import type { CreatedSpace, CreateSetupSpaceRequest, DefaultAgent, RepositoryAccess, SetupModelChoice, SpaceBackingKind } from '@viberglass/types'
 import { CheckIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { SetupError, SetupFrame } from './SetupFrame'
 
+const WITHOUT_REPOSITORY = {
+  files: 'Files space · no repository needed. Its files are kept between runs and shared by all of its tasks.',
+  app: 'App space · Viberglass creates a private repository for its code, so nobody needs to deal with git.',
+}
+
+function spaceRequest(name: string, backingKind: SpaceBackingKind, repository: RepositoryAccess | null): CreateSetupSpaceRequest {
+  if (backingKind === 'git' && repository) {
+    return { name, backingKind: 'git', repository: repository.url, baseBranch: repository.defaultBranch }
+  }
+  return backingKind === 'app' ? { name, backingKind: 'app' } : { name, backingKind: 'files' }
+}
+
 export function SpaceStep({
   repository,
+  backingKind,
   model,
   onDone,
   onChangeRepository,
 }: {
   repository: RepositoryAccess | null
+  backingKind: SpaceBackingKind
   model: SetupModelChoice
   onDone: (space: CreatedSpace, agent: DefaultAgent) => void
   onChangeRepository: () => void
@@ -22,16 +36,16 @@ export function SpaceStep({
   const [name, setName] = useState(repository?.fullName.split('/').pop() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  // Creating an App space isn't safe to repeat, so a retry after the agent step failed reuses it.
+  const [created, setCreated] = useState<CreatedSpace | null>(null)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setIsCreating(true)
     try {
-      // Both steps are safe to repeat, so a retry after a failure picks up where this stopped.
-      const space = await createSpace(repository
-        ? { name, backingKind: 'git', repository: repository.url, baseBranch: repository.defaultBranch }
-        : { name, backingKind: 'files' })
+      const space = created ?? (await createSpace(spaceRequest(name, backingKind, repository)))
+      setCreated(space)
       const agent = await prepareDefaultAgent(model)
       onDone(space, agent)
     } catch (err) {
@@ -56,11 +70,11 @@ export function SpaceStep({
               Use another repository
             </button>
           </span>
-        </div> : <Text>Files space · no repository needed. Its files are kept between runs and shared by all of its tasks.</Text>}
+        </div> : <Text>{backingKind === 'app' ? WITHOUT_REPOSITORY.app : WITHOUT_REPOSITORY.files}</Text>}
         <SetupError message={error} />
         <Field>
           <Label>Space name</Label>
-          <Input name="name" value={name} onChange={(event) => setName(event.target.value)} />
+          <Input name="name" value={name} onChange={(event) => setName(event.target.value)} disabled={created !== null} />
           <Description>You can rename it later.</Description>
         </Field>
         <div className="flex gap-3">

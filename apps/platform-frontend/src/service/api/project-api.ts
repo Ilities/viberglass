@@ -54,7 +54,7 @@ export async function createProject(project: CreateProjectRequest): Promise<Proj
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to create space')
+    throw new Error(error.error || error.message || 'Failed to create space')
   }
   const data: ApiResponse<Project> = await response.json()
   return data.data

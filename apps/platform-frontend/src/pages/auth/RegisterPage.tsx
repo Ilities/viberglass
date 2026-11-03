@@ -6,6 +6,7 @@ import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
 import { Strong, Text, TextLink } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
+import { safeRedirect } from '@/lib/safeRedirect'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { FieldErrors } from '@/lib/fieldErrors'
 import { useEffect, useState } from 'react'
@@ -23,8 +24,7 @@ export function RegisterPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      const target = redirect && redirect.startsWith('/') ? redirect : '/'
-      navigate(target, { replace: true })
+      navigate(safeRedirect(redirect), { replace: true })
     }
   }, [navigate, status, redirect])
 
@@ -48,8 +48,7 @@ export function RegisterPage() {
 
     try {
       await register(name, email, password)
-      const target = redirect && redirect.startsWith('/') ? redirect : '/'
-      navigate(target, { replace: true })
+      navigate(safeRedirect(redirect), { replace: true })
     } catch (err) {
       if (err instanceof FieldErrors) {
         setFieldErrors(err.fields)

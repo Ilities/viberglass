@@ -53,6 +53,7 @@ export interface SavedRepository extends RepositoryAccess {
 export type CreateSetupSpaceRequest =
   | { name: string; backingKind?: 'git'; repository: string; baseBranch?: string }
   | { name: string; backingKind: 'files' }
+  | { name: string; backingKind: 'app' }
 
 export interface CreatedSpace {
   projectId: string

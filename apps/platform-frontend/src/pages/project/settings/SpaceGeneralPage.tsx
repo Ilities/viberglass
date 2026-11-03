@@ -12,6 +12,7 @@ import { updateProject } from '@/service/api/project-api'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SpaceHousekeeping } from './SpaceHousekeeping'
+import { SPACE_BACKING_LABELS } from '@/lib/spaceBacking'
 
 /** A space's name and who can see it, then archiving and deleting it. */
 export function SpaceGeneralPage() {
@@ -59,7 +60,7 @@ export function SpaceGeneralPage() {
       <PageMeta title={`${project.name} | Settings`} />
       <div className="max-w-4xl">
         <Heading>General</Heading>
-        <Text className="mt-4">Space backing: {project.backingKind === 'files' ? 'Files' : 'Git repository'}. Backing cannot be changed after creation.</Text>
+        <Text className="mt-4">Space backing: {SPACE_BACKING_LABELS[project.backingKind]}. Backing cannot be changed after creation.</Text>
         {project.backingKind === 'files' && <div className="mt-4"><ProjectReadinessBanner projectId={project.id} /></div>}
 
         {error && (

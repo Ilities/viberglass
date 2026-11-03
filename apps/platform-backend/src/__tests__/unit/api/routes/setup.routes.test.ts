@@ -171,6 +171,13 @@ describe("setup routes", () => {
     expect(mockSpaceService.createSpace).toHaveBeenCalledWith({ name: "Slides", backingKind: "files" }, undefined);
   });
 
+  it("creates an App space without repository fields, and refuses them", async () => {
+    mockSpaceService.createSpace.mockResolvedValue({ slug: "laptops", backingKind: "app" });
+    await request(app).post("/api/setup/space").send({ name: "Laptops", backingKind: "app" }).expect(201);
+    expect(mockSpaceService.createSpace).toHaveBeenCalledWith({ name: "Laptops", backingKind: "app" }, undefined);
+    await request(app).post("/api/setup/space").send({ name: "Laptops", backingKind: "app", repository: "acme/laptops" }).expect(400);
+  });
+
   it("says when the space name is taken", async () => {
     mockSpaceService.createSpace.mockRejectedValue(
       new SetupServiceError(SETUP_SERVICE_ERROR_CODE.SPACE_EXISTS, 'There\'s already a space called "Web".'),

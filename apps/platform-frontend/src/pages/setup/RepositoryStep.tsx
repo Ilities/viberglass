@@ -3,6 +3,7 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { NewRepositoryFields, RepositorySourceField } from '@/components/new-repository-fields'
 import { SpaceBackingField } from '@/components/space-backing-field'
+import { useAppSpacesAvailable } from '@/hooks/useAppSpacesAvailable'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useNewRepository } from '@/hooks/useNewRepository'
 import { gitHubTokenUrl } from '@/lib/repositoryAddress'
@@ -18,13 +19,15 @@ function looksLikeToken(token: string): boolean {
 export function RepositoryStep({
   createsRepositories,
   onDone,
-  onChooseFiles,
+  onChooseWithoutRepository,
 }: {
   createsRepositories: boolean
   onDone: (repository: RepositoryAccess) => void
-  onChooseFiles: () => void
+  /** Files and App spaces need no repository from this step. */
+  onChooseWithoutRepository: (backingKind: Exclude<SpaceBackingKind, 'git'>) => void
 }) {
   const [backingKind, setBackingKind] = useState<SpaceBackingKind>('git')
+  const appSpacesAvailable = useAppSpacesAvailable()
   const [repository, setRepository] = useState('')
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -37,8 +40,8 @@ export function RepositoryStep({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (backingKind === 'files') {
-      onChooseFiles()
+    if (backingKind !== 'git') {
+      onChooseWithoutRepository(backingKind)
       return
     }
     setError(null)
@@ -97,11 +100,15 @@ export function RepositoryStep({
     <SetupFrame
       step={2}
       title="Choose your space backing"
-      intro="Use a repository for code, or Files for documents, presentations and other artifacts."
+      intro={
+        appSpacesAvailable
+          ? 'Use a repository for code, Files for documents, presentations and other artifacts, or App for a tool your team uses.'
+          : 'Use a repository for code, or Files for documents, presentations and other artifacts.'
+      }
     >
       <form onSubmit={handleSubmit} className="grid gap-6">
         <SetupError message={error} />
-        <SpaceBackingField value={backingKind} onChange={setBackingKind} />
+        <SpaceBackingField value={backingKind} onChange={setBackingKind} offerApp={appSpacesAvailable} />
         {backingKind === 'git' && createsRepositories && (
           <RepositorySourceField
             value={newRepository.source}

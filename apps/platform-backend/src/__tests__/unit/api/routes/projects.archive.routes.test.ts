@@ -8,6 +8,9 @@ const mockProjectDAO = {
 const mockProjectDeletionSummaryDAO = {
   summarize: jest.fn(),
 };
+const mockSchedulingEngine = {
+  triggerRefresh: jest.fn(),
+};
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: (
@@ -25,6 +28,9 @@ jest.mock("../../../../persistence/project/ProjectDAO", () => ({
 jest.mock("../../../../persistence/project/ProjectDeletionSummaryDAO", () => ({
   ProjectDeletionSummaryDAO: jest.fn(() => mockProjectDeletionSummaryDAO),
 }));
+jest.mock("../../../../services/claw/ClawSchedulingEngine", () => ({
+  ClawSchedulingEngine: { getInstance: () => mockSchedulingEngine },
+}));
 
 import projectsRouter from "../../../../api/routes/projects";
 
@@ -41,7 +47,7 @@ describe("project archive and deletion summary routes", () => {
   });
 
   describe("POST /:id/archive", () => {
-    it("archives the project and returns it", async () => {
+    it("archives the project, stops its schedules and returns it", async () => {
       mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
       mockProjectDAO.archiveProject.mockResolvedValue({
         id: PROJECT_ID,
@@ -53,6 +59,7 @@ describe("project archive and deletion summary routes", () => {
         .expect(200);
 
       expect(mockProjectDAO.archiveProject).toHaveBeenCalledWith(PROJECT_ID);
+      expect(mockSchedulingEngine.triggerRefresh).toHaveBeenCalled();
       expect(response.body).toEqual({
         success: true,
         data: { id: PROJECT_ID, archivedAt: "2026-09-23T09:00:00.000Z" },

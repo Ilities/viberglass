@@ -1,26 +1,32 @@
 import { Description, Field, Label } from '@/components/fieldset'
 import { Select } from '@/components/select'
-import type { SpaceBackingKind } from '@viberglass/types'
+import { SPACE_BACKING_LABELS } from '@/lib/spaceBacking'
+import { SPACE_BACKING_KINDS, type SpaceBackingKind } from '@viberglass/types'
 
-export function SpaceBackingField({ value, onChange, disabled }: {
+const DESCRIPTIONS: Record<SpaceBackingKind, string> = {
+  git: 'Agents work in a repository and deliver changes through pull requests.',
+  files: 'A shared place for documents, presentations and other artifacts. Its files persist between runs and are shared by all of its tasks.',
+  app: 'One app for your team, which agents build and Viberglass runs. Viberglass creates and looks after its code for you.',
+}
+
+export function SpaceBackingField({ value, onChange, disabled, offerApp = false }: {
   value: SpaceBackingKind
   onChange: (value: SpaceBackingKind) => void
   disabled?: boolean
+  offerApp?: boolean
 }) {
+  const kinds = SPACE_BACKING_KINDS.filter((kind) => kind !== 'app' || offerApp)
   return (
     <Field>
       <Label>Space backing</Label>
       <Select value={value} disabled={disabled} onChange={(next) => {
-        if (next === 'git' || next === 'files') onChange(next)
+        const kind = kinds.find((candidate) => candidate === next)
+        if (kind) onChange(kind)
       }}>
-        <option value="git">Git repository</option>
-        <option value="files">Files</option>
+        {kinds.map((kind) => <option key={kind} value={kind}>{SPACE_BACKING_LABELS[kind]}</option>)}
       </Select>
       <Description>
-        {value === 'files'
-          ? 'A shared place for documents, presentations and other artifacts. Its files persist between runs and are shared by all of its tasks.'
-          : 'Agents work in a repository and deliver changes through pull requests.'}
-        {' '}Backing is fixed when the space is created.
+        {DESCRIPTIONS[value]}{' '}Backing is fixed when the space is created.
       </Description>
     </Field>
   )

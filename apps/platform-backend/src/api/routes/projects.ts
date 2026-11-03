@@ -47,9 +47,13 @@ import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipSer
 import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { ClawSchedulingEngine } from "../../services/claw/ClawSchedulingEngine";
+import { createAppSpaceCreator } from "../../services/apps/createAppSpaceServices";
+import { isDomainError } from "../../services/errors/DomainError";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
+const appSpaceCreator = createAppSpaceCreator();
 const taskParticipants = new TaskParticipantService();
 
 async function everyoneCanSeeSpace(projectId: string, userIds: string[]): Promise<boolean> {
@@ -176,11 +180,14 @@ router.get("/by-name/:name", async (req, res) => {
 });
 
 // POST /api/spaces - Create a new project
-router.post("/", validateCreateProject, async (req, res) => {
+router.post("/", validateCreateProject, async (req, res, next) => {
   try {
-    const project = await projectService.createProject(req.body, req.authContext!.user.id);
+    const project = req.body.backingKind === "app"
+      ? (await appSpaceCreator.create(req.body.name, req.authContext!.user.id)).project
+      : await projectService.createProject(req.body, req.authContext!.user.id);
     res.status(201).json({ success: true, data: project });
   } catch (error) {
+    if (isDomainError(error)) return next(error);
     logger.error("Error creating project", {
       error: error instanceof Error ? error.message : error,
     });
@@ -258,6 +265,7 @@ router.post("/:id/archive", validateUuidParam("id"), async (req, res) => {
     }
 
     const archived = await projectService.archiveProject(req.params.id);
+    await ClawSchedulingEngine.getInstance().triggerRefresh();
     res.json({ success: true, data: archived });
   } catch (error) {
     logger.error("Error archiving project", {

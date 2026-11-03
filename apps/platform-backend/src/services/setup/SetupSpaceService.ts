@@ -22,6 +22,8 @@ import {
   SetupServiceError,
 } from "../errors/SetupServiceError";
 import { findSetupCodeHost, requireSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
+import type { AppSpaceCreator } from "../apps/AppSpaceCreator";
+import { createAppSpaceCreator } from "../apps/createAppSpaceServices";
 
 export type CreateSpaceInput = CreateSetupSpaceRequest;
 
@@ -78,6 +80,7 @@ export class SetupSpaceService {
     private readonly integrations: CodeHostConnections = new IntegrationDAO(),
     private readonly credentials: Credentials = new IntegrationCredentialDAO(),
     private readonly codeHost: () => SetupCodeHost | null = findSetupCodeHost,
+    private readonly appSpaces: Pick<AppSpaceCreator, "create"> = createAppSpaceCreator(),
   ) {}
 
   /** `createdBy` becomes the new space's first maintainer. */
@@ -90,8 +93,12 @@ export class SetupSpaceService {
         "Give the space a name with at least one letter or number.",
       );
     }
+    if (input.backingKind === "app") {
+      const { project, repository } = await this.appSpaces.create(name, createdBy);
+      return { projectId: project.id, name: project.name, slug: project.slug, backingKind: "app", repositoryUrl: repository.url, baseBranch: repository.defaultBranch };
+    }
     if (input.backingKind === "files") {
-      const project = await this.findOrCreateProject(name, slug, null, createdBy);
+      const project = await this.findOrCreateProject(name, slug, "files", null, createdBy);
       return { projectId: project.id, name: project.name, slug: project.slug, backingKind: "files", repositoryUrl: null, baseBranch: null };
     }
     const codeHost = requireSetupCodeHost(this.codeHost);
@@ -104,7 +111,7 @@ export class SetupSpaceService {
     }
     const { integration, credential } = await this.getConnection(codeHost);
 
-    const project = await this.findOrCreateProject(name, slug, repositoryUrl, createdBy);
+    const project = await this.findOrCreateProject(name, slug, "git", repositoryUrl, createdBy);
     if (!(await this.links.isLinked(project.id, integration.id))) {
       await this.links.linkIntegration({ projectId: project.id, integrationId: integration.id, isPrimary: true });
     }
@@ -134,6 +141,7 @@ export class SetupSpaceService {
   private async findOrCreateProject(
     name: string,
     slug: string,
+    backingKind: "git" | "files",
     repositoryUrl: string | null,
     createdBy: string | undefined,
   ): Promise<Project> {
@@ -141,7 +149,7 @@ export class SetupSpaceService {
     if (!existing) {
       return this.projects.createProject({
         name,
-        backingKind: repositoryUrl === null ? "files" : "git",
+        backingKind,
         ticketSystem: NATIVE_TICKET_ORIGIN,
         credentials: { type: "token" },
         autoFixEnabled: false,
@@ -151,7 +159,6 @@ export class SetupSpaceService {
     }
 
     const scmConfig = await this.scmConfigs.getByProjectId(existing.id);
-    const backingKind = repositoryUrl === null ? "files" : "git";
     if (existing.archivedAt || (existing.backingKind ?? "git") !== backingKind ||
         (scmConfig && (repositoryUrl === null || !sameRepository(repositoryUrl, scmConfig.sourceRepository)))) {
       throw new SetupServiceError(

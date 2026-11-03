@@ -168,6 +168,16 @@ export interface IntegrationCredentialsTable {
   updated_at: Generated<Timestamp>;
 }
 
+/** One row, holding settings that belong to the whole workspace. */
+export interface WorkspaceSettingsTable {
+  id: Generated<boolean>;
+  app_home_integration_id: string | null;
+  app_home_credential_id: string | null;
+  app_home_owner: string | null;
+  updated_by: string | null;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface ProjectScmConfigsTable {
   id: Generated<string>;
   project_id: string;
@@ -904,6 +914,7 @@ export interface SpaceFileChangesTable {
 }
 
 export interface Database {
+  workspace_settings: WorkspaceSettingsTable;
   space_file_snapshots: SpaceFileSnapshotsTable;
   space_file_changes: SpaceFileChangesTable;
   space_file_state: SpaceFileStateTable;

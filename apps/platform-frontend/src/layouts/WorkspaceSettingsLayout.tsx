@@ -9,6 +9,7 @@ import {
   CubeIcon,
   FileTextIcon,
   IdCardIcon,
+  LayersIcon,
   LightningBoltIcon,
   Link2Icon,
   LockClosedIcon,
@@ -30,6 +31,7 @@ const WORKSPACE = [
   { name: 'Agents', href: '/settings/agents', icon: <RocketIcon /> },
   { name: 'Connections', href: '/settings/connections', icon: <Link2Icon /> },
   { name: 'Secrets', href: '/settings/secrets', icon: <LockClosedIcon /> },
+  { name: 'Apps', href: '/settings/apps', icon: <LayersIcon /> },
 ]
 
 const ADVANCED = [

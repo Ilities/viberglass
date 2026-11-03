@@ -10,7 +10,7 @@ jest.mock('@/service/api/ticket-api', () => ({ createTicket: jest.fn() }))
 const mockNavigate = jest.fn()
 jest.mock('react-router-dom', () => ({ ...jest.requireActual('react-router-dom'), useNavigate: () => mockNavigate }))
 
-function renderStep(backingKind: 'git' | 'files') {
+function renderStep(backingKind: 'git' | 'files' | 'app') {
   render(
     <Theme>
       <MemoryRouter>
@@ -41,4 +41,11 @@ it('starts a Git space by asking for an answer in the task, not a plan to build'
   await waitFor(() =>
     expect(askAgent).toHaveBeenCalledWith('t1', { action: 'reply', body: 'Please answer here in the task.', agentId: 'c1' })
   )
+})
+
+it('starts an App space by asking the agent to build a first version', async () => {
+  renderStep('app')
+  expect(screen.getByRole('textbox', { name: 'Task' })).toHaveValue('Build a laptop tracker')
+  fireEvent.click(screen.getByRole('button', { name: 'Start the task' }))
+  await waitFor(() => expect(askAgent).toHaveBeenCalledWith('t1', { action: 'code', body: 'Please build this.', agentId: 'c1' }))
 })

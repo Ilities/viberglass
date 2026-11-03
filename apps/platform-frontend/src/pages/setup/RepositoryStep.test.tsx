@@ -1,6 +1,7 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createSetupRepository, listSetupRepositoryOwners, saveRepository } from '@/service/api/setup-api'
+import { getAppHome } from '@/service/api/app-home-api'
 import { RepositoryStep } from './RepositoryStep'
 
 jest.mock('@/service/api/setup-api', () => ({
@@ -8,6 +9,7 @@ jest.mock('@/service/api/setup-api', () => ({
   listSetupRepositoryOwners: jest.fn(),
   saveRepository: jest.fn(),
 }))
+jest.mock('@/service/api/app-home-api', () => ({ getAppHome: jest.fn() }))
 
 const SAVED = {
   fullName: 'acme/laptop-tracker',
@@ -18,17 +20,40 @@ const SAVED = {
   credentialId: 'c1',
 }
 
-function renderStep(createsRepositories = true) {
+function renderStep(createsRepositories = true, onChooseWithoutRepository = jest.fn()) {
   const onDone = jest.fn()
   render(
     <Theme>
-      <RepositoryStep createsRepositories={createsRepositories} onDone={onDone} onChooseFiles={jest.fn()} />
+      <RepositoryStep createsRepositories={createsRepositories} onDone={onDone} onChooseWithoutRepository={onChooseWithoutRepository} />
     </Theme>
   )
   return onDone
 }
 
-beforeEach(() => jest.resetAllMocks())
+beforeAll(() => {
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.assign(global, { ResizeObserver: ResizeObserverMock })
+  Element.prototype.scrollIntoView = jest.fn()
+})
+
+it('moves on without a repository when App is chosen and the workspace offers it', async () => {
+  const onChooseWithoutRepository = jest.fn()
+  renderStep(true, onChooseWithoutRepository)
+  await screen.findByText(/or App for a tool your team uses/)
+  fireEvent.click(screen.getByRole('combobox', { name: 'Space backing' }))
+  fireEvent.click(await screen.findByRole('option', { name: 'App' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(onChooseWithoutRepository).toHaveBeenCalledWith('app')
+})
+
+beforeEach(() => {
+  jest.resetAllMocks()
+  jest.mocked(getAppHome).mockResolvedValue({ home: null, availability: { available: true, missing: [] } })
+})
 
 it('creates a repository where the token can, and hands it on like a checked one', async () => {
   jest.mocked(listSetupRepositoryOwners).mockResolvedValue([

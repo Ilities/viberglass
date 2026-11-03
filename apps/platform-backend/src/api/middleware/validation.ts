@@ -32,6 +32,7 @@ import {
   setupNewRepositorySchema,
   newConnectionRepositorySchema,
   setupSpaceSchema,
+  appHomeSchema,
   setupAgentSchema,
   registerSchema,
   createUserSchema,
@@ -173,6 +174,7 @@ export const validateNewConnectionRepository = createValidator(newConnectionRepo
   name: "newConnectionRepository",
 });
 export const validateSetupSpace = createValidator(setupSpaceSchema, { name: "setupSpace" });
+export const validateAppHome = createValidator(appHomeSchema, { name: "appHome" });
 export const validateSetupAgent = createValidator(setupAgentSchema, { name: "setupAgent" });
 export const validateRegister = createValidator(registerSchema);
 export const validateCreateUser = createValidator(createUserSchema);

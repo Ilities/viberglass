@@ -18,7 +18,7 @@ import { SpaceSwitcher } from './space-switcher'
 
 export function ApplicationLayout() {
   const navigate = useNavigate()
-  const pathname = useLocation().pathname
+  const { pathname, search } = useLocation()
   const { project: currentSpace } = useParams<{ project: string }>()
   const { user, status, logout } = useAuth()
   const [spaces, setSpaces] = useState<Project[]>([])
@@ -27,9 +27,9 @@ export function ApplicationLayout() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      navigate(`/login?redirect=${encodeURIComponent(pathname)}`, { replace: true })
+      navigate(`/login?redirect=${encodeURIComponent(pathname + search)}`, { replace: true })
     }
-  }, [navigate, status, pathname])
+  }, [navigate, status, pathname, search])
 
   useEffect(() => {
     if (status !== 'authenticated') {

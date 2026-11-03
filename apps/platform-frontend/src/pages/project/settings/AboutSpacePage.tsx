@@ -2,6 +2,7 @@ import { Fact, FactList } from '@/components/fact-list'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { useProject } from '@/context/project-context'
+import { SPACE_BACKING_LABELS } from '@/lib/spaceBacking'
 import { getProjectScmConfig } from '@/service/api/project-api'
 import { getSpaceMembers } from '@/service/api/space-member-api'
 import type { ProjectScmConfig, SpaceMember } from '@viberglass/types'
@@ -24,7 +25,7 @@ export function AboutSpacePage() {
 
   useEffect(() => {
     if (!projectId) return
-    if (project?.backingKind === 'files') setScm(null)
+    if (project?.backingKind !== 'git') setScm(null)
     else getProjectScmConfig(projectId)
         .then(setScm)
         .catch(() => setScm(null))
@@ -42,8 +43,8 @@ export function AboutSpacePage() {
         <FactList title={project.name}>
           <Fact label="Task keys">{project.keyPrefix}-…</Fact>
           <Fact label="Who sees it">{project.isPrivate ? 'Only its members' : 'Everyone in the workspace'}</Fact>
-          <Fact label="Space backing">{project.backingKind === 'files' ? 'Files' : 'Git repository'}</Fact>
-          {project.backingKind !== 'files' && <Fact label="Repository">{scm ? `${scm.sourceRepository} · ${scm.baseBranch}` : 'Not set up yet'}</Fact>}
+          <Fact label="Space backing">{SPACE_BACKING_LABELS[project.backingKind]}</Fact>
+          {project.backingKind === 'git' && <Fact label="Repository">{scm ? `${scm.sourceRepository} · ${scm.baseBranch}` : 'Not set up yet'}</Fact>}
           <Fact label="Maintained by">{maintainers.length > 0 ? maintainers.map((member) => member.name).join(', ') : 'Workspace admins'}</Fact>
         </FactList>
         <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">Only its maintainers and workspace admins can change how this space works.</p>

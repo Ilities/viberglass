@@ -25,11 +25,13 @@ export function SettingsLayout() {
   if (isLoading || !project) return null
   if (!canMaintain && MAINTAINERS_ONLY.some((tab) => pathname.startsWith(`${base}/${tab}`))) return <Navigate to={`${base}/general`} replace />
 
+  const repository = { name: 'Repository', href: `${base}/repository`, icon: <CodeIcon /> }
+  const current = <T extends { href: string }>(item: T) => ({ ...item, current: pathname === item.href })
   const items = [
     { name: canMaintain ? 'General' : 'About', href: `${base}/general`, icon: canMaintain ? <GearIcon /> : <InfoCircledIcon /> },
     ...(canMaintain
       ? [
-          ...(project.backingKind === 'files' ? [] : [{ name: 'Repository', href: `${base}/repository`, icon: <CodeIcon /> }]),
+          ...(project.backingKind === 'git' ? [repository] : []),
           { name: 'Incoming issues', href: `${base}/issues`, icon: <DownloadIcon /> },
           { name: 'Task defaults', href: `${base}/task-defaults`, icon: <MixerHorizontalIcon /> },
         ]
@@ -41,12 +43,14 @@ export function SettingsLayout() {
           { name: 'Agent instructions', href: `${base}/prompt-templates`, icon: <ReaderIcon /> },
         ]
       : []),
-  ].map((item) => ({ ...item, current: pathname === item.href }))
+  ].map(current)
+  // An App space's people never deal with git, so its repository is tucked away.
+  const advanced = canMaintain && project.backingKind === 'app' ? [current(repository)] : []
 
   return (
     <div className="lg:flex lg:gap-8">
       <aside className="hidden lg:block lg:w-48 lg:flex-none lg:border-r lg:border-zinc-950/10 dark:lg:border-white/10">
-        <SettingsNav sections={[{ items }]} />
+        <SettingsNav sections={[{ items }, ...(advanced.length > 0 ? [{ heading: 'Advanced', items: advanced }] : [])]} />
       </aside>
       <main className="min-w-0 flex-1 lg:pt-6 lg:pl-8">
         <Outlet />

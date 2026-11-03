@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { SetupError, SetupFrame } from './SetupFrame'
 import { taskPath } from '@/lib/taskPath'
 
-/** A small first task for each backing: reading a repository, or writing a first file in a Files space. */
+/** A small first task for each backing: reading a repository, writing a first file in a Files space, or building a first app. */
 const STARTERS = {
   git: {
     title: 'Explain how this codebase is organised',
@@ -30,6 +30,14 @@ const STARTERS = {
     note: 'You can ask for changes in the task’s conversation afterwards.',
     // The work is the file itself, so the agent is asked directly rather than for a plan.
     ask: { action: 'reply', body: 'Please write this in the space’s files.' },
+  },
+  app: {
+    title: 'Build a laptop tracker',
+    description:
+      'Build an app for keeping track of the company’s laptops: a list of laptops with their model, serial number, who has each one and its status, and a form to add or change one.',
+    intro: 'Describe the app your team needs. The agent builds a first version, ready for you to look at.',
+    note: 'Change the description to the app you actually need; you can ask for changes in the task afterwards.',
+    ask: { action: 'code', body: 'Please build this.' },
   },
 } as const
 

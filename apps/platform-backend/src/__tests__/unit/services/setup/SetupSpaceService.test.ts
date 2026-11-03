@@ -1,6 +1,7 @@
 import type { Integration, IntegrationCredential, ProjectScmConfig } from "@viberglass/types";
 import type { Project } from "@viberglass/types";
 import { SetupSpaceService } from "../../../../services/setup/SetupSpaceService";
+import { findSetupCodeHost } from "../../../../services/setup/setupCodeHost";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
 
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
@@ -76,17 +77,38 @@ function build(options: {
   const getDefaultForIntegration = jest.fn(async () =>
     options.credential === undefined ? TOKEN : options.credential,
   );
+  const createAppSpace = jest.fn(async () => ({
+    project: project({ backingKind: "app", name: "Laptops", slug: "laptops" }),
+    repository: { fullName: "acme/laptops", url: "https://github.com/acme/laptops", defaultBranch: "main", isPrivate: true },
+  }));
   const service = new SetupSpaceService(
     { findByName, createProject },
     { getByProjectId, upsertByProjectId },
     { isLinked, linkIntegration },
     { listIntegrations },
     { getDefaultForIntegration },
+    findSetupCodeHost,
+    { create: createAppSpace },
   );
-  return { service, findByName, createProject, upsertByProjectId, linkIntegration };
+  return { service, findByName, createProject, upsertByProjectId, linkIntegration, createAppSpace };
 }
 
 describe("SetupSpaceService", () => {
+  it("creates an App space in the App home", async () => {
+    const { service, createProject, createAppSpace } = build();
+    const space = await service.createSpace({ name: "Laptops", backingKind: "app" }, "user-1");
+    expect(createAppSpace).toHaveBeenCalledWith("Laptops", "user-1");
+    expect(createProject).not.toHaveBeenCalled();
+    expect(space).toEqual({
+      projectId: "project-1",
+      name: "Laptops",
+      slug: "laptops",
+      backingKind: "app",
+      repositoryUrl: "https://github.com/acme/laptops",
+      baseBranch: "main",
+    });
+  });
+
   it("creates a Files space without a connection or credentials", async () => {
     const { service, createProject, linkIntegration, upsertByProjectId } = build({ integrations: [], credential: null });
     const space = await service.createSpace({ name: "Slides", backingKind: "files" }, "user-1");

@@ -6,6 +6,7 @@ import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
 import { SpaceBackingField } from '@/components/space-backing-field'
 import type { SpaceBackingKind } from '@viberglass/types'
+import { useAppSpacesAvailable } from '@/hooks/useAppSpacesAvailable'
 import { useNewRepository } from '@/hooks/useNewRepository'
 import { getErrorMessage } from '@/lib/project-form'
 import { repositoryNameFrom } from '@/lib/repositoryAddress'
@@ -39,6 +40,7 @@ export function NewProjectPage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [backingKind, setBackingKind] = useState<SpaceBackingKind>('git')
+  const appSpacesAvailable = useAppSpacesAvailable()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -144,7 +146,7 @@ export function NewProjectPage() {
         {(error || connections.loadError) && (
           <div className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
             {error ?? connections.loadError}
-            {created && (
+            {created && backingKind === 'git' && (
               <p className="mt-1">
                 The space was created. You can also{' '}
                 <Link href={`/spaces/${created.slug}/settings/repository`} className="font-medium underline">
@@ -171,7 +173,12 @@ export function NewProjectPage() {
                 />
               </Field>
 
-              <SpaceBackingField value={backingKind} onChange={setBackingKind} disabled={created !== null} />
+              <SpaceBackingField
+                value={backingKind}
+                onChange={setBackingKind}
+                disabled={created !== null}
+                offerApp={appSpacesAvailable}
+              />
 
               {backingKind === 'git' && <section>
                 <Subheading>Repository</Subheading>

@@ -7,6 +7,7 @@ import { PageMeta } from '@/components/page-meta'
 import { Strong, Text, TextLink } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
 import { getSetupStatus } from '@/service/api/auth-api'
+import { safeRedirect } from '@/lib/safeRedirect'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
@@ -23,8 +24,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      const target = redirect && redirect.startsWith('/') ? redirect : '/'
-      navigate(target, { replace: true })
+      navigate(safeRedirect(redirect), { replace: true })
     }
   }, [navigate, status, redirect])
 
@@ -62,8 +62,7 @@ export function LoginPage() {
       } else {
         await login(email, password, remember)
       }
-      const target = redirect && redirect.startsWith('/') ? redirect : '/'
-      navigate(target, { replace: true })
+      navigate(safeRedirect(redirect), { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
     } finally {

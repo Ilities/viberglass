@@ -3,12 +3,15 @@ import { isObjectRecord } from "@viberglass/types";
 import logger from "../../../config/logger";
 import { isDomainError } from "../../../services/errors/DomainError";
 import { JobBootstrapService } from "../../../services/job/JobBootstrapService";
+import { APP_CONTRACT_SKILL, appContractSkillFiles } from "../../../services/skills/appContractSkill";
 import { SkillService } from "../../../services/skills/SkillService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 
-const bootstraps = new JobBootstrapService();
-const skills = new SkillService();
+export interface SkillCallbackDependencies {
+  bootstraps: Pick<JobBootstrapService, "getBootstrapPayload">;
+  skills: Pick<SkillService, "files">;
+}
 
 /** Whether the run's payload gave it this skill; a run's token reaches only its own skills. */
 function payloadHasSkill(payload: Record<string, unknown> | null, skillId: string): boolean {
@@ -17,7 +20,10 @@ function payloadHasSkill(payload: Record<string, unknown> | null, skillId: strin
 }
 
 /** A run's worker downloading one of its runner's skills, to write where the agent's harness reads skills. */
-export function registerSkillCallbackRoute(router: Router): void {
+export function registerSkillCallbackRoute(
+  router: Router,
+  { bootstraps, skills }: SkillCallbackDependencies = { bootstraps: new JobBootstrapService(), skills: new SkillService() },
+): void {
   router.get("/:jobId/skills/:skillId", tenantMiddleware, validateCallbackToken, async (req: Request, res: Response) => {
     const { jobId, skillId } = req.params;
     try {
@@ -25,7 +31,8 @@ export function registerSkillCallbackRoute(router: Router): void {
       if (!bootstrap || bootstrap.tenantId !== req.tenantId || !payloadHasSkill(bootstrap.payload, skillId)) {
         return res.status(404).json({ error: "Skill not found for this run" });
       }
-      return res.json({ success: true, data: await skills.files(skillId) });
+      const files = skillId === APP_CONTRACT_SKILL.id ? appContractSkillFiles() : await skills.files(skillId);
+      return res.json({ success: true, data: files });
     } catch (error) {
       if (isDomainError(error)) return res.status(error.statusCode).json({ error: error.message });
       logger.error("Failed to send a skill to a worker", {

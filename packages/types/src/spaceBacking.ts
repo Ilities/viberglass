@@ -1,6 +1,6 @@
 import type { TurnArtifact } from './artifacts'
 
-export const SPACE_BACKING_KINDS = ['git', 'files'] as const
+export const SPACE_BACKING_KINDS = ['git', 'files', 'app'] as const
 
 export type SpaceBackingKind = (typeof SPACE_BACKING_KINDS)[number]
 

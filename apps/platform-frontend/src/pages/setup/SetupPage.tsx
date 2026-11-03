@@ -2,7 +2,7 @@ import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
 import { getSetupProviders, getSetupStatus, loadDemoWorkspace } from '@/service/api/setup-api'
-import type { RepositoryAccess, SetupModelChoice, SetupProvider, SetupStatus } from '@viberglass/types'
+import type { RepositoryAccess, SetupModelChoice, SetupProvider, SetupStatus, SpaceBackingKind } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AgentStep } from './AgentStep'
@@ -30,6 +30,7 @@ export function SetupPage() {
   const [step, setStep] = useState<SetupStep | null>(null)
   const [model, setModel] = useState<SetupModelChoice | null>(null)
   const [repository, setRepository] = useState<RepositoryAccess | null>(readStoredRepository)
+  const [spaceBacking, setSpaceBacking] = useState<Exclude<SpaceBackingKind, 'git'>>('files')
   const [space, setSpace] = useState<SetupStatus['space']>(null)
   const [agent, setAgent] = useState<SetupStatus['agent']>(null)
   const [clankerId, setClankerId] = useState<string | null>(null)
@@ -112,8 +113,9 @@ export function SetupPage() {
         {step === 'repository' && (
           <RepositoryStep
             createsRepositories={loaded.status.createsRepositories}
-            onChooseFiles={() => {
+            onChooseWithoutRepository={(backingKind) => {
               setRepository(null)
+              setSpaceBacking(backingKind)
               setStep('space')
             }}
             onDone={(checked) => {
@@ -126,6 +128,7 @@ export function SetupPage() {
         {step === 'space' && model && (
           <SpaceStep
             repository={repository}
+            backingKind={repository ? 'git' : spaceBacking}
             model={model}
             onChangeRepository={() => setStep('repository')}
             onDone={(created, started) => {

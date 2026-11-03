@@ -62,6 +62,7 @@ import { McpServersPage } from '@/pages/mcp-servers/McpServersPage'
 import { ModelsPage } from '@/pages/models/ModelsPage'
 import { SkillsPage } from '@/pages/skills/SkillsPage'
 import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
+import { AppHomePage } from '@/pages/settings/AppHomePage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { UsersPage } from '@/pages/settings/UsersPage'
@@ -101,6 +102,7 @@ export function AppRoutes() {
           <Route path="/settings/mcp-servers" element={<McpServersPage />} />
           <Route path="/settings/skills" element={<SkillsPage />} />
           <Route path="/settings/secrets" element={<SecretsPage />} />
+          <Route path="/settings/apps" element={<AppHomePage />} />
           <Route path="/settings/connections" element={<IntegrationsPage />} />
           <Route path="/settings/connections/new/:integrationSystem" element={<IntegrationDetailPage />} />
           <Route path="/settings/connections/:integrationEntityId" element={<IntegrationDetailPage />} />

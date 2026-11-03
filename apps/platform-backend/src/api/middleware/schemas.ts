@@ -388,8 +388,14 @@ export const setupAgentSchema = Joi.alternatives().try(
 export const setupSpaceSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),
   backingKind: Joi.string().valid(...SPACE_BACKING_KINDS).default("git"),
-  repository: Joi.when("backingKind", { is: "files", then: Joi.forbidden(), otherwise: Joi.string().trim().min(1).max(500).required() }),
-  baseBranch: Joi.when("backingKind", { is: "files", then: Joi.forbidden(), otherwise: Joi.string().trim().min(1).max(255).optional() }),
+  repository: Joi.when("backingKind", { is: Joi.valid("files", "app"), then: Joi.forbidden(), otherwise: Joi.string().trim().min(1).max(500).required() }),
+  baseBranch: Joi.when("backingKind", { is: Joi.valid("files", "app"), then: Joi.forbidden(), otherwise: Joi.string().trim().min(1).max(255).optional() }),
+});
+
+export const appHomeSchema = Joi.object({
+  integrationId: Joi.string().uuid().required(),
+  credentialId: Joi.string().uuid().allow(null).default(null),
+  owner: Joi.string().trim().min(1).max(200).required(),
 });
 
 const secretProviderSchema = Joi.string()

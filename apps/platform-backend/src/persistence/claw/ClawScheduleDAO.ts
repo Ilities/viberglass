@@ -214,12 +214,15 @@ export class ClawScheduleDAO {
     return result.schedules;
   }
 
+  /** Schedules of archived spaces don't run, whatever their own state. */
   async getActiveSchedules(): Promise<ClawSchedule[]> {
     const rows = await db
       .selectFrom("claw_schedules")
-      .selectAll()
-      .where("is_active", "=", true)
-      .orderBy("created_at", "asc")
+      .innerJoin("projects", "projects.id", "claw_schedules.project_id")
+      .selectAll("claw_schedules")
+      .where("claw_schedules.is_active", "=", true)
+      .where("projects.archived_at", "is", null)
+      .orderBy("claw_schedules.created_at", "asc")
       .execute();
 
     return rows.map((row) => this.mapRowToSchedule(row));

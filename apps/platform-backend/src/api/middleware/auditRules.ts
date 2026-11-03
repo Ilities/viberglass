@@ -51,6 +51,11 @@ export const CONNECTION_AUDIT: AuditRule[] = [
   { method: "PUT", path: "/space/:projectId/primary/:integrationId", action: "connection.made_primary", targetType: "connection", targetParam: "integrationId", details: (req) => ({ spaceId: req.params.projectId }) },
 ];
 
+export const APP_HOME_AUDIT: AuditRule[] = [
+  { method: "PUT", path: "/", action: "connection.app_home_set", targetType: "connection", details: (req) => ({ connectionId: bodyField(req, "integrationId"), owner: bodyField(req, "owner") }) },
+  { method: "DELETE", path: "/", action: "connection.app_home_cleared", targetType: "connection" },
+];
+
 export const MEMBER_AUDIT: AuditRule[] = [
   { method: "POST", path: "/", action: "member.created", targetType: "member", details: (req) => ({ email: bodyField(req, "email"), role: bodyField(req, "role") }) },
   { method: "PATCH", path: "/:id/role", action: "member.role_changed", targetType: "member", targetParam: "id", details: (req) => ({ role: bodyField(req, "role") }) },

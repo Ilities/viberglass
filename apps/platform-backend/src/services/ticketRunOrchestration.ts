@@ -17,6 +17,7 @@ import type { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfi
 import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
 import type { JobData, JobScmConfig } from "../types/Job";
 import type { RunnerToolResolver } from "./runs/RunnerToolResolver";
+import { APP_CONTRACT_SKILL } from "./skills/appContractSkill";
 import {
   type InlineInstructionFile as StoredInlineInstructionFile,
   type InstructionStorageService,
@@ -299,7 +300,7 @@ export async function prepareTicketRunContext(
     mergedInstructionFiles,
     workerInstructionFiles,
     mcpServers: tools.mcpServers,
-    skills: tools.skills,
+    skills: project.backingKind === "app" ? [...tools.skills, APP_CONTRACT_SKILL] : tools.skills,
   };
 }
 

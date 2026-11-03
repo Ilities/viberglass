@@ -1,5 +1,6 @@
 import { SCM_TOKEN_ENV_VAR, type Clanker, type ProjectScmConfig } from "@viberglass/types";
 import type { Project } from "@viberglass/types";
+import { APP_CONTRACT_SKILL } from "../../../../services/skills/appContractSkill";
 import { buildScmPayloadFromContext, prepareTicketRunContext } from "../../../../services/ticketRunOrchestration";
 
 const project: Project = {
@@ -56,9 +57,10 @@ function prepare(
   additionalSecretBindings = [{ envVar: "NOTION_TOKEN", secretId: "template-notion" }],
   files?: { env?: Record<string, string>; strategy?: string },
   scm: ProjectScmConfig = scmConfig,
+  backingKind: Project["backingKind"] = files ? "files" : "git",
 ) {
   const scmConfigs = jest.fn(async () => scm);
-  const space: Project = files ? { ...project, backingKind: "files" } : project;
+  const space: Project = { ...project, backingKind };
   const clanker: Clanker = files?.strategy
     ? { ...runner, deploymentConfig: { ...runner.deploymentConfig!, strategy: { type: files.strategy } } as Clanker["deploymentConfig"] }
     : runner;
@@ -175,5 +177,22 @@ describe("a run in a Files space", () => {
 
   it("refuses runners on Lambda", async () => {
     await expect(prepare([], { env: STORAGE, strategy: "lambda" })).rejects.toMatchObject({ code: "FILES_RUNNER_UNSUPPORTED" });
+  });
+});
+
+describe("a run in an App space", () => {
+  it("gets the app contract skill after the runner's own skills", async () => {
+    const context = await prepare([], undefined, scmConfig, "app");
+
+    expect(context.skills).toEqual([{ id: "skill-1", name: "pdf-forms" }, APP_CONTRACT_SKILL]);
+    expect(context.sourceRepository).toBe("https://github.com/acme/web");
+  });
+
+  it("is the only kind of space that gets it", async () => {
+    const git = await prepare([]);
+    const files = await prepare([], { env: { S3_BUCKET: "files" } });
+
+    expect(git.skills).not.toContainEqual(APP_CONTRACT_SKILL);
+    expect(files.skills).not.toContainEqual(APP_CONTRACT_SKILL);
   });
 });
