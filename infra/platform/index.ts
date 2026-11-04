@@ -61,7 +61,7 @@ const baseStack = new pulumi.StackReference(config.baseStack);
 
 // Get outputs from base stack
 const vpcId = baseStack.getOutput("vpcId") as pulumi.Output<string>;
-const vpcCidr = baseStack.getOutput("vpcCidr") as pulumi.Output<string>;
+const vpcCidr = baseStack.getOutput("vpcCidrOutput") as pulumi.Output<string>;
 const publicSubnetIds = baseStack.getOutput("publicSubnetIds") as pulumi.Output<
   string[]
 >;
