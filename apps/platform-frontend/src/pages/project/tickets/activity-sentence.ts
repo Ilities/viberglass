@@ -53,6 +53,10 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       return typeof entry.payload.withCommitSha === 'string' ? 'The change went live with a later release' : 'The change is live'
     case 'release_failed':
       return typeof entry.payload.reason === 'string' ? `The change didn't go live: ${entry.payload.reason}` : "The change didn't go live"
+    case 'release_rolled_back':
+      return typeof entry.payload.rolledBackBy === 'string'
+        ? `${entry.payload.rolledBackBy} rolled the app back, taking the change out of it`
+        : 'The app was rolled back, taking the change out of it'
     case 'part_merged': {
       const parts = Array.isArray(entry.payload.parts) ? entry.payload.parts.filter((part) => typeof part === 'number') : []
       const merged = parts.length > 0 ? `Part ${parts.join(', ')} merged` : 'A part of the plan merged'

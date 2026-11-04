@@ -3,11 +3,13 @@ import { AppDAO } from "../../persistence/apps/AppDAO";
 import { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
+import { AppReleaseRollbackDAO } from "../../persistence/apps/AppReleaseRollbackDAO";
 import { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
 import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import { UserDAO } from "../../persistence/user/UserDAO";
 import { defaultDeploymentStrategyName } from "../../provisioning/shared/deploymentStrategies";
 import { AppDataStore } from "./AppDataStore";
 import { AppHostRegistry } from "./AppHostRegistry";
@@ -20,15 +22,19 @@ import { AppPreviewService } from "./AppPreviewService";
 import { AppPreviewSweep } from "./AppPreviewSweep";
 import { AppReconciler } from "./AppReconciler";
 import { AppReleaseSwitch } from "./AppReleaseSwitch";
+import { AppRollbackService } from "./AppRollbackService";
+import { AppRollbackSettler } from "./AppRollbackSettler";
 import { AppService } from "./AppService";
 import { AppSweep } from "./AppSweep";
 import { DockerAppHost } from "./DockerAppHost";
 import { ReleaseBuildService } from "./ReleaseBuildService";
+import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { TaskAskPolicyService } from "../taskTurns/TaskAskPolicyService";
 import { StsAppDataCredentials } from "./StsAppDataCredentials";
 
 export interface AppHosting {
   service: AppService;
+  rollbacks: AppRollbackService;
   sweep: AppSweep;
   previews: AppPreviewService;
   previewSweep: AppPreviewSweep;
@@ -47,13 +53,16 @@ export function appHosting(): AppHosting {
   const registry = new AppHostRegistry([new DockerAppHost(dockerAppHostOptions(process.env))]);
   const host = () => registry.get(defaultDeploymentStrategyName());
   const runner = new AppInstanceRunner(new AppInstanceSpecs(new StsAppDataCredentials()));
-  const switcher = new AppReleaseSwitch(apps, releases, new AppDataBackupDAO(), new AppDataStore(), runner);
-  const reconciler = new AppReconciler(apps, releases, host, runner, switcher);
+  const backups = new AppDataBackupDAO();
+  const switcher = new AppReleaseSwitch(apps, releases, backups, new AppDataStore(), runner);
+  const settler = new AppRollbackSettler(new AppReleaseRollbackDAO(), apps, new UserDAO(), new TaskActivityRecorder());
+  const reconciler = new AppReconciler(apps, releases, host, runner, switcher, settler);
   const previews = new AppPreviewDAO();
   const previewReconciler = new AppPreviewReconciler(previews, releases, host, runner);
   const origins = new AppOrigins();
   hosting = {
-    service: new AppService(spaces, apps, releases, reconciler, host, origins),
+    service: new AppService(spaces, apps, releases, backups, reconciler, host, origins),
+    rollbacks: new AppRollbackService(spaces, apps, releases, backups, reconciler),
     sweep: new AppSweep(spaces, apps, releases, reconciler, host),
     previews: new AppPreviewService({
       policy: new TaskAskPolicyService(),

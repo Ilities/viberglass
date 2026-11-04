@@ -94,7 +94,7 @@ router.param("projectId", spaceGuard);
 router.param("name", spaceGuard);
 
 registerSpaceMemberRoutes(router, new SpaceMembershipService());
-registerAppRoutes(router, appHosting().service, spaceAccess);
+registerAppRoutes(router, appHosting().service, spaceAccess, appHosting().rollbacks);
 registerAppAccessRoutes(router, createAppAccessListService(), spaceAccess);
 
 /**

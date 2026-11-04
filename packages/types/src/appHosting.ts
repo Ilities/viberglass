@@ -14,8 +14,18 @@ export interface AppView {
   currentRelease: AppRelease | null
   /** Newest first. */
   releases: AppRelease[]
+  /** For each release that can be rolled back to with its data, when that data is from. */
+  dataPoints: Record<string, string>
+  /** A rollback asked for that hasn't happened yet. */
+  rollback: { releaseId: string; withData: boolean } | null
   /** Where people open the app; null when apps aren't served on this workspace. */
   url: string | null
+}
+
+/** Making an earlier release (or one set aside by a rollback) the live one again. */
+export interface AppRollbackRequest {
+  /** Also restore the data as that release left it, losing what changed since. */
+  withData: boolean
 }
 
 /**

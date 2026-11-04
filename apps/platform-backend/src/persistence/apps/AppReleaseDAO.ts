@@ -59,7 +59,7 @@ export class AppReleaseDAO {
     return rows.map(toRelease);
   }
 
-  /** The newest built release that hasn't failed to go live. */
+  /** The newest built release that hasn't failed to go live and wasn't rolled back. */
   async newestLiveCandidate(projectId: string): Promise<AppRelease | null> {
     const row = await db
       .selectFrom("app_releases")
@@ -68,6 +68,7 @@ export class AppReleaseDAO {
       .where("preview", "=", false)
       .where("status", "=", "ready")
       .where("live_failure", "is", null)
+      .where("rolled_back_at", "is", null)
       .orderBy("created_at", "desc")
       .limit(1)
       .executeTakeFirst();

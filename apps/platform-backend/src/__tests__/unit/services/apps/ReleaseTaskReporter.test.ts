@@ -18,6 +18,8 @@ function release(overrides: Partial<AppRelease> = {}): AppRelease {
     wentLiveAt: null,
     liveFailure: null,
     ticketId: "task-1",
+    rolledBackAt: null,
+    bundleRemoved: false,
     createdAt: "2026-11-04T10:00:00.000Z",
     finishedAt: null,
     ...overrides,

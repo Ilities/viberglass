@@ -110,6 +110,8 @@ export const TASK_ACTIVITY_KINDS = [
   'release_live',
   /** The release built from the task's change didn't build or didn't go live. */
   'release_failed',
+  /** A rollback took the release built from the task's change back out of the live app. */
+  'release_rolled_back',
   /** Someone marked a part done or skipped, or took the mark back. */
   'part_marked',
   'part_unmarked',

@@ -9,6 +9,7 @@ import { SpaceAccessService } from "../../../../services/spaces/SpaceAccessServi
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const SPACE_ID = "11111111-1111-4111-8111-111111111111";
+const RELEASE_ID = "22222222-2222-4222-8222-222222222222";
 const VIEW = { power: "on", state: "running", statusMessage: null, currentRelease: null, releases: [] };
 
 function setup() {
@@ -25,6 +26,7 @@ function setup() {
     setPower: jest.fn().mockResolvedValue({ ...VIEW, power: "off" }),
     logs: jest.fn().mockResolvedValue("listening\n"),
   };
+  const rollbacks = { restore: jest.fn().mockResolvedValue(undefined) };
 
   const app = express();
   app.use(express.json());
@@ -43,10 +45,10 @@ function setup() {
   });
   const spaces = express.Router();
   spaces.param("projectId", spaceParamGuard(access));
-  registerAppRoutes(spaces, apps, access);
+  registerAppRoutes(spaces, apps, access, rollbacks);
   app.use("/api/spaces", spaces);
   app.use(applicationErrorHandler);
-  return { app, apps };
+  return { app, apps, rollbacks };
 }
 
 describe("an App space's app", () => {
@@ -79,5 +81,17 @@ describe("an App space's app", () => {
 
     const response = await request(app).get(`/api/spaces/${SPACE_ID}/app/logs`).set("x-role", "admin").expect(200);
     expect(response.body.data).toEqual({ logs: "listening\n" });
+  });
+
+  it("is rolled back by a maintainer, who says whether the data goes back too", async () => {
+    const { app, rollbacks } = setup();
+    const restore = `/api/spaces/${SPACE_ID}/app/releases/${RELEASE_ID}/restore`;
+
+    await request(app).post(restore).set("x-role", "member").send({ withData: true }).expect(403);
+    await request(app).post(restore).set("x-role", "admin").send({}).expect(400);
+    const response = await request(app).post(restore).set("x-role", "admin").send({ withData: true }).expect(202);
+
+    expect(response.body.data).toEqual(VIEW);
+    expect(rollbacks.restore.mock.calls).toEqual([[SPACE_ID, RELEASE_ID, { withData: true }, "u-1"]]);
   });
 });

@@ -195,6 +195,10 @@ export interface AppReleasesTable {
   reported_at: Timestamp | null;
   /** Built for a change's preview, not from the default branch. */
   preview: Generated<boolean>;
+  /** A rollback to an older release set it aside, so it doesn't go live by itself. */
+  rolled_back_at: Timestamp | null;
+  bundle_removed_at: Timestamp | null;
+  bundle_purged_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   finished_at: Timestamp | null;
 }
@@ -226,6 +230,10 @@ export interface AppsTable {
   status_message: string | null;
   current_release_id: string | null;
   busy_since: Timestamp | null;
+  /** A rollback someone asked for, done on the next switch. */
+  rollback_release_id: string | null;
+  rollback_backup_id: string | null;
+  rollback_by: string | null;
   updated_at: Generated<Timestamp>;
 }
 
@@ -260,8 +268,10 @@ export interface AppSessionsTable {
 export interface AppDataBackupsTable {
   id: Generated<string>;
   project_id: string;
-  reason: "release";
+  reason: "release" | "rollback";
   release_id: string | null;
+  /** The release whose data this is: the one serving when the copy was taken. */
+  from_release_id: string | null;
   objects: number;
   bytes: ColumnType<string, number, number>;
   created_at: Generated<Timestamp>;

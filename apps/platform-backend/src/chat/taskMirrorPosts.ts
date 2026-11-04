@@ -72,6 +72,10 @@ export function releasePost(outcome: { live: true; appUrl: string | null } | { l
   return { markdown: `**The change didn't go live**${outcome.reason ? `: ${outcome.reason}` : "."}` };
 }
 
+export function rolledBackPost(by: string | null): { markdown: string } {
+  return { markdown: `**The change was taken back out of the live app**${by ? ` by ${by}` : ""}.` };
+}
+
 /** The agent's question, with its options as buttons; a reply in the thread from the person asked answers it too. */
 export function questionCard(question: AgentQuestion) {
   const who = question.askedOf ? `${question.agent.name} asks ${question.askedOf.name}` : `${question.agent.name} asks`;

@@ -20,6 +20,7 @@ import {
   questionCard,
   releasePost,
   runFailedPost,
+  rolledBackPost,
   runStartedPost,
 } from "./taskMirrorPosts";
 
@@ -107,6 +108,8 @@ export class TaskChatMirror implements ActivityListener {
       }
       case "release_failed":
         return [releasePost({ live: false, reason: text(payload.reason) })];
+      case "release_rolled_back":
+        return [rolledBackPost(text(payload.rolledBackBy))];
       case "part_merged": {
         const merged = Array.isArray(payload.parts) ? payload.parts.filter((part): part is number => typeof part === "number") : [];
         const builds = buildWork(await this.deps.parts.state({ id: ticketId }));

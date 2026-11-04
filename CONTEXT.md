@@ -38,8 +38,12 @@ _Avoid_: Pull request, PR, diff (in App space copy)
 The action that accepts a change, which builds a release and makes it the app's current release. Only the space's maintainers and the task's owner can take it, once the change's latest version has run in a preview.
 _Avoid_: Merge, deploy, publish, ship
 
+**Roll back**:
+Making an earlier release the app's current release again, with today's data or with the data as that release left it. Only the space's maintainers can do it. The newer releases are set aside and don't go live by themselves, but their code stays on the default branch, so the next change made live brings it back.
+_Avoid_: Revert, undo, downgrade
+
 **Data backup**:
-A point-in-time copy of an app's data, taken before every release or by a maintainer. Only maintainers can restore or download one.
+A point-in-time copy of an app's data, taken before every release and rollback, or by a maintainer. Only maintainers can restore or download one.
 _Avoid_: Snapshot (that's a Files space's working-file checkpoint)
 
 **App setting**:

@@ -24,6 +24,9 @@ import { PeriodicSweeper } from "../workers/PeriodicSweeper";
 import { createAppReleasePoller } from "../services/apps/createAppReleasePoller";
 import { ReleaseTaskReporter } from "../services/apps/ReleaseTaskReporter";
 import { AppReleaseReportDAO } from "../persistence/apps/AppReleaseReportDAO";
+import { AppRetentionDAO } from "../persistence/apps/AppRetentionDAO";
+import { AppRetention } from "../services/apps/AppRetention";
+import { S3SpaceFilesStore } from "../services/spaceFiles/SpaceFilesStore";
 import { TaskActivityRecorder } from "../services/tasks/TaskActivityRecorder";
 import { appHosting } from "../services/apps/createAppHosting";
 import { QuestionReminderService } from "../services/questions/QuestionReminderService";
@@ -105,6 +108,7 @@ spaceFilesRuns.setWaitingChanges(new SpaceFileChangeQueue(spaceFilesRuns));
 const questionReminders = new QuestionReminderService();
 const appReleasePoller = createAppReleasePoller();
 const releaseReports = new ReleaseTaskReporter(new AppReleaseReportDAO(), new TaskActivityRecorder());
+const appRetention = new AppRetention(new AppRetentionDAO(), new S3SpaceFilesStore());
 const credentialExpiry = new CredentialExpiryWarner();
 const periodicSweepers = shouldRunBackgroundSweepers
   ? [
@@ -142,6 +146,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         "app release reports",
         () => releaseReports.sweep(),
         parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
+      ),
+      new PeriodicSweeper(
+        "app retention",
+        (now) => appRetention.sweep(now),
+        parseInt(process.env.APP_RETENTION_SWEEP_INTERVAL_MS || "3600000", 10),
       ),
       new PeriodicSweeper(
         "credential expiry warnings",

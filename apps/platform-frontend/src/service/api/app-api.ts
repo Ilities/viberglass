@@ -25,6 +25,16 @@ export async function turnAppOff(projectId: string): Promise<AppView> {
   return readData(await apiFetch(`${appUrl(projectId)}/off`, { method: 'POST' }), "Couldn't turn the app off")
 }
 
+/** Makes an earlier release live again, or one a rollback set aside, with its data or today's. */
+export async function rollBackApp(projectId: string, releaseId: string, withData: boolean): Promise<AppView> {
+  const response = await apiFetch(`${appUrl(projectId)}/releases/${encodeURIComponent(releaseId)}/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ withData }),
+  })
+  return readData(response, "Couldn't roll the app back")
+}
+
 export async function getAppLogs(projectId: string): Promise<string> {
   const { logs } = await readData<{ logs: string }>(await apiFetch(`${appUrl(projectId)}/logs`), "Couldn't load the app's logs")
   return logs

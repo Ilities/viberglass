@@ -12,6 +12,15 @@ export interface AppRecord {
   statusMessage: string | null;
   currentReleaseId: string | null;
   busySince: Date | null;
+  rollback: RollbackOrder | null;
+}
+
+/** A rollback a maintainer asked for, done on the app's next switch. */
+export interface RollbackOrder {
+  releaseId: string;
+  /** The data to restore; null keeps today's. */
+  backupId: string | null;
+  requestedBy: string;
 }
 
 export type AppChange = Partial<Pick<AppRecord, "power" | "state" | "statusMessage" | "currentReleaseId">>;
@@ -49,6 +58,24 @@ export class AppDAO {
     await db.updateTable("apps").set({ ...columns(change), updated_at: new Date() }).where("project_id", "=", projectId).execute();
   }
 
+  async orderRollback(projectId: string, order: RollbackOrder): Promise<void> {
+    await db
+      .updateTable("apps")
+      .set({ rollback_release_id: order.releaseId, rollback_backup_id: order.backupId, rollback_by: order.requestedBy, updated_at: new Date() })
+      .where("project_id", "=", projectId)
+      .execute();
+  }
+
+  /** Only clears this release's order, so one asked for meanwhile stays. */
+  async clearRollback(projectId: string, releaseId: string): Promise<void> {
+    await db
+      .updateTable("apps")
+      .set({ rollback_release_id: null, rollback_backup_id: null, rollback_by: null })
+      .where("project_id", "=", projectId)
+      .where("rollback_release_id", "=", releaseId)
+      .execute();
+  }
+
   /** Ends what `claim` began. */
   async finish(projectId: string, change: AppChange): Promise<void> {
     await db
@@ -76,5 +103,9 @@ function toApp(row: AppRow): AppRecord {
     statusMessage: row.status_message,
     currentReleaseId: row.current_release_id,
     busySince: row.busy_since,
+    rollback:
+      row.rollback_release_id && row.rollback_by
+        ? { releaseId: row.rollback_release_id, backupId: row.rollback_backup_id, requestedBy: row.rollback_by }
+        : null,
   };
 }

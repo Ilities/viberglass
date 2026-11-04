@@ -8,9 +8,10 @@ jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, 
 const NOW = new Date("2026-11-03T12:00:00Z");
 const OLD = appRelease("old", { createdAt: "2026-11-03T10:00:00.000Z" });
 const NEW = appRelease("new", { createdAt: "2026-11-03T11:00:00.000Z" });
+const BACK_TO_OLD = { releaseId: OLD.id, backupId: "backup-1", requestedBy: "user-1" };
 
 function record(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, ...overrides };
 }
 
 function build(app: AppRecord | null, options: { candidate?: AppRelease | null; host?: AppHost | null } = {}) {
@@ -21,6 +22,7 @@ function build(app: AppRecord | null, options: { candidate?: AppRelease | null; 
       claim: jest.fn(async () => app && { ...app, busySince: NOW }),
       update: jest.fn(async () => undefined),
       finish: jest.fn(async (_projectId: string, _change: AppChange) => undefined),
+      clearRollback: jest.fn(async () => undefined),
     },
     releases: {
       getById: jest.fn(async (id: string) => [OLD, NEW].find((release) => release.id === id) ?? null),
@@ -29,9 +31,10 @@ function build(app: AppRecord | null, options: { candidate?: AppRelease | null; 
     },
     runner: { run: jest.fn(async (): Promise<string | null> => null) },
     switcher: { switchTo: jest.fn(async (): Promise<AppChange> => ({ state: "running", statusMessage: null, currentReleaseId: NEW.id })) },
+    rollbacks: { settle: jest.fn(async () => undefined) },
   };
   const resolved = options.host === undefined ? host : options.host;
-  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher);
+  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks);
   return { reconciler, host, deps };
 }
 
@@ -129,5 +132,68 @@ describe("AppReconciler", () => {
     await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
     expect(deps.releases.markLiveFailure).toHaveBeenCalledWith(NEW.id, "object storage unreachable");
     expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "failed", statusMessage: "object storage unreachable" });
+  });
+
+  describe("with a rollback asked for", () => {
+    const rolledBack = (overrides: Partial<AppRecord> = {}) => record({ currentReleaseId: NEW.id, rollback: BACK_TO_OLD, ...overrides });
+
+    it("switches to the older release with its data, then sets the newer ones aside", async () => {
+      const { reconciler, host, deps } = build(rolledBack(), { candidate: NEW });
+      deps.switcher.switchTo.mockResolvedValueOnce({ state: "running", statusMessage: null, currentReleaseId: OLD.id });
+
+      await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+      expect(deps.switcher.switchTo).toHaveBeenCalledWith(host, expect.objectContaining({ currentReleaseId: NEW.id }), OLD, { backupId: "backup-1" });
+      expect(deps.rollbacks.settle).toHaveBeenCalledWith(OLD, BACK_TO_OLD);
+      expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "running", statusMessage: null, currentReleaseId: OLD.id });
+    });
+
+    it("drops the rollback without holding it against the release when it isn't healthy", async () => {
+      const { reconciler, deps } = build(rolledBack());
+      deps.switcher.switchTo.mockResolvedValueOnce({ state: "running", statusMessage: "Rolling back didn't work" });
+
+      await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+      expect(deps.apps.clearRollback).toHaveBeenCalledWith("space-1", OLD.id);
+      expect(deps.rollbacks.settle).not.toHaveBeenCalled();
+      expect(deps.releases.markLiveFailure).not.toHaveBeenCalled();
+    });
+
+    it("drops the rollback when its switch throws", async () => {
+      const { reconciler, deps } = build(rolledBack());
+      deps.switcher.switchTo.mockRejectedValueOnce(new Error("object storage unreachable"));
+
+      await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+      expect(deps.apps.clearRollback).toHaveBeenCalledWith("space-1", OLD.id);
+      expect(deps.releases.markLiveFailure).not.toHaveBeenCalled();
+    });
+
+    it("keeps serving the rollback when setting releases aside fails, and tries that again", async () => {
+      const { reconciler, deps } = build(rolledBack());
+      deps.switcher.switchTo.mockResolvedValueOnce({ state: "running", statusMessage: null, currentReleaseId: OLD.id });
+      deps.rollbacks.settle.mockRejectedValueOnce(new Error("database unreachable"));
+
+      await reconciler.reconcile("space-1", NOW);
+      expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "running", statusMessage: null, currentReleaseId: OLD.id });
+
+      const again = build(record({ currentReleaseId: OLD.id, rollback: BACK_TO_OLD }), { candidate: NEW });
+      await expect(again.reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+      expect(again.deps.rollbacks.settle).toHaveBeenCalledWith(OLD, BACK_TO_OLD);
+      expect(again.deps.switcher.switchTo).not.toHaveBeenCalled();
+    });
+
+    it("drops a rollback to a release whose bundle was removed", async () => {
+      const { reconciler, deps } = build(rolledBack());
+      deps.releases.getById.mockImplementation(async (id: string) => (id === OLD.id ? { ...OLD, bundleRemoved: true } : NEW));
+
+      await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+      expect(deps.apps.clearRollback).toHaveBeenCalledWith("space-1", OLD.id);
+      expect(deps.switcher.switchTo).not.toHaveBeenCalled();
+    });
+
+    it("waits while the app is off", async () => {
+      const { reconciler, deps } = build(rolledBack({ power: "off", state: "off" }));
+
+      await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(false);
+      expect(deps.switcher.switchTo).not.toHaveBeenCalled();
+    });
   });
 });

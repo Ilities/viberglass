@@ -4,15 +4,16 @@ import { PageMeta } from '@/components/page-meta'
 import { SpacePageBar } from '@/components/space-page-bar'
 import { Timestamp } from '@/components/timestamp'
 import { useProject } from '@/context/project-context'
-import { getApp, turnAppOff, turnAppOn } from '@/service/api/app-api'
+import { getApp, rollBackApp, turnAppOff, turnAppOn } from '@/service/api/app-api'
 import { RocketIcon } from '@radix-ui/react-icons'
-import type { AppRunState, AppView } from '@viberglass/types'
+import type { AppRelease, AppRunState, AppView } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AppAccess } from './app-access'
 import { AppLogs } from './app-logs'
 import { ReleasesTable, shortSha } from './releases-table'
+import { RollbackDialog } from './rollback-dialog'
 
 const WHILE_BUSY_MS = 5000
 
@@ -30,6 +31,7 @@ export function AppPage() {
   const [app, setApp] = useState<AppView | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [switching, setSwitching] = useState(false)
+  const [restoring, setRestoring] = useState<AppRelease | null>(null)
   const projectId = project?.id
   const isApp = project?.backingKind === 'app'
 
@@ -76,6 +78,15 @@ export function AppPage() {
     }
   }
 
+  const rollBack = async (release: AppRelease, withData: boolean) => {
+    try {
+      setApp(await rollBackApp(project.id, release.id, withData))
+      setRestoring(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't roll the app back")
+    }
+  }
+
   return (
     <>
       <PageMeta title={`${project.name} | App`} />
@@ -99,6 +110,8 @@ export function AppPage() {
         }
       />
 
+      {app && <RollbackNotice app={app} />}
+
       {app?.statusMessage && (
         <p role="status" className="mb-4 rounded-md bg-[var(--gray-3)] px-4 py-3 text-sm text-[var(--gray-11)]">
           {app.statusMessage}
@@ -121,7 +134,21 @@ export function AppPage() {
           description="The app appears here once the first change to it is made live."
         />
       ) : (
-        <ReleasesTable releases={app.releases} currentId={app.currentRelease?.id ?? null} />
+        <ReleasesTable
+          releases={app.releases}
+          current={app.currentRelease}
+          onRestore={canMaintain && !app.rollback && !turning ? setRestoring : undefined}
+        />
+      )}
+
+      {app && restoring && (
+        <RollbackDialog
+          release={restoring}
+          current={app.currentRelease}
+          dataPointAt={app.dataPoints[restoring.id] ?? null}
+          onClose={() => setRestoring(null)}
+          onConfirm={(withData) => rollBack(restoring, withData)}
+        />
       )}
 
       {canMaintain && <AppAccess projectId={project.id} />}
@@ -132,9 +159,28 @@ export function AppPage() {
 
 /** A release is building, or the app was turned on or off and hasn't started doing so yet. */
 function awaitingChange(app: AppView): boolean {
+  if (app.rollback) return true
   if (app.releases.some((release) => release.status === 'building')) return true
   if (app.power === 'off') return app.state !== 'off'
   return app.state === 'off' && app.releases.some((release) => release.status === 'ready' && !release.liveFailure)
+}
+
+/** A rollback under way, or the newer code a rollback took out, which the next change made live brings back. */
+function RollbackNotice({ app }: { app: AppView }) {
+  const pending = app.rollback && app.releases.find((release) => release.id === app.rollback?.releaseId)
+  const current = app.currentRelease
+  const setAside = current && app.releases.some((release) => release.rolledBackAt && release.createdAt > current.createdAt)
+  const message = pending
+    ? `Switching to release ${shortSha(pending.commitSha)}${app.rollback?.withData ? ' with its data' : ''}…`
+    : setAside
+      ? 'Newer releases were rolled back. Their code is still in the repository, so the next change made live brings it back.'
+      : null
+  if (!message) return null
+  return (
+    <p role="status" className="mb-4 rounded-md bg-[var(--gray-3)] px-4 py-3 text-sm text-[var(--gray-11)]">
+      {message}
+    </p>
+  )
 }
 
 function AppSummary({ app }: { app: AppView }) {

@@ -10,6 +10,7 @@ import { up as releasesUp } from "../../migrations/135_app_releases";
 import { up, down } from "../../migrations/136_apps";
 import { up as releaseTasksUp } from "../../migrations/140_app_release_tasks";
 import { addPreviewBuilds } from "../../migrations/141_app_previews";
+import { up as rollbackUp, down as rollbackDown } from "../../migrations/142_app_rollback";
 
 let mockDb: Kysely<Database>;
 jest.mock("../../persistence/config/database", () => ({
@@ -41,12 +42,14 @@ beforeAll(async () => {
   await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, job_kind text NOT NULL)`.execute(mockDb);
   await sql`CREATE TABLE clankers (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), slug text, deleted_at timestamptz)`.execute(mockDb);
   await sql`CREATE TABLE tickets (id uuid PRIMARY KEY)`.execute(mockDb);
+  await sql`CREATE TABLE users (id uuid PRIMARY KEY)`.execute(mockDb);
   await sql`INSERT INTO projects (id, backing_kind) VALUES (${SPACE}, 'app')`.execute(mockDb);
   await sql`INSERT INTO tickets (id) VALUES (${TASK})`.execute(mockDb);
   await releasesUp(mockDb);
   await up(mockDb);
   await releaseTasksUp(mockDb);
   await addPreviewBuilds(mockDb);
+  await rollbackUp(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -121,7 +124,7 @@ describe("apps", () => {
     const releaseId = await readyRelease("4", "2026-11-03T10:00:00Z");
     await apps.ensure(SPACE);
     await apps.update(SPACE, { currentReleaseId: releaseId });
-    await new AppDataBackupDAO().create({ id: "55555555-5555-4555-8555-555555555555", projectId: SPACE, reason: "release", releaseId, objects: 2, bytes: 4096 });
+    await new AppDataBackupDAO().create({ id: "55555555-5555-4555-8555-555555555555", projectId: SPACE, reason: "release", releaseId, fromReleaseId: null, objects: 2, bytes: 4096 });
 
     await sql`DELETE FROM app_releases WHERE id = ${releaseId}`.execute(mockDb);
 
@@ -133,6 +136,7 @@ describe("apps", () => {
 
 describe("rolling back", () => {
   it("drops the apps and their backups", async () => {
+    await rollbackDown(mockDb);
     await down(mockDb);
     await expect(sql`SELECT 1 FROM apps`.execute(mockDb)).rejects.toMatchObject({ code: "42P01" });
     await expect(sql`SELECT live_failure FROM app_releases`.execute(mockDb)).rejects.toMatchObject({ code: "42703" });

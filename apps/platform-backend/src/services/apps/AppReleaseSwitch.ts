@@ -22,12 +22,21 @@ export class AppReleaseSwitch {
     private readonly runner: Pick<AppInstanceRunner, "run">,
   ) {}
 
-  /** The app must be claimed; returns how it ended for the caller to record. */
-  async switchTo(host: AppHost, app: AppRecord, release: AppRelease): Promise<AppChange> {
+  /**
+   * The app must be claimed; returns how it ended for the caller to record. A
+   * rollback can bring back the data its release left, and a failed one isn't
+   * held against its release, so it can be asked for again.
+   */
+  async switchTo(host: AppHost, app: AppRecord, release: AppRelease, rollback?: { backupId: string | null }): Promise<AppChange> {
     const projectId = app.projectId;
+    const instance = liveAppInstance(projectId);
     await this.apps.update(projectId, { state: "stopping" });
-    await host.stop(liveAppInstance(projectId), APP_STOP_GRACE_SECONDS);
-    const backupId = await this.backup(projectId, release.id);
+    await host.stop(instance, APP_STOP_GRACE_SECONDS);
+    const backupId = await this.backup(app, release.id, rollback ? "rollback" : "release");
+    if (rollback?.backupId) {
+      await this.data.restore(projectId, rollback.backupId);
+      await host.clearData(instance);
+    }
 
     await this.apps.update(projectId, { state: "starting" });
     const failure = await this.runner.run(host, release).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
@@ -36,13 +45,14 @@ export class AppReleaseSwitch {
       return { state: "running", statusMessage: null, currentReleaseId: release.id };
     }
 
-    await host.stop(liveAppInstance(projectId), APP_STOP_GRACE_SECONDS);
-    await this.releases.markLiveFailure(release.id, failure);
+    await host.stop(instance, APP_STOP_GRACE_SECONDS);
+    if (!rollback) await this.releases.markLiveFailure(release.id, failure);
     // Whatever the failed release changed, such as its migrations, is undone.
     await this.data.restore(projectId, backupId);
-    await host.clearData(liveAppInstance(projectId));
+    await host.clearData(instance);
     const previous = app.currentReleaseId ? await this.releases.getById(app.currentReleaseId) : null;
-    const notLive = `Release ${release.commitSha.slice(0, 7)} didn't go live: ${failure}`;
+    const sha = release.commitSha.slice(0, 7);
+    const notLive = rollback ? `Rolling back to release ${sha} didn't work: ${failure}` : `Release ${sha} didn't go live: ${failure}`;
     if (!previous) return { state: "failed", statusMessage: notLive };
 
     const previousFailure = await this.runner.run(host, previous);
@@ -51,10 +61,10 @@ export class AppReleaseSwitch {
       : { state: "running", statusMessage: `${notLive}\n\nThe previous release is serving again, with the data from before.` };
   }
 
-  private async backup(projectId: string, releaseId: string): Promise<string> {
+  private async backup(app: AppRecord, releaseId: string, reason: "release" | "rollback"): Promise<string> {
     const id = randomUUID();
-    const copied = await this.data.backup(projectId, id);
-    await this.backups.create({ id, projectId, reason: "release", releaseId, ...copied });
+    const copied = await this.data.backup(app.projectId, id);
+    await this.backups.create({ id, projectId: app.projectId, reason, releaseId, fromReleaseId: app.currentReleaseId, ...copied });
     return id;
   }
 }

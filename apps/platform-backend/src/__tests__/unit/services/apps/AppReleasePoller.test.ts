@@ -28,6 +28,8 @@ function release(projectId: string, commitSha: string): AppRelease {
     wentLiveAt: null,
     liveFailure: null,
     ticketId: null,
+    rolledBackAt: null,
+    bundleRemoved: false,
     createdAt: "",
     finishedAt: null,
   };

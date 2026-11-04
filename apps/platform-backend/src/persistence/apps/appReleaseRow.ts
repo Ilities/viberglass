@@ -19,6 +19,8 @@ export function toRelease(row: AppReleaseRow): AppRelease {
     wentLiveAt: row.went_live_at ? row.went_live_at.toISOString() : null,
     liveFailure: row.live_failure,
     ticketId: row.ticket_id,
+    rolledBackAt: row.rolled_back_at ? row.rolled_back_at.toISOString() : null,
+    bundleRemoved: row.bundle_removed_at !== null,
     createdAt: row.created_at.toISOString(),
     finishedAt: row.finished_at ? row.finished_at.toISOString() : null,
   };

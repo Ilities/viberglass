@@ -20,6 +20,10 @@ export interface AppRelease {
   liveFailure: string | null
   /** The task whose change was made live into this release. */
   ticketId: string | null
+  /** When a rollback to an older release set it aside; it doesn't go live by itself after that. */
+  rolledBackAt: string | null
+  /** Its bundle was removed to save space, so it can't be made live again. */
+  bundleRemoved: boolean
   createdAt: string
   finishedAt: string | null
 }

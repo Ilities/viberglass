@@ -1,5 +1,6 @@
 import type { AppRelease } from '@viberglass/types'
-import { releaseStatus } from './releases-table'
+import { canRestore, releaseStatus } from './releases-table'
+import { changesLost } from './rollback-dialog'
 
 const release = (overrides: Partial<AppRelease>): AppRelease => ({
   id: 'r1',
@@ -15,6 +16,8 @@ const release = (overrides: Partial<AppRelease>): AppRelease => ({
   wentLiveAt: null,
   liveFailure: null,
   ticketId: null,
+  rolledBackAt: null,
+  bundleRemoved: false,
   createdAt: '2026-11-03T12:00:00Z',
   finishedAt: null,
   ...overrides,
@@ -40,5 +43,31 @@ describe('releaseStatus', () => {
     expect(releaseStatus(release({ wentLiveAt: '2026-11-03T12:05:00Z' }), 'r2').label).toBe('Was live')
     expect(releaseStatus(release({}), 'r2').label).toBe('Ready')
     expect(releaseStatus(release({ status: 'building' }), null).label).toBe('Building')
+  })
+
+  it('marks releases a rollback set aside, and ones whose bundle is gone', () => {
+    expect(releaseStatus(release({ wentLiveAt: '2026-11-03T12:05:00Z', rolledBackAt: '2026-11-03T13:00:00Z' }), 'r2').label).toBe('Rolled back')
+    expect(releaseStatus(release({ wentLiveAt: '2026-11-03T12:05:00Z', bundleRemoved: true }), 'r2').label).toBe('Removed')
+  })
+})
+
+describe('canRestore', () => {
+  it('offers releases that were live or set aside, and still have their bundle', () => {
+    expect(canRestore(release({ wentLiveAt: '2026-11-03T12:05:00Z' }), 'r2')).toBe(true)
+    expect(canRestore(release({ rolledBackAt: '2026-11-03T13:00:00Z' }), 'r2')).toBe(true)
+    expect(canRestore(release({ wentLiveAt: '2026-11-03T12:05:00Z' }), 'r1')).toBe(false)
+    expect(canRestore(release({}), 'r2')).toBe(false)
+    expect(canRestore(release({ wentLiveAt: '2026-11-03T12:05:00Z', bundleRemoved: true }), 'r2')).toBe(false)
+    expect(canRestore(release({ status: 'failed', rolledBackAt: '2026-11-03T13:00:00Z' }), 'r2')).toBe(false)
+  })
+})
+
+describe('changesLost', () => {
+  const now = new Date('2026-11-04T12:00:00Z')
+
+  it('says how many hours of changes go', () => {
+    expect(changesLost('2026-11-04T11:30:00Z', now)).toBe('Changes made in the last hour will be lost.')
+    expect(changesLost('2026-11-04T10:59:00Z', now)).toBe('1 hour of changes will be lost.')
+    expect(changesLost('2026-11-03T12:00:00Z', now)).toBe('24 hours of changes will be lost.')
   })
 })

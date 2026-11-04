@@ -32,6 +32,8 @@ export function appRelease(id: string, overrides: Partial<AppRelease> = {}): App
     wentLiveAt: null,
     liveFailure: null,
     ticketId: null,
+    rolledBackAt: null,
+    bundleRemoved: false,
     createdAt: "2026-11-03T12:00:00.000Z",
     finishedAt: "2026-11-03T12:01:00.000Z",
     ...overrides,

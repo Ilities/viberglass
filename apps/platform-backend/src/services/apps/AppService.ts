@@ -1,6 +1,7 @@
 import { liveAppInstance, type AppHost, type AppPower, type AppView } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppDAO } from "../../persistence/apps/AppDAO";
+import type { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import type { AppSpaceDAO, AppSpaceRef } from "../../persistence/apps/AppSpaceDAO";
 import type { AppOrigins } from "./AppOrigins";
@@ -18,6 +19,7 @@ export class AppService {
     private readonly spaces: Pick<AppSpaceDAO, "findById">,
     private readonly apps: Pick<AppDAO, "get" | "ensure" | "update">,
     private readonly releases: Pick<AppReleaseDAO, "listForProject" | "getById">,
+    private readonly backups: Pick<AppDataBackupDAO, "dataPoints">,
     private readonly reconciler: Pick<AppReconciler, "reconcile">,
     private readonly host: () => AppHost | null,
     private readonly origins: Pick<AppOrigins, "originFor">,
@@ -31,12 +33,15 @@ export class AppService {
     const currentRelease = currentId
       ? (releases.find((release) => release.id === currentId) ?? (await this.releases.getById(currentId)))
       : null;
+    const dataPoints = await this.backups.dataPoints(projectId);
     return {
       power: app?.power ?? "on",
       state: app?.state ?? "off",
       statusMessage: app?.statusMessage ?? null,
       currentRelease,
       releases,
+      dataPoints: Object.fromEntries(dataPoints.map((point) => [point.releaseId, point.takenAt.toISOString()])),
+      rollback: app?.rollback ? { releaseId: app.rollback.releaseId, withData: app.rollback.backupId !== null } : null,
       url: this.origins.originFor(space.slug),
     };
   }

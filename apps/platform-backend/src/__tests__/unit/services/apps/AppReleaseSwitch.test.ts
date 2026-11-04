@@ -9,7 +9,7 @@ const PREVIOUS = appRelease("prev");
 const NEXT = appRelease("next", { commitSha: "abcdef1".padEnd(40, "0") });
 
 function app(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: PREVIOUS.id, busySince: new Date(), ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: PREVIOUS.id, busySince: new Date(), rollback: null, ...overrides };
 }
 
 function build(results: Array<string | null>) {
@@ -55,7 +55,7 @@ describe("AppReleaseSwitch", () => {
     expect(order).toEqual(["stop", "backup", "run next"]);
     expect(host.stop).toHaveBeenCalledWith("app-space-1", 30);
     const backupId = deps.data.backup.mock.calls[0][1];
-    expect(deps.backups.create).toHaveBeenCalledWith({ id: backupId, projectId: "space-1", reason: "release", releaseId: NEXT.id, objects: 3, bytes: 300 });
+    expect(deps.backups.create).toHaveBeenCalledWith({ id: backupId, projectId: "space-1", reason: "release", releaseId: NEXT.id, fromReleaseId: PREVIOUS.id, objects: 3, bytes: 300 });
     expect(deps.releases.markLive).toHaveBeenCalledWith(NEXT.id);
   });
 
@@ -91,5 +91,36 @@ describe("AppReleaseSwitch", () => {
 
     expect(deps.releases.markLiveFailure).toHaveBeenCalledWith(NEXT.id, "no such image");
     expect(outcome.state).toBe("running");
+  });
+
+  describe("rolling back", () => {
+    it("brings back the release's data after backing up today's", async () => {
+      const { switcher, host, deps, order } = build([null]);
+
+      await expect(switcher.switchTo(host, app(), NEXT, { backupId: "old-data" })).resolves.toMatchObject({ currentReleaseId: NEXT.id });
+
+      expect(order).toEqual(["stop", "backup", "restore", "clearData", "run next"]);
+      expect(deps.backups.create).toHaveBeenCalledWith(expect.objectContaining({ reason: "rollback", fromReleaseId: PREVIOUS.id }));
+      expect(deps.data.restore).toHaveBeenCalledWith("space-1", "old-data");
+    });
+
+    it("keeps today's data when only the code goes back", async () => {
+      const { switcher, host, order } = build([null]);
+
+      await switcher.switchTo(host, app(), NEXT, { backupId: null });
+
+      expect(order).toEqual(["stop", "backup", "run next"]);
+    });
+
+    it("goes back to the previous release and today's data, without failing the release, when it isn't healthy", async () => {
+      const { switcher, host, deps, order } = build(["exit code 1", null]);
+
+      const outcome = await switcher.switchTo(host, app(), NEXT, { backupId: "old-data" });
+
+      expect(order).toEqual(["stop", "backup", "restore", "clearData", "run next", "stop", "restore", "clearData", "run prev"]);
+      expect(deps.data.restore).toHaveBeenLastCalledWith("space-1", deps.data.backup.mock.calls[0][1]);
+      expect(deps.releases.markLiveFailure).not.toHaveBeenCalled();
+      expect(outcome.statusMessage).toContain("Rolling back to release abcdef1 didn't work: exit code 1");
+    });
   });
 });

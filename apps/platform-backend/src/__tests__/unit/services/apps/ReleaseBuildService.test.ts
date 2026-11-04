@@ -29,6 +29,8 @@ const RELEASE: AppRelease = {
   wentLiveAt: null,
   liveFailure: null,
   ticketId: null,
+  rolledBackAt: null,
+  bundleRemoved: false,
   createdAt: "",
   finishedAt: null,
 };

@@ -53,6 +53,8 @@ App spaces host the apps their agents build, each at `http://<name>.apps.localho
 
 A task's change can be tried in a preview at `http://preview-<id>.apps.localhost:8891` before it's made live. A preview runs like an app, in a container and on a network of its own, with a copy of the app's data that it doesn't keep. Previews turn off at 03:00 UTC (`APPS_PREVIEW_OFF_HOUR`, an hour from 0 to 23) and after 4 hours without being opened (`APPS_PREVIEW_IDLE_HOURS`); Try it on the task turns one on again.
 
+Object storage keeps what's needed to roll an app back. That's the bundles of the 5 releases that went live most recently (`APPS_KEEP_LIVE_RELEASES`), plus the current one, and data backups from the last 30 days (`APPS_KEEP_BACKUP_DAYS`). It also keeps the newest copy of each kept release's data. Builds that never went live, including previews' builds once no preview uses them, are removed after 7 days (`APPS_UNUSED_BUILD_DAYS`). The release list on the App page still shows a removed release, but it can't be made live again.
+
 Each app and preview runs in its own container, on its own Docker network that only the backend and object storage join. Each network gets a /24 subnet from `10.250.0.0/16` (`APPS_NETWORK_POOL`), so the pool holds 256 apps and previews at a time. Docker doesn't stop a container from opening connections to the machine it runs on or to private addresses, so before you run apps, add host firewall rules that drop them. Without the rules an app can reach the backend's API, every port the machine publishes and, on a cloud server, its metadata service.
 
 On Linux, with Docker's iptables firewall backend (the default), save this as `/usr/local/sbin/viberglass-apps-firewall` and make it executable:
