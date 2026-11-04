@@ -103,6 +103,12 @@ services:
       # cookies never reach them.
       PREVIEW_PORT: 8890
       PREVIEW_PUBLIC_URL: http://127.0.0.1:${VIBERGLASS_PREVIEW_PORT:-8890}
+      # Apps run on <app>.apps.localhost; browsers send *.localhost to loopback.
+      APPS_DOMAIN: apps.localhost
+      APPS_PORT: 8891
+      APPS_PUBLIC_URL: http://apps.localhost:${VIBERGLASS_APPS_PORT:-8891}
+      # Joins each app's network, so the app's Litestream reaches it as `storage`.
+      APPS_STORAGE_CONTAINER: viberglass-local-storage-1
       S3_BUCKET: viberglass
       S3_ENDPOINT: http://storage:9000
       S3_PUBLIC_ENDPOINT: http://localhost:${VIBERGLASS_STORAGE_PORT:-9000}
@@ -120,6 +126,7 @@ services:
       VIBERGLASS_DEPLOYMENT_ENV: local
     ports:
       - "127.0.0.1:${VIBERGLASS_PREVIEW_PORT:-8890}:8890"
+      - "127.0.0.1:${VIBERGLASS_APPS_PORT:-8891}:8891"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}:${VIBERGLASS_DATA_DIR:-${HOME}/.viberglass}

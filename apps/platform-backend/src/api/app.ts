@@ -46,6 +46,8 @@ import {
 } from "./middleware/notFoundHandling";
 import mcpRouter from "./routes/mcp";
 import { createAppHomeRouter } from "./routes/appHome";
+import { createAppsRouter } from "./routes/apps";
+import { appSignIn } from "../services/apps/createAppSignIn";
 import { tracingMiddleware } from "./middleware/tracing";
 import { requireRole } from "./middleware/authentication";
 import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
@@ -211,6 +213,7 @@ app.use(
 );
 app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
+app.use("/api/apps", createAppsRouter(appSignIn().service));
 app.use("/api/app-home", adminOnlyChanges(), auditRequests(APP_HOME_AUDIT), createAppHomeRouter());
 app.use("/api/clankers", adminOnlyChanges(), auditRequests(RUNNER_AUDIT), clankersRouter);
 app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);

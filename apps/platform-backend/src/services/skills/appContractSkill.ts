@@ -59,7 +59,7 @@ Every request reaches the app through the Viberglass gateway, which has already 
 
 - \`${APP_USER_HEADERS.id}\`: a stable id for the person. Use it as the key when you store who did something.
 - \`${APP_USER_HEADERS.email}\`: their email address.
-- \`${APP_USER_HEADERS.name}\`: their display name.
+- \`${APP_USER_HEADERS.name}\`: their display name, percent-encoded as UTF-8 so any script fits in a header. Read it with \`decodeURIComponent\`.
 
 Trust these headers and nothing else. Don't write sign-in pages, passwords, sessions, tokens or user tables for authentication, and don't set cookies for identity. Storing people's ids next to the records they own or created is fine, and so is a table of app-specific preferences keyed by the id.
 

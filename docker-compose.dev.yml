@@ -124,6 +124,8 @@ services:
       PREVIEW_PUBLIC_URL: http://127.0.0.1:8890
       # Apps run on <app>.apps.localhost; browsers send *.localhost to loopback.
       APPS_DOMAIN: apps.localhost
+      APPS_PORT: 8891
+      APPS_PUBLIC_URL: http://apps.localhost:8891
       # Release builds run in this image; `npm run build:app-images` builds it locally.
       APP_BUILDER_IMAGE: ${APP_BUILDER_IMAGE:-viberglass-app-builder-node:latest}
       APP_RUNTIME_IMAGE: ${APP_RUNTIME_IMAGE:-viberglass-app-runtime-node:latest}
@@ -159,6 +161,8 @@ services:
       - "8888:8888"
       # Artifact previews, on their own origin.
       - "8890:8890"
+      # Apps, through the gateway.
+      - "8891:8891"
     volumes:
       # Mount source with cached mode for better performance on macOS/Windows
       - ./apps/platform-backend:/app/apps/platform-backend:cached

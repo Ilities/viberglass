@@ -59,6 +59,10 @@ export function AppPage() {
 
   const canMaintain = Boolean(project.viewerAccess?.canMaintain)
   const turning = app?.state === 'starting' || app?.state === 'stopping'
+  const canOpen = app?.state === 'running'
+  const canToggle =
+    canMaintain &&
+    Boolean(app && (app.currentRelease || app.power === 'on' || app.releases.some((release) => release.status === 'ready')))
   const toggle = async () => {
     if (!app) return
     setSwitching(true)
@@ -77,12 +81,19 @@ export function AppPage() {
       <SpacePageBar
         description={app ? <AppSummary app={app} /> : 'The app this space builds.'}
         actions={
-          canMaintain &&
-          app &&
-          (app.currentRelease || app.power === 'on' || app.releases.some((release) => release.status === 'ready')) && (
-            <Button color="brand" onClick={() => void toggle()} disabled={switching || turning}>
-              {app.power === 'on' ? 'Turn off' : 'Turn on'}
-            </Button>
+          app && (
+            <>
+              {canOpen && app.url && (
+                <Button color="brand" href={app.url} target="_blank" rel="noopener">
+                  Open app
+                </Button>
+              )}
+              {canToggle && (
+                <Button {...(canOpen ? { outline: true } : { color: 'brand' })} onClick={() => void toggle()} disabled={switching || turning}>
+                  {app.power === 'on' ? 'Turn off' : 'Turn on'}
+                </Button>
+              )}
+            </>
           )
         }
       />

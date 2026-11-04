@@ -1,5 +1,7 @@
 import { AuthLayout } from '@/components/auth-layout'
 import { ApplicationLayout } from '@/layouts/ApplicationLayout'
+import { AppsLayout } from '@/layouts/AppsLayout'
+import { OpenAppPage } from '@/pages/apps/OpenAppPage'
 import { RunnersOnly } from '@/layouts/RunnersOnly'
 import { SettingsLayout } from '@/layouts/SettingsLayout'
 import { SettingsHome, WorkspaceSettingsLayout } from '@/layouts/WorkspaceSettingsLayout'
@@ -84,6 +86,10 @@ export function AppRoutes() {
       </Route>
 
       {/* App routes (authenticated) */}
+      <Route element={<AppsLayout />}>
+        <Route path="/apps/:slug/open" element={<OpenAppPage />} />
+      </Route>
+
       <Route element={<ApplicationLayout />}>
         {/* Main routes */}
         <Route path="/" element={<HomePage />} />

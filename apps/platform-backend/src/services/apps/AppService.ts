@@ -2,7 +2,8 @@ import type { AppHost, AppPower, AppView } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppDAO } from "../../persistence/apps/AppDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
-import type { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
+import type { AppSpaceDAO, AppSpaceRef } from "../../persistence/apps/AppSpaceDAO";
+import type { AppOrigins } from "./AppOrigins";
 import type { AppReconciler } from "./AppReconciler";
 import { AppSpaceError } from "./AppSpaceError";
 
@@ -14,15 +15,16 @@ const LOG_LINES = 300;
 /** An App space's app as its page shows it, and turning it on or off. */
 export class AppService {
   constructor(
-    private readonly spaces: Pick<AppSpaceDAO, "isAppSpace">,
+    private readonly spaces: Pick<AppSpaceDAO, "findById">,
     private readonly apps: Pick<AppDAO, "get" | "ensure" | "update">,
     private readonly releases: Pick<AppReleaseDAO, "listForProject" | "getById">,
     private readonly reconciler: Pick<AppReconciler, "reconcile">,
     private readonly host: () => AppHost | null,
+    private readonly origins: Pick<AppOrigins, "originFor">,
   ) {}
 
   async view(projectId: string): Promise<AppView> {
-    await this.assertAppSpace(projectId);
+    const space = await this.appSpace(projectId);
     const app = await this.apps.get(projectId);
     const releases = await this.releases.listForProject(projectId, RELEASES_SHOWN);
     const currentId = app?.currentReleaseId ?? null;
@@ -35,12 +37,13 @@ export class AppService {
       statusMessage: app?.statusMessage ?? null,
       currentRelease,
       releases,
+      url: this.origins.originFor(space.slug),
     };
   }
 
   /** Records what's wanted and returns at once; starting or stopping goes on in the background. */
   async setPower(projectId: string, power: AppPower): Promise<AppView> {
-    await this.assertAppSpace(projectId);
+    await this.appSpace(projectId);
     const app = await this.apps.ensure(projectId);
     // Turning a failed app on again is how a maintainer retries it.
     await this.apps.update(projectId, power === "on" && app.state === "failed" ? { power, state: "off", statusMessage: null } : { power });
@@ -51,11 +54,13 @@ export class AppService {
   }
 
   async logs(projectId: string): Promise<string> {
-    await this.assertAppSpace(projectId);
+    await this.appSpace(projectId);
     return (await this.host()?.logs(projectId, LOG_LINES)) ?? "";
   }
 
-  private async assertAppSpace(projectId: string): Promise<void> {
-    if (!(await this.spaces.isAppSpace(projectId))) throw new AppSpaceError("NOT_AN_APP_SPACE", "This space has no app.");
+  private async appSpace(projectId: string): Promise<AppSpaceRef> {
+    const space = await this.spaces.findById(projectId);
+    if (!space) throw new AppSpaceError("NOT_AN_APP_SPACE", "This space has no app.");
+    return space;
   }
 }

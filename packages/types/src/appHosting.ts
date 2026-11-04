@@ -14,7 +14,17 @@ export interface AppView {
   currentRelease: AppRelease | null
   /** Newest first. */
   releases: AppRelease[]
+  /** Where people open the app; null when apps aren't served on this workspace. */
+  url: string | null
 }
+
+/**
+ * Opening an app: either the address that signs the person in to it, or who
+ * can turn it on when it's off.
+ */
+export type AppHandoff =
+  | { status: 'ready'; url: string }
+  | { status: 'off'; appName: string; maintainers: string[] }
 
 /** Where apps run; the same targets agent runs use. */
 export type AppHostTarget = 'docker' | 'ecs' | 'kubernetes'
@@ -51,6 +61,8 @@ export interface AppHost {
   clearData(projectId: string): Promise<void>
   /** Removes the instance, its local data and its network. */
   delete(projectId: string): Promise<void>
+  /** Makes sure the platform and object storage still reach every app, after either was replaced. */
+  rejoinPlatform(): Promise<void>
 }
 
 /** The app's live replica, which only the app itself writes. */

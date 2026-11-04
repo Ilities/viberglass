@@ -1,3 +1,4 @@
+import type { AppHost } from "@viberglass/types";
 import { AppDAO } from "../../persistence/apps/AppDAO";
 import { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
@@ -5,6 +6,7 @@ import { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
 import { defaultDeploymentStrategyName } from "../../provisioning/shared/deploymentStrategies";
 import { AppDataStore } from "./AppDataStore";
 import { AppHostRegistry } from "./AppHostRegistry";
+import { AppOrigins } from "./AppOrigins";
 import { dockerAppHostOptions } from "./appHostingConfig";
 import { AppInstanceRunner } from "./AppInstanceRunner";
 import { AppInstanceSpecs } from "./AppInstanceSpecs";
@@ -18,6 +20,8 @@ import { StsAppDataCredentials } from "./StsAppDataCredentials";
 export interface AppHosting {
   service: AppService;
   sweep: AppSweep;
+  /** Where apps run on this deployment; null when nothing hosts apps here. */
+  host: () => AppHost | null;
 }
 
 let hosting: AppHosting | null = null;
@@ -34,8 +38,9 @@ export function appHosting(): AppHosting {
   const switcher = new AppReleaseSwitch(apps, releases, new AppDataBackupDAO(), new AppDataStore(), runner);
   const reconciler = new AppReconciler(apps, releases, host, runner, switcher);
   hosting = {
-    service: new AppService(spaces, apps, releases, reconciler, host),
-    sweep: new AppSweep(spaces, apps, releases, reconciler),
+    service: new AppService(spaces, apps, releases, reconciler, host, new AppOrigins()),
+    sweep: new AppSweep(spaces, apps, releases, reconciler, host),
+    host,
   };
   return hosting;
 }

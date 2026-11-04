@@ -8,10 +8,12 @@ jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, 
 const LIVE = appRelease("live", { wentLiveAt: "2026-11-03T12:02:00.000Z" });
 const NEWER = appRelease("newer");
 
+const origins = { originFor: (slug: string) => `https://${slug}.apps.example.com` };
+
 function build(app: AppRecord | null, isApp = true) {
   const host = fakeAppHost();
   const deps = {
-    spaces: { isAppSpace: jest.fn(async () => isApp) },
+    spaces: { findById: jest.fn(async () => (isApp ? { projectId: "space-1", slug: "laptops", name: "Laptops", isPrivate: false } : null)) },
     apps: {
       get: jest.fn(async () => app),
       ensure: jest.fn(async () => app ?? { projectId: "space-1", power: "on" as const, state: "off" as const, statusMessage: null, currentReleaseId: null, busySince: null }),
@@ -20,7 +22,7 @@ function build(app: AppRecord | null, isApp = true) {
     releases: { listForProject: jest.fn(async () => [NEWER, LIVE]), getById: jest.fn(async () => LIVE) },
     reconciler: { reconcile: jest.fn(async () => true) },
   };
-  return { service: new AppService(deps.spaces, deps.apps, deps.releases, deps.reconciler, () => host), deps, host };
+  return { service: new AppService(deps.spaces, deps.apps, deps.releases, deps.reconciler, () => host, origins), deps, host };
 }
 
 const failed: AppRecord = { projectId: "space-1", power: "on", state: "failed", statusMessage: "exit code 1", currentReleaseId: "live", busySince: null };
@@ -35,6 +37,7 @@ describe("AppService", () => {
       statusMessage: null,
       currentRelease: null,
       releases: [NEWER, LIVE],
+      url: "https://laptops.apps.example.com",
     });
   });
 

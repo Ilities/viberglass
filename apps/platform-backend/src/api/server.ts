@@ -38,6 +38,7 @@ import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 import { spaceFilesRuns } from "../services/spaceFiles/SpaceFilesRunService";
 import { TaskTurnJobDispatcher } from "../services/taskTurns/TaskTurnJobDispatcher";
 import { createPreviewApp } from "./previewServer";
+import { startAppGateway } from "./appGateway/startAppGateway";
 import { SpaceFileChangeQueue } from "../services/spaceFiles/SpaceFileChangeQueue";
 import { SpaceFilesOrphanCleanup } from "../services/spaceFiles/SpaceFilesOrphanCleanup";
 import { SpaceFilesRetention } from "../services/spaceFiles/SpaceFilesRetention";
@@ -273,6 +274,8 @@ async function startServer(): Promise<void> {
   if (previewPort) {
     http.createServer(createPreviewApp()).listen(previewPort, () => logger.info("Preview origin listening", { port: previewPort }));
   }
+
+  startAppGateway();
 
   // Listen on provided port and optional host.
   if (typeof port === "string") {

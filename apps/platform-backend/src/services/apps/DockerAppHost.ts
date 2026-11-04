@@ -118,6 +118,12 @@ export class DockerAppHost implements AppHost {
     await this.removeNetwork(name.network);
   }
 
+  /** A recreated platform or storage container has left every app network; this puts it back. */
+  async rejoinPlatform(): Promise<void> {
+    const networks = await this.docker.listNetworks({ filters: { label: [LABEL] } });
+    for (const network of networks) await this.joinPlatform(network.Name);
+  }
+
   private async ensureImage(image: string): Promise<void> {
     try {
       await this.images.inspectImage(image);
@@ -133,6 +139,10 @@ export class DockerAppHost implements AppHost {
     } catch (error) {
       if (dockerStatusCode(error) !== 409) throw error;
     }
+    await this.joinPlatform(network);
+  }
+
+  private async joinPlatform(network: string): Promise<void> {
     const joined = Object.values((await this.docker.getNetwork(network).inspect()).Containers ?? {}).map((c: { Name?: string }) => c.Name);
     const { gatewayContainer, storage } = this.options;
     if (gatewayContainer) await this.join(network, gatewayContainer, [], joined);

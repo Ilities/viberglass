@@ -205,6 +205,24 @@ export interface AppsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface AppHandoffCodesTable {
+  code_hash: string;
+  project_id: string;
+  session_id: string;
+  return_path: string;
+  expires_at: Timestamp;
+  used_at: Timestamp | null;
+}
+
+export interface AppSessionsTable {
+  id: Generated<string>;
+  token_hash: string;
+  project_id: string;
+  session_id: string;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+}
+
 export interface AppDataBackupsTable {
   id: Generated<string>;
   project_id: string;
@@ -957,6 +975,8 @@ export interface Database {
   app_releases: AppReleasesTable;
   apps: AppsTable;
   app_data_backups: AppDataBackupsTable;
+  app_handoff_codes: AppHandoffCodesTable;
+  app_sessions: AppSessionsTable;
   space_file_snapshots: SpaceFileSnapshotsTable;
   space_file_changes: SpaceFileChangesTable;
   space_file_state: SpaceFileStateTable;

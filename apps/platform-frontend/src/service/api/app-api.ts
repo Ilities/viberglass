@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { ApiResponse, AppView } from '@viberglass/types'
+import type { ApiResponse, AppHandoff, AppView } from '@viberglass/types'
 
 async function readData<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
@@ -28,4 +28,14 @@ export async function turnAppOff(projectId: string): Promise<AppView> {
 export async function getAppLogs(projectId: string): Promise<string> {
   const { logs } = await readData<{ logs: string }>(await apiFetch(`${appUrl(projectId)}/logs`), "Couldn't load the app's logs")
   return logs
+}
+
+/** Signs the caller in to an app on its own host, or says who can turn it on. */
+export async function openApp(slug: string, returnPath: string): Promise<AppHandoff> {
+  const response = await apiFetch(`${API_BASE_URL}/api/apps/${encodeURIComponent(slug)}/handoff`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ returnPath }),
+  })
+  return readData(response, "Couldn't open the app")
 }

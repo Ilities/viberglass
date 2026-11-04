@@ -115,4 +115,10 @@ describe("AppSpaceCreator", () => {
     const { creator } = build();
     expect(await failure(creator.create("!!!"))).toMatchObject({ code: "SPACE_NAME_INVALID" });
   });
+
+  it("refuses a name that can't be the app's host name", async () => {
+    const { creator } = build();
+    expect(await failure(creator.create("laptop_tracker"))).toMatchObject({ code: "SPACE_NAME_INVALID" });
+    expect(await failure(creator.create("a".repeat(64)))).toMatchObject({ code: "SPACE_NAME_INVALID" });
+  });
 });
