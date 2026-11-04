@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
-import { objectStorageClientConfig, releaseBundleKey } from "@viberglass/types";
+import { liveAppInstance, objectStorageClientConfig, previewInstance, releaseBundleKey } from "@viberglass/types";
 import { AppDataStore } from "../../services/apps/AppDataStore";
 import { AppInstanceSpecs } from "../../services/apps/AppInstanceSpecs";
 import { AppSubnetPool } from "../../services/apps/AppSubnetPool";
@@ -44,33 +44,37 @@ http.createServer((req, res) => {
 `;
 
 const PROJECT = randomUUID();
+const INSTANCE = liveAppInstance(PROJECT);
+const PREVIEW = previewInstance(randomUUID());
 const RELEASE_ID = randomUUID();
 let storage: StartedTestContainer;
 let env: Record<string, string>;
 let host: DockerAppHost;
 
-function inApp(method: "GET" | "POST", url: string): string {
+function inApp(method: "GET" | "POST", url: string, instance = INSTANCE): string {
   const script = `fetch("http://localhost:3000${url}", { method: "${method}" }).then((r) => r.text()).then((t) => process.stdout.write(t))`;
-  return execFileSync("docker", ["exec", `viberglass-app-${PROJECT}`, "node", "-e", script], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return execFileSync("docker", ["exec", `viberglass-${instance}`, "node", "-e", script], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
 }
 
-async function startRelease(): Promise<void> {
+async function startRelease(preview?: string): Promise<void> {
   const release = appRelease(RELEASE_ID, { projectId: PROJECT, bundleSha256: env.BUNDLE_SHA256 });
-  await host.create(await new AppInstanceSpecs(new StsAppDataCredentials(() => env), () => env).specFor("docker", release));
-  await host.start(PROJECT);
-  await waitForHealth();
+  const role = preview ? { kind: "preview" as const, instance: preview } : undefined;
+  const spec = await new AppInstanceSpecs(new StsAppDataCredentials(() => env), () => env).specFor("docker", release, role);
+  await host.create(spec);
+  await host.start(spec.instance);
+  await waitForHealth(spec.instance);
 }
 
-async function waitForHealth(): Promise<void> {
+async function waitForHealth(instance = INSTANCE): Promise<void> {
   for (let attempt = 0; attempt < 60; attempt++) {
     try {
-      if (inApp("GET", "/healthz") === "ok") return;
+      if (inApp("GET", "/healthz", instance) === "ok") return;
     } catch {
       // Not up yet.
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`The app didn't start:\n${await host.logs(PROJECT, 50)}`);
+  throw new Error(`The app didn't start:\n${await host.logs(instance, 50)}`);
 }
 
 async function uploadBundle(): Promise<string> {
@@ -118,7 +122,8 @@ describeWithRuntime("running an app on Docker", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await host?.delete(PROJECT);
+    await host?.delete(INSTANCE);
+    await host?.delete(PREVIEW);
     await storage?.stop();
   }, 60_000);
 
@@ -126,23 +131,23 @@ describeWithRuntime("running an app on Docker", () => {
     const data = new AppDataStore(() => env);
     await startRelease();
     expect(inApp("POST", "/first")).toBe("saved");
-    await host.stop(PROJECT, 30);
+    await host.stop(INSTANCE, 30);
 
     const backupId = randomUUID();
     await expect(data.backup(PROJECT, backupId)).resolves.toMatchObject({ objects: expect.any(Number) });
 
     // Without its volume the app has only its replica to start from.
-    await host.clearData(PROJECT);
+    await host.clearData(INSTANCE);
     await startRelease();
     expect(JSON.parse(inApp("GET", "/"))).toEqual(["first"]);
 
     expect(inApp("POST", "/second")).toBe("saved");
-    await host.stop(PROJECT, 30);
+    await host.stop(INSTANCE, 30);
     await data.restore(PROJECT, backupId);
-    await host.clearData(PROJECT);
+    await host.clearData(INSTANCE);
     await startRelease();
     expect(JSON.parse(inApp("GET", "/"))).toEqual(["first"]);
-    expect(await host.status(PROJECT)).toEqual({ state: "running" });
+    expect(await host.status(INSTANCE)).toEqual({ state: "running" });
   }, 180_000);
 
   it("gives the app credentials that reach only its own replica", async () => {
@@ -157,6 +162,47 @@ describeWithRuntime("running an app on Docker", () => {
     await expect(put(`spaces/${PROJECT}/backups/probe`)).rejects.toMatchObject({ name: "AccessDenied" });
     await expect(put(`spaces/${randomUUID()}/app-data/probe`)).rejects.toMatchObject({ name: "AccessDenied" });
     client.destroy();
+  });
+
+  it("starts a preview from the live data and keeps none of its writes", async () => {
+    await startRelease();
+    expect(inApp("POST", "/live")).toBe("saved");
+    await host.stop(INSTANCE, 30);
+
+    await startRelease(PREVIEW);
+    expect(JSON.parse(inApp("GET", "/", PREVIEW))).toContain("live");
+    expect(inApp("POST", "/preview-only", PREVIEW)).toBe("saved");
+    await host.delete(PREVIEW);
+
+    await host.clearData(INSTANCE);
+    await startRelease();
+    expect(JSON.parse(inApp("GET", "/"))).not.toContain("preview-only");
+    await host.stop(INSTANCE, 30);
+  }, 180_000);
+
+  it("gives a preview credentials that only read its app's replica", async () => {
+    const credentials = await new StsAppDataCredentials(() => env).forPreview(PROJECT);
+    const client = new S3Client({
+      ...objectStorageClientConfig(env),
+      credentials: { accessKeyId: credentials.AWS_ACCESS_KEY_ID, secretAccessKey: credentials.AWS_SECRET_ACCESS_KEY, sessionToken: credentials.AWS_SESSION_TOKEN },
+    });
+
+    await expect(client.send(new PutObjectCommand({ Bucket: BUCKET, Key: `spaces/${PROJECT}/app-data/probe`, Body: "x" }))).rejects.toMatchObject({
+      name: "AccessDenied",
+    });
+    client.destroy();
+  });
+
+  it("reconnects the platform only to the networks of its own App spaces", async () => {
+    const foreign = `viberglass-app-${randomUUID()}`;
+    execFileSync("docker", ["network", "create", "--label", `viberglass.app=${randomUUID()}`, foreign], { stdio: "ignore" });
+    try {
+      await host.rejoinPlatform([PROJECT]);
+      const joined = execFileSync("docker", ["network", "inspect", foreign, "--format", "{{range .Containers}}{{.Name}} {{end}}"], { encoding: "utf8" });
+      expect(joined.trim()).toBe("");
+    } finally {
+      execFileSync("docker", ["network", "rm", foreign], { stdio: "ignore" });
+    }
   });
 
   it("runs the app on a read-only root in the app subnet pool, and restarts it from its unpacked release once the bundle is gone", async () => {
@@ -179,6 +225,6 @@ describeWithRuntime("running an app on Docker", () => {
     client.destroy();
     execFileSync("docker", ["restart", `viberglass-app-${PROJECT}`], { stdio: "ignore" });
     await waitForHealth();
-    await host.stop(PROJECT, 30);
+    await host.stop(INSTANCE, 30);
   }, 120_000);
 });

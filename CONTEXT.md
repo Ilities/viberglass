@@ -27,7 +27,7 @@ Whether an app is running. Only the space's maintainers and the space's schedule
 _Avoid_: Asleep, scaled to zero, paused, stopped
 
 **Preview**:
-A temporary running copy of an app built from a change, starting from a copy of the live data. It never becomes a release.
+A temporary running copy of an app built from a change, starting from a copy of the live data. Try it starts one; it turns off at night and when nobody opens it for a while, and nothing done in it reaches the app. It never becomes a release.
 _Avoid_: Staging, preview environment, preview release
 
 **Change**:
@@ -35,7 +35,7 @@ A task's proposed edit to an app, shown in an App space instead of a pull reques
 _Avoid_: Pull request, PR, diff (in App space copy)
 
 **Make it live**:
-The action that accepts a change, which builds a release and makes it the app's current release. Only the space's maintainers and the task's owner can take it.
+The action that accepts a change, which builds a release and makes it the app's current release. Only the space's maintainers and the task's owner can take it, once the change's latest version has run in a preview.
 _Avoid_: Merge, deploy, publish, ship
 
 **Data backup**:

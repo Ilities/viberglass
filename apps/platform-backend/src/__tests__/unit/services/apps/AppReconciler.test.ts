@@ -85,7 +85,7 @@ describe("AppReconciler", () => {
     const { reconciler, host, deps } = build(record({ power: "off" }));
 
     await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
-    expect(host.stop).toHaveBeenCalledWith("space-1", 30);
+    expect(host.stop).toHaveBeenCalledWith("app-space-1", 30);
     expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "off", statusMessage: null });
   });
 

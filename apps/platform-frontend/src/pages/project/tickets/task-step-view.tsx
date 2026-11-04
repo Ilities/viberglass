@@ -73,7 +73,14 @@ const NO_CHANGE = {
 function BuildStep({ data, isApp, onChanged }: { data: TaskPageData; isApp: boolean; onChanged: () => void }) {
   const isUpcoming = data.ticket.workflowPhase !== 'execution'
   if (data.ticket.pullRequestUrl) {
-    const change = isApp ? { ticketId: data.ticket.id, canMakeLive: Boolean(data.capabilities?.canMakeLive), onMadeLive: onChanged } : undefined
+    const change = isApp
+      ? {
+          ticketId: data.ticket.id,
+          canMakeLive: Boolean(data.capabilities?.canMakeLive),
+          canTry: Boolean(data.capabilities?.canPost),
+          onMadeLive: onChanged,
+        }
+      : undefined
     return <BuildPullRequests ticketId={data.ticket.id} latestUrl={data.ticket.pullRequestUrl} runs={data.runs} change={change} />
   }
   const words = isApp ? NO_CHANGE : NO_BUILD

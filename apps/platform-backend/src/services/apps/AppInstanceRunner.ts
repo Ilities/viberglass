@@ -1,6 +1,6 @@
 import { APP_HEALTH_PATH, type AppHost, type AppRelease } from "@viberglass/types";
 import { appHealthTimeoutMs } from "./appHostingConfig";
-import type { AppInstanceSpecs } from "./AppInstanceSpecs";
+import type { AppInstanceRole, AppInstanceSpecs } from "./AppInstanceSpecs";
 
 const POLL_MS = 2000;
 const PROBE_TIMEOUT_MS = 5000;
@@ -32,31 +32,32 @@ export class AppInstanceRunner {
   ) {}
 
   /** Null once the release is healthy, otherwise why it isn't. */
-  async run(host: AppHost, release: AppRelease): Promise<string | null> {
-    await host.create(await this.specs.specFor(host.target, release));
-    await host.start(release.projectId);
-    return this.waitHealthy(host, release.projectId);
+  async run(host: AppHost, release: AppRelease, role?: AppInstanceRole): Promise<string | null> {
+    const spec = await this.specs.specFor(host.target, release, role);
+    await host.create(spec);
+    await host.start(spec.instance);
+    return this.waitHealthy(host, spec.instance);
   }
 
-  private async waitHealthy(host: AppHost, projectId: string): Promise<string | null> {
-    const url = `${host.address(projectId)}${APP_HEALTH_PATH}`;
+  private async waitHealthy(host: AppHost, instance: string): Promise<string | null> {
+    const url = `${host.address(instance)}${APP_HEALTH_PATH}`;
     const deadline = Date.now() + this.timeoutMs();
     let lastStatus: number | null = null;
     while (Date.now() < deadline) {
       lastStatus = await this.probe.status(url);
       if (lastStatus === 200) return null;
-      const instance = await host.status(projectId);
-      if (instance.state === "stopped" || instance.state === "missing") {
-        return this.withLogs(host, projectId, instance.detail ?? "The app stopped while starting");
+      const status = await host.status(instance);
+      if (status.state === "stopped" || status.state === "missing") {
+        return this.withLogs(host, instance, status.detail ?? "The app stopped while starting");
       }
       await this.sleep(POLL_MS);
     }
     const answer = lastStatus === null ? "didn't answer" : `answered ${lastStatus}`;
-    return this.withLogs(host, projectId, `The app ${answer} on ${APP_HEALTH_PATH} within ${Math.round(this.timeoutMs() / 1000)} seconds`);
+    return this.withLogs(host, instance, `The app ${answer} on ${APP_HEALTH_PATH} within ${Math.round(this.timeoutMs() / 1000)} seconds`);
   }
 
-  private async withLogs(host: AppHost, projectId: string, reason: string): Promise<string> {
-    const logs = (await host.logs(projectId, LOG_LINES_IN_REASON).catch(() => "")).trim();
+  private async withLogs(host: AppHost, instance: string, reason: string): Promise<string> {
+    const logs = (await host.logs(instance, LOG_LINES_IN_REASON).catch(() => "")).trim();
     return logs ? `${reason}. Its last output:\n${logs}` : reason;
   }
 }

@@ -1,17 +1,39 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { TaskPullRequest } from '@/service/api/build-api'
+import { MemoryRouter } from 'react-router-dom'
+import type { AppPreview, TaskPullRequest } from '@/service/api/build-api'
 import { BuildPullRequests, partsLabel } from './build-pull-requests'
 
 const mockList = jest.fn()
 const mockMakeLive = jest.fn()
+const mockPreviews = jest.fn()
+const mockTry = jest.fn()
 jest.mock('@/service/api/build-api', () => ({
   getBuildPullRequests: (...args: unknown[]) => mockList(...args),
   makeChangeLive: (...args: unknown[]) => mockMakeLive(...args),
+  getChangePreviews: (...args: unknown[]) => mockPreviews(...args),
+  tryChange: (...args: unknown[]) => mockTry(...args),
 }))
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 
 const HEAD = 'a'.repeat(40)
+const CHANGE_URL = 'https://github.com/acme/app/pull/3'
+
+function preview(overrides: Partial<AppPreview> = {}): AppPreview {
+  return {
+    id: 'pv-1',
+    pullRequestUrl: CHANGE_URL,
+    commitSha: HEAD,
+    power: 'on',
+    state: 'running',
+    statusMessage: null,
+    triedCommitSha: HEAD,
+    url: 'https://preview-abcd2345.apps.example.com',
+    ...overrides,
+  }
+}
+
+beforeEach(() => mockPreviews.mockResolvedValue([]))
 
 function openChange(overrides: { isDraft?: boolean } = {}): TaskPullRequest {
   return {
@@ -72,16 +94,19 @@ describe('BuildPullRequests', () => {
 })
 
 describe('BuildPullRequests in an App space', () => {
-  it('shows the pull request as a change, and makes the commit that was read live', async () => {
+  it('shows the pull request as a change, and makes the commit that was tried live', async () => {
     mockList.mockResolvedValue([openChange()])
+    mockPreviews.mockResolvedValue([preview()])
     mockMakeLive.mockResolvedValue(undefined)
     const onMadeLive = jest.fn()
     render(
-      <BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/3" runs={[]} change={{ ticketId: 't-1', canMakeLive: true, onMadeLive }} />
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: true, canTry: true, onMadeLive }} />,
+      { wrapper: MemoryRouter }
     )
 
     expect(await screen.findByText('Ready')).toBeInTheDocument()
     expect(screen.getByText('Change')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Open preview' })).toHaveAttribute('href', 'https://preview-abcd2345.apps.example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Make it live' }))
     await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Make it live' }))
 
@@ -89,10 +114,30 @@ describe('BuildPullRequests in an App space', () => {
     expect(onMadeLive).toHaveBeenCalled()
   })
 
+  it('asks for Try it before Make it live, and shows the preview being built', async () => {
+    mockList.mockResolvedValue([openChange()])
+    const building = preview({ state: 'building', triedCommitSha: 'b'.repeat(40) })
+    mockPreviews.mockResolvedValueOnce([preview({ commitSha: 'b'.repeat(40), triedCommitSha: 'b'.repeat(40) })]).mockResolvedValue([building])
+    mockTry.mockResolvedValue(building)
+    render(
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: true, canTry: true, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(await screen.findByText('Running an older version')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make it live' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try the latest' }))
+
+    expect(mockTry).toHaveBeenCalledWith('t-1', { pullRequestUrl: CHANGE_URL, headSha: HEAD })
+    expect(await screen.findByRole('button', { name: 'Building the preview…' })).toBeDisabled()
+  })
+
   it("doesn't offer it to someone who can't make it live, or for a draft", async () => {
     mockList.mockResolvedValue([openChange()])
+    mockPreviews.mockResolvedValue([preview()])
     const { unmount } = render(
-      <BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/3" runs={[]} change={{ ticketId: 't-1', canMakeLive: false, onMadeLive: jest.fn() }} />
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: false, canTry: true, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
     )
     expect(await screen.findByText('Ready')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Make it live' })).not.toBeInTheDocument()
@@ -100,9 +145,11 @@ describe('BuildPullRequests in an App space', () => {
 
     mockList.mockResolvedValue([openChange({ isDraft: true })])
     render(
-      <BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/3" runs={[]} change={{ ticketId: 't-1', canMakeLive: true, onMadeLive: jest.fn() }} />
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: true, canTry: true, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
     )
     expect(await screen.findByText('Draft')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Make it live' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try it' })).not.toBeInTheDocument()
   })
 })

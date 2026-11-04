@@ -6,6 +6,8 @@ import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
 import { PlatformRunnerDAO } from "../../persistence/clanker/PlatformRunnerDAO";
 import { up, down } from "../../migrations/135_app_releases";
+import { up as releaseTasksUp } from "../../migrations/140_app_release_tasks";
+import { addPreviewBuilds } from "../../migrations/141_app_previews";
 
 let mockDb: Kysely<Database>;
 jest.mock("../../persistence/config/database", () => ({
@@ -41,7 +43,10 @@ beforeAll(async () => {
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
   )`.execute(mockDb);
   await sql`INSERT INTO projects (id, backing_kind, archived_at) VALUES (${SPACE}, 'app', NULL), (${ARCHIVED}, 'app', now()), (${GIT_SPACE}, 'git', NULL)`.execute(mockDb);
+  await sql`CREATE TABLE tickets (id uuid PRIMARY KEY)`.execute(mockDb);
   await up(mockDb);
+  await releaseTasksUp(mockDb);
+  await addPreviewBuilds(mockDb);
 }, 60_000);
 
 afterAll(async () => {

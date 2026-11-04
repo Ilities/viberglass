@@ -95,7 +95,7 @@ describe("the app gateway", () => {
   });
 
   beforeEach(() => {
-    route = { kind: "proxy", target: `http://127.0.0.1:${appPort}`, user: ADA };
+    route = { kind: "proxy", target: `http://127.0.0.1:${appPort}`, user: ADA, previewId: null };
     redeem.mockReset();
   });
 
@@ -256,7 +256,7 @@ describe("the app gateway", () => {
   });
 
   it("says so when the app doesn't answer", async () => {
-    route = { kind: "proxy", target: "http://127.0.0.1:1", user: ADA };
+    route = { kind: "proxy", target: "http://127.0.0.1:1", user: ADA, previewId: null };
 
     expect((await send(gatewayPort, { headers: { cookie: "viberglass_app=good" } })).status).toBe(502);
   });

@@ -32,6 +32,15 @@ export function appOffPage(res: ServerResponse, appName: string, maintainers: st
   sendGatewayPage(res, 503, `${appName} is off`, `<p>${ask}</p>`);
 }
 
+export function previewOffPage(res: ServerResponse, taskKey: string, taskUrl: string): void {
+  sendGatewayPage(
+    res,
+    503,
+    "This preview is off",
+    `<p>Previews turn off at night and when nobody opens them for a while. Turn it on again with Try it on <a href="${escapeHtml(taskUrl)}">${escapeHtml(taskKey)}</a>.</p>`,
+  );
+}
+
 export function appNotFoundPage(res: ServerResponse): void {
   sendGatewayPage(res, 404, "No app here", "<p>Check the address, or open the app from Viberglass.</p>");
 }

@@ -19,7 +19,7 @@ const logger = createChildLogger({ service: "ReleaseBuildService" });
 // Builds belong to no ticket; callbacks are scoped to the job itself.
 const BUILD_TENANT_ID = "api-server";
 
-/** Starts a build of one commit of an App space's default branch on the app builder. */
+/** Starts a build of one commit on the app builder: of the default branch for a release, or of a change for its preview. */
 export class ReleaseBuildService {
   constructor(
     private readonly releases: Pick<AppReleaseDAO, "createBuilding" | "setJob" | "delete"> = new AppReleaseDAO(),
@@ -31,31 +31,34 @@ export class ReleaseBuildService {
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
   ) {}
 
-  /** Null when the commit already has a release. `ticketId` is the task whose change the commit makes live. */
-  async build(scmConfig: ProjectScmConfig, commitSha: string, ticketId: string | null = null): Promise<AppRelease | null> {
+  /**
+   * Null when the commit already has a release, or a preview build with `preview`.
+   * `ticketId` is the task whose change the commit makes live.
+   */
+  async build(scmConfig: ProjectScmConfig, commitSha: string, options: { ticketId?: string | null; preview?: boolean } = {}): Promise<AppRelease | null> {
     const secretId = await resolveScmCredentialSecretId(this.credentials, scmConfig);
     if (!secretId) throw new Error("The space's repository connection has no token to clone with");
     const builder = await this.builder.ready();
 
-    const release = await this.releases.createBuilding(scmConfig.projectId, commitSha, ticketId);
+    const release = await this.releases.createBuilding(scmConfig.projectId, commitSha, options);
     if (!release) return null;
     try {
-      await this.dispatch(release, scmConfig, { ...builder, secretBindings: [{ envVar: SCM_TOKEN_ENV_VAR, secretId }] });
+      await this.dispatch(release, scmConfig, { ...builder, secretBindings: [{ envVar: SCM_TOKEN_ENV_VAR, secretId }] }, options.preview ?? false);
     } catch (error) {
-      // Gone again, so the next look at the branch tries this commit once more.
+      // Gone again, so this commit is tried once more.
       await this.releases.delete(release.id);
       throw error;
     }
     return release;
   }
 
-  private async dispatch(release: AppRelease, scmConfig: ProjectScmConfig, builder: Clanker): Promise<void> {
+  private async dispatch(release: AppRelease, scmConfig: ProjectScmConfig, builder: Clanker, preview: boolean): Promise<void> {
     const jobData: BuildReleaseJobData = {
       id: `build_${Date.now()}_${randomUUID().slice(0, 8)}`,
       jobKind: "build_release",
       tenantId: BUILD_TENANT_ID,
       repository: scmConfig.sourceRepository,
-      task: `Build ${release.commitSha.slice(0, 7)}`,
+      task: `${preview ? "Build a preview of" : "Build"} ${release.commitSha.slice(0, 7)}`,
       context: { projectId: release.projectId, releaseId: release.id, commitSha: release.commitSha },
       scm: this.scmPayload(scmConfig),
       timestamp: Date.now(),

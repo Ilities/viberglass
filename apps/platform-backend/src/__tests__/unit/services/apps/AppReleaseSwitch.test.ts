@@ -53,7 +53,7 @@ describe("AppReleaseSwitch", () => {
     await expect(switcher.switchTo(host, app(), NEXT)).resolves.toEqual({ state: "running", statusMessage: null, currentReleaseId: NEXT.id });
 
     expect(order).toEqual(["stop", "backup", "run next"]);
-    expect(host.stop).toHaveBeenCalledWith("space-1", 30);
+    expect(host.stop).toHaveBeenCalledWith("app-space-1", 30);
     const backupId = deps.data.backup.mock.calls[0][1];
     expect(deps.backups.create).toHaveBeenCalledWith({ id: backupId, projectId: "space-1", reason: "release", releaseId: NEXT.id, objects: 3, bytes: 300 });
     expect(deps.releases.markLive).toHaveBeenCalledWith(NEXT.id);

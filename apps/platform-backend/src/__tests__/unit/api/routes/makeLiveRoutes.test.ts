@@ -2,7 +2,7 @@ import express, { type Request } from "express";
 import request from "supertest";
 import { applicationErrorHandler } from "../../../../api/middleware/notFoundHandling";
 import { registerTaskMakeLiveRoutes } from "../../../../api/routes/tickets/makeLiveRoutes";
-import { MakeLiveError } from "../../../../services/apps/MakeLiveError";
+import { AppChangeError } from "../../../../services/apps/AppChangeError";
 
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
@@ -52,7 +52,7 @@ describe("POST /api/tasks/:id/make-live", () => {
 
   it("answers with the reason when the change can't be made live", async () => {
     const { app, makeLive } = setup();
-    makeLive.makeLive.mockRejectedValue(new MakeLiveError("HEAD_MOVED", "The change got new commits since you looked at it."));
+    makeLive.makeLive.mockRejectedValue(new AppChangeError("HEAD_MOVED", "The change got new commits since you looked at it."));
 
     const response = await request(app).post(`/api/tasks/${TASK_ID}/make-live`).send({ pullRequestUrl: URL_3, headSha: HEAD });
 

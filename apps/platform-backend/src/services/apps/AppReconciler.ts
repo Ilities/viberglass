@@ -1,4 +1,4 @@
-import type { AppHost, AppRelease } from "@viberglass/types";
+import { liveAppInstance, type AppHost, type AppRelease } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppChange, AppDAO, AppRecord } from "../../persistence/apps/AppDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
@@ -77,7 +77,7 @@ export class AppReconciler {
       // Without a host nothing can be running.
       if (host) {
         await this.apps.update(app.projectId, { state: "stopping" });
-        await host.stop(app.projectId, APP_STOP_GRACE_SECONDS);
+        await host.stop(liveAppInstance(app.projectId), APP_STOP_GRACE_SECONDS);
       }
       return { state: "off", statusMessage: null };
     }

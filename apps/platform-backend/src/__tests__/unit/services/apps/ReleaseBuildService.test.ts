@@ -120,6 +120,15 @@ describe("ReleaseBuildService", () => {
     });
   });
 
+  it("builds a change's commit for its preview apart from releases", async () => {
+    const { service, deps } = build();
+
+    await service.build(SCM, COMMIT, { preview: true });
+
+    expect(deps.releases.createBuilding).toHaveBeenCalledWith("project-1", COMMIT, { preview: true });
+    expect(deps.jobs.submitJob.mock.calls[0][0]).toMatchObject({ task: `Build a preview of ${COMMIT.slice(0, 7)}` });
+  });
+
   it("builds a commit only once", async () => {
     const { service, deps } = build({ existing: true });
 

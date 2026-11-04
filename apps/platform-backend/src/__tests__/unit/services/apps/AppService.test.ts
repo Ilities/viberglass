@@ -76,6 +76,6 @@ describe("AppService", () => {
     host.logs.mockResolvedValue("listening on 3000\n");
 
     await expect(service.logs("space-1")).resolves.toBe("listening on 3000\n");
-    expect(host.logs).toHaveBeenCalledWith("space-1", 300);
+    expect(host.logs).toHaveBeenCalledWith("app-space-1", 300);
   });
 });

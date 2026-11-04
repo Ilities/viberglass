@@ -1,3 +1,4 @@
+import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
@@ -18,6 +19,7 @@ export function createMakeLiveService(): MakeLiveService {
     owners: new SpaceOwnershipDAO(),
     tickets: new TicketDAO(),
     pullRequests: new TaskPullRequestDAO(),
+    previews: new AppPreviewDAO(),
     repositories: createProjectRepositoryResolver(),
     users: new UserDAO(),
     outcomes: createPullRequestOutcomeChecker(),

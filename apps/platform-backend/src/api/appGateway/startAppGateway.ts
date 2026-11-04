@@ -1,6 +1,8 @@
 import { createChildLogger } from "../../config/logger";
 import { appsDomain } from "../../services/apps/appSpaceAvailability";
 import { appSignIn } from "../../services/apps/createAppSignIn";
+import { PreviewOpenings } from "../../services/apps/PreviewOpenings";
+import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import { createAppGateway } from "./createAppGateway";
 
 const logger = createChildLogger({ server: "app-gateway" });
@@ -19,5 +21,6 @@ export function startAppGateway(env: Record<string, string | undefined> = proces
   if (!origins.secure && domain !== "localhost" && !domain.endsWith(".localhost")) {
     logger.warn("Apps are served over http on a name other than localhost: one app can sign people in to another as someone else. Set APPS_PUBLIC_URL to an https address.", { domain });
   }
-  createAppGateway({ origins, resolver, signIn: service, frontendUrl }).listen(port, () => logger.info("App gateway listening", { port }));
+  const openings = new PreviewOpenings(new AppPreviewDAO());
+  createAppGateway({ origins, resolver, signIn: service, frontendUrl, previewOpened: (id) => openings.opened(id) }).listen(port, () => logger.info("App gateway listening", { port }));
 }

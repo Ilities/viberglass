@@ -35,7 +35,7 @@ const RELEASE: AppRelease = {
   finishedAt: null,
 };
 
-function setup(options: { canMakeLive?: boolean; backingKind?: "app" | "git"; existingRelease?: boolean } = {}) {
+function setup(options: { canMakeLive?: boolean; backingKind?: "app" | "git"; existingRelease?: boolean; triedCommitSha?: string | null } = {}) {
   const host = fakeRepositoryHost();
   host.mergePullRequest.mockResolvedValue(MERGED);
   const deps = {
@@ -45,6 +45,7 @@ function setup(options: { canMakeLive?: boolean; backingKind?: "app" | "git"; ex
       getSummary: jest.fn().mockResolvedValue({ title: "Laptops", key: "LAP-1", spaceSlug: "laptops", spaceName: "Laptops", backingKind: options.backingKind ?? "app", pullRequestUrl: URL_3 }),
     },
     pullRequests: { listForTask: jest.fn().mockResolvedValue([{ branch: "viberglass/lap-1", url: URL_3, firstPart: 1, lastPart: null }]) },
+    previews: { findForChange: jest.fn().mockResolvedValue({ triedCommitSha: options.triedCommitSha === undefined ? HEAD : options.triedCommitSha }) },
     repositories: { resolve: jest.fn().mockResolvedValue({ host, token: "tok" }) },
     users: { findById: jest.fn().mockResolvedValue({ id: "maria", name: "Maria" }) },
     outcomes: { check: jest.fn().mockResolvedValue(null) },
@@ -66,7 +67,7 @@ describe("MakeLiveService", () => {
 
     expect(host.mergePullRequest).toHaveBeenCalledWith(URL_3, "tok", { expectedHeadSha: HEAD });
     expect(deps.outcomes.check).toHaveBeenCalledWith(URL_3, "space-1", { madeLiveBy: "Maria" });
-    expect(deps.builds.build).toHaveBeenCalledWith(SCM, MERGED, "task-1");
+    expect(deps.builds.build).toHaveBeenCalledWith(SCM, MERGED, { ticketId: "task-1" });
     expect(deps.audit.record).toHaveBeenCalledWith({
       action: "app.change_made_live",
       target: { type: "space", id: "space-1" },
@@ -110,6 +111,16 @@ describe("MakeLiveService", () => {
       code: "NO_SUCH_CHANGE",
     });
     expect(host.mergePullRequest).not.toHaveBeenCalled();
+  });
+
+  it("refuses until the change's latest commit ran in its preview", async () => {
+    const stale = setup({ triedCommitSha: "c".repeat(40) });
+    await expect(stale.service.makeLive("maria", "task-1", change)).rejects.toMatchObject({ code: "NOT_TRIED", statusCode: 409 });
+    expect(stale.host.mergePullRequest).not.toHaveBeenCalled();
+
+    const untried = setup();
+    untried.deps.previews.findForChange.mockResolvedValue(null);
+    await expect(untried.service.makeLive("maria", "task-1", change)).rejects.toMatchObject({ code: "NOT_TRIED" });
   });
 
   it("says so when the change got new commits, and records nothing", async () => {

@@ -51,7 +51,9 @@ MinIO is the object storage, so Files spaces work without further setup. Its buc
 
 App spaces host the apps their agents build, each at `http://<name>.apps.localhost:8891`. Browsers send every `*.localhost` name to this machine; Safari doesn't, so use another browser for apps.
 
-Each app runs in its own container, on its own Docker network that only the backend and object storage join. Its network gets a subnet from `10.250.0.0/16` (`APPS_NETWORK_POOL`). Docker doesn't stop a container from opening connections to the machine it runs on or to private addresses, so before you run apps, add host firewall rules that drop them. Without the rules an app can reach the backend's API, every port the machine publishes and, on a cloud server, its metadata service.
+A task's change can be tried in a preview at `http://preview-<id>.apps.localhost:8891` before it's made live. A preview runs like an app, in a container and on a network of its own, with a copy of the app's data that it doesn't keep. Previews turn off at 03:00 UTC (`APPS_PREVIEW_OFF_HOUR`, an hour from 0 to 23) and after 4 hours without being opened (`APPS_PREVIEW_IDLE_HOURS`); Try it on the task turns one on again.
+
+Each app and preview runs in its own container, on its own Docker network that only the backend and object storage join. Each network gets a /24 subnet from `10.250.0.0/16` (`APPS_NETWORK_POOL`), so the pool holds 256 apps and previews at a time. Docker doesn't stop a container from opening connections to the machine it runs on or to private addresses, so before you run apps, add host firewall rules that drop them. Without the rules an app can reach the backend's API, every port the machine publishes and, on a cloud server, its metadata service.
 
 On Linux, with Docker's iptables firewall backend (the default), save this as `/usr/local/sbin/viberglass-apps-firewall` and make it executable:
 

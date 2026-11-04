@@ -1,4 +1,5 @@
 import type { AppHost, AppInstanceStatus, AppRelease } from "@viberglass/types";
+import type { AppPreviewRecord } from "../../persistence/apps/AppPreviewDAO";
 
 /** An app host whose every call is a jest mock that succeeds; tests change what they need. */
 export function fakeAppHost() {
@@ -8,7 +9,7 @@ export function fakeAppHost() {
     start: jest.fn(async () => undefined),
     stop: jest.fn(async () => undefined),
     status: jest.fn(async (): Promise<AppInstanceStatus> => ({ state: "running" })),
-    address: jest.fn((projectId: string) => `http://app-${projectId}:3000`),
+    address: jest.fn((instance: string) => `http://${instance}:3000`),
     logs: jest.fn(async () => ""),
     clearData: jest.fn(async () => undefined),
     delete: jest.fn(async () => undefined),
@@ -33,6 +34,27 @@ export function appRelease(id: string, overrides: Partial<AppRelease> = {}): App
     ticketId: null,
     createdAt: "2026-11-03T12:00:00.000Z",
     finishedAt: "2026-11-03T12:01:00.000Z",
+    ...overrides,
+  };
+}
+
+export function appPreview(overrides: Partial<AppPreviewRecord> = {}): AppPreviewRecord {
+  return {
+    id: "pv-1",
+    address: "preview-abcd2345",
+    projectId: "space-1",
+    ticketId: "task-1",
+    pullRequestUrl: "https://github.com/acme/laptops/pull/3",
+    commitSha: "a".repeat(40),
+    releaseId: "build-a",
+    runningReleaseId: null,
+    power: "on",
+    state: "off",
+    statusMessage: null,
+    busySince: null,
+    startedAt: null,
+    lastOpenedAt: null,
+    triedCommitSha: null,
     ...overrides,
   };
 }

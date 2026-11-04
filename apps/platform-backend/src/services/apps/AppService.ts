@@ -1,4 +1,4 @@
-import type { AppHost, AppPower, AppView } from "@viberglass/types";
+import { liveAppInstance, type AppHost, type AppPower, type AppView } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppDAO } from "../../persistence/apps/AppDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
@@ -55,7 +55,7 @@ export class AppService {
 
   async logs(projectId: string): Promise<string> {
     await this.appSpace(projectId);
-    return (await this.host()?.logs(projectId, LOG_LINES)) ?? "";
+    return (await this.host()?.logs(liveAppInstance(projectId), LOG_LINES)) ?? "";
   }
 
   private async appSpace(projectId: string): Promise<AppSpaceRef> {

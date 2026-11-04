@@ -1,6 +1,8 @@
 #!/bin/sh
 # Starts a release: fetches its bundle, restores the app's database from its
 # replica, then runs the app under Litestream so every write is replicated.
+# A preview (VIBERGLASS_DATA_MODE=preview) restores the same way, with
+# read-only credentials, and runs without replicating: its data isn't kept.
 set -eu
 
 : "${VIBERGLASS_BUNDLE_URL:?}"
@@ -44,6 +46,12 @@ chmod 755 /tmp/start-app
 
 # A database already on the volume is newer than its replica.
 litestream restore -config "$CONFIG" -no-expand-env -if-db-not-exists -if-replica-exists "$DATABASE"
+
+if [ "${VIBERGLASS_DATA_MODE:-}" = "preview" ]; then
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  exec /tmp/start-app
+fi
+
 litestream replicate -config "$CONFIG" -no-expand-env -exec /tmp/start-app &
 REPLICATING=$!
 trap 'kill -TERM "$REPLICATING" 2>/dev/null || true' TERM INT

@@ -34,6 +34,9 @@ beforeAll(async () => {
   await sql`INSERT INTO user_sessions (id) VALUES (${SESSION})`.execute(mockDb);
   await upSessions(mockDb);
   await upState(mockDb);
+  // Migration 141 adds these with references to previews, which this schema leaves out.
+  await sql`ALTER TABLE app_handoff_codes ADD COLUMN preview_id uuid`.execute(mockDb);
+  await sql`ALTER TABLE app_sessions ADD COLUMN preview_id uuid`.execute(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -43,11 +46,11 @@ afterAll(async () => {
 
 describe("app sign-in", () => {
   it("redeems a code only with the state of the browser that asked for it, and only once", async () => {
-    await signIns.createCode({ codeHash: "code", stateHash: "state", projectId: LAPTOPS, sessionId: SESSION, returnPath: "/laptops", expiresAt: inAMinute() });
+    await signIns.createCode({ codeHash: "code", stateHash: "state", projectId: LAPTOPS, previewId: null, sessionId: SESSION, returnPath: "/laptops", expiresAt: inAMinute() });
 
-    await expect(signIns.redeemCode("code", "another-browser", LAPTOPS)).resolves.toBeNull();
-    await expect(signIns.redeemCode("code", "state", LAPTOPS)).resolves.toEqual({ sessionId: SESSION, returnPath: "/laptops" });
-    await expect(signIns.redeemCode("code", "state", LAPTOPS)).resolves.toBeNull();
+    await expect(signIns.redeemCode("code", "another-browser", LAPTOPS, null)).resolves.toBeNull();
+    await expect(signIns.redeemCode("code", "state", LAPTOPS, null)).resolves.toEqual({ sessionId: SESSION, returnPath: "/laptops" });
+    await expect(signIns.redeemCode("code", "state", LAPTOPS, null)).resolves.toBeNull();
   });
 
   it("can't open an archived App space by its address, while its maintainers still find it", async () => {

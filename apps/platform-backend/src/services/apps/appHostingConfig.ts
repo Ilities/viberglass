@@ -45,3 +45,15 @@ export function appHealthTimeoutMs(env: Env): number {
 
 /** Long enough for the app to shut down and Litestream to send its last changes. */
 export const APP_STOP_GRACE_SECONDS = 30;
+
+/** The hour (UTC) every running preview is turned off. */
+export function previewOffHour(env: Env): number {
+  const configured = env.APPS_PREVIEW_OFF_HOUR?.trim();
+  const hour = Number(configured);
+  return configured && Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 3;
+}
+
+/** How long a preview runs without being opened before it's turned off. */
+export function previewIdleMs(env: Env): number {
+  return positive(env.APPS_PREVIEW_IDLE_HOURS, 4) * 60 * 60 * 1000;
+}

@@ -7,12 +7,15 @@ export type ReleaseOutcome =
   | { status: "failed"; failureReason: string; buildLog: string | null };
 
 export class AppReleaseDAO {
-  /** Null when this commit already has a release, so a commit is only ever built once. */
-  async createBuilding(projectId: string, commitSha: string, ticketId: string | null = null): Promise<AppRelease | null> {
+  /**
+   * Null when this commit already has a release, or a preview build when
+   * `preview` is set, so a commit is only ever built once for each.
+   */
+  async createBuilding(projectId: string, commitSha: string, options: { ticketId?: string | null; preview?: boolean } = {}): Promise<AppRelease | null> {
     const row = await db
       .insertInto("app_releases")
-      .values({ project_id: projectId, commit_sha: commitSha, ticket_id: ticketId })
-      .onConflict((conflict) => conflict.columns(["project_id", "commit_sha"]).doNothing())
+      .values({ project_id: projectId, commit_sha: commitSha, ticket_id: options.ticketId ?? null, preview: options.preview ?? false })
+      .onConflict((conflict) => conflict.columns(["project_id", "commit_sha", "preview"]).doNothing())
       .returningAll()
       .executeTakeFirst();
     return row ? toRelease(row) : null;
@@ -25,6 +28,7 @@ export class AppReleaseDAO {
       .set({ ticket_id: ticketId })
       .where("project_id", "=", projectId)
       .where("commit_sha", "=", commitSha)
+      .where("preview", "=", false)
       .where("ticket_id", "is", null)
       .execute();
   }
@@ -48,6 +52,7 @@ export class AppReleaseDAO {
       .selectFrom("app_releases")
       .selectAll()
       .where("project_id", "=", projectId)
+      .where("preview", "=", false)
       .orderBy("created_at", "desc")
       .limit(limit)
       .execute();
@@ -60,6 +65,7 @@ export class AppReleaseDAO {
       .selectFrom("app_releases")
       .selectAll()
       .where("project_id", "=", projectId)
+      .where("preview", "=", false)
       .where("status", "=", "ready")
       .where("live_failure", "is", null)
       .orderBy("created_at", "desc")
@@ -87,8 +93,20 @@ export class AppReleaseDAO {
       .select("id")
       .where("project_id", "=", projectId)
       .where("commit_sha", "=", commitSha)
+      .where("preview", "=", false)
       .executeTakeFirst();
     return Boolean(row);
+  }
+
+  async findPreviewBuild(projectId: string, commitSha: string): Promise<AppRelease | null> {
+    const row = await db
+      .selectFrom("app_releases")
+      .selectAll()
+      .where("project_id", "=", projectId)
+      .where("commit_sha", "=", commitSha)
+      .where("preview", "=", true)
+      .executeTakeFirst();
+    return row ? toRelease(row) : null;
   }
 
   /** Only a release still building takes an outcome; returns whether this one did. */

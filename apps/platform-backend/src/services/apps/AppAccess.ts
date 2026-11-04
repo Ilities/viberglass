@@ -12,8 +12,13 @@ export class AppAccess {
 
   /** Everyone who sees the App space may open its app, and so may the people on its access list. */
   async canOpen(user: { id: string; role: WorkspaceRole }, space: Pick<AppSpaceRef, "projectId" | "isPrivate">): Promise<boolean> {
-    if (canSeeSpace(user.role, { isPrivate: space.isPrivate }, await this.members.getRole(space.projectId, user.id))) return true;
+    if (await this.canSeeSpace(user, space)) return true;
     return this.accessList.has(space.projectId, user.id);
+  }
+
+  /** Previews are for the people who see the space's tasks; the access list doesn't reach them. */
+  async canSeeSpace(user: { id: string; role: WorkspaceRole }, space: Pick<AppSpaceRef, "projectId" | "isPrivate">): Promise<boolean> {
+    return canSeeSpace(user.role, { isPrivate: space.isPrivate }, await this.members.getRole(space.projectId, user.id));
   }
 
   /** The people who can turn the app on, besides workspace admins. */

@@ -2,7 +2,8 @@ import { Subheading } from '@/components/heading'
 import { getBuildPullRequests, type TaskPullRequest } from '@/service/api/build-api'
 import type { JobListItem } from '@/service/api/job-api'
 import { useEffect, useState } from 'react'
-import { BuildPullRequestPanel, type ChangeActions } from './build-pull-request-panel'
+import { BuildPullRequestPanel, type ChangeActions, type ChangeView } from './build-pull-request-panel'
+import { useChangePreviews } from './change-preview'
 
 /** "Part 2", "Parts 2–3", "Parts 2 to the end", or "The whole plan": what a pull request builds. */
 export function partsLabel(pullRequest: Pick<TaskPullRequest, 'firstPart' | 'lastPart'>): string {
@@ -30,13 +31,17 @@ export function BuildPullRequests({
   const [error, setError] = useState<string | null>(null)
   // A change made live is merged now; read it again so it stops offering to.
   const [madeLive, setMadeLive] = useState(0)
-  const changeActions = change && {
-    ...change,
-    onMadeLive: () => {
-      setMadeLive((count) => count + 1)
-      change.onMadeLive()
-    },
-  }
+  const { previews, changed } = useChangePreviews(ticketId, Boolean(change))
+  const changeFor = (pullRequestUrl: string): ChangeView | undefined =>
+    change && {
+      ...change,
+      onMadeLive: () => {
+        setMadeLive((count) => count + 1)
+        change.onMadeLive()
+      },
+      preview: previews.find((preview) => preview.pullRequestUrl === pullRequestUrl) ?? null,
+      onPreviewChanged: changed,
+    }
   const builds = runs.filter((run) => run.jobKind === 'execution')
   const latestBuild = builds[0]
   // Reload when a new build appears or the latest one finishes.
@@ -53,11 +58,11 @@ export function BuildPullRequests({
 
   if (!pullRequests || pullRequests.length === 0) {
     const reading = error ? { pullRequestUrl: latestUrl, details: null, comments: [], unavailableReason: error } : null
-    return <BuildPullRequestPanel pullRequestUrl={latestUrl} pullRequest={reading} builds={builds} change={changeActions} />
+    return <BuildPullRequestPanel pullRequestUrl={latestUrl} pullRequest={reading} builds={builds} change={changeFor(latestUrl)} />
   }
   if (pullRequests.length === 1) {
     const [only] = pullRequests
-    return <BuildPullRequestPanel pullRequestUrl={only.pullRequestUrl} pullRequest={only} builds={builds} change={changeActions} />
+    return <BuildPullRequestPanel pullRequestUrl={only.pullRequestUrl} pullRequest={only} builds={builds} change={changeFor(only.pullRequestUrl)} />
   }
   return (
     <div className="divide-y divide-[var(--gray-5)]">
@@ -68,7 +73,7 @@ export function BuildPullRequests({
             pullRequestUrl={pullRequest.pullRequestUrl}
             pullRequest={pullRequest}
             builds={index === pullRequests.length - 1 ? builds : undefined}
-            change={changeActions}
+            change={changeFor(pullRequest.pullRequestUrl)}
           />
         </section>
       ))}

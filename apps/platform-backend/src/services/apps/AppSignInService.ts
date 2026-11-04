@@ -1,12 +1,10 @@
 import type { AppHandoff, WorkspaceRole } from "@viberglass/types";
 import { createSingleUseToken, hashToken } from "../../api/auth/utils";
-import type { AppDAO } from "../../persistence/apps/AppDAO";
 import type { AppSignInDAO } from "../../persistence/apps/AppSignInDAO";
-import type { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
-import type { AppAccess } from "./AppAccess";
 import type { AppOrigins } from "./AppOrigins";
 import { appReturnPath } from "./appReturnPath";
 import { AppSpaceError } from "./AppSpaceError";
+import type { AppTargets } from "./AppTargets";
 
 const CODE_TTL_MS = 60_000;
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -23,14 +21,12 @@ export interface AppSignInViewer {
 }
 
 /**
- * Signing a person in to one app across origins: the frontend asks for a
- * single-use code on their behalf, and the app's host trades it for its own session.
+ * Signing a person in to one app or preview across origins: the frontend asks
+ * for a single-use code on their behalf, and the address trades it for its own session.
  */
 export class AppSignInService {
   constructor(
-    private readonly spaces: Pick<AppSpaceDAO, "findBySlug">,
-    private readonly apps: Pick<AppDAO, "get">,
-    private readonly access: Pick<AppAccess, "canOpen" | "maintainerNames">,
+    private readonly targets: Pick<AppTargets, "find" | "canOpen" | "closed">,
     private readonly signIns: Pick<AppSignInDAO, "createCode" | "redeemCode" | "createSession" | "userSessionExpiry" | "deleteExpired">,
     private readonly origins: Pick<AppOrigins, "originFor">,
   ) {}
@@ -39,18 +35,17 @@ export class AppSignInService {
    * `state` comes from the gateway's cookie on the app's host. Without one, the
    * browser goes to the app first, and the gateway starts a sign-in it can finish.
    */
-  async handoff(viewer: AppSignInViewer, slug: string, returnPath: unknown, state: unknown): Promise<AppHandoff> {
-    const space = await this.spaces.findBySlug(slug);
-    if (!space || !(await this.access.canOpen(viewer, space))) {
+  async handoff(viewer: AppSignInViewer, label: string, returnPath: unknown, state: unknown): Promise<AppHandoff> {
+    const target = await this.targets.find(label);
+    if (!target || !(await this.targets.canOpen(viewer, target))) {
       throw new AppSpaceError("APP_NOT_FOUND", "This app doesn't exist, or you don't have access to it.");
     }
-    const origin = this.origins.originFor(space.slug);
+    const origin = this.origins.originFor(target.label);
     if (!origin) throw new AppSpaceError("APP_SPACES_UNAVAILABLE", "Apps aren't served on this workspace.");
 
-    const app = await this.apps.get(space.projectId);
-    if (app?.state !== "running") {
-      return { status: "off", appName: space.name, maintainers: await this.access.maintainerNames(space.projectId) };
-    }
+    const closed = await this.targets.closed(target);
+    if (closed?.kind === "off") return { status: "off", appName: closed.appName, maintainers: closed.maintainers };
+    if (closed) return { status: "preview_off", taskKey: closed.taskKey, taskPath: closed.taskPath };
 
     if (typeof state !== "string" || !STATE.test(state)) {
       return { status: "ready", url: `${origin}${appReturnPath(returnPath)}` };
@@ -61,7 +56,8 @@ export class AppSignInService {
     await this.signIns.createCode({
       codeHash: tokenHash,
       stateHash: hashToken(state),
-      projectId: space.projectId,
+      projectId: target.projectId,
+      previewId: target.previewId,
       sessionId: viewer.sessionId,
       returnPath: appReturnPath(returnPath),
       expiresAt,
@@ -69,18 +65,24 @@ export class AppSignInService {
     return { status: "ready", url: `${origin}${APP_CALLBACK_PATH}?code=${encodeURIComponent(token)}` };
   }
 
-  /** Trades a code for a gateway session on the app and browser it was issued for; null when the code can't be used. */
-  async redeem(slug: string, code: string, state: string): Promise<{ token: string; returnPath: string; expiresAt: Date } | null> {
-    const space = await this.spaces.findBySlug(slug);
-    if (!space) return null;
-    const redeemed = await this.signIns.redeemCode(hashToken(code), hashToken(state), space.projectId);
+  /** Trades a code for a gateway session on the address and browser it was issued for; null when the code can't be used. */
+  async redeem(label: string, code: string, state: string): Promise<{ token: string; returnPath: string; expiresAt: Date } | null> {
+    const target = await this.targets.find(label);
+    if (!target) return null;
+    const redeemed = await this.signIns.redeemCode(hashToken(code), hashToken(state), target.projectId, target.previewId);
     if (!redeemed) return null;
     const sessionExpiry = await this.signIns.userSessionExpiry(redeemed.sessionId);
     if (!sessionExpiry) return null;
 
     const session = createSingleUseToken(SESSION_TTL_MS);
     const expiresAt = new Date(Math.min(session.expiresAt.getTime(), sessionExpiry.getTime()));
-    await this.signIns.createSession({ tokenHash: session.tokenHash, projectId: space.projectId, sessionId: redeemed.sessionId, expiresAt });
+    await this.signIns.createSession({
+      tokenHash: session.tokenHash,
+      projectId: target.projectId,
+      previewId: target.previewId,
+      sessionId: redeemed.sessionId,
+      expiresAt,
+    });
     return { token: session.token, returnPath: appReturnPath(redeemed.returnPath), expiresAt };
   }
 }

@@ -3,7 +3,7 @@ import { AppInstanceRunner } from "../../../../services/apps/AppInstanceRunner";
 import { appRelease, fakeAppHost } from "../../../helpers/fakeAppHost";
 
 const RELEASE = appRelease("r1");
-const SPEC = { projectId: "space-1", image: "runtime", env: { PORT: "3000" } };
+const SPEC = { instance: "app-space-1", projectId: "space-1", image: "runtime", env: { PORT: "3000" } };
 
 function build(answers: Array<number | null>, timeoutMs = 10_000) {
   const host = fakeAppHost();
@@ -22,9 +22,9 @@ describe("AppInstanceRunner", () => {
     const { runner, host, specs, probe } = build([null, 503, 200]);
 
     await expect(runner.run(host, RELEASE)).resolves.toBeNull();
-    expect(specs.specFor).toHaveBeenCalledWith("docker", RELEASE);
+    expect(specs.specFor).toHaveBeenCalledWith("docker", RELEASE, undefined);
     expect(host.create).toHaveBeenCalledWith(SPEC);
-    expect(host.start).toHaveBeenCalledWith("space-1");
+    expect(host.start).toHaveBeenCalledWith("app-space-1");
     expect(probe.status).toHaveBeenCalledWith("http://app-space-1:3000/healthz");
     expect(probe.status).toHaveBeenCalledTimes(3);
   });

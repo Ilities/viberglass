@@ -9,6 +9,7 @@ import { AppReleaseReportDAO } from "../../persistence/apps/AppReleaseReportDAO"
 import { up as releasesUp } from "../../migrations/135_app_releases";
 import { up, down } from "../../migrations/136_apps";
 import { up as releaseTasksUp } from "../../migrations/140_app_release_tasks";
+import { addPreviewBuilds } from "../../migrations/141_app_previews";
 
 let mockDb: Kysely<Database>;
 jest.mock("../../persistence/config/database", () => ({
@@ -45,6 +46,7 @@ beforeAll(async () => {
   await releasesUp(mockDb);
   await up(mockDb);
   await releaseTasksUp(mockDb);
+  await addPreviewBuilds(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -108,7 +110,7 @@ describe("apps", () => {
   });
 
   it("starts a release for a task, and leaves a task already linked alone", async () => {
-    const release = await releases.createBuilding(SPACE, "7".repeat(40), TASK);
+    const release = await releases.createBuilding(SPACE, "7".repeat(40), { ticketId: TASK });
     expect(release).toMatchObject({ ticketId: TASK });
 
     await releases.linkTicket(SPACE, "7".repeat(40), "33333333-3333-4333-8333-333333333333");

@@ -134,6 +134,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
       ),
       new PeriodicSweeper(
+        "app previews",
+        (now) => appHosting().previewSweep.sweep(now),
+        parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
+      ),
+      new PeriodicSweeper(
         "app release reports",
         () => releaseReports.sweep(),
         parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),

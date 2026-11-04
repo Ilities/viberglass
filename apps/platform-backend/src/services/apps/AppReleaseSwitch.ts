@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { AppHost, AppRelease } from "@viberglass/types";
+import { liveAppInstance, type AppHost, type AppRelease } from "@viberglass/types";
 import type { AppChange, AppDAO, AppRecord } from "../../persistence/apps/AppDAO";
 import type { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
@@ -26,7 +26,7 @@ export class AppReleaseSwitch {
   async switchTo(host: AppHost, app: AppRecord, release: AppRelease): Promise<AppChange> {
     const projectId = app.projectId;
     await this.apps.update(projectId, { state: "stopping" });
-    await host.stop(projectId, APP_STOP_GRACE_SECONDS);
+    await host.stop(liveAppInstance(projectId), APP_STOP_GRACE_SECONDS);
     const backupId = await this.backup(projectId, release.id);
 
     await this.apps.update(projectId, { state: "starting" });
@@ -36,11 +36,11 @@ export class AppReleaseSwitch {
       return { state: "running", statusMessage: null, currentReleaseId: release.id };
     }
 
-    await host.stop(projectId, APP_STOP_GRACE_SECONDS);
+    await host.stop(liveAppInstance(projectId), APP_STOP_GRACE_SECONDS);
     await this.releases.markLiveFailure(release.id, failure);
     // Whatever the failed release changed, such as its migrations, is undone.
     await this.data.restore(projectId, backupId);
-    await host.clearData(projectId);
+    await host.clearData(liveAppInstance(projectId));
     const previous = app.currentReleaseId ? await this.releases.getById(app.currentReleaseId) : null;
     const notLive = `Release ${release.commitSha.slice(0, 7)} didn't go live: ${failure}`;
     if (!previous) return { state: "failed", statusMessage: notLive };

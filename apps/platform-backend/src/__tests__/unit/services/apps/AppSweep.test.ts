@@ -31,11 +31,11 @@ describe("AppSweep", () => {
     for (const id of ["has-app", "first-release", "nothing-built"]) expect(deps.reconciler.reconcile).toHaveBeenCalledWith(id, NOW);
   });
 
-  it("reconnects the platform to the apps first, and carries on when it can't", async () => {
+  it("reconnects the platform to this installation's apps first, and carries on when it can't", async () => {
     const { sweep, deps } = build();
     deps.host.rejoinPlatform.mockRejectedValueOnce(new Error("docker is down"));
 
     await expect(sweep.sweep(NOW)).resolves.toBe(2);
-    expect(deps.host.rejoinPlatform).toHaveBeenCalledTimes(1);
+    expect(deps.host.rejoinPlatform).toHaveBeenCalledWith(["has-app", "first-release", "nothing-built"]);
   });
 });

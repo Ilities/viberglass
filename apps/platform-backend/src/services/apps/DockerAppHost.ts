@@ -21,18 +21,18 @@ export interface DockerAppHostOptions {
   subnets: AppSubnetPool;
 }
 
-const names = (projectId: string) => ({
-  container: `viberglass-app-${projectId}`,
-  network: `viberglass-app-${projectId}`,
-  volume: `viberglass-app-${projectId}-data`,
+const names = (instance: string) => ({
+  container: `viberglass-${instance}`,
+  network: `viberglass-${instance}`,
+  volume: `viberglass-${instance}-data`,
   // Where the release is unpacked; kept across restarts, since the bundle's URL expires.
-  releaseVolume: `viberglass-app-${projectId}-release`,
+  releaseVolume: `viberglass-${instance}-release`,
 });
 
 /**
- * Runs each app in its own container on its own bridge network, which only the
- * platform and object storage join: the app reaches the internet but not the
- * database, the workers or other apps.
+ * Runs each app and each preview in its own container on its own bridge
+ * network, which only the platform and object storage join: the app reaches the
+ * internet but not the database, the workers or other apps.
  */
 export class DockerAppHost implements AppHost {
   readonly target = "docker" as const;
@@ -44,7 +44,7 @@ export class DockerAppHost implements AppHost {
   ) {}
 
   async create(spec: AppInstanceSpec): Promise<void> {
-    const name = names(spec.projectId);
+    const name = names(spec.instance);
     await this.ensureImage(spec.image);
     await this.ensureNetwork(name.network, spec.projectId);
     await this.ensureVolume(name.volume, spec.projectId);
@@ -53,22 +53,22 @@ export class DockerAppHost implements AppHost {
     await this.docker.createContainer(appContainer(spec, name, { port: APP_PORT, label: LABEL, memoryMb: this.options.memoryMb, cpus: this.options.cpus }));
   }
 
-  async start(projectId: string): Promise<void> {
-    await this.docker.getContainer(names(projectId).container).start();
+  async start(instance: string): Promise<void> {
+    await this.docker.getContainer(names(instance).container).start();
   }
 
-  async stop(projectId: string, graceSeconds: number): Promise<void> {
+  async stop(instance: string, graceSeconds: number): Promise<void> {
     try {
-      await this.docker.getContainer(names(projectId).container).stop({ t: graceSeconds });
+      await this.docker.getContainer(names(instance).container).stop({ t: graceSeconds });
     } catch (error) {
       // 304: already stopped; 404: never created.
       if (dockerStatusCode(error) !== 304 && dockerStatusCode(error) !== 404) throw error;
     }
   }
 
-  async status(projectId: string): Promise<AppInstanceStatus> {
+  async status(instance: string): Promise<AppInstanceStatus> {
     try {
-      const { State: state } = await this.docker.getContainer(names(projectId).container).inspect();
+      const { State: state } = await this.docker.getContainer(names(instance).container).inspect();
       if (state.Restarting) return { state: "restarting", detail: `The app stopped with exit code ${state.ExitCode}` };
       if (state.Running) return { state: "running" };
       return { state: "stopped", ...(state.ExitCode ? { detail: `The app stopped with exit code ${state.ExitCode}` } : {}) };
@@ -78,13 +78,13 @@ export class DockerAppHost implements AppHost {
     }
   }
 
-  address(projectId: string): string {
-    return `http://${names(projectId).container}:${APP_PORT}`;
+  address(instance: string): string {
+    return `http://${names(instance).container}:${APP_PORT}`;
   }
 
-  async logs(projectId: string, tailLines: number): Promise<string> {
+  async logs(instance: string, tailLines: number): Promise<string> {
     try {
-      const output = await this.docker.getContainer(names(projectId).container).logs({
+      const output = await this.docker.getContainer(names(instance).container).logs({
         stdout: true,
         stderr: true,
         tail: tailLines,
@@ -97,14 +97,14 @@ export class DockerAppHost implements AppHost {
     }
   }
 
-  async clearData(projectId: string): Promise<void> {
-    const name = names(projectId);
+  async clearData(instance: string): Promise<void> {
+    const name = names(instance);
     await this.removeContainer(name.container);
     await this.removeVolume(name.volume);
   }
 
-  async delete(projectId: string): Promise<void> {
-    const name = names(projectId);
+  async delete(instance: string): Promise<void> {
+    const name = names(instance);
     await this.removeContainer(name.container);
     await this.removeVolume(name.volume);
     await this.removeVolume(name.releaseVolume);
@@ -112,9 +112,18 @@ export class DockerAppHost implements AppHost {
   }
 
   /** A recreated platform or storage container has left every app network; this puts it back. */
-  async rejoinPlatform(): Promise<void> {
+  async rejoinPlatform(projectIds: string[]): Promise<void> {
+    const ours = new Set(projectIds);
     const networks = await this.docker.listNetworks({ filters: { label: [LABEL] } });
-    for (const network of networks) await this.joinPlatform(network.Name);
+    for (const network of networks) {
+      if (!ours.has(network.Labels?.[LABEL] ?? "")) continue;
+      try {
+        await this.joinPlatform(network.Name);
+      } catch (error) {
+        // A preview removed since the list was read.
+        if (dockerStatusCode(error) !== 404) throw error;
+      }
+    }
   }
 
   private async ensureImage(image: string): Promise<void> {

@@ -19,10 +19,10 @@ export class AppSweep {
 
   /** Returns how many apps it acted on. Apps are independent, so one slow switch doesn't hold up the rest. */
   async sweep(now: Date): Promise<number> {
-    await this.host()?.rejoinPlatform().catch((error: unknown) => {
+    const ids = await this.spaces.listLiveIds();
+    await this.host()?.rejoinPlatform(ids).catch((error: unknown) => {
       logger.warn("Could not reconnect the platform to the apps' networks", { error: error instanceof Error ? error.message : String(error) });
     });
-    const ids = await this.spaces.listLiveIds();
     const acted = await Promise.all(ids.map(async (projectId) => {
       // An app comes into being with its first release.
       if (!(await this.apps.get(projectId)) && (await this.releases.newestLiveCandidate(projectId))) await this.apps.ensure(projectId);

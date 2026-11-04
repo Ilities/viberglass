@@ -5,7 +5,7 @@ import type { ProjectIntegrationLinkDAO } from "../../persistence/integrations/P
 import type { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import type { ConnectionRepositoryCreator } from "../repositories/ConnectionRepositoryCreator";
 import { RepositoryCreationError, type RepositoryCreationErrorCode } from "../repositories/RepositoryCreationError";
-import { APP_NAME_RULE, isAppHostLabel } from "./AppOrigins";
+import { APP_NAME_RULE, isAppSpaceSlug } from "./AppOrigins";
 import { AppSpaceError } from "./AppSpaceError";
 
 /** Whoever creates an App space can't choose the connection or token, so these are for an admin to fix. */
@@ -48,7 +48,7 @@ export class AppSpaceCreator {
     const trimmed = name.trim();
     const slug = slugify(trimmed);
     if (!slug) throw new AppSpaceError("SPACE_NAME_INVALID", "Give the space a name with at least one letter or number.");
-    if (!isAppHostLabel(slug)) {
+    if (!isAppSpaceSlug(slug)) {
       throw new AppSpaceError("SPACE_NAME_INVALID", APP_NAME_RULE);
     }
     const existing = await this.deps.projects.findByName(slug);

@@ -7,7 +7,11 @@ import { openApp } from '@/service/api/app-api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
-type Opening = { kind: 'opening' } | { kind: 'off'; appName: string; maintainers: string[] } | { kind: 'failed'; message: string }
+type Opening =
+  | { kind: 'opening' }
+  | { kind: 'off'; appName: string; maintainers: string[] }
+  | { kind: 'preview_off'; taskKey: string; taskPath: string }
+  | { kind: 'failed'; message: string }
 
 function whoCanTurnOn(maintainers: string[]): string {
   if (maintainers.length === 0) return 'Ask a workspace admin to turn it on.'
@@ -29,6 +33,7 @@ export function OpenAppPage() {
     try {
       const handoff = await openApp(slug, returnPath, state)
       if (handoff.status === 'ready') window.location.replace(handoff.url)
+      else if (handoff.status === 'preview_off') setOpening({ kind: 'preview_off', taskKey: handoff.taskKey, taskPath: handoff.taskPath })
       else setOpening({ kind: 'off', appName: handoff.appName, maintainers: handoff.maintainers })
     } catch (error) {
       setOpening({ kind: 'failed', message: error instanceof Error ? error.message : "Couldn't open the app" })
@@ -47,7 +52,23 @@ export function OpenAppPage() {
       <div className="grid w-full max-w-sm grid-cols-1 gap-6">
         <Logo className="h-6 text-zinc-950 dark:text-white forced-colors:text-[CanvasText]" />
         {opening.kind === 'opening' && <Text>Opening the app…</Text>}
-        {opening.kind !== 'opening' && (
+        {opening.kind === 'preview_off' && (
+          <>
+            <Heading>This preview is off</Heading>
+            <Text>
+              Previews turn off at night and when nobody opens them for a while. Turn it on again with Try it on {opening.taskKey}.
+            </Text>
+            <div className="flex gap-3">
+              <Button color="brand" href={opening.taskPath}>
+                Go to {opening.taskKey}
+              </Button>
+              <Button outline onClick={() => void open()}>
+                Try again
+              </Button>
+            </div>
+          </>
+        )}
+        {(opening.kind === 'off' || opening.kind === 'failed') && (
           <>
             <Heading>{opening.kind === 'off' ? `${opening.appName} is off` : "Couldn't open this app"}</Heading>
             <Text>{opening.kind === 'off' ? whoCanTurnOn(opening.maintainers) : opening.message}</Text>

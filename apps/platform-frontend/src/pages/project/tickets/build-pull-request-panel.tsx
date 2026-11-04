@@ -10,6 +10,8 @@ import type { ReactNode } from 'react'
 import { formatRunDuration } from '../jobs/run-facts'
 import { addressPath } from '@/lib/repositoryAddress'
 import { MakeLiveButton } from './make-live-button'
+import { previewStatus, TryItButton } from './change-preview'
+import type { AppPreview } from '@/service/api/build-api'
 
 type BadgeColor = 'green' | 'red' | 'blue' | 'zinc'
 
@@ -21,11 +23,30 @@ function pullRequestState(pullRequest: BuildPullRequest, isChange: boolean): { l
   return details.isDraft ? { label: 'Draft', color: 'zinc' } : { label: isChange ? 'Ready' : 'Open', color: 'blue' }
 }
 
-/** In an App space the pull request is the task's change, which can be made live from here. */
+/** In an App space the pull request is the task's change, which can be tried and made live from here. */
 export interface ChangeActions {
   ticketId: string
   canMakeLive: boolean
+  /** Try it is for everyone who may post on the task. */
+  canTry: boolean
   onMadeLive: () => void
+}
+
+/** A change with its preview, as the panel shows it. */
+export interface ChangeView extends ChangeActions {
+  preview: AppPreview | null
+  onPreviewChanged: (preview: AppPreview) => void
+}
+
+function changeMessage(tried: boolean, change: ChangeView): string {
+  if (!tried) {
+    return change.canMakeLive
+      ? "Try the change first: it runs in a preview with a copy of the app's data, and nothing done there reaches the app. Then you can make it live."
+      : "Try the change in a preview, with a copy of the app's data. Nothing done there reaches the app."
+  }
+  return change.canMakeLive
+    ? 'When the change looks right, make it live for everyone who uses the app.'
+    : "The task's owner or one of the space's maintainers can make it live."
 }
 
 function Missing({ children }: { children: ReactNode }) {
@@ -46,20 +67,36 @@ export function BuildPullRequestPanel({
   pullRequestUrl: string
   pullRequest: BuildPullRequest | null
   builds?: JobListItem[]
-  change?: ChangeActions
+  change?: ChangeView
 }) {
   const latestBuild = builds?.[0]
   const details = pullRequest?.details ?? null
   const state = pullRequest ? pullRequestState(pullRequest, Boolean(change)) : null
   const comments = pullRequest?.comments ?? []
   const headSha = details?.state === 'open' && !details.isDraft ? details.headSha : null
+  const tried = Boolean(headSha && change?.preview?.triedCommitSha === headSha)
+  const canMakeLiveNow = Boolean(change?.canMakeLive && tried)
 
   return (
     <div className="@container space-y-8 py-4">
-      {change?.canMakeLive && headSha && (
-        <div className="flex items-center justify-between gap-4 rounded-md bg-[var(--gray-2)] px-4 py-3">
-          <p className="text-sm text-[var(--gray-11)]">When the change looks right, make it live for everyone who uses the app.</p>
-          <MakeLiveButton ticketId={change.ticketId} pullRequestUrl={pullRequestUrl} headSha={headSha} onMadeLive={change.onMadeLive} />
+      {change && headSha && (change.canTry || change.canMakeLive) && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-md bg-[var(--gray-2)] px-4 py-3">
+          <p className="min-w-0 flex-1 text-sm text-[var(--gray-11)]">{changeMessage(tried, change)}</p>
+          <div className="flex shrink-0 gap-3">
+            {change.canTry && (
+              <TryItButton
+                ticketId={change.ticketId}
+                pullRequestUrl={pullRequestUrl}
+                headSha={headSha}
+                preview={change.preview}
+                primary={!canMakeLiveNow}
+                onChanged={change.onPreviewChanged}
+              />
+            )}
+            {canMakeLiveNow && (
+              <MakeLiveButton ticketId={change.ticketId} pullRequestUrl={pullRequestUrl} headSha={headSha} onMadeLive={change.onMadeLive} />
+            )}
+          </div>
         </div>
       )}
       <div className="grid gap-8 @min-[40rem]:grid-cols-2">
@@ -70,7 +107,18 @@ export function BuildPullRequestPanel({
               <ExternalLinkIcon className="mt-0.5 size-3.5 shrink-0" />
             </a>
           </Fact>
-          {details?.previewUrl && (
+          {change && (
+            <Fact label="Preview">
+              {previewStatus(change.preview, headSha)}
+              {change.preview?.state === 'failed' && change.preview.statusMessage && (
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-[var(--gray-11)]">{change.preview.statusMessage}</pre>
+              )}
+              {change.preview?.power === 'off' && change.preview.statusMessage && (
+                <span className="block text-[var(--gray-10)]">{change.preview.statusMessage}</span>
+              )}
+            </Fact>
+          )}
+          {!change && details?.previewUrl && (
             <Fact label="Preview">
               <a href={details.previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
                 Open the preview

@@ -193,8 +193,30 @@ export interface AppReleasesTable {
   live_failure: string | null;
   ticket_id: string | null;
   reported_at: Timestamp | null;
+  /** Built for a change's preview, not from the default branch. */
+  preview: Generated<boolean>;
   created_at: Generated<Timestamp>;
   finished_at: Timestamp | null;
+}
+
+export interface AppPreviewsTable {
+  id: Generated<string>;
+  address: string;
+  project_id: string;
+  ticket_id: string;
+  pull_request_url: string;
+  commit_sha: string;
+  release_id: string | null;
+  running_release_id: string | null;
+  power: Generated<"on" | "off">;
+  state: Generated<"off" | "building" | "starting" | "running" | "stopping" | "failed">;
+  status_message: string | null;
+  busy_since: Timestamp | null;
+  started_at: Timestamp | null;
+  last_opened_at: Timestamp | null;
+  tried_commit_sha: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
 }
 
 export interface AppsTable {
@@ -213,6 +235,7 @@ export interface AppHandoffCodesTable {
   session_id: string;
   return_path: string;
   state_hash: string;
+  preview_id: string | null;
   expires_at: Timestamp;
   used_at: Timestamp | null;
 }
@@ -229,6 +252,7 @@ export interface AppSessionsTable {
   token_hash: string;
   project_id: string;
   session_id: string;
+  preview_id: string | null;
   created_at: Generated<Timestamp>;
   expires_at: Timestamp;
 }
@@ -984,6 +1008,7 @@ export interface SpaceFileChangesTable {
 export interface Database {
   workspace_settings: WorkspaceSettingsTable;
   app_releases: AppReleasesTable;
+  app_previews: AppPreviewsTable;
   apps: AppsTable;
   app_data_backups: AppDataBackupsTable;
   app_handoff_codes: AppHandoffCodesTable;

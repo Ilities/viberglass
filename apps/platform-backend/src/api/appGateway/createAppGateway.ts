@@ -11,7 +11,7 @@ import { prepareAppRequest } from "./appRequestHeaders";
 import { guardAppResponse } from "./appResponseHeaders";
 import { gatewayClearCookie, gatewayCookieNames, gatewaySetCookie, readGatewayCookies } from "./gatewayCookie";
 import { refusedAsCrossOrigin } from "./sameOriginOnly";
-import { appForbiddenPage, appNotFoundPage, appOffPage, appUnreachablePage, signInFailedPage } from "./gatewayPages";
+import { appForbiddenPage, appNotFoundPage, appOffPage, appUnreachablePage, previewOffPage, signInFailedPage } from "./gatewayPages";
 
 const logger = createChildLogger({ server: "app-gateway" });
 
@@ -30,6 +30,8 @@ export interface AppGatewayDeps {
   frontendUrl: string;
   /** How often open websockets are checked for access again; defaults to the resolver's cache time. */
   socketCheckMs?: number;
+  /** Told about every request a preview serves, so idle previews can be turned off. */
+  previewOpened?: (previewId: string) => void;
 }
 
 /**
@@ -141,7 +143,10 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
         return appForbiddenPage(res);
       case "off":
         return appOffPage(res, route.appName, route.maintainers);
+      case "preview_off":
+        return previewOffPage(res, route.taskKey, `${frontendUrl}${route.taskPath}`);
       case "proxy":
+        if (route.previewId) deps.previewOpened?.(route.previewId);
         prepareAppRequest(req, route.user, { cookieNames, secure });
         return proxy.web(req, res, { target: route.target });
     }

@@ -1,8 +1,8 @@
 import { API_BASE_URL } from '@/lib'
-import type { ApiResponse, TaskPlanPartMark, TaskPlanParts, TaskPullRequest } from '@viberglass/types'
+import type { ApiResponse, AppPreview, TaskPlanPartMark, TaskPlanParts, TaskPullRequest, TryChangeRequest } from '@viberglass/types'
 import { apiFetch } from './client'
 
-export type { BuildPullRequest, PullRequestReviewComment, TaskPullRequest } from '@viberglass/types'
+export type { AppPreview, BuildPullRequest, PullRequestReviewComment, TaskPullRequest } from '@viberglass/types'
 
 async function failure(response: Response, fallback: string): Promise<Error> {
   const body = await response.json().catch(() => ({}))
@@ -58,4 +58,24 @@ export async function makeChangeLive(ticketId: string, change: { pullRequestUrl:
     body: JSON.stringify(change),
   })
   if (!response.ok) throw await failure(response, "Couldn't make the change live")
+}
+
+/** An App space task's previews, one per change. */
+export async function getChangePreviews(ticketId: string): Promise<AppPreview[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/previews`)
+  if (!response.ok) throw await failure(response, "Couldn't read the previews")
+  const data: ApiResponse<AppPreview[]> = await response.json()
+  return data.data
+}
+
+/** Try it: builds the change as the person sees it and starts its preview. */
+export async function tryChange(ticketId: string, change: TryChangeRequest): Promise<AppPreview> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/previews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(change),
+  })
+  if (!response.ok) throw await failure(response, "Couldn't start the preview")
+  const data: ApiResponse<AppPreview> = await response.json()
+  return data.data
 }
