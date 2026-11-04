@@ -9,6 +9,14 @@ import { artifactsMarkdown, ticketUrl } from "./platformLinks";
 import { documentPost, nextWorkCard, replyPost, savedFilesPost } from "./taskMirrorPosts";
 
 type Postable = Parameters<Thread["post"]>[0];
+type TaskSummary = NonNullable<Awaited<ReturnType<TicketDAO["getSummary"]>>>;
+
+/** In an App space, people look at the change and make it live in Viberglass rather than on the code host. */
+function codePost(task: TaskSummary, pullRequestUrl: string): Postable {
+  if (task.backingKind !== "app") return { markdown: `**Pull request:** ${pullRequestUrl}` };
+  const link = ticketUrl(task.spaceSlug, task.key);
+  return { markdown: `**The change is ready.** ${link ? `[Look at it and make it live in Viberglass](${link})` : "Look at it and make it live in Viberglass."}` };
+}
 
 interface Dependencies {
   turns: Pick<TaskAgentTurnDAO, "getByJobId">;
@@ -44,7 +52,7 @@ export class TaskTurnChatPosts {
     const task = await this.deps.tickets.getSummary(ticketId);
     const posts: Postable[] = [replyPost(turn.agent.name, outcome.reply, task ? ticketUrl(task.spaceSlug, task.key) : null)];
     for (const product of outcome.produced) {
-      posts.push(...(await this.productPosts(ticketId, product, task?.pullRequestUrl ?? null)));
+      posts.push(...(await this.productPosts(ticketId, product, task)));
     }
     if (outcome.files) posts.push(savedFilesPost(outcome.files));
     const artifacts = task ? artifactsMarkdown(task.spaceSlug, outcome.artifacts ?? []) : null;
@@ -54,8 +62,8 @@ export class TaskTurnChatPosts {
     return posts;
   }
 
-  private async productPosts(ticketId: string, product: TaskTurnProduct, pullRequestUrl: string | null): Promise<Postable[]> {
-    if (product === "code") return pullRequestUrl ? [{ markdown: `**Pull request:** ${pullRequestUrl}` }] : [];
+  private async productPosts(ticketId: string, product: TaskTurnProduct, task: TaskSummary | null): Promise<Postable[]> {
+    if (product === "code") return task?.pullRequestUrl ? [codePost(task, task.pullRequestUrl)] : [];
     if (product === "summary") return [];
     const document = await this.deps.documents.getOrCreateDocument(ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
     return document.content.trim() ? [documentPost(document.content, null)] : [];

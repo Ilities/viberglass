@@ -14,6 +14,7 @@ const release = (overrides: Partial<AppRelease>): AppRelease => ({
   failureReason: null,
   wentLiveAt: null,
   liveFailure: null,
+  ticketId: null,
   createdAt: '2026-11-03T12:00:00Z',
   finishedAt: null,
   ...overrides,

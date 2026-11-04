@@ -16,6 +16,7 @@ query ($owner: String!, $repo: String!, $number: Int!) {
       state
       isDraft
       headRefName
+      headRefOid
       baseRefName
       additions
       deletions
@@ -78,6 +79,7 @@ function toDetails(pullRequest: Record<string, unknown>): BuildPullRequestDetail
     state: state === 'MERGED' ? 'merged' : state === 'CLOSED' ? 'closed' : state === 'OPEN' ? 'open' : null,
     isDraft: pullRequest.isDraft === true,
     headBranch: asString(pullRequest.headRefName),
+    headSha: asString(pullRequest.headRefOid),
     baseBranch: asString(pullRequest.baseRefName),
     additions: asCount(pullRequest.additions),
     deletions: asCount(pullRequest.deletions),

@@ -4,6 +4,7 @@ import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { TaskPartsService } from "../tasks/TaskPartsService";
 import type { PullRequestOutcome } from "@viberglass/types";
+import type { MergeAttribution } from "./pullRequestOutcomeTypes";
 
 interface Dependencies {
   tasks: Pick<TaskPullRequestDAO, "listOpenTaskIds">;
@@ -30,9 +31,13 @@ export class TaskMergeCompleter {
     };
   }
 
-  async onOutcome(pullRequestUrl: string, outcome: PullRequestOutcome): Promise<void> {
+  async onOutcome(pullRequestUrl: string, outcome: PullRequestOutcome, attribution?: MergeAttribution): Promise<void> {
     if (outcome.state !== "merged") return;
-    const mergedBy = outcome.mergedBy ? { mergedBy: outcome.mergedBy } : {};
+    const mergedBy = attribution
+      ? { mergedBy: attribution.madeLiveBy, madeLive: true }
+      : outcome.mergedBy
+        ? { mergedBy: outcome.mergedBy }
+        : {};
     for (const ticketId of await this.deps.tasks.listOpenTaskIds(pullRequestUrl)) {
       const ticket = await this.deps.tickets.getTicket(ticketId);
       if (!ticket) continue;

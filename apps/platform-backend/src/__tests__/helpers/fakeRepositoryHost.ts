@@ -10,6 +10,7 @@ export function fakeRepositoryHost() {
     openPullRequest: jest.fn(),
     ownsPullRequest: jest.fn().mockReturnValue(true),
     fetchPullRequestOutcome: jest.fn(),
+    mergePullRequest: jest.fn(),
     fetchPullRequestReview: jest.fn(),
     fetchBranchHead: jest.fn(),
   } satisfies RepositoryHost;

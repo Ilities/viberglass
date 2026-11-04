@@ -191,6 +191,8 @@ export interface AppReleasesTable {
   failure_reason: string | null;
   went_live_at: Timestamp | null;
   live_failure: string | null;
+  ticket_id: string | null;
+  reported_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   finished_at: Timestamp | null;
 }

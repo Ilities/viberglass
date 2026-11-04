@@ -273,6 +273,7 @@ export function TicketDetailPage() {
                   execution: Boolean(ticket.pullRequestUrl),
                 }}
                 codeProgress={codeProgress(data.planParts)}
+                openLabel={space?.backingKind === 'app' ? 'Change ready' : undefined}
                 onShowStep={showStep}
               />}
             </div>
@@ -292,6 +293,7 @@ export function TicketDetailPage() {
                 onNewComments={countNewComments}
                 onAsked={changed}
                 onCommentsChanged={commentsChanged}
+                isApp={space?.backingKind === 'app'}
               />}
             </div>
           </section>
@@ -314,7 +316,7 @@ export function TicketDetailPage() {
               taskId={ticket.id}
               refreshKey={threadRefreshKey}
               runs={data.runs}
-              filesSpace={filesSpace}
+              backing={space?.backingKind}
               space={space ? { id: space.id, slug: space.slug } : undefined}
               onOpenComments={() => {
                 setNarrowView('artifact')

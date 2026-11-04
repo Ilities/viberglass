@@ -1,4 +1,4 @@
-import { nextWork, type JobFailure, type PartRange, type TaskCapabilities, type TaskPlanParts, type TaskTurnAction, type Ticket } from '@viberglass/types'
+import { nextWork, type JobFailure, type SpaceBackingKind, type PartRange, type TaskCapabilities, type TaskPlanParts, type TaskTurnAction, type Ticket } from '@viberglass/types'
 
 /** A common next move, offered above the composer; pressing it posts the label and asks the agent. */
 export interface TaskSuggestion {
@@ -26,8 +26,8 @@ export interface TaskSuggestionInput {
   sinceSummary?: { finishedTurns: number; messages: number }
   /** The plan part by part; without it, a build is offered for the whole plan. */
   planParts?: TaskPlanParts | null
-  /** In a Files space a build makes an artifact, not a pull request. */
-  filesSpace?: boolean
+  /** The task's space: in a Files space a build makes an artifact, in an App space a change. */
+  backing?: SpaceBackingKind
   /** Whether the task has produced an artifact already, so the next one revises it. */
   hasArtifacts?: boolean
 }
@@ -76,7 +76,7 @@ export function suggestTaskActions({
   agentWorking,
   sinceSummary,
   planParts,
-  filesSpace = false,
+  backing = 'git',
   hasArtifacts = false,
 }: TaskSuggestionInput): TaskSuggestion[] {
   if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
@@ -91,9 +91,9 @@ export function suggestTaskActions({
     suggestions.push({ action: 'summarise', label: 'Summarise so far' })
   }
   if (capabilities.canAskForCode) {
-    const work = nextWork(filesSpace ? 'files' : 'git', { planParts: planParts ?? null, hasArtifacts })
+    const work = nextWork(backing, { planParts: planParts ?? null, hasArtifacts })
     // Files work rarely needs a plan, so making the artifact comes first there and the plan stays on offer.
-    if (filesSpace) suggestions.unshift(...work)
+    if (backing === 'files') suggestions.unshift(...work)
     else suggestions.push(...work)
   }
   return suggestions

@@ -106,6 +106,10 @@ export const TASK_ACTIVITY_KINDS = [
   'pull_request_merged',
   /** A pull request for some of the plan's parts merged, with more parts to build. */
   'part_merged',
+  /** The release built from the task's change is serving, by itself or within a later release. */
+  'release_live',
+  /** The release built from the task's change didn't build or didn't go live. */
+  'release_failed',
   /** Someone marked a part done or skipped, or took the mark back. */
   'part_marked',
   'part_unmarked',

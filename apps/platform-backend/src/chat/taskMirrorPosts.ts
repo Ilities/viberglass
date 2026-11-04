@@ -61,6 +61,17 @@ export function partMergedPost(parts: number[], mergedBy: string | null): { mark
   return { markdown: `**${merged} is merged**${mergedBy ? ` by ${mergedBy}` : ""}.` };
 }
 
+/** An App space's change made live; the app itself changes once the release is built and running. */
+export function madeLivePost(madeLiveBy: string | null): { markdown: string } {
+  return { markdown: `**Made live**${madeLiveBy ? ` by ${madeLiveBy}` : ""}. The app changes once its new release is built and running.` };
+}
+
+/** How the release of a change made live ended. */
+export function releasePost(outcome: { live: true; appUrl: string | null } | { live: false; reason: string | null }): { markdown: string } {
+  if (outcome.live) return { markdown: `**It's live.**${outcome.appUrl ? ` [Open the app](${outcome.appUrl})` : ""}` };
+  return { markdown: `**The change didn't go live**${outcome.reason ? `: ${outcome.reason}` : "."}` };
+}
+
 /** The agent's question, with its options as buttons; a reply in the thread from the person asked answers it too. */
 export function questionCard(question: AgentQuestion) {
   const who = question.askedOf ? `${question.agent.name} asks ${question.askedOf.name}` : `${question.agent.name} asks`;

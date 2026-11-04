@@ -24,6 +24,8 @@ export interface BuildPullRequestDetails {
   state: BuildPullRequestState | null
   isDraft: boolean
   headBranch: string | null
+  /** The commit the branch points at now. */
+  headSha: string | null
   baseBranch: string | null
   additions: number | null
   deletions: number | null

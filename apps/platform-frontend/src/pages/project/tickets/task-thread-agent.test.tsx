@@ -63,7 +63,7 @@ const CLAUDE_RUNNER: Clanker = {
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
   plan: { content: '# Plan' },
-  capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
+  capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false },
   newComments: 1,
   agentWorking: false,
 }

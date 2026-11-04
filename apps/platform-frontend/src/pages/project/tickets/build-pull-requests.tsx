@@ -2,7 +2,7 @@ import { Subheading } from '@/components/heading'
 import { getBuildPullRequests, type TaskPullRequest } from '@/service/api/build-api'
 import type { JobListItem } from '@/service/api/job-api'
 import { useEffect, useState } from 'react'
-import { BuildPullRequestPanel } from './build-pull-request-panel'
+import { BuildPullRequestPanel, type ChangeActions } from './build-pull-request-panel'
 
 /** "Part 2", "Parts 2–3", "Parts 2 to the end", or "The whole plan": what a pull request builds. */
 export function partsLabel(pullRequest: Pick<TaskPullRequest, 'firstPart' | 'lastPart'>): string {
@@ -15,9 +15,28 @@ export function partsLabel(pullRequest: Pick<TaskPullRequest, 'firstPart' | 'las
  * The task's pull requests, oldest first. The builds go into the latest, so
  * it's the one that shows them; a task with one pull request shows just it.
  */
-export function BuildPullRequests({ ticketId, latestUrl, runs }: { ticketId: string; latestUrl: string; runs: JobListItem[] }) {
+export function BuildPullRequests({
+  ticketId,
+  latestUrl,
+  runs,
+  change,
+}: {
+  ticketId: string
+  latestUrl: string
+  runs: JobListItem[]
+  change?: ChangeActions
+}) {
   const [pullRequests, setPullRequests] = useState<TaskPullRequest[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // A change made live is merged now; read it again so it stops offering to.
+  const [madeLive, setMadeLive] = useState(0)
+  const changeActions = change && {
+    ...change,
+    onMadeLive: () => {
+      setMadeLive((count) => count + 1)
+      change.onMadeLive()
+    },
+  }
   const builds = runs.filter((run) => run.jobKind === 'execution')
   const latestBuild = builds[0]
   // Reload when a new build appears or the latest one finishes.
@@ -30,15 +49,15 @@ export function BuildPullRequests({ ticketId, latestUrl, runs }: { ticketId: str
         setError(null)
       })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Failed to read the pull requests'))
-  }, [ticketId, latestUrl, buildKey])
+  }, [ticketId, latestUrl, buildKey, madeLive])
 
   if (!pullRequests || pullRequests.length === 0) {
     const reading = error ? { pullRequestUrl: latestUrl, details: null, comments: [], unavailableReason: error } : null
-    return <BuildPullRequestPanel pullRequestUrl={latestUrl} pullRequest={reading} builds={builds} />
+    return <BuildPullRequestPanel pullRequestUrl={latestUrl} pullRequest={reading} builds={builds} change={changeActions} />
   }
   if (pullRequests.length === 1) {
     const [only] = pullRequests
-    return <BuildPullRequestPanel pullRequestUrl={only.pullRequestUrl} pullRequest={only} builds={builds} />
+    return <BuildPullRequestPanel pullRequestUrl={only.pullRequestUrl} pullRequest={only} builds={builds} change={changeActions} />
   }
   return (
     <div className="divide-y divide-[var(--gray-5)]">
@@ -49,6 +68,7 @@ export function BuildPullRequests({ ticketId, latestUrl, runs }: { ticketId: str
             pullRequestUrl={pullRequest.pullRequestUrl}
             pullRequest={pullRequest}
             builds={index === pullRequests.length - 1 ? builds : undefined}
+            change={changeActions}
           />
         </section>
       ))}

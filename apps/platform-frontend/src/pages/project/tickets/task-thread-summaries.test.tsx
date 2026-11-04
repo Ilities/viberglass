@@ -62,7 +62,7 @@ function renderThread(entries: TaskTimelineEntry[], runnable = [{ id: CLAUDE, na
           suggestionInput={{
             ticket: { status: 'open' },
             plan: { content: '# P' },
-            capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
+            capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false },
             newComments: 0,
             agentWorking: false,
           }}

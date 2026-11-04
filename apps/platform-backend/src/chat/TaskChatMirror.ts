@@ -7,15 +7,18 @@ import { TaskMessageDAO } from "../persistence/ticketing/TaskMessageDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import type { RecordedActivity } from "../services/notifications/NotificationService";
 import type { ActivityListener } from "../services/tasks/activityListeners";
+import { AppOrigins } from "../services/apps/AppOrigins";
 import { TaskPartsService } from "../services/tasks/TaskPartsService";
 import { getThreadForTicket } from "./ticketThreadMap";
 import { TaskTurnChatPosts } from "./TaskTurnChatPosts";
 import {
   answeredPost,
+  madeLivePost,
   messagePost,
   nextWorkCard,
   partMergedPost,
   questionCard,
+  releasePost,
   runFailedPost,
   runStartedPost,
 } from "./taskMirrorPosts";
@@ -30,6 +33,8 @@ interface Dependencies {
   tickets: Pick<TicketDAO, "getSummary">;
   parts: Pick<TaskPartsService, "state">;
   turnPosts: Pick<TaskTurnChatPosts, "forRun">;
+  /** Where people open an App space's app. */
+  apps: Pick<AppOrigins, "originFor">;
   /** Whether the change came from chat, which shows it already. */
   fromChat: () => boolean;
 }
@@ -54,6 +59,7 @@ export class TaskChatMirror implements ActivityListener {
       tickets: new TicketDAO(),
       parts: new TaskPartsService(),
       turnPosts: new TaskTurnChatPosts(),
+      apps: new AppOrigins(),
       fromChat: () => currentChatActor() !== null,
       ...deps,
     };
@@ -92,8 +98,15 @@ export class TaskChatMirror implements ActivityListener {
         return post ? [post] : [];
       }
       case "pull_request_merged":
+        return [payload.madeLive === true ? madeLivePost(text(payload.mergedBy)) : { markdown: "**Done.**" }];
       case "task_done":
         return [{ markdown: "**Done.**" }];
+      case "release_live": {
+        const task = await this.deps.tickets.getSummary(ticketId);
+        return [releasePost({ live: true, appUrl: task ? this.deps.apps.originFor(task.spaceSlug) : null })];
+      }
+      case "release_failed":
+        return [releasePost({ live: false, reason: text(payload.reason) })];
       case "part_merged": {
         const merged = Array.isArray(payload.parts) ? payload.parts.filter((part): part is number => typeof part === "number") : [];
         const builds = buildWork(await this.deps.parts.state({ id: ticketId }));

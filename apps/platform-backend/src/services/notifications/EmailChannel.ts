@@ -4,11 +4,12 @@ import type { NotificationChannel, OutgoingNotification } from "./NotificationCh
 import type { EmailSender } from "./EmailSender";
 import { createEmailSender } from "./createEmailSender";
 
-// Email for setup failures, finished tasks and the agent's questions, which wait on one person.
+// Email for setup failures, finished tasks, changes that didn't go live and the agent's questions, which wait on one person.
 // Mentions and reviews would be a digest, which is off.
 const EMAIL_KINDS: ReadonlySet<NotificationKind> = new Set([
   "run_failed_setup",
   "task_done",
+  "release_failed",
   "question_asked",
   "question_reminder",
   "credential_expiring",

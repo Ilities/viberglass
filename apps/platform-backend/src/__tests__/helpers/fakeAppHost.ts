@@ -30,6 +30,7 @@ export function appRelease(id: string, overrides: Partial<AppRelease> = {}): App
     failureReason: null,
     wentLiveAt: null,
     liveFailure: null,
+    ticketId: null,
     createdAt: "2026-11-03T12:00:00.000Z",
     finishedAt: "2026-11-03T12:01:00.000Z",
     ...overrides,

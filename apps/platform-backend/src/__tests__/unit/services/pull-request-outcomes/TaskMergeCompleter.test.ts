@@ -29,6 +29,19 @@ describe("TaskMergeCompleter", () => {
     });
   });
 
+  it("credits a change made live to the person who did it, not the code host's account", async () => {
+    const { deps, completer } = setup({ parts: [], open: null, addable: null, next: null });
+
+    await completer.onOutcome(URL_1, MERGED, { madeLiveBy: "Maria" });
+
+    expect(deps.activity.record).toHaveBeenCalledWith("task-1", { type: "system" }, "pull_request_merged", {
+      pullRequestUrl: URL_1,
+      merged: true,
+      mergedBy: "Maria",
+      madeLive: true,
+    });
+  });
+
   it("closes the task when the merge finishes every part", async () => {
     const { deps, completer } = setup({
       parts: [

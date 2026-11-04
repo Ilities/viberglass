@@ -1,7 +1,7 @@
 import { Theme } from '@radix-ui/themes'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { savedFilesLine, type SpaceFilesSnapshotSummary, type TaskTimelineEntry, type TaskTurnOutcome } from '@viberglass/types'
+import { savedFilesLine, type SpaceBackingKind, type SpaceFilesSnapshotSummary, type TaskTimelineEntry, type TaskTurnOutcome } from '@viberglass/types'
 import type { JobListItem } from '@/service/api/job-api'
 import { AgentTurnEntry } from './agent-turn-entry'
 
@@ -34,14 +34,14 @@ function turn(overrides: Partial<Extract<TaskTimelineEntry, { kind: 'agent_turn'
   }
 }
 
-function renderEntry(entry: Extract<TaskTimelineEntry, { kind: 'agent_turn' }>, run?: Partial<JobListItem>, filesSpace = true) {
+function renderEntry(entry: Extract<TaskTimelineEntry, { kind: 'agent_turn' }>, run?: Partial<JobListItem>, backing: SpaceBackingKind = 'files') {
   render(
     <Theme>
       <MemoryRouter>
         <AgentTurnEntry
           entry={entry}
           run={run as JobListItem | undefined}
-          filesSpace={filesSpace}
+          backing={backing}
           space={{ id: 'space-1', slug: 'deck' }}
         />
       </MemoryRouter>
@@ -97,6 +97,11 @@ describe('AgentTurnEntry in a Files space', () => {
     expect(screen.getByText(/asked for an artifact/)).toBeInTheDocument()
   })
 
+  it("calls an App space's code turn a change", () => {
+    renderEntry(turn({ action: 'code' }), undefined, 'app')
+    expect(screen.getByText(/asked for a change/)).toBeInTheDocument()
+  })
+
   it('says a queued run is waiting for another run to save the files', () => {
     renderEntry(turn({ status: 'queued', outcome: null }), { status: 'queued' })
     expect(screen.getByText(/Waiting for another run to save this space’s files/)).toBeInTheDocument()
@@ -118,7 +123,7 @@ describe('AgentTurnEntry in a Files space', () => {
   })
 
   it('keeps a queued run in a Git space as working', () => {
-    renderEntry(turn({ status: 'queued', outcome: null }), { status: 'queued' }, false)
+    renderEntry(turn({ status: 'queued', outcome: null }), { status: 'queued' }, 'git')
     expect(screen.getByText(/Working on it/)).toBeInTheDocument()
   })
 })

@@ -11,6 +11,7 @@ const DM_KINDS: ReadonlySet<NotificationKind> = new Set([
   "task_assigned",
   "run_failed_setup",
   "run_failed_agent",
+  "release_failed",
   "question_asked",
   "question_reminder",
   "credential_expiring",

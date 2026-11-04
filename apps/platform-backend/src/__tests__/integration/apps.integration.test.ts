@@ -5,8 +5,10 @@ import type { Database } from "../../persistence/types/database";
 import { AppDAO } from "../../persistence/apps/AppDAO";
 import { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
+import { AppReleaseReportDAO } from "../../persistence/apps/AppReleaseReportDAO";
 import { up as releasesUp } from "../../migrations/135_app_releases";
 import { up, down } from "../../migrations/136_apps";
+import { up as releaseTasksUp } from "../../migrations/140_app_release_tasks";
 
 let mockDb: Kysely<Database>;
 jest.mock("../../persistence/config/database", () => ({
@@ -17,10 +19,12 @@ jest.mock("../../persistence/config/database", () => ({
 }));
 
 const SPACE = "11111111-1111-4111-8111-111111111111";
+const TASK = "22222222-2222-4222-8222-222222222222";
 const READY = { status: "ready" as const, bundleSha256: "c".repeat(64), bundleBytes: 2048, nodeVersion: "v24.11.0", buildLog: "ok" };
 let container: StartedPostgreSqlContainer;
 const apps = new AppDAO();
 const releases = new AppReleaseDAO();
+const reports = new AppReleaseReportDAO();
 
 async function readyRelease(commit: string, createdAt: string): Promise<string> {
   const release = await releases.createBuilding(SPACE, commit.repeat(40));
@@ -35,9 +39,12 @@ beforeAll(async () => {
   await sql`CREATE TABLE projects (id uuid PRIMARY KEY, backing_kind text NOT NULL, archived_at timestamptz, created_at timestamptz NOT NULL DEFAULT now())`.execute(mockDb);
   await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, job_kind text NOT NULL)`.execute(mockDb);
   await sql`CREATE TABLE clankers (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), slug text, deleted_at timestamptz)`.execute(mockDb);
+  await sql`CREATE TABLE tickets (id uuid PRIMARY KEY)`.execute(mockDb);
   await sql`INSERT INTO projects (id, backing_kind) VALUES (${SPACE}, 'app')`.execute(mockDb);
+  await sql`INSERT INTO tickets (id) VALUES (${TASK})`.execute(mockDb);
   await releasesUp(mockDb);
   await up(mockDb);
+  await releaseTasksUp(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -83,6 +90,29 @@ describe("apps", () => {
     await releases.markLive(older);
     await expect(releases.getById(older)).resolves.toMatchObject({ liveFailure: null, wentLiveAt: expect.any(String) });
     await expect(releases.getById(newer)).resolves.toMatchObject({ liveFailure: "unhealthy", wentLiveAt: null });
+  });
+
+  it("tells a task about its release once, and finds a later release that took it live", async () => {
+    const own = await readyRelease("5", "2026-11-03T10:00:00Z");
+    await releases.linkTicket(SPACE, "5".repeat(40), TASK);
+    const later = await readyRelease("6", "2026-11-03T11:00:00Z");
+
+    await expect(reports.listUnreported()).resolves.toEqual([expect.objectContaining({ id: own, ticketId: TASK })]);
+    await expect(reports.laterLive({ projectId: SPACE, createdAt: "2026-11-03T10:00:00Z" })).resolves.toBeNull();
+    await releases.markLive(later);
+    await expect(reports.laterLive({ projectId: SPACE, createdAt: "2026-11-03T10:00:00Z" })).resolves.toMatchObject({ id: later });
+
+    await expect(reports.markReported(own)).resolves.toBe(true);
+    await expect(reports.markReported(own)).resolves.toBe(false);
+    await expect(reports.listUnreported()).resolves.toEqual([]);
+  });
+
+  it("starts a release for a task, and leaves a task already linked alone", async () => {
+    const release = await releases.createBuilding(SPACE, "7".repeat(40), TASK);
+    expect(release).toMatchObject({ ticketId: TASK });
+
+    await releases.linkTicket(SPACE, "7".repeat(40), "33333333-3333-4333-8333-333333333333");
+    await expect(releases.getById(release!.id)).resolves.toMatchObject({ ticketId: TASK });
   });
 
   it("keeps an app's backups and forgets its current release when the release goes", async () => {

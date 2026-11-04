@@ -31,13 +31,13 @@ export class ReleaseBuildService {
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
   ) {}
 
-  /** Null when the commit already has a release. */
-  async build(scmConfig: ProjectScmConfig, commitSha: string): Promise<AppRelease | null> {
+  /** Null when the commit already has a release. `ticketId` is the task whose change the commit makes live. */
+  async build(scmConfig: ProjectScmConfig, commitSha: string, ticketId: string | null = null): Promise<AppRelease | null> {
     const secretId = await resolveScmCredentialSecretId(this.credentials, scmConfig);
     if (!secretId) throw new Error("The space's repository connection has no token to clone with");
     const builder = await this.builder.ready();
 
-    const release = await this.releases.createBuilding(scmConfig.projectId, commitSha);
+    const release = await this.releases.createBuilding(scmConfig.projectId, commitSha, ticketId);
     if (!release) return null;
     try {
       await this.dispatch(release, scmConfig, { ...builder, secretBindings: [{ envVar: SCM_TOKEN_ENV_VAR, secretId }] });

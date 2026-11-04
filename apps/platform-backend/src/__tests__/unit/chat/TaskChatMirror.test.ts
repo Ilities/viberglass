@@ -58,7 +58,7 @@ const FILES_TURN = {
   resumed: null,
 };
 
-function setup(options: { fromChat?: boolean; thread?: boolean; parts?: TaskPlanParts; backingKind?: "git" | "files" } = {}) {
+function setup(options: { fromChat?: boolean; thread?: boolean; parts?: TaskPlanParts; backingKind?: "git" | "files" | "app" } = {}) {
   const thread = { post: jest.fn().mockResolvedValue(undefined) };
   const deps = {
     threads: { forTask: jest.fn().mockResolvedValue(options.thread === false ? undefined : thread) },
@@ -84,6 +84,7 @@ function setup(options: { fromChat?: boolean; thread?: boolean; parts?: TaskPlan
     },
     parts: { state: jest.fn().mockResolvedValue(options.parts ?? { parts: [], open: null, addable: null, next: null }) },
     artifacts: { listForTicket: jest.fn().mockResolvedValue([]) },
+    apps: { originFor: jest.fn((slug: string) => `https://${slug}.apps.example`) },
     fromChat: () => options.fromChat ?? false,
   };
   const turnPosts = new TaskTurnChatPosts(deps);
@@ -222,6 +223,28 @@ describe("TaskChatMirror", () => {
     expect(posts[3]).toContain("Mark done");
     expect(posts[3]).toContain('"value":"t-1"');
     expect(deps.artifacts.listForTicket).not.toHaveBeenCalled();
+  });
+
+  it("sends people to Viberglass to look at an App space's change, not to its pull request", async () => {
+    const { thread, deps, mirror } = setup({ backingKind: "app" });
+    deps.tickets.getSummary.mockResolvedValue({ title: "Laptops", key: "LAP-1", spaceSlug: "laptops", backingKind: "app", pullRequestUrl: "https://github.com/acme/laptops/pull/3" });
+    deps.turns.getByJobId.mockResolvedValue({ ...(await deps.turns.getByJobId("job-1")), action: "code", outcome: { intent: "", reply: "Added it.", produced: ["code"], codeDiscarded: false, resumed: null } });
+    await mirror.onActivity(activity("run_finished", { jobId: "job-1", step: "execution" }));
+    expect(posted(thread)[1]).toBe(
+      JSON.stringify({ markdown: "**The change is ready.** [Look at it and make it live in Viberglass](https://vg.example/spaces/laptops/tasks/LAP-1)" }),
+    );
+  });
+
+  it("says who made a change live, then how its release ended", async () => {
+    const { thread, mirror } = setup({ backingKind: "app" });
+    await mirror.onActivity(activity("pull_request_merged", { merged: true, mergedBy: "Maria", madeLive: true }));
+    await mirror.onActivity(activity("release_live", { releaseId: "r-1" }));
+    await mirror.onActivity(activity("release_failed", { releaseId: "r-2", reason: "npm run build exited with 1" }));
+    expect(thread.post.mock.calls.map(([post]) => post)).toEqual([
+      { markdown: "**Made live** by Maria. The app changes once its new release is built and running." },
+      { markdown: "**It's live.** [Open the app](https://web.apps.example)" },
+      { markdown: "**The change didn't go live**: npm run build exited with 1" },
+    ]);
   });
 
   it("offers to revise the task's artifact after a plan once there is one", async () => {

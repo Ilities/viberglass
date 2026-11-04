@@ -32,6 +32,8 @@ interface TaskStepViewProps {
   onAsked: () => void
   /** Someone added, resolved or reopened a comment here. */
   onCommentsChanged?: () => void
+  /** The task's space is an App space, where code is a change to make live. */
+  isApp?: boolean
 }
 
 /** Puts a suggestion's wording in place of the text it was on, and resolves it. */
@@ -56,18 +58,28 @@ function useApplySuggestion(
   }
 }
 
-function BuildStep({ data }: { data: TaskPageData }) {
+const NO_BUILD = {
+  running: 'No pull request yet. The build opens one when it finishes.',
+  canAsk: 'No build yet. Ask the agent to build it in the thread: it makes the change on a branch and opens a pull request.',
+  cannotAsk: 'No build yet. People who can ask for code on this task can have the agent build it; its pull request shows here.',
+}
+
+const NO_CHANGE = {
+  running: 'No change yet. It shows here when the agent finishes.',
+  canAsk: 'No change yet. Ask the agent for it in the thread: the change shows here, ready to make live.',
+  cannotAsk: 'No change yet. People who can ask for code on this task can have the agent make it; it shows here.',
+}
+
+function BuildStep({ data, isApp, onChanged }: { data: TaskPageData; isApp: boolean; onChanged: () => void }) {
   const isUpcoming = data.ticket.workflowPhase !== 'execution'
   if (data.ticket.pullRequestUrl) {
-    return <BuildPullRequests ticketId={data.ticket.id} latestUrl={data.ticket.pullRequestUrl} runs={data.runs} />
+    const change = isApp ? { ticketId: data.ticket.id, canMakeLive: Boolean(data.capabilities?.canMakeLive), onMadeLive: onChanged } : undefined
+    return <BuildPullRequests ticketId={data.ticket.id} latestUrl={data.ticket.pullRequestUrl} runs={data.runs} change={change} />
   }
+  const words = isApp ? NO_CHANGE : NO_BUILD
   return (
     <p className="py-6 text-sm text-[var(--gray-10)]">
-      {!isUpcoming
-        ? 'No pull request yet. The build opens one when it finishes.'
-        : data.capabilities?.canAskForCode
-          ? 'No build yet. Ask the agent to build it in the thread: it makes the change on a branch and opens a pull request.'
-          : 'No build yet. People who can ask for code on this task can have the agent build it; its pull request shows here.'}
+      {!isUpcoming ? words.running : data.capabilities?.canAskForCode ? words.canAsk : words.cannotAsk}
     </p>
   )
 }
@@ -86,6 +98,7 @@ export function TaskStepView({
   onNewComments,
   onAsked,
   onCommentsChanged,
+  isApp = false,
 }: TaskStepViewProps) {
   const isPlan = step === 'planning'
   const hasPlan = isPlan && data.plan.content.trim().length > 0
@@ -124,7 +137,7 @@ export function TaskStepView({
           onAsked={onAsked}
         />
       ) : (
-        <BuildStep data={data} />
+        <BuildStep data={data} isApp={isApp} onChanged={onAsked} />
       )}
       {hasPlan && !version && (
         <details

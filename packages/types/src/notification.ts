@@ -9,6 +9,8 @@ export const NOTIFICATION_KINDS = [
   'task_done',
   /** A pull request for some of the plan's parts merged, and the next part can be built. */
   'part_merged',
+  /** A change made live didn't build or didn't go live, after its task was done. */
+  'release_failed',
   'question_asked',
   'question_reminder',
   'credential_expiring',
@@ -47,11 +49,16 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
       return `The ${typeof payload.credential === 'string' ? `“${payload.credential}” ` : ''}credential for ${typeof payload.connection === 'string' ? payload.connection : 'a connection'} expires on ${typeof payload.expiresOn === 'string' ? payload.expiresOn : 'soon'}. Replace it before then, or runs that use it will stop.`
     case 'task_done':
       if (payload.merged === true) {
+        if (payload.madeLive === true) {
+          return typeof payload.mergedBy === 'string' ? `“${taskTitle}” is done: ${payload.mergedBy} made it live` : `“${taskTitle}” is done: it was made live`
+        }
         return typeof payload.mergedBy === 'string'
           ? `“${taskTitle}” is done: ${payload.mergedBy} merged its pull request`
           : `“${taskTitle}” is done: its pull request was merged`
       }
       return `${who} marked “${taskTitle}” as done`
+    case 'release_failed':
+      return `The change for “${taskTitle}” didn't go live${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
     case 'part_merged': {
       const merged = Array.isArray(payload.parts) && payload.parts.length > 0 ? `Part ${payload.parts.join(', ')}` : 'A part'
       const next = typeof payload.next === 'number' ? `; part ${payload.next} can be built now` : ''

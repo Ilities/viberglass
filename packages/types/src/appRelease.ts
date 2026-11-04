@@ -18,6 +18,8 @@ export interface AppRelease {
   wentLiveAt: string | null
   /** Why it didn't, such as a failed health check; it isn't tried again. */
   liveFailure: string | null
+  /** The task whose change was made live into this release. */
+  ticketId: string | null
   createdAt: string
   finishedAt: string | null
 }

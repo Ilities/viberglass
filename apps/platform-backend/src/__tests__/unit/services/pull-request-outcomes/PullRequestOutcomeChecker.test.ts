@@ -31,7 +31,13 @@ describe("PullRequestOutcomeChecker", () => {
     expect(repositories.resolve).toHaveBeenCalledWith("project-1");
     expect(host.fetchPullRequestOutcome).toHaveBeenCalledWith(URL_1, "tok");
     expect(outcomes.recordOutcome).toHaveBeenCalledWith(URL_1, MERGED);
-    expect(listener.onOutcome).toHaveBeenCalledWith(URL_1, MERGED);
+    expect(listener.onOutcome).toHaveBeenCalledWith(URL_1, MERGED, undefined);
+  });
+
+  it("passes on who made a change live", async () => {
+    await checker.check(URL_1, "project-1", { madeLiveBy: "Maria" });
+
+    expect(listener.onOutcome).toHaveBeenCalledWith(URL_1, MERGED, { madeLiveBy: "Maria" });
   });
 
   it.each([

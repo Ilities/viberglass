@@ -12,7 +12,10 @@ export interface WorkOffer {
 
 /** What the web and chat offer to whoever may ask for code: a Files task's artifact, else builds of the plan. */
 export function nextWork(backing: SpaceBackingKind, task: { planParts: TaskPlanParts | null; hasArtifacts: boolean }): WorkOffer[] {
-  return backing === 'files' ? [artifactWork(task.hasArtifacts)] : buildWork(task.planParts)
+  if (backing === 'files') return [artifactWork(task.hasArtifacts)]
+  const builds = buildWork(task.planParts)
+  // An App space's people ask for a change to their app; a build of some parts keeps its name.
+  return backing === 'app' ? builds.map((offer) => (offer.parts ? offer : { ...offer, label: 'Make the change' })) : builds
 }
 
 /** In a Files space, the build makes or revises the task's artifact. */
@@ -51,8 +54,9 @@ const RUN_LABEL: Record<TaskTurnAction, TurnRunLabel> = {
   summarise: { doing: 'summarising', run: 'summary' },
 }
 
-/** A Files space's code turn makes its artifact rather than a build. */
+/** A Files space's code turn makes its artifact rather than a build, and an App space's makes a change to its app. */
 export function turnRunLabel(action: TaskTurnAction, backing: SpaceBackingKind): TurnRunLabel {
   if (backing === 'files' && action === 'code') return { doing: 'working on the artifact', run: 'artifact' }
+  if (backing === 'app' && action === 'code') return { doing: 'making the change', run: 'change' }
   return RUN_LABEL[action]
 }

@@ -128,7 +128,8 @@ export function taskSituation(input: TaskSituationInput, viewer: SituationViewer
 
 function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
   if (input.status === 'resolved') {
-    const label = input.mergedBy ? `Done · merged by ${input.mergedBy}` : 'Done'
+    const accepted = input.backing === 'app' ? 'made live' : 'merged'
+    const label = input.mergedBy ? `Done · ${accepted} by ${input.mergedBy}` : 'Done'
     return { state: 'done', label, waitingOn: { kind: 'nobody' }, since: input.lastTurn?.at ?? input.createdAt }
   }
 
@@ -172,7 +173,9 @@ function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
     const next = input.nextPart ?? part + 1
     return { state: 'artifact_ready', label: `Part ${part} merged · build part ${next}`, waitingOn: ownerOnly(input), since: artifact.at }
   }
-  if (artifact?.kind === 'code') return { state: 'pr_open', label: 'PR open', waitingOn: ownerOnly(input), since: artifact.at }
+  if (artifact?.kind === 'code') {
+    return { state: 'pr_open', label: input.backing === 'app' ? 'Change ready' : 'PR open', waitingOn: ownerOnly(input), since: artifact.at }
+  }
   if (artifact) {
     return {
       state: 'artifact_ready',

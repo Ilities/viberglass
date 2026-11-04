@@ -54,6 +54,8 @@ import { SpaceRunAvailabilityService } from "../../services/spaces/SpaceRunAvail
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { registerTaskQuestionRoutes } from "./tickets/questionRoutes";
 import { registerTaskSteeringRoutes } from "./tickets/steeringRoutes";
+import { registerTaskMakeLiveRoutes } from "./tickets/makeLiveRoutes";
+import { createMakeLiveService } from "../../services/apps/createMakeLiveService";
 import { TaskSteeringService } from "../../services/taskTurns/TaskSteeringService";
 import { TaskTakeoverService } from "../../services/tasks/TaskTakeoverService";
 import { TaskCodeBranchService } from "../../services/tasks/TaskCodeBranchService";
@@ -127,6 +129,7 @@ registerTaskComparisonRoutes(router, {
   views: new TaskComparisonViewService({ comparisons: taskComparisons, stats: new TaskComparisonArmStatsDAO(), tickets: ticketService }),
 });
 registerTaskQuestionRoutes(router, { answers: new AgentQuestionAnswerService({ asker: taskTurns }) });
+registerTaskMakeLiveRoutes(router, { makeLive: createMakeLiveService() });
 const steering = new TaskSteeringService({ turns: taskTurns });
 registerTaskSteeringRoutes(router, {
   steering,

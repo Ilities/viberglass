@@ -6,7 +6,7 @@ function input(overrides: Partial<TaskSuggestionInput> = {}): TaskSuggestionInpu
   return {
     ticket: { status: 'open' },
     plan: doc(''),
-    capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
+    capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false },
     newComments: 0,
     latestTurn: null,
     agentWorking: false,
@@ -27,28 +27,29 @@ describe('suggestTaskActions', () => {
   })
 
   it('offers the build last to whoever may ask for code, with or without a plan', () => {
-    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false }
+    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false }
     expect(labels({ capabilities: coder, plan: doc('# P') })).toEqual(['Build it'])
     expect(labels({ capabilities: coder })).toEqual(['Write the plan', 'Build it'])
     expect(labels({ plan: doc('# P') })).toEqual([])
   })
 
   it('offers to create the artifact in a Files space, and to revise it once there is one', () => {
-    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false }
-    expect(suggestTaskActions(input({ capabilities: coder, plan: doc('# P'), filesSpace: true }))).toEqual([
+    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false }
+    expect(suggestTaskActions(input({ capabilities: coder, plan: doc('# P'), backing: 'files' }))).toEqual([
       { action: 'code', label: 'Create artifact' },
     ])
-    expect(labels({ capabilities: coder, plan: doc('# P'), filesSpace: true, hasArtifacts: true })).toEqual(['Revise artifact'])
-    expect(labels({ plan: doc('# P'), filesSpace: true })).toEqual([])
+    expect(labels({ capabilities: coder, plan: doc('# P'), backing: 'files', hasArtifacts: true })).toEqual(['Revise artifact'])
+    expect(labels({ plan: doc('# P'), backing: 'files' })).toEqual([])
   })
 
   it('offers the artifact before the plan in a Files space', () => {
-    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false }
-    expect(labels({ capabilities: coder, filesSpace: true })).toEqual(['Create artifact', 'Write the plan'])
+    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false }
+    expect(labels({ capabilities: coder, backing: 'files' })).toEqual(['Create artifact', 'Write the plan'])
+    expect(labels({ capabilities: coder, backing: 'app' })).toEqual(['Write the plan', 'Make the change'])
   })
 
   it('offers nothing to someone who may not ask, and no build retry to someone who may not ask for code', () => {
-    expect(labels({ capabilities: { canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false } })).toEqual([])
+    expect(labels({ capabilities: { canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false } })).toEqual([])
     expect(labels({ capabilities: null })).toEqual([])
     expect(retrySuggestion(input({ latestTurn: { action: 'code', status: 'failed' } }))).toBeNull()
   })
@@ -95,7 +96,7 @@ describe('countNewComments', () => {
     expect(labels({ ...plan, sinceSummary: { finishedTurns: 2, messages: 9 } })).toEqual([])
     expect(labels({ ...plan, sinceSummary: { finishedTurns: 3, messages: 0 } })).toEqual(['Summarise so far'])
     expect(
-      labels({ ...plan, newComments: 1, sinceSummary: { finishedTurns: 0, messages: 10 }, capabilities: { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false } })
+      labels({ ...plan, newComments: 1, sinceSummary: { finishedTurns: 0, messages: 10 }, capabilities: { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false } })
     ).toEqual(['Revise the plan with 1 comment', 'Summarise so far', 'Build it'])
     expect(suggestTaskActions(input({ ...plan, sinceSummary: { finishedTurns: 5, messages: 0 } }))).toContainEqual({ action: 'summarise', label: 'Summarise so far' })
   })

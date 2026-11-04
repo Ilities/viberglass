@@ -83,9 +83,12 @@ export function describeStep(
   move: TaskNextMove,
   exists: boolean,
   /** For a plan in parts, how far its code has got, in place of "Pull request open". */
-  codeProgress: string | null = null
+  codeProgress: string | null = null,
+  /** What an open pull request is called, such as "Change ready" in an App space. */
+  openLabel = 'Pull request open'
 ): { position: StepPosition; label: string } {
-  const progress = (label: string) => (step === 'execution' && codeProgress && label === 'Pull request open' ? codeProgress : label)
+  const progress = (label: string) =>
+    step === 'execution' && label === 'Pull request open' ? (codeProgress ?? openLabel) : label
   if (step === currentStep) return { position: move.kind === 'done' ? 'done' : 'current', label: progress(CURRENT_LABEL[move.kind]) }
   if (exists) return { position: 'done', label: progress(step === 'execution' ? 'Pull request open' : 'Written') }
   return { position: 'upcoming', label: 'None yet' }

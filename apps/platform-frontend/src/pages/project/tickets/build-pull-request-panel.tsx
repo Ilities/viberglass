@@ -9,15 +9,23 @@ import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { ReactNode } from 'react'
 import { formatRunDuration } from '../jobs/run-facts'
 import { addressPath } from '@/lib/repositoryAddress'
+import { MakeLiveButton } from './make-live-button'
 
 type BadgeColor = 'green' | 'red' | 'blue' | 'zinc'
 
-function pullRequestState(pullRequest: BuildPullRequest): { label: string; color: BadgeColor } | null {
+function pullRequestState(pullRequest: BuildPullRequest, isChange: boolean): { label: string; color: BadgeColor } | null {
   const details = pullRequest.details
   if (!details?.state) return null
-  if (details.state === 'merged') return { label: 'Merged', color: 'green' }
+  if (details.state === 'merged') return { label: isChange ? 'Made live' : 'Merged', color: 'green' }
   if (details.state === 'closed') return { label: 'Closed', color: 'red' }
-  return details.isDraft ? { label: 'Draft', color: 'zinc' } : { label: 'Open', color: 'blue' }
+  return details.isDraft ? { label: 'Draft', color: 'zinc' } : { label: isChange ? 'Ready' : 'Open', color: 'blue' }
+}
+
+/** In an App space the pull request is the task's change, which can be made live from here. */
+export interface ChangeActions {
+  ticketId: string
+  canMakeLive: boolean
+  onMadeLive: () => void
 }
 
 function Missing({ children }: { children: ReactNode }) {
@@ -33,21 +41,30 @@ export function BuildPullRequestPanel({
   pullRequestUrl,
   pullRequest,
   builds,
+  change,
 }: {
   pullRequestUrl: string
   pullRequest: BuildPullRequest | null
   builds?: JobListItem[]
+  change?: ChangeActions
 }) {
   const latestBuild = builds?.[0]
   const details = pullRequest?.details ?? null
-  const state = pullRequest ? pullRequestState(pullRequest) : null
+  const state = pullRequest ? pullRequestState(pullRequest, Boolean(change)) : null
   const comments = pullRequest?.comments ?? []
+  const headSha = details?.state === 'open' && !details.isDraft ? details.headSha : null
 
   return (
     <div className="@container space-y-8 py-4">
+      {change?.canMakeLive && headSha && (
+        <div className="flex items-center justify-between gap-4 rounded-md bg-[var(--gray-2)] px-4 py-3">
+          <p className="text-sm text-[var(--gray-11)]">When the change looks right, make it live for everyone who uses the app.</p>
+          <MakeLiveButton ticketId={change.ticketId} pullRequestUrl={pullRequestUrl} headSha={headSha} onMadeLive={change.onMadeLive} />
+        </div>
+      )}
       <div className="grid gap-8 @min-[40rem]:grid-cols-2">
-        <FactList title="Pull request">
-          <Fact label="Link">
+        <FactList title={change ? 'Change' : 'Pull request'}>
+          <Fact label={change ? 'Code' : 'Link'}>
             <a href={pullRequestUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-start gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
               <span className="min-w-0 break-all">{addressPath(pullRequestUrl)}</span>
               <ExternalLinkIcon className="mt-0.5 size-3.5 shrink-0" />

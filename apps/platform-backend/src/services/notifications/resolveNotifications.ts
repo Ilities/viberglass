@@ -56,6 +56,8 @@ export function resolveNotifications(activity: ActivityForNotification, context:
         return to(withRoles(context, ["requester", "owner"]), "task_done");
       case "part_merged":
         return to(withRoles(context, ["requester", "owner"]), "part_merged");
+      case "release_failed":
+        return to(withRoles(context, ["requester", "owner"]), "release_failed");
       case "question_asked":
         return to(userId, "question_asked");
       case "question_reminded":

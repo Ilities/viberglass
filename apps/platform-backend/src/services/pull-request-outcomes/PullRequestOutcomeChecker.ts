@@ -2,7 +2,7 @@ import { createChildLogger } from "../../config/logger";
 import type { PullRequestOutcomeDAO } from "../../persistence/job/PullRequestOutcomeDAO";
 import type { PullRequestOutcome } from "@viberglass/types";
 import type { ProjectRepositoryResolver } from "../repositories/ProjectRepositoryResolver";
-import type { PullRequestOutcomeListener } from "./pullRequestOutcomeTypes";
+import type { MergeAttribution, PullRequestOutcomeListener } from "./pullRequestOutcomeTypes";
 
 const logger = createChildLogger({ service: "PullRequestOutcomeChecker" });
 
@@ -15,7 +15,7 @@ export class PullRequestOutcomeChecker {
   ) {}
 
   /** Returns why no outcome was recorded, or null when one was. */
-  async check(pullRequestUrl: string, projectId: string | null): Promise<string | null> {
+  async check(pullRequestUrl: string, projectId: string | null, attribution?: MergeAttribution): Promise<string | null> {
     if (!projectId) return "No project recorded for this pull request";
 
     try {
@@ -25,7 +25,7 @@ export class PullRequestOutcomeChecker {
 
       const outcome = await repository.host.fetchPullRequestOutcome(pullRequestUrl, repository.token);
       await this.outcomes.recordOutcome(pullRequestUrl, outcome);
-      await this.tell(pullRequestUrl, outcome);
+      await this.tell(pullRequestUrl, outcome, attribution);
       return null;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -33,10 +33,10 @@ export class PullRequestOutcomeChecker {
   }
 
   /** A merged outcome is final and never checked again, so a listener's failure is logged rather than retried. */
-  private async tell(pullRequestUrl: string, outcome: PullRequestOutcome): Promise<void> {
+  private async tell(pullRequestUrl: string, outcome: PullRequestOutcome, attribution?: MergeAttribution): Promise<void> {
     for (const listener of this.listeners) {
       try {
-        await listener.onOutcome(pullRequestUrl, outcome);
+        await listener.onOutcome(pullRequestUrl, outcome, attribution);
       } catch (error) {
         logger.error("Outcome listener failed", { pullRequestUrl, error: error instanceof Error ? error.message : error });
       }

@@ -4,7 +4,7 @@ import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
 import type { JobListItem } from '@/service/api/job-api'
-import type { Clanker, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
+import type { Clanker, SpaceBackingKind, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
@@ -55,8 +55,8 @@ interface TaskThreadProps {
   onAsked: () => void
   /** Run status and duration shown beneath the turn that started it. */
   runs?: JobListItem[]
-  /** Whether the task's space is backed by files rather than a repository. */
-  filesSpace?: boolean
+  /** What backs the task's space: a repository, files or an app. */
+  backing?: SpaceBackingKind
   /** The task's space, for links to the artifacts its turns produced. */
   space?: { id: string; slug: string }
   /** Set for those who may compare agents: forks the task as it was after a finished turn. */
@@ -82,7 +82,7 @@ export function TaskThread({
   clankers = [],
   onAsked,
   runs = [],
-  filesSpace = false,
+  backing = 'git',
   space,
   onCompareFrom,
 }: TaskThreadProps) {
@@ -142,7 +142,7 @@ export function TaskThread({
     agentWorking,
     latestTurn,
     sinceSummary: summaries.sinceLatest,
-    filesSpace,
+    backing,
     hasArtifacts,
   })
   const onTask = new Set(entries.flatMap((entry) => (entry.kind === 'agent_turn' ? [entry.agent.id] : [])))
@@ -171,7 +171,7 @@ export function TaskThread({
         key={entry.id}
         entry={entry}
         run={runs.find((run) => run.jobId === entry.jobId)}
-        filesSpace={filesSpace}
+        backing={backing}
         space={space}
         summaryVersion={summaries.versionByTurn.get(entry.id)}
         retry={retry && entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />}

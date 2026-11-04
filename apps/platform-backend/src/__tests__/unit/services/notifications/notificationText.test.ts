@@ -33,6 +33,10 @@ describe("notificationText for a merge", () => {
   it("says which part merged, and which can be built now", () => {
     expect(notificationText("part_merged", null, "Gift notes", { parts: [1], next: 2 })).toBe("Part 1 of “Gift notes” is merged; part 2 can be built now");
     expect(notificationText("part_merged", null, "Gift notes", {})).toBe("A part of “Gift notes” is merged");
+    expect(notificationText("task_done", null, "Gift notes", { merged: true, madeLive: true, mergedBy: "Maria" })).toBe("“Gift notes” is done: Maria made it live");
+    expect(notificationText("release_failed", null, "Gift notes", { reason: "npm run build exited with 1" })).toBe(
+      "The change for “Gift notes” didn't go live: npm run build exited with 1",
+    );
   });
 });
 

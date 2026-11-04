@@ -49,3 +49,13 @@ export async function getBuildPullRequests(ticketId: string): Promise<TaskPullRe
   const data: ApiResponse<TaskPullRequest[]> = await response.json()
   return data.data
 }
+
+/** Makes an App space task's change live: merges the commit the person looked at, and starts building its release. */
+export async function makeChangeLive(ticketId: string, change: { pullRequestUrl: string; headSha: string }): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/make-live`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(change),
+  })
+  if (!response.ok) throw await failure(response, "Couldn't make the change live")
+}

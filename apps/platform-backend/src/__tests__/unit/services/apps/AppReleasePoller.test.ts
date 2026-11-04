@@ -27,6 +27,7 @@ function release(projectId: string, commitSha: string): AppRelease {
     failureReason: null,
     wentLiveAt: null,
     liveFailure: null,
+    ticketId: null,
     createdAt: "",
     finishedAt: null,
   };

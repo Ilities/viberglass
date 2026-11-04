@@ -12,6 +12,8 @@ interface TaskStepperProps {
   exists: Record<TaskStep, boolean>
   /** For a plan in parts, how far its code has got. */
   codeProgress?: string | null
+  /** What an open pull request is called here. */
+  openLabel?: string
   onShowStep: (step: TaskStep) => void
 }
 
@@ -28,12 +30,12 @@ function markerClass(position: 'done' | 'current' | 'upcoming', move: TaskNextMo
  * They're options, not stages: either can be asked for at any time, and
  * nothing waits on approval.
  */
-export function TaskStepper({ currentStep, move, shownStep, exists, codeProgress = null, onShowStep }: TaskStepperProps) {
+export function TaskStepper({ currentStep, move, shownStep, exists, codeProgress = null, openLabel, onShowStep }: TaskStepperProps) {
   return (
     <div className="space-y-2">
       <div role="tablist" aria-label="Artifacts" className="flex flex-wrap gap-x-6 gap-y-2" onKeyDown={onTabListKeyDown}>
         {TASK_STEPS.map((step) => {
-          const { position, label } = describeStep(step, currentStep, move, exists[step], codeProgress)
+          const { position, label } = describeStep(step, currentStep, move, exists[step], codeProgress, openLabel)
           const isShown = step === shownStep
           return (
             <button

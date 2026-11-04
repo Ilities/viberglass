@@ -47,7 +47,12 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'task_reopened':
       return tracker ? `Reopened on ${tracker}, so the task is open again` : `${who} reopened the task`
     case 'pull_request_merged':
+      if (entry.payload.madeLive === true) return typeof entry.payload.mergedBy === 'string' ? `Made live by ${entry.payload.mergedBy}` : 'The change was made live'
       return typeof entry.payload.mergedBy === 'string' ? `Merged by ${entry.payload.mergedBy}` : 'The pull request was merged'
+    case 'release_live':
+      return typeof entry.payload.withCommitSha === 'string' ? 'The change went live with a later release' : 'The change is live'
+    case 'release_failed':
+      return typeof entry.payload.reason === 'string' ? `The change didn't go live: ${entry.payload.reason}` : "The change didn't go live"
     case 'part_merged': {
       const parts = Array.isArray(entry.payload.parts) ? entry.payload.parts.filter((part) => typeof part === 'number') : []
       const merged = parts.length > 0 ? `Part ${parts.join(', ')} merged` : 'A part of the plan merged'

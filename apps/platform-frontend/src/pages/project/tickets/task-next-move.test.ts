@@ -105,4 +105,10 @@ describe('codeProgress', () => {
     expect(describeStep('execution', 'execution', { kind: 'pull_request', url: 'u' }, true, '1 of 3 parts merged').label).toBe('1 of 3 parts merged')
     expect(describeStep('execution', 'execution', { kind: 'working', step: 'execution', runId: null, sessionId: null }, true, '1 of 3 parts merged').label).toBe('Agent working')
   })
+
+  it("calls an App space's open pull request its change", () => {
+    expect(describeStep('execution', 'execution', { kind: 'pull_request', url: 'u' }, true, null, 'Change ready').label).toBe('Change ready')
+    expect(describeStep('execution', 'planning', { kind: 'ready', step: 'planning' }, true, null, 'Change ready').label).toBe('Change ready')
+    expect(describeStep('planning', 'planning', { kind: 'ready', step: 'planning' }, true, null, 'Change ready').label).toBe('Ready')
+  })
 })

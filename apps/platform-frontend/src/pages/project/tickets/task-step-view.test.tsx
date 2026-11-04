@@ -27,7 +27,7 @@ const TICKET: Ticket = {
   updatedAt: '',
 }
 
-const READ_ONLY: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false }
+const READ_ONLY: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false }
 const emptyPlan = { id: 'planning', ticketId: 't-1', phase: 'planning' as const, content: '', createdAt: '', updatedAt: '' }
 
 function renderStep(step: 'planning' | 'execution', capabilities: TaskCapabilities) {

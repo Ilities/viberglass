@@ -46,6 +46,15 @@ export function canAskForCode(person: AskingPerson, participants: AskingParticip
  * maintainers and workspace admins.
  */
 export function canSteerAgent(person: AskingPerson, participants: AskingParticipant[]): boolean {
+  return isOwnerOrMaintainer(person, participants)
+}
+
+/** Who may make an App space's change live: the task's owner, the space's maintainers and workspace admins. */
+export function canMakeChangeLive(person: AskingPerson, participants: AskingParticipant[]): boolean {
+  return isOwnerOrMaintainer(person, participants)
+}
+
+function isOwnerOrMaintainer(person: AskingPerson, participants: AskingParticipant[]): boolean {
   if (!TASK_POSTING_ROLES.includes(person.workspaceRole)) return false
   if (person.workspaceRole === 'admin' || person.spaceRole === 'maintainer') return true
   return participants.some((participant) => participant.userId === person.userId && participant.role === 'owner')
@@ -63,6 +72,8 @@ export interface TaskAskCapabilities {
   canAsk: boolean
   canAskForCode: boolean
   canSteer: boolean
+  /** In an App space, making the task's change live. */
+  canMakeLive: boolean
 }
 
 /** What the caller may do on a task. */

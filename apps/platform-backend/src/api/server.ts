@@ -22,6 +22,9 @@ import { WorkerStopperChain } from "../workers/WorkerStopperChain";
 import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
 import { PeriodicSweeper } from "../workers/PeriodicSweeper";
 import { createAppReleasePoller } from "../services/apps/createAppReleasePoller";
+import { ReleaseTaskReporter } from "../services/apps/ReleaseTaskReporter";
+import { AppReleaseReportDAO } from "../persistence/apps/AppReleaseReportDAO";
+import { TaskActivityRecorder } from "../services/tasks/TaskActivityRecorder";
 import { appHosting } from "../services/apps/createAppHosting";
 import { QuestionReminderService } from "../services/questions/QuestionReminderService";
 import { CredentialExpiryWarner } from "../services/notifications/CredentialExpiryWarner";
@@ -101,6 +104,7 @@ spaceFilesRuns.setWaitingChanges(new SpaceFileChangeQueue(spaceFilesRuns));
 
 const questionReminders = new QuestionReminderService();
 const appReleasePoller = createAppReleasePoller();
+const releaseReports = new ReleaseTaskReporter(new AppReleaseReportDAO(), new TaskActivityRecorder());
 const credentialExpiry = new CredentialExpiryWarner();
 const periodicSweepers = shouldRunBackgroundSweepers
   ? [
@@ -127,6 +131,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
       new PeriodicSweeper(
         "apps",
         (now) => appHosting().sweep.sweep(now),
+        parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
+      ),
+      new PeriodicSweeper(
+        "app release reports",
+        () => releaseReports.sweep(),
         parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
       ),
       new PeriodicSweeper(

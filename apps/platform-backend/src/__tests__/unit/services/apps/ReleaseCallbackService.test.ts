@@ -17,6 +17,7 @@ const RELEASE: AppRelease = {
   failureReason: null,
   wentLiveAt: null,
   liveFailure: null,
+  ticketId: null,
   createdAt: "",
   finishedAt: null,
 };

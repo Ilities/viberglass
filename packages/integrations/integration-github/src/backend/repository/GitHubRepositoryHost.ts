@@ -7,6 +7,7 @@ import { fetchGitHubPullRequestReview } from './fetchGitHubPullRequestReview'
 import type { GitHubApi, GitHubFetch } from './gitHubApi'
 import { GitHubRepositoryCreator } from './GitHubRepositoryCreator'
 import { gitHubWebHost, parseGitHubPullRequestUrl, parseGitHubRepository } from './gitHubRepositoryNames'
+import { mergeGitHubPullRequest } from './mergeGitHubPullRequest'
 import { openGitHubPullRequest } from './openGitHubPullRequest'
 
 export interface GitHubRepositoryHostOptions {
@@ -56,6 +57,10 @@ export class GitHubRepositoryHost implements RepositoryHost {
 
   fetchPullRequestOutcome(url: string, token: string): Promise<PullRequestOutcome> {
     return fetchGitHubPullRequestOutcome(this.api, url, token)
+  }
+
+  mergePullRequest(url: string, token: string, options: { expectedHeadSha: string }): Promise<string> {
+    return mergeGitHubPullRequest(this.api, url, token, options.expectedHeadSha)
   }
 
   fetchBranchHead(repository: RepositoryRef, branch: string, token: string): Promise<string | null> {

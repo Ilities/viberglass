@@ -7,7 +7,7 @@ import { cancelJob, type JobListItem } from '@/service/api/job-api'
 import { formatJobStatus } from '@/data'
 import { formatRunDuration } from '../jobs/run-facts'
 import { CheckCircledIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
-import { NOTHING_SAVED_WHEN_STOPPED, savedFilesLine, type TaskTimelineEntry, type TaskTurnAction, type TaskTurnProduct } from '@viberglass/types'
+import { NOTHING_SAVED_WHEN_STOPPED, savedFilesLine, type SpaceBackingKind, type TaskTimelineEntry, type TaskTurnAction, type TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -15,6 +15,8 @@ import { ThreadItem } from './thread-item'
 import { TurnArtifactCard } from './turn-artifact-card'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
+
+const CODE_IN: Record<Exclude<SpaceBackingKind, 'git'>, string> = { files: 'an artifact', app: 'a change' }
 
 const ASKED_FOR: Record<TaskTurnAction, string> = {
   plan: 'the plan',
@@ -99,7 +101,7 @@ interface AgentTurnEntryProps {
   /** Trying a failed turn again, shown with its failure. */
   retry?: React.ReactNode
   /** In a Files space a run can wait for another to save the space's files before it starts. */
-  filesSpace?: boolean
+  backing?: SpaceBackingKind
   /** The task's space, for links to the artifacts a turn produced. */
   space?: { id: string; slug: string }
   /** Forks the task as it was after this turn, to compare agents from here. */
@@ -107,7 +109,8 @@ interface AgentTurnEntryProps {
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace = false, space, onCompare }: AgentTurnEntryProps) {
+export function AgentTurnEntry({ entry, run, summaryVersion, retry, backing = 'git', space, onCompare }: AgentTurnEntryProps) {
+  const filesSpace = backing === 'files'
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
@@ -144,7 +147,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, filesSpace =
       who={entry.agent.name}
       isAgent
       at={entry.at}
-      note={`asked for ${filesSpace && entry.action === 'code' ? 'an artifact' : ASKED_FOR[entry.action]}`}
+      note={`asked for ${entry.action === 'code' && backing !== 'git' ? CODE_IN[backing] : ASKED_FOR[entry.action]}`}
       label={`${entry.agent.name}'s turn`}
     >
       {working && (

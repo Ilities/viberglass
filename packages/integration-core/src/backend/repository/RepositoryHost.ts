@@ -41,6 +41,12 @@ export interface RepositoryHost {
   /** Whether a pull request address is one of this host's. */
   ownsPullRequest(url: string): boolean
   fetchPullRequestOutcome(url: string, token: string): Promise<PullRequestOutcome>
+  /**
+   * Merges the pull request only while its head is still `expectedHeadSha`, so
+   * commits pushed after someone looked aren't merged unseen. Returns the commit
+   * the merge made; throws PullRequestMergeError when the host refuses.
+   */
+  mergePullRequest(url: string, token: string, options: { expectedHeadSha: string }): Promise<string>
   /** The commit a branch points at; null when the branch doesn't exist yet, as in an empty repository. */
   fetchBranchHead(repository: RepositoryRef, branch: string, token: string): Promise<string | null>
   /** Unresolved review threads, and review summaries and comments written after `since`. */
