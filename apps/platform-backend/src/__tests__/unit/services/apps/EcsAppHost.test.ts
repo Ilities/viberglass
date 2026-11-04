@@ -231,6 +231,12 @@ describe("EcsAppHost", () => {
     expect(host.address("preview-abc")).toBe("http://preview-abc.apps.dev.viberglass.internal:3000");
   });
 
+  it("has no logs for an app whose service doesn't exist", async () => {
+    const { host, client } = build();
+    client.ecs.listTasks.mockRejectedValue(awsError("ServiceNotFoundException"));
+    expect(await host.logs(SPEC.instance, 20)).toBe("");
+  });
+
   it("reads the newest task's log stream", async () => {
     const { host, client, setTasks } = build();
     expect(await host.logs(SPEC.instance, 20)).toBe("");

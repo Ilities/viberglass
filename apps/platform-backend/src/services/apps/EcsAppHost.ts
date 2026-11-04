@@ -258,8 +258,14 @@ export class EcsAppHost implements AppHost {
     const serviceName = this.names(instance).service;
     const arns: string[] = [];
     for (const desiredStatus of ["RUNNING", "STOPPED"] as const) {
-      const { taskArns } = await aws.ecs.listTasks({ cluster: this.options.cluster, serviceName, desiredStatus, maxResults: 100 });
-      arns.push(...(taskArns ?? []));
+      try {
+        const { taskArns } = await aws.ecs.listTasks({ cluster: this.options.cluster, serviceName, desiredStatus, maxResults: 100 });
+        arns.push(...(taskArns ?? []));
+      } catch (error) {
+        // ECS refuses to list the tasks of a service that doesn't exist.
+        if (awsErrorName(error) === "ServiceNotFoundException") return [];
+        throw error;
+      }
     }
     if (arns.length === 0) return [];
     const tasks: Task[] = [];
