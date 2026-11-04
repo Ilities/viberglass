@@ -156,8 +156,14 @@ export function createAppHosting(options: AppHostingOptions): AppHostingOutputs 
           },
           {
             Effect: "Allow",
-            Action: ["iam:GetRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:DeleteRole", "iam:TagRole"],
+            Action: ["iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:DeleteRole", "iam:TagRole"],
             Resource: appRoles,
+          },
+          {
+            Effect: "Allow",
+            Action: ["iam:GetRole"],
+            // IAM checks a lookup of a role that doesn't exist yet against its name without the path.
+            Resource: [appRoles, `arn:aws:iam::${account}:role/${prefix}-*`],
           },
           {
             Effect: "Allow",
