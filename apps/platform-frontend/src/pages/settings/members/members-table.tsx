@@ -166,7 +166,7 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
         description={
           roleChange
             ? `They go from ${ROLE_LABEL[roleChange.user.role].toLowerCase()} to ${ROLE_LABEL[roleChange.role].toLowerCase()}.${
-                roleChange.role === 'app_user' ? ' They stop seeing spaces and tasks, and keep only the apps they’re given.' : ''
+                roleChange.role === 'app_user' ? ' They leave every space, stop reviewing and watching tasks, lose their API tokens, and keep only the apps they’re given.' : ''
               }`
             : ''
         }

@@ -34,21 +34,23 @@ export class AppSpaceDAO {
     return rows.map((row) => ({ projectId: row.id, slug: row.slug, name: row.name, isPrivate: row.is_private, state: row.state ?? "off" }));
   }
 
-  /** The App space an app's host name points at. */
+  /** The App space an app's host name points at; an archived one can't be opened. */
   findBySlug(slug: string): Promise<AppSpaceRef | null> {
-    return this.findWhere("slug", slug);
+    return this.findWhere("slug", slug, { live: true });
   }
 
+  /** Archived ones too, so their maintainers can still turn the app off. */
   findById(projectId: string): Promise<AppSpaceRef | null> {
-    return this.findWhere("id", projectId);
+    return this.findWhere("id", projectId, { live: false });
   }
 
-  private async findWhere(column: "id" | "slug", value: string): Promise<AppSpaceRef | null> {
+  private async findWhere(column: "id" | "slug", value: string, options: { live: boolean }): Promise<AppSpaceRef | null> {
     const row = await db
       .selectFrom("projects")
       .select(["id", "slug", "name", "is_private"])
       .where(column, "=", value)
       .where("backing_kind", "=", "app")
+      .$if(options.live, (query) => query.where("archived_at", "is", null))
       .executeTakeFirst();
     return row ? { projectId: row.id, slug: row.slug, name: row.name, isPrivate: row.is_private } : null;
   }

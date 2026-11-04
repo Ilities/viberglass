@@ -1,41 +1,57 @@
+import { randomBytes } from "crypto";
 import http, { type IncomingMessage, type ServerResponse } from "http";
 import type { Duplex } from "stream";
 import httpProxy from "http-proxy";
-import { APP_USER_HEADERS } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
-import type { AppSessionUser } from "../../persistence/apps/AppSignInDAO";
 import type { AppGatewayResolver, AppGatewayRoute } from "../../services/apps/AppGatewayResolver";
 import type { AppOrigins } from "../../services/apps/AppOrigins";
 import { APP_CALLBACK_PATH, type AppSignInService } from "../../services/apps/AppSignInService";
-import { gatewayCookieName, gatewaySetCookie, readGatewayCookies, withoutGatewayCookie, withoutGatewaySetCookie } from "./gatewayCookie";
+import { AppSocketWatch } from "./AppSocketWatch";
+import { prepareAppRequest } from "./appRequestHeaders";
+import { guardAppResponse } from "./appResponseHeaders";
+import { gatewayClearCookie, gatewayCookieNames, gatewaySetCookie, readGatewayCookies } from "./gatewayCookie";
 import { refusedAsCrossOrigin } from "./sameOriginOnly";
 import { appForbiddenPage, appNotFoundPage, appOffPage, appUnreachablePage, signInFailedPage } from "./gatewayPages";
 
 const logger = createChildLogger({ server: "app-gateway" });
 
+function onlyOne(values: string[]): string | null {
+  return values.length === 1 ? (values[0] ?? null) : null;
+}
+
+// Long enough to sign in to Viberglass on the way.
+const STATE_TTL_MS = 15 * 60 * 1000;
+
 export interface AppGatewayDeps {
-  origins: Pick<AppOrigins, "slugFromHost" | "secure">;
+  origins: Pick<AppOrigins, "slugFromHost" | "originFor" | "secure" | "domain">;
   resolver: Pick<AppGatewayResolver, "resolve">;
   signIn: Pick<AppSignInService, "redeem">;
   /** Where people sign in to Viberglass, such as https://viberglass.example.com. */
   frontendUrl: string;
+  /** How often open websockets are checked for access again; defaults to the resolver's cache time. */
+  socketCheckMs?: number;
 }
-
-const IDENTITY_PREFIX = "x-viberglass-";
 
 /**
  * Every request to an app goes through here: it signs the person in, refuses
  * anyone without access, and passes the rest on with who they are. The app
- * never sees the gateway's cookie or identity headers it didn't set.
+ * never sees the gateway's cookies or identity headers it didn't set.
  */
 export function createAppGateway(deps: AppGatewayDeps): http.Server {
-  const cookieName = gatewayCookieName(deps.origins.secure);
+  const { secure } = deps.origins;
+  const cookieNames = gatewayCookieNames(secure);
   const frontendUrl = deps.frontendUrl.replace(/\/+$/, "");
-  const openUrl = (slug: string, path: string) => `${frontendUrl}/apps/${encodeURIComponent(slug)}/open?return=${encodeURIComponent(path)}`;
+  const openUrl = (slug: string, path: string, state: string) =>
+    `${frontendUrl}/apps/${encodeURIComponent(slug)}/open?return=${encodeURIComponent(path)}&state=${encodeURIComponent(state)}`;
+  const guardResponse = (res: IncomingMessage, req: IncomingMessage) =>
+    guardAppResponse(res.headers, { cookieNames, origin: deps.origins.originFor(deps.origins.slugFromHost(req.headers.host) ?? "") });
 
-  const proxy = httpProxy.createProxyServer({ xfwd: true });
-  proxy.on("proxyRes", (proxyRes) => {
-    proxyRes.headers["set-cookie"] = withoutGatewaySetCookie(proxyRes.headers["set-cookie"], cookieName);
+  const proxy = httpProxy.createProxyServer({ xfwd: false });
+  proxy.on("proxyRes", guardResponse);
+  // Registered before http-proxy writes the app's handshake answer to the browser.
+  proxy.on("proxyReqWs", (proxyReq, req) => {
+    proxyReq.on("response", (res) => guardResponse(res, req));
+    proxyReq.on("upgrade", (res) => guardResponse(res, req));
   });
   proxy.on("error", (error, _req, res) => {
     logger.warn("An app didn't answer", { error: error.message });
@@ -47,37 +63,48 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
     }
   });
 
-  const routeOf = async (req: IncomingMessage): Promise<{ slug: string; route: AppGatewayRoute } | null> => {
+  // Over http a sibling app can set a cookie for the whole apps domain. When
+  // more than one session arrives, none is trusted and they're cleared.
+  const routeOf = async (req: IncomingMessage): Promise<{ slug: string; token: string | null; route: AppGatewayRoute; clear: string[] } | null> => {
     const slug = deps.origins.slugFromHost(req.headers.host);
     if (!slug) return null;
-    // A stale cookie can sit next to a fresh one; the first that works wins.
-    const tokens = readGatewayCookies(req.headers.cookie, cookieName);
-    for (const token of tokens) {
-      const route = await deps.resolver.resolve(slug, token);
-      if (route.kind !== "sign-in") return { slug, route };
-    }
-    return { slug, route: await deps.resolver.resolve(slug, null) };
+    const tokens = readGatewayCookies(req.headers.cookie, cookieNames.session);
+    const token = onlyOne(tokens);
+    const route = await deps.resolver.resolve(slug, token);
+    const clear = tokens.length > 1 ? clearedSessions() : [];
+    return { slug, token, route, clear };
   };
 
-  const passIdentity = (req: IncomingMessage, user: AppSessionUser) => {
-    for (const name of Object.keys(req.headers)) {
-      if (name.startsWith(IDENTITY_PREFIX)) delete req.headers[name];
-    }
-    const cookie = withoutGatewayCookie(req.headers.cookie, cookieName);
-    if (cookie) req.headers.cookie = cookie;
-    else delete req.headers.cookie;
-    req.headers[APP_USER_HEADERS.id.toLowerCase()] = user.id;
-    req.headers[APP_USER_HEADERS.email.toLowerCase()] = user.email;
-    // Header values are Latin-1, and names can be in any script.
-    req.headers[APP_USER_HEADERS.name.toLowerCase()] = encodeURIComponent(user.name);
+  const sockets = new AppSocketWatch(
+    async (slug, token) => (await deps.resolver.resolve(slug, token)).kind === "proxy",
+    deps.socketCheckMs ?? 15_000,
+  );
+
+  const clearedSessions = () => [
+    gatewayClearCookie(cookieNames.session, secure),
+    ...(!secure && deps.origins.domain ? [gatewayClearCookie(cookieNames.session, secure, deps.origins.domain)] : []),
+  ];
+
+  const signInRedirect = (req: IncomingMessage, res: ServerResponse, slug: string, clear: string[]) => {
+    const state = onlyOne(readGatewayCookies(req.headers.cookie, cookieNames.state)) ?? randomBytes(32).toString("base64url");
+    res.writeHead(302, {
+      Location: openUrl(slug, req.url ?? "/", state),
+      "Set-Cookie": [...clear, gatewaySetCookie(cookieNames.state, state, new Date(Date.now() + STATE_TTL_MS), secure)],
+      "Cache-Control": "no-store",
+    });
+    res.end();
   };
 
-  const callback = async (slug: string, url: URL, res: ServerResponse) => {
-    const redeemed = await deps.signIn.redeem(slug, url.searchParams.get("code") ?? "");
-    if (!redeemed) return signInFailedPage(res, openUrl(slug, "/"));
+  const callback = async (req: IncomingMessage, slug: string, url: URL, res: ServerResponse) => {
+    const state = onlyOne(readGatewayCookies(req.headers.cookie, cookieNames.state));
+    const redeemed = state ? await deps.signIn.redeem(slug, url.searchParams.get("code") ?? "", state) : null;
+    if (!redeemed) return signInFailedPage(res);
     res.writeHead(302, {
       Location: redeemed.returnPath,
-      "Set-Cookie": gatewaySetCookie(cookieName, redeemed.token, redeemed.expiresAt, deps.origins.secure),
+      "Set-Cookie": [
+        gatewaySetCookie(cookieNames.session, redeemed.token, redeemed.expiresAt, secure),
+        gatewayClearCookie(cookieNames.state, secure),
+      ],
       "Cache-Control": "no-store",
       "Referrer-Policy": "no-referrer",
     });
@@ -87,11 +114,11 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? "/", "http://gateway");
     const slug = deps.origins.slugFromHost(req.headers.host);
-    if (slug && url.pathname === APP_CALLBACK_PATH) return callback(slug, url, res);
+    if (slug && url.pathname === APP_CALLBACK_PATH) return callback(req, slug, url, res);
 
     if (refusedAsCrossOrigin(req, false)) {
       res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
-      return res.end("This app only accepts changes from its own pages.");
+      return res.end("This app only answers its own pages. Open it in its own tab.");
     }
 
     const resolved = await routeOf(req);
@@ -102,28 +129,32 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
         return appNotFoundPage(res);
       case "sign-in":
         if (req.method !== "GET" && req.method !== "HEAD") {
-          res.writeHead(401, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+          res.writeHead(401, {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store",
+            ...(resolved.clear.length > 0 ? { "Set-Cookie": resolved.clear } : {}),
+          });
           return res.end("Sign in to use this app.");
         }
-        res.writeHead(302, { Location: openUrl(resolved.slug, req.url ?? "/"), "Cache-Control": "no-store" });
-        return res.end();
+        return signInRedirect(req, res, resolved.slug, resolved.clear);
       case "forbidden":
         return appForbiddenPage(res);
       case "off":
         return appOffPage(res, route.appName, route.maintainers);
       case "proxy":
-        passIdentity(req, route.user);
+        prepareAppRequest(req, route.user, { cookieNames, secure });
         return proxy.web(req, res, { target: route.target });
     }
   };
 
   const upgrade = async (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const resolved = refusedAsCrossOrigin(req, true) ? null : await routeOf(req);
-    if (resolved?.route.kind !== "proxy") {
+    if (resolved?.route.kind !== "proxy" || !resolved.token) {
       socket.end("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
       return;
     }
-    passIdentity(req, resolved.route.user);
+    prepareAppRequest(req, resolved.route.user, { cookieNames, secure });
+    sockets.add(socket, resolved.slug, resolved.token);
     proxy.ws(req, socket, head, { target: resolved.route.target });
   };
 
@@ -140,5 +171,6 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
       socket.destroy();
     });
   });
+  server.on("close", () => sockets.stop());
   return server;
 }

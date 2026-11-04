@@ -4,7 +4,7 @@ import { fakeChatProvider } from "../../../helpers/fakeChatProvider";
 import { EmailChannel } from "../../../../services/notifications/EmailChannel";
 import type { NotificationChannel, OutgoingNotification } from "../../../../services/notifications/NotificationChannel";
 
-function service(channels: NotificationChannel[], deferred = false) {
+function service(channels: NotificationChannel[], deferred = false, canSee = true) {
   return new NotificationService({
     participants: { list: jest.fn().mockResolvedValue([{ userId: "reviewer", name: "R", email: "r@x", role: "reviewer", addedAt: "" }]) },
     users: {
@@ -15,6 +15,7 @@ function service(channels: NotificationChannel[], deferred = false) {
     channels,
     frontendUrl: "https://vg.example.com/",
     attention: { defersQuestion: jest.fn().mockResolvedValue(deferred) },
+    visibility: { onTask: jest.fn().mockResolvedValue(canSee ? { id: "reviewer" } : null) },
   });
 }
 
@@ -30,6 +31,14 @@ const notification = (overrides: Partial<OutgoingNotification>): OutgoingNotific
 });
 
 describe("NotificationService", () => {
+  it("notifies nobody who can no longer see the task, though they're still on it", async () => {
+    const inbox = { name: "inbox", deliver: jest.fn(async () => undefined) };
+
+    await service([inbox], false, false).onActivity({ ticketId: "t-1", kind: "reviewer_added", actorId: "pm", payload: { userId: "reviewer" } });
+
+    expect(inbox.deliver).not.toHaveBeenCalled();
+  });
+
   it("sends each recipient the sentence and a link to the task, through every channel", async () => {
     const delivered: OutgoingNotification[] = [];
     const inbox = { name: "inbox", deliver: jest.fn(async (n: OutgoingNotification) => void delivered.push(n)) };

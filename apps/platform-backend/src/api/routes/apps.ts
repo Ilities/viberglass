@@ -22,7 +22,7 @@ export function createAppsRouter(signIn: Pick<AppSignInService, "handoff">, dire
       const context = req.authContext;
       if (!context) return res.status(401).json({ error: "Sign in to open this app" });
       const viewer = { id: context.user.id, role: context.user.role, sessionId: context.session.id };
-      res.json({ success: true, data: await signIn.handoff(viewer, req.params.slug, req.body?.returnPath) });
+      res.json({ success: true, data: await signIn.handoff(viewer, req.params.slug, req.body?.returnPath, req.body?.state) });
     } catch (error) {
       next(error);
     }

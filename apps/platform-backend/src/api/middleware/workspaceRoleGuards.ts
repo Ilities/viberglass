@@ -4,6 +4,11 @@ import { requireRole } from "./authentication";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+// Express matches routes case-insensitively, so path checks must too.
+function routedPath(req: Request): string {
+  return req.path.toLowerCase();
+}
+
 // Changes a viewer may still make: to their own session, Inbox and notification settings.
 const VIEWER_WRITABLE_PREFIXES = ["/api/auth/logout", "/api/inbox/", "/api/me/"];
 
@@ -14,7 +19,7 @@ const VIEWER_WRITABLE_PREFIXES = ["/api/auth/logout", "/api/inbox/", "/api/me/"]
  */
 export function refuseViewerChanges(req: Request, res: Response, next: NextFunction): void {
   const role = req.authContext?.user.role;
-  if (role !== "viewer" || READ_METHODS.has(req.method) || VIEWER_WRITABLE_PREFIXES.some((prefix) => req.path.startsWith(prefix))) {
+  if (role !== "viewer" || READ_METHODS.has(req.method) || VIEWER_WRITABLE_PREFIXES.some((prefix) => routedPath(req).startsWith(prefix))) {
     next();
     return;
   }
@@ -30,11 +35,12 @@ const APP_USER_PATHS = ["/api/auth", "/api/me", "/api/account-links", "/api/apps
  */
 export function confineAppUsers(req: Request, res: Response, next: NextFunction): void {
   const role = req.authContext?.user.role;
-  if (!role || SPACE_MEMBER_ROLES.includes(role) || !req.path.startsWith("/api/")) {
+  const path = routedPath(req);
+  if (!role || SPACE_MEMBER_ROLES.includes(role) || !path.startsWith("/api/")) {
     next();
     return;
   }
-  if (APP_USER_PATHS.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {
+  if (APP_USER_PATHS.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
     next();
     return;
   }

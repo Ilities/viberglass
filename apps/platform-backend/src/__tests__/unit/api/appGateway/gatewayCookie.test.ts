@@ -1,9 +1,13 @@
 import {
+  gatewayClearCookie,
+  gatewayCookieNames,
   gatewaySetCookie,
   readGatewayCookies,
-  withoutGatewayCookie,
+  withoutGatewayCookies,
   withoutGatewaySetCookie,
 } from "../../../../api/appGateway/gatewayCookie";
+
+const NAMES = gatewayCookieNames(false);
 
 describe("the gateway cookie", () => {
   it("reads every value sent under its name", () => {
@@ -12,12 +16,19 @@ describe("the gateway cookie", () => {
   });
 
   it("is removed from what the app receives, leaving the app's own cookies", () => {
-    expect(withoutGatewayCookie("theme=dark; viberglass_app=one; sid=x=y", "viberglass_app")).toBe("theme=dark; sid=x=y");
-    expect(withoutGatewayCookie("viberglass_app=one", "viberglass_app")).toBeUndefined();
+    expect(withoutGatewayCookies("theme=dark; viberglass_app=one; viberglass_app_state=s; sid=x=y", NAMES)).toBe("theme=dark; sid=x=y");
+    expect(withoutGatewayCookies("viberglass_app=one", NAMES)).toBeUndefined();
   });
 
-  it("can't be set by the app", () => {
-    expect(withoutGatewaySetCookie(["viberglass_app=forged; Path=/", "theme=dark"], "viberglass_app")).toEqual(["theme=dark"]);
+  it("can't be set by the app, not even as a nameless cookie that reads back as ours", () => {
+    expect(
+      withoutGatewaySetCookie(["viberglass_app=forged; Path=/", " viberglass_app_state = s", "=viberglass_app=X", "viberglass_app", "theme=dark"], NAMES),
+    ).toEqual(["theme=dark"]);
+  });
+
+  it("is cleared on the host, or on the apps domain when a sibling may have set it there", () => {
+    expect(gatewayClearCookie("viberglass_app", false, "apps.localhost")).toBe("viberglass_app=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Domain=apps.localhost");
+    expect(gatewayClearCookie("__Host-viberglass_app", true)).toBe("__Host-viberglass_app=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure");
   });
 
   it("is host-only and http-only, and secure over https", () => {

@@ -151,16 +151,23 @@ export class InviteDAO {
         .returning("id")
         .executeTakeFirstOrThrow();
       await trx.updateTable("invites").set({ accepted_user_id: created.id }).where("id", "=", invite.id).execute();
-      if (invite.space_ids.length > 0) {
+      // Spaces and apps deleted since the invite was sent are skipped.
+      const named = [...invite.space_ids, ...invite.app_ids];
+      const existing = new Set(
+        named.length > 0 ? (await trx.selectFrom("projects").select("id").where("id", "in", named).execute()).map((row) => row.id) : [],
+      );
+      const spaceIds = invite.space_ids.filter((id) => existing.has(id));
+      const appIds = invite.app_ids.filter((id) => existing.has(id));
+      if (spaceIds.length > 0) {
         await trx
           .insertInto("space_members")
-          .values(invite.space_ids.map((projectId) => ({ project_id: projectId, user_id: created.id, role: "member" as const, added_by: null })))
+          .values(spaceIds.map((projectId) => ({ project_id: projectId, user_id: created.id, role: "member" as const, added_by: null })))
           .execute();
       }
-      if (invite.app_ids.length > 0) {
+      if (appIds.length > 0) {
         await trx
           .insertInto("app_access")
-          .values(invite.app_ids.map((projectId) => ({ project_id: projectId, user_id: created.id, added_by: invite.created_by })))
+          .values(appIds.map((projectId) => ({ project_id: projectId, user_id: created.id, added_by: invite.created_by })))
           .onConflict((oc) => oc.doNothing())
           .execute();
       }

@@ -15,5 +15,9 @@ export function startAppGateway(env: Record<string, string | undefined> = proces
     return;
   }
   const { origins, service, resolver } = appSignIn();
+  const domain = origins.domain ?? "";
+  if (!origins.secure && domain !== "localhost" && !domain.endsWith(".localhost")) {
+    logger.warn("Apps are served over http on a name other than localhost: one app can sign people in to another as someone else. Set APPS_PUBLIC_URL to an https address.", { domain });
+  }
   createAppGateway({ origins, resolver, signIn: service, frontendUrl }).listen(port, () => logger.info("App gateway listening", { port }));
 }

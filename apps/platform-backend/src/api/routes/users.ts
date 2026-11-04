@@ -11,11 +11,13 @@ import { hashPassword, normalizeEmail } from "../auth/utils";
 import logger from "../../config/logger";
 import { UserActivationService } from "../../services/people/UserActivationService";
 import { PasswordResetService } from "../../services/people/PasswordResetService";
+import { UserRoleService } from "../../services/people/UserRoleService";
 
 const router = express.Router();
 const userDao = new UserDAO();
 const userActivation = new UserActivationService(userDao);
 const passwordResets = new PasswordResetService();
+const userRoles = new UserRoleService(userDao);
 
 function buildUserResponse(user: PublicUser) {
   return {
@@ -101,7 +103,7 @@ router.patch(
         }
       }
 
-      const updatedUser = await userDao.updateUserRole(targetUser.id, role);
+      const updatedUser = await userRoles.setRole(targetUser.id, role);
       if (!updatedUser) {
         return res.status(404).json({ error: "User not found" });
       }

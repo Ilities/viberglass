@@ -44,11 +44,11 @@ export function appUnreachablePage(res: ServerResponse): void {
   sendGatewayPage(res, 502, "The app isn't answering", "<p>It may be starting or restarting. Try again in a minute.</p>");
 }
 
-export function signInFailedPage(res: ServerResponse, openUrl: string): void {
+export function signInFailedPage(res: ServerResponse): void {
   sendGatewayPage(
     res,
     400,
-    "This sign-in link has already been used",
-    `<p><a href="${escapeHtml(openUrl)}">Open the app again</a> to sign in.</p>`,
+    "This sign-in link can't be used",
+    `<p>It has expired, it was used already, or it was opened in another browser than the one that asked for it. <a href="/">Open the app again</a> to sign in.</p>`,
   );
 }

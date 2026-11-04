@@ -13,6 +13,8 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 export const APP_CALLBACK_PATH = "/_viberglass/callback";
 
+const STATE = /^[A-Za-z0-9_-]{32,128}$/;
+
 export interface AppSignInViewer {
   id: string;
   role: WorkspaceRole;
@@ -33,7 +35,11 @@ export class AppSignInService {
     private readonly origins: Pick<AppOrigins, "originFor">,
   ) {}
 
-  async handoff(viewer: AppSignInViewer, slug: string, returnPath: unknown): Promise<AppHandoff> {
+  /**
+   * `state` comes from the gateway's cookie on the app's host. Without one, the
+   * browser goes to the app first, and the gateway starts a sign-in it can finish.
+   */
+  async handoff(viewer: AppSignInViewer, slug: string, returnPath: unknown, state: unknown): Promise<AppHandoff> {
     const space = await this.spaces.findBySlug(slug);
     if (!space || !(await this.access.canOpen(viewer, space))) {
       throw new AppSpaceError("APP_NOT_FOUND", "This app doesn't exist, or you don't have access to it.");
@@ -46,10 +52,15 @@ export class AppSignInService {
       return { status: "off", appName: space.name, maintainers: await this.access.maintainerNames(space.projectId) };
     }
 
+    if (typeof state !== "string" || !STATE.test(state)) {
+      return { status: "ready", url: `${origin}${appReturnPath(returnPath)}` };
+    }
+
     await this.signIns.deleteExpired(new Date());
     const { token, tokenHash, expiresAt } = createSingleUseToken(CODE_TTL_MS);
     await this.signIns.createCode({
       codeHash: tokenHash,
+      stateHash: hashToken(state),
       projectId: space.projectId,
       sessionId: viewer.sessionId,
       returnPath: appReturnPath(returnPath),
@@ -58,11 +69,11 @@ export class AppSignInService {
     return { status: "ready", url: `${origin}${APP_CALLBACK_PATH}?code=${encodeURIComponent(token)}` };
   }
 
-  /** Trades a code for a gateway session on the app it was issued for; null when the code can't be used. */
-  async redeem(slug: string, code: string): Promise<{ token: string; returnPath: string; expiresAt: Date } | null> {
+  /** Trades a code for a gateway session on the app and browser it was issued for; null when the code can't be used. */
+  async redeem(slug: string, code: string, state: string): Promise<{ token: string; returnPath: string; expiresAt: Date } | null> {
     const space = await this.spaces.findBySlug(slug);
     if (!space) return null;
-    const redeemed = await this.signIns.redeemCode(hashToken(code), space.projectId);
+    const redeemed = await this.signIns.redeemCode(hashToken(code), hashToken(state), space.projectId);
     if (!redeemed) return null;
     const sessionExpiry = await this.signIns.userSessionExpiry(redeemed.sessionId);
     if (!sessionExpiry) return null;

@@ -8,6 +8,7 @@ import type { NotificationChannel } from "./NotificationChannel";
 import { resolveNotifications } from "./resolveNotifications";
 import { ChatDmChannel } from "./ChatDmChannel";
 import { TaskAttentionDAO } from "../../persistence/ticketing/TaskAttentionDAO";
+import { TaskVisibility } from "../tasks/TaskVisibility";
 
 const logger = createChildLogger({ service: "NotificationService" });
 
@@ -25,6 +26,7 @@ interface Dependencies {
   channels: NotificationChannel[];
   frontendUrl: string | undefined;
   attention: Pick<TaskAttentionDAO, "defersQuestion">;
+  visibility: Pick<TaskVisibility, "onTask">;
 }
 
 /**
@@ -42,6 +44,7 @@ export class NotificationService {
       channels: [new ChatDmChannel(), new EmailChannel()],
       frontendUrl: process.env.PLATFORM_FRONTEND_URL,
       attention: new TaskAttentionDAO(),
+      visibility: new TaskVisibility(),
       ...deps,
     };
   }
@@ -62,6 +65,8 @@ export class NotificationService {
     const link = base && task ? `${base}/spaces/${task.spaceSlug}/tasks/${task.key}` : null;
 
     for (const recipient of recipients) {
+      // Someone can stay on a task after losing access to its space.
+      if (!(await this.deps.visibility.onTask(activity.ticketId, recipient.userId))) continue;
       if (recipient.kind === "question_reminder" && typeof activity.payload.questionId === "string" && await this.deps.attention.defersQuestion(recipient.userId, activity.ticketId, activity.payload.questionId)) continue;
       const notification = {
         recipientId: recipient.userId,

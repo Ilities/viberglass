@@ -3,11 +3,12 @@ import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 import { objectStorageClientConfig, releaseBundleKey } from "@viberglass/types";
 import { AppDataStore } from "../../services/apps/AppDataStore";
 import { AppInstanceSpecs } from "../../services/apps/AppInstanceSpecs";
+import { AppSubnetPool } from "../../services/apps/AppSubnetPool";
 import { DockerAppHost } from "../../services/apps/DockerAppHost";
 import { StsAppDataCredentials } from "../../services/apps/StsAppDataCredentials";
 import { appRelease } from "../helpers/fakeAppHost";
@@ -57,6 +58,10 @@ async function startRelease(): Promise<void> {
   const release = appRelease(RELEASE_ID, { projectId: PROJECT, bundleSha256: env.BUNDLE_SHA256 });
   await host.create(await new AppInstanceSpecs(new StsAppDataCredentials(() => env), () => env).specFor("docker", release));
   await host.start(PROJECT);
+  await waitForHealth();
+}
+
+async function waitForHealth(): Promise<void> {
   for (let attempt = 0; attempt < 60; attempt++) {
     try {
       if (inApp("GET", "/healthz") === "ok") return;
@@ -103,7 +108,13 @@ describeWithRuntime("running an app on Docker", () => {
       APP_RUNTIME_IMAGE: RUNTIME_IMAGE,
     };
     env.BUNDLE_SHA256 = await uploadBundle();
-    host = new DockerAppHost({ gatewayContainer: null, storage: { container: storage.getId(), alias: "storage" }, memoryMb: 256, cpus: 1 });
+    host = new DockerAppHost({
+      gatewayContainer: null,
+      storage: { container: storage.getId(), alias: "storage" },
+      memoryMb: 256,
+      cpus: 1,
+      subnets: new AppSubnetPool("10.251.0.0/16"),
+    });
   }, 120_000);
 
   afterAll(async () => {
@@ -147,4 +158,27 @@ describeWithRuntime("running an app on Docker", () => {
     await expect(put(`spaces/${randomUUID()}/app-data/probe`)).rejects.toMatchObject({ name: "AccessDenied" });
     client.destroy();
   });
+
+  it("runs the app on a read-only root in the app subnet pool, and restarts it from its unpacked release once the bundle is gone", async () => {
+    await startRelease();
+    const canWrite = (file: string) => {
+      try {
+        execFileSync("docker", ["exec", `viberglass-app-${PROJECT}`, "touch", file], { stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    expect(canWrite("/etc/probe")).toBe(false);
+    expect(canWrite("/tmp/probe")).toBe(true);
+    const subnet = execFileSync("docker", ["network", "inspect", `viberglass-app-${PROJECT}`, "--format", "{{(index .IPAM.Config 0).Subnet}}"], { encoding: "utf8" });
+    expect(subnet.trim()).toMatch(/^10\.251\.\d+\.0\/24$/);
+
+    const client = new S3Client(objectStorageClientConfig(env));
+    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: releaseBundleKey(PROJECT, RELEASE_ID) }));
+    client.destroy();
+    execFileSync("docker", ["restart", `viberglass-app-${PROJECT}`], { stdio: "ignore" });
+    await waitForHealth();
+    await host.stop(PROJECT, 30);
+  }, 120_000);
 });

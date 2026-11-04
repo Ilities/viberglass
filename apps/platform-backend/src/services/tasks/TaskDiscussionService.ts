@@ -10,7 +10,7 @@ const MAX_BODY = 20_000;
 interface Dependencies {
   messages: Pick<TaskMessageDAO, "list" | "create">;
   participants: Pick<TaskParticipantDAO, "add">;
-  visibility: Pick<TaskParticipantService, "assertCanSeeTask">;
+  visibility: Pick<TaskParticipantService, "assertCanSeeTask" | "assertCanPost">;
   activity: Pick<TaskActivityRecorder, "record">;
 }
 
@@ -40,7 +40,7 @@ export class TaskDiscussionService {
   /**
    * Posts the message and returns its id. With `source`, it was written in
    * that tracker, by someone with an account here. A message may be only
-   * images.
+   * images. Chat posts arrive without the route guards, so the author is checked here.
    */
   async create(
     ticketId: string,
@@ -52,6 +52,7 @@ export class TaskDiscussionService {
     if ((!text && images.length === 0) || text.length > MAX_BODY) {
       throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.MESSAGE_INVALID, "Write a message of up to 20,000 characters.");
     }
+    await this.deps.visibility.assertCanPost(ticketId, authorId);
     const mentioned = parseMentionedUserIds(text).filter((userId) => userId !== authorId);
     for (const userId of mentioned) {
       await this.deps.visibility.assertCanSeeTask(ticketId, userId);

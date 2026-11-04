@@ -4,6 +4,7 @@ import { TASK_PARTICIPANT_ERROR_CODE, TaskParticipantError } from "../../../../s
 
 const DESIGNER = "22222222-2222-4222-8222-222222222222";
 const OUTSIDER = "33333333-3333-4333-8333-333333333333";
+const VIEWER = "44444444-4444-4444-8444-444444444444";
 
 function setup() {
   const messages = { list: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue("message-1") };
@@ -12,12 +13,23 @@ function setup() {
     assertCanSeeTask: jest.fn(async (_ticketId: string, userId: string) => {
       if (userId === OUTSIDER) throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.PERSON_CANT_SEE_TASK, "No");
     }),
+    assertCanPost: jest.fn(async (_ticketId: string, userId: string) => {
+      if (userId === OUTSIDER || userId === VIEWER) throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.CANT_POST, "No");
+    }),
   };
   const activity = { record: jest.fn().mockResolvedValue(undefined) };
   return { messages, participants, activity, service: new TaskDiscussionService({ messages, participants, visibility, activity }) };
 }
 
 describe("TaskDiscussionService", () => {
+  it("refuses authors who may not post, before storing anything", async () => {
+    const { messages, participants, service } = setup();
+
+    await expect(service.create("task-1", VIEWER, `Hi ${mentionToken("Dana", DESIGNER)}`)).rejects.toMatchObject({ code: "CANT_POST" });
+    expect(messages.create).not.toHaveBeenCalled();
+    expect(participants.add).not.toHaveBeenCalled();
+  });
+
   it("stores the message with its mentions, makes them watchers and records it", async () => {
     const { messages, participants, activity, service } = setup();
     const body = `Can you check the colours, ${mentionToken("Dana", DESIGNER)}?`;

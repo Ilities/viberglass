@@ -20,19 +20,20 @@ export function OpenAppPage() {
   const { slug = '' } = useParams<{ slug: string }>()
   const [searchParams] = useSearchParams()
   const returnPath = searchParams.get('return') ?? '/'
+  const state = searchParams.get('state')
   const [opening, setOpening] = useState<Opening>({ kind: 'opening' })
   const started = useRef(false)
 
   const open = useCallback(async () => {
     setOpening({ kind: 'opening' })
     try {
-      const handoff = await openApp(slug, returnPath)
+      const handoff = await openApp(slug, returnPath, state)
       if (handoff.status === 'ready') window.location.replace(handoff.url)
       else setOpening({ kind: 'off', appName: handoff.appName, maintainers: handoff.maintainers })
     } catch (error) {
       setOpening({ kind: 'failed', message: error instanceof Error ? error.message : "Couldn't open the app" })
     }
-  }, [slug, returnPath])
+  }, [slug, returnPath, state])
 
   useEffect(() => {
     if (started.current) return

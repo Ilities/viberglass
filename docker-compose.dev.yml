@@ -5,6 +5,7 @@
 # them on the host first:
 #
 #   npm ci && npm run backend:build-deps
+#   ./scripts/generate-storage-password.sh
 #   docker compose -f docker-compose.dev.yml up -d
 #
 # Set COMPOSE_FILE=docker-compose.dev.yml in the root .env to leave out the -f.
@@ -41,10 +42,12 @@ services:
     command: -c 'mkdir -p /data/viberglass-dev && minio server --address ":9000" --console-address ":9001" /data'
     environment:
       MINIO_ROOT_USER: viberglass
-      MINIO_ROOT_PASSWORD: viberglass-dev-storage
+      # Apps reach storage, so its password isn't one anyone can read here.
+      MINIO_ROOT_PASSWORD: ${VIBERGLASS_STORAGE_PASSWORD:?run ./scripts/generate-storage-password.sh first}
     ports:
+      # Docker workers reach storage through the host, so this one isn't loopback-only.
       - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -66,7 +69,7 @@ services:
       POSTGRES_USER: jussi
       POSTGRES_PASSWORD: salasana
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jussi -d viberglass-platform"]
       interval: 5s
@@ -117,7 +120,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       S3_REGION: us-east-1
       S3_ACCESS_KEY_ID: viberglass
-      S3_SECRET_ACCESS_KEY: viberglass-dev-storage
+      S3_SECRET_ACCESS_KEY: ${VIBERGLASS_STORAGE_PASSWORD:?run ./scripts/generate-storage-password.sh first}
       # Artifact previews run on another host than the app (127.0.0.1, not
       # localhost), so the app's cookies never reach them.
       PREVIEW_PORT: 8890
@@ -158,11 +161,12 @@ services:
       # Hot-reload in containers (required for some Docker setups)
       CHOKIDAR_USEPOLLING: "true"
     ports:
+      # Docker workers call the API through the host, so this one isn't loopback-only.
       - "8888:8888"
       # Artifact previews, on their own origin.
-      - "8890:8890"
+      - "127.0.0.1:8890:8890"
       # Apps, through the gateway.
-      - "8891:8891"
+      - "127.0.0.1:8891:8891"
     volumes:
       # Mount source with cached mode for better performance on macOS/Windows
       - ./apps/platform-backend:/app/apps/platform-backend:cached
@@ -214,7 +218,7 @@ services:
       # Hot-reload in containers
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       # Mount source with cached mode for better performance
       - ./apps/platform-frontend:/app/apps/platform-frontend:cached
@@ -247,7 +251,7 @@ services:
         condition: service_healthy
     ports:
       # Remapped: the frontend already owns 3000 on the host.
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment: &langfuse-env
       DATABASE_URL: postgresql://langfuse:langfuse@langfuse-postgres:5432/langfuse
       SALT: "eCFkap12IetWxPKdsLUDw4DiuYNi99MX"
@@ -398,7 +402,7 @@ services:
     container_name: viberglass-dev-mailpit
     profiles: ["mail"]
     ports:
-      - "8025:8025"
+      - "127.0.0.1:8025:8025"
     networks:
       - viberglass-dev-network
     restart: unless-stopped

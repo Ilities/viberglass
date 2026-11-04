@@ -17,7 +17,8 @@ export function isAppHostLabel(slug: string): boolean {
  * APPS_PUBLIC_URL (https and the default port when it's unset).
  */
 export class AppOrigins {
-  private readonly domain: string | null;
+  /** The apps domain, such as apps.example.com. */
+  readonly domain: string | null;
   private readonly base: URL | null;
 
   constructor(env: Env = process.env) {

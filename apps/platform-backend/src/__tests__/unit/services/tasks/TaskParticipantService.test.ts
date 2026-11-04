@@ -3,7 +3,7 @@ import { SPACE_ACCESS_ERROR_CODE, SpaceAccessError } from "../../../../services/
 
 const at = new Date("2026-09-30T10:00:00Z");
 
-function setup(options: { canSee: boolean; deactivated?: boolean }) {
+function setup(options: { canSee: boolean; deactivated?: boolean; role?: string }) {
   const participants = {
     list: jest.fn().mockResolvedValue([]),
     setOwner: jest.fn().mockResolvedValue(undefined),
@@ -16,7 +16,7 @@ function setup(options: { canSee: boolean; deactivated?: boolean }) {
       email: "g@example.com",
       name: "G",
       avatarUrl: null,
-      role: "guest",
+      role: options.role ?? "guest",
       createdAt: at,
       updatedAt: at,
       deactivatedAt: options.deactivated ? at : null,
@@ -35,6 +35,13 @@ function setup(options: { canSee: boolean; deactivated?: boolean }) {
 }
 
 describe("TaskParticipantService", () => {
+  it("lets people who take part in tasks post on one they can see", async () => {
+    await expect(setup({ canSee: true }).service.assertCanPost("task-1", "user-2")).resolves.toBeUndefined();
+    for (const options of [{ canSee: false }, { canSee: true, deactivated: true }, { canSee: true, role: "viewer" }, { canSee: true, role: "app_user" }]) {
+      await expect(setup(options).service.assertCanPost("task-1", "user-2")).rejects.toMatchObject({ code: "CANT_POST", statusCode: 403 });
+    }
+  });
+
   it("makes someone the owner when they can see the task", async () => {
     const { participants, service } = setup({ canSee: true });
 

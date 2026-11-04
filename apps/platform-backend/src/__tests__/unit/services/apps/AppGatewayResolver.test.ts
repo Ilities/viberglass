@@ -58,4 +58,14 @@ describe("AppGatewayResolver", () => {
 
     await expect(resolver.resolve("laptops", "good")).resolves.toEqual({ kind: "forbidden" });
   });
+
+  it("keeps no decision for tokens that aren't a session, and looks each app up once", async () => {
+    const { resolver, deps } = build();
+    await resolver.resolve("laptops", "made-up");
+    await resolver.resolve("laptops", "made-up");
+    await resolver.resolve("laptops", "good");
+
+    expect(deps.signIns.findSessionUser).toHaveBeenCalledTimes(3);
+    expect(deps.spaces.findBySlug).toHaveBeenCalledTimes(1);
+  });
 });

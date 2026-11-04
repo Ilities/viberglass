@@ -51,6 +51,15 @@ function setup(membership: "maintainer" | null) {
 }
 
 describe("an app's access list", () => {
+  it("lets one person add only so many people an hour", async () => {
+    const { app } = setup("maintainer");
+    const add = () => request(app).post(`/api/spaces/${SPACE_ID}/app/access`).set("x-role", "member").send({ email: "kim@example.com" });
+
+    for (let i = 0; i < 30; i++) await add().expect(201);
+    const refused = await add().expect(429);
+    expect(refused.body.error).toMatch(/Try again later/);
+  });
+
   it("is shown and changed only by the space's maintainers", async () => {
     const { app, accessList } = setup(null);
 

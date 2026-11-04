@@ -1,4 +1,5 @@
-import type { Router } from "express";
+import type { Request, Router } from "express";
+import rateLimit from "express-rate-limit";
 import type { AppAccessListService } from "../../services/apps/AppAccessListService";
 import type { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { spaceViewerOf } from "../middleware/spaceAccessGuards";
@@ -13,6 +14,16 @@ export function registerAppAccessRoutes(
   accessList: Pick<AppAccessListService, "list" | "add" | "remove" | "cancelInvite">,
   access: Pick<SpaceAccessService, "assertCanMaintain">,
 ): void {
+  // Each new email is an invite sent from the workspace's address.
+  const addingLimit = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: ADDS_PER_HOUR,
+    keyGenerator: (req: Request) => req.authContext?.user.id ?? "anonymous",
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "You've added a lot of people in the last hour. Try again later." },
+  });
+
   router.get("/:projectId/app/access", validateUuidParam("projectId"), async (req, res, next) => {
     try {
       const viewer = spaceViewerOf(req);
@@ -24,7 +35,7 @@ export function registerAppAccessRoutes(
     }
   });
 
-  router.post("/:projectId/app/access", validateUuidParam("projectId"), async (req, res, next) => {
+  router.post("/:projectId/app/access", validateUuidParam("projectId"), addingLimit, async (req, res, next) => {
     const email: unknown = req.body?.email;
     if (typeof email !== "string" || !EMAIL.test(email.trim())) {
       return res.status(400).json({ error: "Enter the email address of the person to add." });
@@ -56,3 +67,4 @@ export function registerAppAccessRoutes(
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+$/;
+const ADDS_PER_HOUR = 30;

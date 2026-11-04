@@ -3,6 +3,8 @@ import type { AppHost, AppInstanceSpec, AppInstanceStatus } from "@viberglass/ty
 import { DockerodeClientAdapter } from "../../provisioning/adapters/DockerodeClientAdapter";
 import type { DockerClientPort } from "../../provisioning/ports/DockerClientPort";
 import { dockerStatusCode } from "../../workers/invokers/dockerStatusCode";
+import { appContainer } from "./appContainer";
+import type { AppSubnetPool } from "./AppSubnetPool";
 import { demuxDockerLogs } from "./demuxDockerLogs";
 
 const APP_PORT = 3000;
@@ -15,12 +17,16 @@ export interface DockerAppHostOptions {
   storage: { container: string; alias: string } | null;
   memoryMb: number;
   cpus: number;
+  /** Where app networks take their subnets from. */
+  subnets: AppSubnetPool;
 }
 
 const names = (projectId: string) => ({
   container: `viberglass-app-${projectId}`,
   network: `viberglass-app-${projectId}`,
   volume: `viberglass-app-${projectId}-data`,
+  // Where the release is unpacked; kept across restarts, since the bundle's URL expires.
+  releaseVolume: `viberglass-app-${projectId}-release`,
 });
 
 /**
@@ -42,23 +48,9 @@ export class DockerAppHost implements AppHost {
     await this.ensureImage(spec.image);
     await this.ensureNetwork(name.network, spec.projectId);
     await this.ensureVolume(name.volume, spec.projectId);
+    await this.ensureVolume(name.releaseVolume, spec.projectId);
     await this.removeContainer(name.container);
-    await this.docker.createContainer({
-      name: name.container,
-      Image: spec.image,
-      Env: Object.entries({ ...spec.env, PORT: String(APP_PORT) }).map(([key, value]) => `${key}=${value}`),
-      Labels: { [LABEL]: spec.projectId },
-      HostConfig: {
-        NetworkMode: name.network,
-        Binds: [`${name.volume}:/data`],
-        RestartPolicy: { Name: "unless-stopped" },
-        Memory: this.options.memoryMb * 1024 * 1024,
-        NanoCpus: Math.round(this.options.cpus * 1e9),
-        PidsLimit: 512,
-        CapDrop: ["ALL"],
-        SecurityOpt: ["no-new-privileges"],
-      },
-    });
+    await this.docker.createContainer(appContainer(spec, name, { port: APP_PORT, label: LABEL, memoryMb: this.options.memoryMb, cpus: this.options.cpus }));
   }
 
   async start(projectId: string): Promise<void> {
@@ -115,6 +107,7 @@ export class DockerAppHost implements AppHost {
     const name = names(projectId);
     await this.removeContainer(name.container);
     await this.removeVolume(name.volume);
+    await this.removeVolume(name.releaseVolume);
     await this.removeNetwork(name.network);
   }
 
@@ -134,12 +127,38 @@ export class DockerAppHost implements AppHost {
   }
 
   private async ensureNetwork(network: string, projectId: string): Promise<void> {
-    try {
-      await this.docker.createNetwork({ Name: network, Driver: "bridge", Labels: { [LABEL]: projectId } });
-    } catch (error) {
-      if (dockerStatusCode(error) !== 409) throw error;
+    const existing = await this.subnetOf(network);
+    if (!(existing && this.options.subnets.contains(existing))) {
+      if (existing !== undefined) await this.removeNetwork(network);
+      await this.createNetwork(network, projectId);
     }
     await this.joinPlatform(network);
+  }
+
+  /** The network's subnet; null when it has none, undefined when there's no such network. */
+  private async subnetOf(network: string): Promise<string | null | undefined> {
+    try {
+      const inspected = await this.docker.getNetwork(network).inspect();
+      return inspected.IPAM?.Config?.[0]?.Subnet ?? null;
+    } catch (error) {
+      if (dockerStatusCode(error) === 404) return undefined;
+      throw error;
+    }
+  }
+
+  // Another app can take the same subnet between listing and creating; Docker refuses the overlap, so try the next.
+  private async createNetwork(network: string, projectId: string, attemptsLeft = 5): Promise<void> {
+    const used = (await this.docker.listNetworks()).flatMap((n) => (n.IPAM?.Config ?? []).map((config) => config.Subnet ?? ""));
+    const subnet = this.options.subnets.free(used);
+    if (!subnet) throw new Error("No free subnet is left for app networks. Make APPS_NETWORK_POOL larger.");
+    try {
+      await this.docker.createNetwork({ Name: network, Driver: "bridge", Labels: { [LABEL]: projectId }, IPAM: { Config: [{ Subnet: subnet }] } });
+    } catch (error) {
+      if (dockerStatusCode(error) === 409) return;
+      const overlapped = dockerStatusCode(error) === 403 || dockerStatusCode(error) === 400;
+      if (!overlapped || attemptsLeft <= 1) throw error;
+      await this.createNetwork(network, projectId, attemptsLeft - 1);
+    }
   }
 
   private async joinPlatform(network: string): Promise<void> {

@@ -46,7 +46,8 @@ This repository holds one small internal app. Viberglass builds it, runs it, bac
 
 ## Data
 
-- All persistent state lives in one SQLite database at \`${APP_DATABASE_PATH}\`. Nothing else on disk survives a restart or a new release, so never write files you need to keep anywhere else. Store uploaded files in the database.
+- All persistent state lives in one SQLite database at \`${APP_DATABASE_PATH}\`. Nothing else on disk survives a new release, so never write files you need to keep anywhere else. Store uploaded files in the database.
+- The rest of the filesystem is read-only, apart from \`/tmp\` for short-lived files and the app's own directory, which each new release replaces.
 - Open the database in WAL mode (\`PRAGMA journal_mode = WAL\`); backups depend on it. Don't delete, move or replace the database file.
 - Set a busy timeout when opening it (\`PRAGMA busy_timeout = 5000\`). Replication briefly locks the database, and without one a write fails with "database is locked".
 - Run the app's own migrations at startup, before \`${APP_HEALTH_PATH}\` answers 200. Keep them in the repository as numbered SQL or code files, record which ones ran in a table, and only ever add new ones: a migration that already ran on live data must never change.
@@ -61,11 +62,20 @@ Every request reaches the app through the Viberglass gateway, which has already 
 - \`${APP_USER_HEADERS.email}\`: their email address.
 - \`${APP_USER_HEADERS.name}\`: their display name, percent-encoded as UTF-8 so any script fits in a header. Read it with \`decodeURIComponent\`.
 
+Only the id identifies a person. The email and name are for showing: people choose their own names, so two can share one, and never decide who owns a record or who may do something by email or name.
+
 Trust these headers and nothing else. Don't write sign-in pages, passwords, sessions, tokens or user tables for authentication, and don't set cookies for identity. Storing people's ids next to the records they own or created is fine, and so is a table of app-specific preferences keyed by the id.
 
 Answer requests other than \`${APP_HEALTH_PATH}\` that arrive without \`${APP_USER_HEADERS.id}\` with 401. When you try the app yourself, send the headers with your requests, for example \`curl -H '${APP_USER_HEADERS.id}: u1' -H '${APP_USER_HEADERS.email}: ada@example.com' -H '${APP_USER_HEADERS.name}: Ada' http://localhost:$PORT/\`.
 
 Everyone who can open the app can do everything in it. There are no roles inside apps yet.
+
+The gateway also sets \`X-Forwarded-For\`, \`X-Forwarded-Proto\` and \`X-Forwarded-Host\` from what it saw itself. Don't read any other forwarding header, and don't add a proxy library that trusts several hops.
+
+## Browsers
+
+- Don't send CORS headers (\`Access-Control-Allow-*\`). The app's pages call its own server on the same origin, and the gateway drops grants to any other origin.
+- Don't expect to be shown in a frame on another site, or to be fetched by another app's pages; the gateway refuses both.
 
 ## Settings
 

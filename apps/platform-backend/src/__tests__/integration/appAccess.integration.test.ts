@@ -90,6 +90,16 @@ describe("app access invites", () => {
   });
 });
 
+describe("accepting an invite", () => {
+  it("skips apps deleted since it was sent", async () => {
+    await newInvite("lee@example.com", [LAPTOPS, "44444444-4444-4444-8444-444444444444"], "lee-token");
+
+    const accepted = await invites.accept("lee-token", { name: "Lee", passwordHash: "x" });
+
+    await expect(accessList.projectIdsFor(accepted!.userId)).resolves.toEqual([LAPTOPS]);
+  });
+});
+
 describe("app access lists", () => {
   it("adds someone once, answers whether they're on it, and takes them off", async () => {
     await accessList.add({ projectId: LAPTOPS, userId: ADMIN, addedBy: ADMIN });

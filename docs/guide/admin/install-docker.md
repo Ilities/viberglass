@@ -8,7 +8,7 @@ There are two ways to run it with Docker. The first, below, is for trying Viberg
 
 - Git.
 - Docker Engine 20.10 or newer, with Docker Compose v2. On macOS and Windows, install Docker Desktop. On Linux, install [Docker Engine](https://docs.docker.com/engine/install/) and add your user to the `docker` group ([Linux post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/)), then sign out and back in.
-- Free ports 3000 (the app), 8890 (artifact previews), and 9000 and 9001 (object storage). See [Ports](#ports) to use others.
+- Free ports 3000 (the app), 8890 (artifact previews), 8891 (apps), and 9000 and 9001 (object storage). See [Ports](#ports) to use others.
 - A model key from an AI provider, or the address of a compatible model endpoint.
 - A GitHub repository, and a fine-grained access token for it. Not needed if your first space is a Files space.
 
@@ -17,10 +17,11 @@ There are two ways to run it with Docker. The first, below, is for trying Viberg
 ```bash
 git clone https://github.com/Ilities/viberglass.git
 cd viberglass
+./scripts/generate-storage-password.sh
 docker compose up -d
 ```
 
-This downloads the published backend and frontend images and starts them with PostgreSQL and MinIO. Nothing is built. The backend runs its database migrations on startup. When it's up, open http://localhost:3000. `docker compose logs -f backend` shows what it's doing.
+The script writes a random object storage password to `.env`, once; Compose refuses to start without it. This downloads the published backend and frontend images and starts them with PostgreSQL and MinIO. Nothing is built. The backend runs its database migrations on startup. When it's up, open http://localhost:3000. `docker compose logs -f backend` shows what it's doing.
 
 ## First-run setup
 
@@ -44,7 +45,40 @@ Agent containers join the `viberglass-workers` Docker network, where they reach 
 
 ## Files spaces and previews
 
-MinIO is the object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-local_storage-data` volume, and its console is at http://localhost:9001 (sign in as `viberglass` / `viberglass-local`). Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
+MinIO is the object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-local_storage-data` volume, and its console is at http://localhost:9001 (sign in as `viberglass` with the `VIBERGLASS_STORAGE_PASSWORD` from `.env`). Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
+
+## Apps
+
+App spaces host the apps their agents build, each at `http://<name>.apps.localhost:8891`. Browsers send every `*.localhost` name to this machine; Safari doesn't, so use another browser for apps.
+
+Each app runs in its own container, on its own Docker network that only the backend and object storage join. Its network gets a subnet from `10.250.0.0/16` (`APPS_NETWORK_POOL`). Docker doesn't stop a container from opening connections to the machine it runs on or to private addresses, so before you run apps, add host firewall rules that drop them. Without the rules an app can reach the backend's API, every port the machine publishes and, on a cloud server, its metadata service.
+
+On Linux, with Docker's iptables firewall backend (the default), save this as `/usr/local/sbin/viberglass-apps-firewall` and make it executable:
+
+```sh
+#!/bin/sh
+# Lets apps answer the gateway and reach object storage, and nothing else private.
+set -eu
+POOL=10.250.0.0/16   # APPS_NETWORK_POOL
+
+iptables -N VIBERGLASS-APPS 2>/dev/null || iptables -F VIBERGLASS-APPS
+iptables -A VIBERGLASS-APPS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+# The gateway opening an app, and an app reaching object storage on its network.
+iptables -A VIBERGLASS-APPS -d "$POOL" -p tcp --dport 3000 -j RETURN
+iptables -A VIBERGLASS-APPS -d "$POOL" -p tcp --dport 9000 -j RETURN
+for range in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10; do
+  iptables -A VIBERGLASS-APPS -d "$range" -j DROP
+done
+iptables -C DOCKER-USER -s "$POOL" -j VIBERGLASS-APPS 2>/dev/null || iptables -I DOCKER-USER -s "$POOL" -j VIBERGLASS-APPS
+# Services listening on the machine itself.
+iptables -C INPUT -s "$POOL" -m conntrack --ctstate NEW -j DROP 2>/dev/null || iptables -I INPUT -s "$POOL" -m conntrack --ctstate NEW -j DROP
+```
+
+Run it once with `sudo`, and again after every reboot, for example from a systemd unit that runs after `docker.service`. Running it twice is safe. If you change `APPS_NETWORK_POOL`, change `POOL` to match.
+
+To check the rules, open a shell in a running app's container (`docker exec -it viberglass-app-<space id> sh`) and try `curl -m 3 http://viberglass-local-backend-1:8888/health`. It should time out, and `curl -m 3 https://example.com` should answer. On a cloud server, also require IMDSv2 with a hop limit of 1 on the instance.
+
+The rules can't be added this way on Docker Desktop (macOS and Windows), so there apps can reach the machine. Run only apps you trust there.
 
 ## Ports
 
@@ -52,6 +86,7 @@ Set these in a `.env` file in the repository root, then run `docker compose up -
 
 - `VIBERGLASS_HTTP_PORT`: the app (default 3000).
 - `VIBERGLASS_PREVIEW_PORT`: artifact previews (default 8890).
+- `VIBERGLASS_APPS_PORT`: apps (default 8891).
 - `VIBERGLASS_STORAGE_PORT` and `VIBERGLASS_STORAGE_CONSOLE_PORT`: MinIO and its console (default 9000 and 9001).
 
 Every port is bound to 127.0.0.1, so other machines can't reach them.

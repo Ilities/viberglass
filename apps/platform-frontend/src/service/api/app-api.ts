@@ -31,11 +31,11 @@ export async function getAppLogs(projectId: string): Promise<string> {
 }
 
 /** Signs the caller in to an app on its own host, or says who can turn it on. */
-export async function openApp(slug: string, returnPath: string): Promise<AppHandoff> {
+export async function openApp(slug: string, returnPath: string, state: string | null): Promise<AppHandoff> {
   const response = await apiFetch(`${API_BASE_URL}/api/apps/${encodeURIComponent(slug)}/handoff`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ returnPath }),
+    body: JSON.stringify({ returnPath, state }),
   })
   return readData(response, "Couldn't open the app")
 }

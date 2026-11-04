@@ -1,4 +1,4 @@
-import type { TaskParticipant, TaskParticipantRole } from "@viberglass/types";
+import { TASK_POSTING_ROLES, type TaskParticipant, type TaskParticipantRole } from "@viberglass/types";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
@@ -6,6 +6,7 @@ import { UserDAO } from "../../persistence/user/UserDAO";
 import { SpaceAccessService } from "../spaces/SpaceAccessService";
 import { TASK_PARTICIPANT_ERROR_CODE, TaskParticipantError } from "../errors/TaskParticipantError";
 import { TaskActivityRecorder } from "./TaskActivityRecorder";
+import { TaskVisibility } from "./TaskVisibility";
 
 interface Dependencies {
   participants: Pick<TaskParticipantDAO, "list" | "setOwner" | "add" | "remove">;
@@ -19,6 +20,7 @@ interface Dependencies {
 /** Who is on a task. Only people who can see the task's space can be put on it. */
 export class TaskParticipantService {
   private readonly deps: Dependencies;
+  private readonly visibility: TaskVisibility;
 
   constructor(deps: Partial<Dependencies> = {}) {
     this.deps = {
@@ -30,6 +32,7 @@ export class TaskParticipantService {
       mentions: new TaskMentionDAO(),
       ...deps,
     };
+    this.visibility = new TaskVisibility(this.deps);
   }
 
   list(ticketId: string): Promise<TaskParticipant[]> {
@@ -85,12 +88,17 @@ export class TaskParticipantService {
 
   /** The same check for a task that's about to be created in this space. */
   async assertCanSeeSpace(projectId: string, userId: string): Promise<void> {
-    const user = await this.deps.users.findById(userId);
-    if (!user || user.deactivatedAt) throw cantSee();
-    try {
-      await this.deps.access.assertCanSee({ id: user.id, role: user.role }, projectId);
-    } catch {
-      throw cantSee();
+    if (!(await this.visibility.inSpace(projectId, userId))) throw cantSee();
+  }
+
+  /** Writing in a task's Discussion: someone who can see the task, in a role that takes part in tasks. */
+  async assertCanPost(ticketId: string, userId: string): Promise<void> {
+    const user = await this.visibility.onTask(ticketId, userId);
+    if (!user || !TASK_POSTING_ROLES.includes(user.role)) {
+      throw new TaskParticipantError(
+        TASK_PARTICIPANT_ERROR_CODE.CANT_POST,
+        "You can't post on this task. Viewers and app users can't post on tasks, and others need access to its space.",
+      );
     }
   }
 }

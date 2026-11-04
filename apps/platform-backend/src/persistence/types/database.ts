@@ -210,6 +210,7 @@ export interface AppHandoffCodesTable {
   project_id: string;
   session_id: string;
   return_path: string;
+  state_hash: string;
   expires_at: Timestamp;
   used_at: Timestamp | null;
 }

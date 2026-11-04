@@ -10,7 +10,7 @@ export interface AppSessionUser {
 
 /** Handoff codes and the gateway sessions they become. Tokens are stored hashed. */
 export class AppSignInDAO {
-  async createCode(input: { codeHash: string; projectId: string; sessionId: string; returnPath: string; expiresAt: Date }): Promise<void> {
+  async createCode(input: { codeHash: string; stateHash: string; projectId: string; sessionId: string; returnPath: string; expiresAt: Date }): Promise<void> {
     await db
       .insertInto("app_handoff_codes")
       .values({
@@ -18,17 +18,19 @@ export class AppSignInDAO {
         project_id: input.projectId,
         session_id: input.sessionId,
         return_path: input.returnPath,
+        state_hash: input.stateHash,
         expires_at: input.expiresAt,
       })
       .execute();
   }
 
-  /** Uses the code up; null when it's unknown, used, expired or for another app. */
-  async redeemCode(codeHash: string, projectId: string): Promise<{ sessionId: string; returnPath: string } | null> {
+  /** Uses the code up; null when it's unknown, used, expired, for another app or for another browser's sign-in. */
+  async redeemCode(codeHash: string, stateHash: string, projectId: string): Promise<{ sessionId: string; returnPath: string } | null> {
     const row = await db
       .updateTable("app_handoff_codes")
       .set({ used_at: new Date() })
       .where("code_hash", "=", codeHash)
+      .where("state_hash", "=", stateHash)
       .where("project_id", "=", projectId)
       .where("used_at", "is", null)
       .where("expires_at", ">", new Date())

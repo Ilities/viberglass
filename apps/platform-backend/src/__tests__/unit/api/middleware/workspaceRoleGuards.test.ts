@@ -76,6 +76,14 @@ describe("confineAppUsers", () => {
     await request(app).post("/api/spaces").set("x-role", "app_user").expect(403);
   });
 
+  it("refuses app users whatever the path's case, since routes match it either way", async () => {
+    const app = appWithSignedInRole(confineAppUsers);
+    for (const path of ["/API/users/directory", "/Api/home", "/aPI/spaces"]) {
+      await request(app).get(path).set("x-role", "app_user").expect(403);
+    }
+    await request(app).get("/API/apps").set("x-role", "app_user").expect(200);
+  });
+
   it("leaves other roles and requests without a user alone", async () => {
     const app = appWithSignedInRole(confineAppUsers);
     for (const role of ["admin", "member", "guest", "viewer"]) {
