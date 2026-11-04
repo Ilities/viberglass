@@ -1,4 +1,4 @@
-import { canAskAgent, canAskForCode, canSteerAgent, type TaskAskCapabilities, type TaskTurnAction } from "@viberglass/types";
+import { canAskAgent, canAskForCode, canSteerAgent, TASK_POSTING_ROLES, type TaskAskCapabilities, type TaskTurnAction } from "@viberglass/types";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
@@ -47,7 +47,7 @@ export class TaskAskPolicyService {
     if (!user || user.deactivatedAt || !(await this.canSee({ id: user.id, role: user.role }, projectId))) return NO_CAPABILITIES;
     const person = { userId, workspaceRole: user.role, spaceRole };
     return {
-      canPost: user.role !== "viewer",
+      canPost: TASK_POSTING_ROLES.includes(user.role),
       canAsk: canAskAgent(person, participants),
       canAskForCode: canAskForCode(person, participants),
       canSteer: canSteerAgent(person, participants),

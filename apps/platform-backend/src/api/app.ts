@@ -48,6 +48,7 @@ import mcpRouter from "./routes/mcp";
 import { createAppHomeRouter } from "./routes/appHome";
 import { createAppsRouter } from "./routes/apps";
 import { appSignIn } from "../services/apps/createAppSignIn";
+import { createAppDirectory } from "../services/apps/createAppSpaceServices";
 import { tracingMiddleware } from "./middleware/tracing";
 import { requireRole } from "./middleware/authentication";
 import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
@@ -64,7 +65,7 @@ import {
   SKILL_AUDIT,
   SPACE_AUDIT,
 } from "./middleware/auditRules";
-import { refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
+import { confineAppUsers, refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
 
 function resolvePublicDirectory(): string {
   const cwd = process.cwd();
@@ -183,6 +184,7 @@ app.use(passport.initialize());
 app.use(attachAuthContext);
 app.use(withRequestActor);
 app.use(refuseViewerChanges);
+app.use(confineAppUsers);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -213,7 +215,7 @@ app.use(
 );
 app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
-app.use("/api/apps", createAppsRouter(appSignIn().service));
+app.use("/api/apps", createAppsRouter(appSignIn().service, createAppDirectory()));
 app.use("/api/app-home", adminOnlyChanges(), auditRequests(APP_HOME_AUDIT), createAppHomeRouter());
 app.use("/api/clankers", adminOnlyChanges(), auditRequests(RUNNER_AUDIT), clankersRouter);
 app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);

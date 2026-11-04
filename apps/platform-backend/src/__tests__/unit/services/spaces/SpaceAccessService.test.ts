@@ -23,6 +23,11 @@ describe("space visibility rules", () => {
     expect(canSeeSpace("guest", { isPrivate: true }, "member")).toBe(true);
   });
 
+  it("shows app users no space, even one they were a member of", () => {
+    expect(canSeeSpace("app_user", { isPrivate: false }, null)).toBe(false);
+    expect(canSeeSpace("app_user", { isPrivate: false }, "maintainer")).toBe(false);
+  });
+
   it("shows a private space only to its members and admins", () => {
     expect(canSeeSpace("member", { isPrivate: true }, null)).toBe(false);
     expect(canSeeSpace("member", { isPrivate: true }, "member")).toBe(true);
@@ -103,6 +108,13 @@ describe("SpaceAccessService", () => {
     expect(members.listVisibleProjectIds).toHaveBeenCalledWith("guest-1", false);
     await access.visibleProjectIds(member);
     expect(members.listVisibleProjectIds).toHaveBeenCalledWith("user-2", true);
+  });
+
+  it("lists no spaces for app users", async () => {
+    const { access, members } = service({ isPrivate: false, membership: "member" });
+
+    await expect(access.visibleProjectIds({ id: "app-user-1", role: "app_user" })).resolves.toEqual([]);
+    expect(members.listVisibleProjectIds).not.toHaveBeenCalled();
   });
 
   it("scopes a list to a named space, or to every visible one", async () => {

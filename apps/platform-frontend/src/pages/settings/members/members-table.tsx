@@ -165,7 +165,9 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
         title={`Make ${roleChange?.user.name} ${roleChange ? ROLE_LABEL[roleChange.role].toLowerCase() : ''}?`}
         description={
           roleChange
-            ? `They go from ${ROLE_LABEL[roleChange.user.role].toLowerCase()} to ${ROLE_LABEL[roleChange.role].toLowerCase()}.`
+            ? `They go from ${ROLE_LABEL[roleChange.user.role].toLowerCase()} to ${ROLE_LABEL[roleChange.role].toLowerCase()}.${
+                roleChange.role === 'app_user' ? ' They stop seeing spaces and tasks, and keep only the apps they’re given.' : ''
+              }`
             : ''
         }
         confirmLabel="Change role"

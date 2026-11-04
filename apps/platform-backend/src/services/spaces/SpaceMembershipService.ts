@@ -1,4 +1,4 @@
-import type { SpaceMember, SpaceRole } from "@viberglass/types";
+import { SPACE_MEMBER_ROLES, type SpaceMember, type SpaceRole } from "@viberglass/types";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
 import { SPACE_ACCESS_ERROR_CODE, SpaceAccessError } from "../errors/SpaceAccessError";
@@ -21,6 +21,12 @@ export class SpaceMembershipService {
     const user = await this.users.findById(input.userId);
     if (!user || user.deactivatedAt) {
       throw new SpaceAccessError(SPACE_ACCESS_ERROR_CODE.USER_NOT_FOUND, "That person isn't an active member of this workspace.");
+    }
+    if (!SPACE_MEMBER_ROLES.includes(user.role)) {
+      throw new SpaceAccessError(
+        SPACE_ACCESS_ERROR_CODE.APP_USER,
+        `${user.name} is an app user, so they can't join spaces. Add them to an app's access list instead.`,
+      );
     }
     await this.members.upsert({ projectId: input.projectId, userId: input.userId, role: input.role, addedBy: input.actorId });
     return this.members.listMembers(input.projectId);

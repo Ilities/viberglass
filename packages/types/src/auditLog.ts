@@ -50,6 +50,8 @@ export const AUDIT_ACTION_TEXT = {
   'space.deleted': 'deleted a space',
   'app.turned_on': 'turned an app on',
   'app.turned_off': 'turned an app off',
+  'app.access_added': 'gave someone access to an app',
+  'app.access_removed': "removed someone's access to an app",
   'invite.created': 'invited someone',
   'invite.revoked': 'revoked an invite',
   'invite.accepted': 'accepted an invite',

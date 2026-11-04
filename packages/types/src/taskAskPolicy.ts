@@ -14,6 +14,9 @@ export interface AskingPerson {
   spaceRole: SpaceRole | null
 }
 
+/** Roles that post on tasks and may ask the agent. Viewers only read. */
+export const TASK_POSTING_ROLES: readonly WorkspaceRole[] = ['admin', 'member', 'guest']
+
 const isOnTask = (person: AskingPerson, participants: AskingParticipant[]) =>
   participants.some((participant) => participant.userId === person.userId)
 
@@ -22,9 +25,8 @@ const isOnTask = (person: AskingPerson, participants: AskingParticipant[]) =>
  * members, and guests once they're on the task. Viewers never ask.
  */
 export function canAskAgent(person: AskingPerson, participants: AskingParticipant[]): boolean {
-  if (person.workspaceRole === 'viewer') return false
-  if (person.workspaceRole === 'guest') return isOnTask(person, participants)
-  return true
+  if (person.workspaceRole === 'admin' || person.workspaceRole === 'member') return true
+  return person.workspaceRole === 'guest' && isOnTask(person, participants)
 }
 
 /**
@@ -33,7 +35,7 @@ export function canAskAgent(person: AskingPerson, participants: AskingParticipan
  * included. Viewers never do.
  */
 export function canAskForCode(person: AskingPerson, participants: AskingParticipant[]): boolean {
-  if (person.workspaceRole === 'viewer') return false
+  if (!TASK_POSTING_ROLES.includes(person.workspaceRole)) return false
   if (person.workspaceRole === 'admin' || person.spaceRole === 'maintainer') return true
   return isOnTask(person, participants)
 }
@@ -44,7 +46,7 @@ export function canAskForCode(person: AskingPerson, participants: AskingParticip
  * maintainers and workspace admins.
  */
 export function canSteerAgent(person: AskingPerson, participants: AskingParticipant[]): boolean {
-  if (person.workspaceRole === 'viewer') return false
+  if (!TASK_POSTING_ROLES.includes(person.workspaceRole)) return false
   if (person.workspaceRole === 'admin' || person.spaceRole === 'maintainer') return true
   return participants.some((participant) => participant.userId === person.userId && participant.role === 'owner')
 }

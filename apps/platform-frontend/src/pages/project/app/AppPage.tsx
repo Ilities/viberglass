@@ -10,6 +10,7 @@ import type { AppRunState, AppView } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { AppAccess } from './app-access'
 import { AppLogs } from './app-logs'
 import { ReleasesTable, shortSha } from './releases-table'
 
@@ -123,6 +124,7 @@ export function AppPage() {
         <ReleasesTable releases={app.releases} currentId={app.currentRelease?.id ?? null} />
       )}
 
+      {canMaintain && <AppAccess projectId={project.id} />}
       {canMaintain && app && app.releases.length > 0 && <AppLogs projectId={project.id} />}
     </>
   )

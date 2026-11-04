@@ -4,6 +4,9 @@ type Env = Record<string, string | undefined>;
 
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
+export const APP_NAME_RULE =
+  "An App space's name becomes its app's web address. Use letters, numbers, spaces and hyphens, up to 63 characters.";
+
 /** Whether a space slug can be an app's host name under the apps domain. */
 export function isAppHostLabel(slug: string): boolean {
   return HOST_LABEL.test(slug);

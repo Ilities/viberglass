@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { ApiResponse, AppHandoff, AppView } from '@viberglass/types'
+import type { ApiResponse, AppAccessAddition, AppAccessList, AppHandoff, AppView, OpenableApp } from '@viberglass/types'
 
 async function readData<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
@@ -38,4 +38,37 @@ export async function openApp(slug: string, returnPath: string): Promise<AppHand
     body: JSON.stringify({ returnPath }),
   })
   return readData(response, "Couldn't open the app")
+}
+
+/** The apps the caller may open. */
+export async function listOpenableApps(): Promise<OpenableApp[]> {
+  return readData(await apiFetch(`${API_BASE_URL}/api/apps`), "Couldn't load your apps")
+}
+
+export async function getAppAccess(projectId: string): Promise<AppAccessList> {
+  return readData(await apiFetch(`${appUrl(projectId)}/access`), "Couldn't load who can open the app")
+}
+
+/** Gives someone the app by email, inviting them when they have no account yet. */
+export async function addAppAccess(projectId: string, email: string): Promise<AppAccessAddition> {
+  const response = await apiFetch(`${appUrl(projectId)}/access`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  return readData(response, "Couldn't give them access")
+}
+
+export async function removeAppAccess(projectId: string, userId: string): Promise<AppAccessList> {
+  return readData(
+    await apiFetch(`${appUrl(projectId)}/access/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
+    "Couldn't remove their access"
+  )
+}
+
+export async function cancelAppInvite(projectId: string, inviteId: string): Promise<AppAccessList> {
+  return readData(
+    await apiFetch(`${appUrl(projectId)}/access/invites/${encodeURIComponent(inviteId)}`, { method: 'DELETE' }),
+    "Couldn't cancel the invite"
+  )
 }

@@ -9,7 +9,7 @@ import { useApiRefresh } from '@/hooks/useApiRefresh'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { isRunner } from '@/lib/roles'
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AccountMenu, UserAvatar } from './account-menu'
 import { AppSidebar } from './app-sidebar'
@@ -23,7 +23,8 @@ export function ApplicationLayout() {
   const { user, status, logout } = useAuth()
   const [spaces, setSpaces] = useState<Project[]>([])
   const spacesRevision = useApiRefresh('/api/spaces', '/api/setup/space', '/api/setup/demo')
-  const needsYou = useNeedsYouCount(status === 'authenticated' && user?.role !== 'viewer', pathname)
+  const appUser = user?.role === 'app_user'
+  const needsYou = useNeedsYouCount(status === 'authenticated' && user?.role !== 'viewer' && !appUser, pathname)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -32,7 +33,7 @@ export function ApplicationLayout() {
   }, [navigate, status, pathname, search])
 
   useEffect(() => {
-    if (status !== 'authenticated') {
+    if (status !== 'authenticated' || appUser) {
       setSpaces([])
       return
     }
@@ -43,7 +44,7 @@ export function ApplicationLayout() {
     return () => {
       cancelled = true
     }
-  }, [status, user?.id, spacesRevision])
+  }, [status, user?.id, appUser, spacesRevision])
 
   if (status === 'loading') {
     return (
@@ -56,6 +57,9 @@ export function ApplicationLayout() {
   if (status !== 'authenticated' || !user) {
     return null
   }
+
+  // App users see no spaces, tasks or settings, only the apps they're given.
+  if (appUser) return <Navigate to="/apps" replace />
 
   const signOut = async () => {
     await logout()

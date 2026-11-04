@@ -18,7 +18,7 @@ const EDITING_PARTICIPANT_ROLES: TaskParticipantRole[] = ['requester', 'owner']
 /**
  * Who may change a task: hard delete is for workspace admins;
  * editing, archiving and marking done for admins, the space's maintainers and
- * the task's requester and owner. Guests and viewers never.
+ * the task's requester and owner. Nobody else: not guests, viewers or app users.
  */
 export function canChangeTask(
   change: TaskChange,
@@ -26,7 +26,7 @@ export function canChangeTask(
   participants: TaskChangeParticipant[],
 ): boolean {
   if (person.workspaceRole === 'admin') return true
-  if (change === 'delete' || person.workspaceRole === 'guest' || person.workspaceRole === 'viewer') return false
+  if (change === 'delete' || person.workspaceRole !== 'member') return false
   if (person.spaceRole === 'maintainer') return true
   return participants.some((p) => p.userId === person.userId && EDITING_PARTICIPANT_ROLES.includes(p.role))
 }

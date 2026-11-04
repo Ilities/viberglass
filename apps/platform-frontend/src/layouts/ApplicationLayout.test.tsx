@@ -96,6 +96,7 @@ function renderLayout(initialPath: string) {
             <Route path="/" element={<div>Home content</div>} />
             <Route path="/spaces/:project" element={<div>Space content</div>} />
           </Route>
+          <Route path="/apps" element={<div>Apps list</div>} />
         </Routes>
       </MemoryRouter>
     </Theme>
@@ -209,5 +210,15 @@ describe('ApplicationLayout navigation', () => {
       }
       cleanup()
     }
+  })
+
+  it('sends app users to their apps without loading the workspace', async () => {
+    asRole('app_user')
+    mockedGetProjects.mockClear()
+    renderLayout('/spaces/viberglass')
+
+    expect(await screen.findByText('Apps list')).toBeInTheDocument()
+    expect(screen.queryByText('Space content')).not.toBeInTheDocument()
+    expect(mockedGetProjects).not.toHaveBeenCalled()
   })
 })

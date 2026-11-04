@@ -441,7 +441,7 @@ flowchart TB
 ### Authentication & Authorization
 
 - Email and password sign-in with server-side sessions; API tokens for scripts, the CLI and MCP clients
-- Workspace roles (admin, member, guest, viewer), open or private spaces, and per-task people decide who can see, comment, ask the agent and build
+- Workspace roles (admin, member, guest, viewer, app user), open or private spaces, and per-task people decide who can see, comment, ask the agent and build
 - Workers authenticate their callbacks with a per-run callback token
 - Webhook signature verification (HMAC-SHA256 where the provider signs deliveries)
 - Admin changes to secrets, agents, members and other settings are recorded in the audit log

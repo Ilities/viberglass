@@ -1,7 +1,7 @@
 import type { WorkspaceRole } from '@viberglass/types'
 import { ROLE_LABEL } from '@/lib/roleCopy'
 
-const ROLES: WorkspaceRole[] = ['admin', 'member', 'guest', 'viewer']
+const ROLES: WorkspaceRole[] = ['admin', 'member', 'guest', 'viewer', 'app_user']
 
 /**
  * What each workspace role may do, matching the task ask policy: being on a
@@ -11,13 +11,35 @@ const ROLES: WorkspaceRole[] = ['admin', 'member', 'guest', 'viewer']
 const ROWS: Array<{ what: string; can: Record<WorkspaceRole, string> }> = [
   {
     what: 'See spaces',
-    can: { admin: 'Every space', member: 'Open spaces, and private ones they belong to', guest: 'Only spaces they are invited to', viewer: 'Open spaces, and private ones they belong to' },
+    can: {
+      admin: 'Every space',
+      member: 'Open spaces, and private ones they belong to',
+      guest: 'Only spaces they are invited to',
+      viewer: 'Open spaces, and private ones they belong to',
+      app_user: 'None',
+    },
   },
-  { what: 'Comment and post', can: { admin: 'Yes', member: 'Yes', guest: 'Yes', viewer: 'No' } },
-  { what: 'Ask the agent for a plan', can: { admin: 'Yes', member: 'Yes', guest: 'On tasks they are on', viewer: 'No' } },
-  { what: 'Ask the agent for code', can: { admin: 'Yes', member: 'On tasks they are on, or as a space maintainer', guest: 'On tasks they are on', viewer: 'No' } },
-  { what: 'Pause, take over and hand back', can: { admin: 'Yes', member: 'As the task owner or a space maintainer', guest: 'As the task owner', viewer: 'No' } },
-  { what: 'Agents, connections, secrets and members', can: { admin: 'Yes', member: 'No', guest: 'No', viewer: 'No' } },
+  {
+    what: 'Open apps',
+    can: {
+      admin: 'Every app',
+      member: 'Apps in spaces they see, and ones they are given',
+      guest: 'Apps in spaces they see, and ones they are given',
+      viewer: 'Apps in spaces they see, and ones they are given',
+      app_user: 'Only apps they are given',
+    },
+  },
+  { what: 'Comment and post', can: { admin: 'Yes', member: 'Yes', guest: 'Yes', viewer: 'No', app_user: 'No' } },
+  { what: 'Ask the agent for a plan', can: { admin: 'Yes', member: 'Yes', guest: 'On tasks they are on', viewer: 'No', app_user: 'No' } },
+  {
+    what: 'Ask the agent for code',
+    can: { admin: 'Yes', member: 'On tasks they are on, or as a space maintainer', guest: 'On tasks they are on', viewer: 'No', app_user: 'No' },
+  },
+  {
+    what: 'Pause, take over and hand back',
+    can: { admin: 'Yes', member: 'As the task owner or a space maintainer', guest: 'As the task owner', viewer: 'No', app_user: 'No' },
+  },
+  { what: 'Agents, connections, secrets and members', can: { admin: 'Yes', member: 'No', guest: 'No', viewer: 'No', app_user: 'No' } },
 ]
 
 /** A disclosure with what each workspace role can do, for invites and member lists. */

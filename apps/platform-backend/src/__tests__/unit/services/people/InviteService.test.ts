@@ -10,6 +10,7 @@ const invite: InviteRecord = {
   email: "maria@example.com",
   role: "member",
   spaceIds: [],
+  appIds: [],
   invitedByName: "Jussi",
   createdAt: at,
   expiresAt: new Date("2026-10-07T10:00:00Z"),
@@ -38,7 +39,9 @@ function setup() {
     findByEmail: jest.fn().mockResolvedValue(null),
     findById: jest.fn().mockResolvedValue(maria),
   };
-  const spaces = { getProject: jest.fn(async (id: string) => (id === "space-gone" ? null : { id })) };
+  const spaces = {
+    getProject: jest.fn(async (id: string) => (id === "space-gone" ? null : { id, backingKind: id.startsWith("app-") ? "app" : "git" })),
+  };
   return { invites, users, spaces, service: new InviteService(invites, users, spaces) };
 }
 
@@ -80,6 +83,34 @@ describe("InviteService", () => {
 
     await expect(
       service.create({ email: "g@example.com", role: "member", spaceIds: ["space-gone"], createdBy: "user-1" }),
+    ).rejects.toMatchObject({ code: "SPACE_NOT_FOUND" });
+  });
+
+  it("invites an app user to named apps only", async () => {
+    const { invites, service } = setup();
+
+    await service.create({ email: "kim@example.com", role: "app_user", spaceIds: [], appIds: ["app-laptops"], createdBy: "user-1" });
+
+    expect(invites.create).toHaveBeenCalledWith(expect.objectContaining({ role: "app_user", spaceIds: [], appIds: ["app-laptops"] }));
+  });
+
+  it("refuses an app user invite without apps, or with spaces", async () => {
+    const { invites, service } = setup();
+
+    await expect(service.create({ email: "kim@example.com", role: "app_user", spaceIds: [], createdBy: "user-1" })).rejects.toMatchObject({
+      code: "APP_USER_NEEDS_APP",
+    });
+    await expect(
+      service.create({ email: "kim@example.com", role: "app_user", spaceIds: ["space-1"], appIds: ["app-laptops"], createdBy: "user-1" }),
+    ).rejects.toMatchObject({ code: "APP_USER_IN_SPACE" });
+    expect(invites.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an app id that isn't an App space", async () => {
+    const { service } = setup();
+
+    await expect(
+      service.create({ email: "kim@example.com", role: "member", spaceIds: [], appIds: ["space-1"], createdBy: "user-1" }),
     ).rejects.toMatchObject({ code: "SPACE_NOT_FOUND" });
   });
 

@@ -1,4 +1,4 @@
-import { canMaintainSpace, canSeeSpace, spaceCapabilities, type SpaceCapabilities, type SpaceRole, type WorkspaceRole } from "@viberglass/types";
+import { canMaintainSpace, canSeeSpace, OPEN_SPACE_ROLES, SPACE_MEMBER_ROLES, spaceCapabilities, type SpaceCapabilities, type SpaceRole, type WorkspaceRole } from "@viberglass/types";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { SPACE_ACCESS_ERROR_CODE, SpaceAccessError } from "../errors/SpaceAccessError";
@@ -29,7 +29,8 @@ export class SpaceAccessService {
   /** Null means every space (admins); otherwise the ids this person may see. */
   async visibleProjectIds(viewer: SpaceViewer): Promise<string[] | null> {
     if (viewer.role === "admin") return null;
-    return this.deps.members.listVisibleProjectIds(viewer.id, viewer.role !== "guest");
+    if (!SPACE_MEMBER_ROLES.includes(viewer.role)) return [];
+    return this.deps.members.listVisibleProjectIds(viewer.id, OPEN_SPACE_ROLES.includes(viewer.role));
   }
 
   /**

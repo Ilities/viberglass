@@ -12,7 +12,7 @@ const LINK_INVALID_MESSAGE = "This invite link has expired, was revoked or was a
 
 type InviteStore = Pick<InviteDAO, "create" | "listOpen" | "findOpenByTokenHash" | "revoke" | "accept">;
 type UserLookup = Pick<UserDAO, "findByEmail" | "findById">;
-type SpaceLookup = { getProject(id: string): Promise<{ id: string } | null> };
+type SpaceLookup = { getProject(id: string): Promise<{ id: string; backingKind: string } | null> };
 
 /** Invite links: made by an admin, shown once, used once. */
 export class InviteService {
@@ -23,20 +23,24 @@ export class InviteService {
     private readonly audit: Pick<AuditRecorder, "record"> = new AuditRecorder(),
   ) {}
 
-  /** `spaceIds` are spaces the invitee joins on accepting; a guest needs at least one. */
-  async create(input: { email: string; role: WorkspaceRole; spaceIds: string[]; createdBy: string }): Promise<{
+  /**
+   * `spaceIds` are spaces the invitee joins on accepting, and `appIds` apps
+   * they may open. A guest needs at least one space, an app user at least one app and no spaces.
+   */
+  async create(input: { email: string; role: WorkspaceRole; spaceIds: string[]; appIds?: string[]; createdBy: string }): Promise<{
     invite: InviteRecord;
     token: string;
   }> {
-    if (input.role === "guest" && input.spaceIds.length === 0) {
-      throw new PeopleServiceError(
-        PEOPLE_SERVICE_ERROR_CODE.GUEST_NEEDS_SPACE,
-        "Pick at least one space: a guest sees only the spaces they're invited to.",
-      );
-    }
+    const appIds = input.appIds ?? [];
+    this.assertFitsRole(input.role, input.spaceIds, appIds);
     for (const spaceId of input.spaceIds) {
       if (!(await this.spaces.getProject(spaceId))) {
         throw new PeopleServiceError(PEOPLE_SERVICE_ERROR_CODE.SPACE_NOT_FOUND, "One of the chosen spaces no longer exists.");
+      }
+    }
+    for (const appId of appIds) {
+      if ((await this.spaces.getProject(appId))?.backingKind !== "app") {
+        throw new PeopleServiceError(PEOPLE_SERVICE_ERROR_CODE.SPACE_NOT_FOUND, "One of the chosen apps no longer exists.");
       }
     }
     const email = normalizeEmail(input.email);
@@ -48,11 +52,28 @@ export class InviteService {
       email,
       role: input.role,
       spaceIds: input.spaceIds,
+      appIds,
       tokenHash,
       expiresAt,
       createdBy: input.createdBy,
     });
     return { invite, token };
+  }
+
+  private assertFitsRole(role: WorkspaceRole, spaceIds: string[], appIds: string[]): void {
+    if (role === "guest" && spaceIds.length === 0) {
+      throw new PeopleServiceError(
+        PEOPLE_SERVICE_ERROR_CODE.GUEST_NEEDS_SPACE,
+        "Pick at least one space: a guest sees only the spaces they're invited to.",
+      );
+    }
+    if (role !== "app_user") return;
+    if (spaceIds.length > 0) {
+      throw new PeopleServiceError(PEOPLE_SERVICE_ERROR_CODE.APP_USER_IN_SPACE, "App users don't join spaces. Pick apps for them instead.");
+    }
+    if (appIds.length === 0) {
+      throw new PeopleServiceError(PEOPLE_SERVICE_ERROR_CODE.APP_USER_NEEDS_APP, "Pick at least one app: an app user sees only the apps they're given.");
+    }
   }
 
   listOpen(): Promise<InviteRecord[]> {

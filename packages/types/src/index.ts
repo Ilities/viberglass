@@ -15,6 +15,7 @@ export * from './appContract'
 export * from './appHome'
 export * from './appRelease'
 export * from './appHosting'
+export * from './appAccess'
 export * from './artifacts'
 
 // Ticket types (internal tickets)

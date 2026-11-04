@@ -53,6 +53,53 @@ describe('InviteForm', () => {
   })
 })
 
+describe('InviteForm for app users', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = jest.fn()
+  })
+
+  it('offers only App spaces, asks for one, and sends them as apps', async () => {
+    mockCreateInvite.mockResolvedValue({
+      invite: { id: 'i-3', email: 'kim@example.com', role: 'app_user', spaceIds: [], appIds: ['app-1'], invitedByName: 'Jussi', createdAt: at, expiresAt: at },
+      path: '/invite/app',
+    })
+    const spaces = [
+      { id: 'space-1', name: 'Web', backingKind: 'git' as const },
+      { id: 'app-1', name: 'Laptops', backingKind: 'app' as const },
+    ].map((space) => ({
+      ...space,
+      isPrivate: false,
+      slug: space.name.toLowerCase(),
+      keyPrefix: space.name.slice(0, 3).toUpperCase(),
+      ticketSystem: 'native' as const,
+      credentials: { type: 'token' as const },
+      autoFixEnabled: false,
+      autoFixTags: [],
+      customFieldMappings: {},
+      defaultReviewerIds: [],
+      questionReminderHours: 4,
+      createdAt: at,
+      updatedAt: at,
+    }))
+    render(
+      <Theme>
+        <InviteForm spaces={spaces} onInvited={jest.fn()} />
+      </Theme>
+    )
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'kim@example.com' } })
+    fireEvent.click(screen.getByRole('combobox'))
+    fireEvent.click(await screen.findByRole('option', { name: 'App user' }))
+    expect(screen.queryByRole('checkbox', { name: /Web/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invite link' }))
+    expect(await screen.findByText(/Pick at least one app/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Laptops/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create invite link' }))
+    await waitFor(() => expect(mockCreateInvite).toHaveBeenCalledWith('kim@example.com', 'app_user', [], ['app-1']))
+  })
+})
+
 describe('InviteForm for guests', () => {
   // jsdom has no layout, and the role picker scrolls its list into view.
   beforeAll(() => {

@@ -214,6 +214,13 @@ export interface AppHandoffCodesTable {
   used_at: Timestamp | null;
 }
 
+export interface AppAccessTable {
+  project_id: string;
+  user_id: string;
+  added_by: string | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface AppSessionsTable {
   id: Generated<string>;
   token_hash: string;
@@ -543,6 +550,7 @@ export interface InvitesTable {
   accepted_user_id: string | null;
   revoked_at: Timestamp | null;
   space_ids: Generated<string[]>;
+  app_ids: Generated<string[]>;
 }
 
 export interface PasswordResetLinksTable {
@@ -977,6 +985,7 @@ export interface Database {
   app_data_backups: AppDataBackupsTable;
   app_handoff_codes: AppHandoffCodesTable;
   app_sessions: AppSessionsTable;
+  app_access: AppAccessTable;
   space_file_snapshots: SpaceFileSnapshotsTable;
   space_file_changes: SpaceFileChangesTable;
   space_file_state: SpaceFileStateTable;

@@ -2,7 +2,7 @@ import { SpaceMembershipService } from "../../../../services/spaces/SpaceMembers
 
 const at = new Date("2026-09-30T10:00:00Z");
 
-function setup(user: { deactivatedAt: Date | null } | null) {
+function setup(user: { deactivatedAt: Date | null; role?: "guest" | "app_user" } | null) {
   const members = {
     listMembers: jest.fn().mockResolvedValue([]),
     upsert: jest.fn().mockResolvedValue(undefined),
@@ -31,6 +31,15 @@ describe("SpaceMembershipService", () => {
     await expect(
       service.setRole({ projectId: "space-1", userId: "user-2", role: "member", actorId: "user-1" }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("won't add an app user, who only opens apps", async () => {
+    const { members, service } = setup({ deactivatedAt: null, role: "app_user" });
+
+    await expect(
+      service.setRole({ projectId: "space-1", userId: "user-2", role: "member", actorId: "user-1" }),
+    ).rejects.toMatchObject({ code: "SPACE_APP_USER" });
+    expect(members.upsert).not.toHaveBeenCalled();
   });
 
   it("says when the person wasn't a member", async () => {

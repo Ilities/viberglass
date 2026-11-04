@@ -19,8 +19,9 @@ export function lastMessageLine(message: HomeThread['lastMessage'] | undefined):
   return message.author ? `${message.author.name}: ${message.text}` : message.text
 }
 
-/** Viewers have no threads of their own, so they land on Overview; everyone else on Home. */
-export function landingFor(role: string | undefined): '/' | '/overview' {
+/** Viewers have no threads of their own, so they land on Overview; app users on their apps; everyone else on Home. */
+export function landingFor(role: string | undefined): '/' | '/overview' | '/apps' {
+  if (role === 'app_user') return '/apps'
   return role === 'viewer' ? '/overview' : '/'
 }
 

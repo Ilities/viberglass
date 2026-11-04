@@ -11,7 +11,7 @@ import { SpaceFilesEditService } from "../../services/spaceFiles/SpaceFilesEditS
 import { ArtifactService } from "../../services/artifacts/ArtifactService";
 import express from "express";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
-import { ProjectDAO } from "../../persistence/project/ProjectDAO";
+import { ProjectDAO, slugify } from "../../persistence/project/ProjectDAO";
 import { ProjectDeletionSummaryDAO } from "../../persistence/project/ProjectDeletionSummaryDAO";
 import type { Project } from "@viberglass/types";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
@@ -46,11 +46,13 @@ import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipService";
 import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
 import { registerAppRoutes } from "./appRoutes";
+import { registerAppAccessRoutes } from "./appAccessRoutes";
 import { appHosting } from "../../services/apps/createAppHosting";
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { ClawSchedulingEngine } from "../../services/claw/ClawSchedulingEngine";
-import { createAppSpaceCreator } from "../../services/apps/createAppSpaceServices";
+import { createAppAccessListService, createAppSpaceCreator } from "../../services/apps/createAppSpaceServices";
+import { APP_NAME_RULE, isAppHostLabel } from "../../services/apps/AppOrigins";
 import { isDomainError } from "../../services/errors/DomainError";
 
 const router = express.Router();
@@ -93,6 +95,7 @@ router.param("name", spaceGuard);
 
 registerSpaceMemberRoutes(router, new SpaceMembershipService());
 registerAppRoutes(router, appHosting().service, spaceAccess);
+registerAppAccessRoutes(router, createAppAccessListService(), spaceAccess);
 
 /**
  * Enrich project with derived ticket system from primaryTicketingIntegrationId
@@ -232,6 +235,9 @@ router.put(
       }
       if (project.backingKind === "files" && req.body.primaryScmIntegrationId) {
         return res.status(409).json({ error: "Files spaces cannot have a code host." });
+      }
+      if (project.backingKind === "app" && typeof req.body.name === "string" && !isAppHostLabel(slugify(req.body.name))) {
+        return res.status(400).json({ error: APP_NAME_RULE });
       }
       if (!(await everyoneCanSeeSpace(project.id, req.body.defaultReviewerIds ?? []))) {
         return res.status(400).json({ error: "Default reviewers must be people who can see this space." });

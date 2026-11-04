@@ -16,11 +16,15 @@ const ROLE_SUMMARY: Record<WorkspaceRole, string> = {
   member: 'Works in open spaces and the ones they join.',
   guest: 'Only the spaces picked below.',
   viewer: 'Read-only.',
+  app_user: 'Only the apps picked below.',
 }
 
 export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited: (invite: Invite) => void }) {
   const [role, setRole] = useState<WorkspaceRole>('member')
   const [spaceIds, setSpaceIds] = useState<string[]>([])
+  const [appIds, setAppIds] = useState<string[]>([])
+  const forAppUser = role === 'app_user'
+  const apps = spaces.filter((space) => space.backingKind === 'app')
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<{ email: string; path: string; emailed: boolean } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -33,15 +37,22 @@ export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited
       setError('Pick at least one space: a guest sees only the spaces they’re invited to.')
       return
     }
+    if (forAppUser && appIds.length === 0) {
+      setError('Pick at least one app: an app user sees only the apps they’re given.')
+      return
+    }
     setError(null)
     setCreated(null)
     setIsSubmitting(true)
     try {
-      const { invite, path, emailed } = await createInvite(email, role, spaceIds)
+      const { invite, path, emailed } = forAppUser
+        ? await createInvite(email, role, [], appIds)
+        : await createInvite(email, role, spaceIds)
       setCreated({ email: invite.email, path, emailed })
       onInvited(invite)
       form.reset()
       setSpaceIds([])
+      setAppIds([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create the invite')
     } finally {
@@ -73,34 +84,28 @@ export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited
         <div className="mt-3">
           <RoleCapabilityTable />
         </div>
-        {spaces.length > 0 && (
-          <fieldset className="mt-4">
-            <legend className="text-sm font-medium text-zinc-950 dark:text-white">
-              Spaces to join{role === 'guest' ? '' : ' (optional)'}
-            </legend>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {role === 'guest'
-                ? 'A guest sees only these spaces.'
-                : 'They become a member of these spaces, which sets their defaults and notifications.'}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
-              {spaces.map((space) => (
-                <label key={space.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                  <input
-                    type="checkbox"
-                    checked={spaceIds.includes(space.id)}
-                    onChange={(event) =>
-                      setSpaceIds((current) =>
-                        event.target.checked ? [...current, space.id] : current.filter((id) => id !== space.id)
-                      )
-                    }
-                  />
-                  {space.name}
-                  {space.isPrivate && <span className="text-xs text-zinc-500">(private)</span>}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+        {forAppUser ? (
+          <SpacePicker
+            legend="Apps they can open"
+            hint={apps.length > 0 ? 'An app user sees only these apps.' : 'There are no App spaces yet.'}
+            spaces={apps}
+            selected={appIds}
+            onChange={setAppIds}
+          />
+        ) : (
+          spaces.length > 0 && (
+            <SpacePicker
+              legend={`Spaces to join${role === 'guest' ? '' : ' (optional)'}`}
+              hint={
+                role === 'guest'
+                  ? 'A guest sees only these spaces.'
+                  : 'They become a member of these spaces, which sets their defaults and notifications.'
+              }
+              spaces={spaces}
+              selected={spaceIds}
+              onChange={setSpaceIds}
+            />
+          )
         )}
         {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="mt-5">
@@ -122,5 +127,37 @@ export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited
         </div>
       )}
     </section>
+  )
+}
+
+function SpacePicker(props: {
+  legend: string
+  hint: string
+  spaces: Project[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  return (
+    <fieldset className="mt-4">
+      <legend className="text-sm font-medium text-zinc-950 dark:text-white">{props.legend}</legend>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">{props.hint}</p>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+        {props.spaces.map((space) => (
+          <label key={space.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={props.selected.includes(space.id)}
+              onChange={(event) =>
+                props.onChange(
+                  event.target.checked ? [...props.selected, space.id] : props.selected.filter((id) => id !== space.id)
+                )
+              }
+            />
+            {space.name}
+            {space.isPrivate && <span className="text-xs text-zinc-500">(private)</span>}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   )
 }

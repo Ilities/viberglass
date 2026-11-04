@@ -1,4 +1,4 @@
-import { RUNNER_ROLES, type WorkspaceRole } from './workspaceRole'
+import { OPEN_SPACE_ROLES, RUNNER_ROLES, SPACE_MEMBER_ROLES, type WorkspaceRole } from './workspaceRole'
 
 /** Roles inside one space. Workspace admins are maintainers of every space. */
 export const SPACE_ROLES = ['maintainer', 'member'] as const
@@ -19,13 +19,14 @@ export function isSpaceRole(value: unknown): value is SpaceRole {
 }
 
 /**
- * Who sees a space: admins see all; guests only spaces they belong to; everyone
- * else sees open spaces, and private ones they belong to.
+ * Who sees a space: admins see all; members and viewers see open spaces and
+ * private ones they belong to; guests only spaces they belong to; app users none.
  */
 export function canSeeSpace(workspaceRole: WorkspaceRole, space: { isPrivate: boolean }, membership: SpaceRole | null): boolean {
   if (workspaceRole === 'admin') return true
+  if (!SPACE_MEMBER_ROLES.includes(workspaceRole)) return false
   if (membership) return true
-  return workspaceRole !== 'guest' && !space.isPrivate
+  return OPEN_SPACE_ROLES.includes(workspaceRole) && !space.isPrivate
 }
 
 /** Who changes a space's settings, members and policies. */

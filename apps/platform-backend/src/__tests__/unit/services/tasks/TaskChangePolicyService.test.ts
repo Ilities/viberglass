@@ -29,10 +29,11 @@ describe("task change rules", () => {
     expect(canChangeTask("edit", person("admin", "admin"), [])).toBe(true);
   });
 
-  it("never lets guests or viewers change a task, even their own", () => {
+  it("never lets guests, viewers or app users change a task, even their own", () => {
     const own: TaskChangeParticipant[] = [{ userId: "g", role: "requester" }];
     expect(canChangeTask("edit", person("g", "guest", "maintainer"), own)).toBe(false);
     expect(canChangeTask("edit", person("g", "viewer"), own)).toBe(false);
+    expect(canChangeTask("edit", person("g", "app_user", "maintainer"), own)).toBe(false);
   });
 
   it("keeps hard delete for workspace admins", () => {

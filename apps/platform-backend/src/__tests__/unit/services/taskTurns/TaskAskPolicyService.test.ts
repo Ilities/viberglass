@@ -44,9 +44,12 @@ describe("ask rules", () => {
     expect(canSteerAgent(person("owner", "viewer"), participants)).toBe(false);
   });
 
-  it("never lets a viewer ask", () => {
-    expect(canAskAgent(person("maria", "viewer"), participants)).toBe(false);
-    expect(canAskForCode(person("maria", "viewer", "maintainer"), participants)).toBe(false);
+  it("never lets a viewer or an app user ask", () => {
+    for (const role of ["viewer", "app_user"] as const) {
+      expect(canAskAgent(person("maria", role), participants)).toBe(false);
+      expect(canAskForCode(person("maria", role, "maintainer"), participants)).toBe(false);
+      expect(canSteerAgent(person("owner", role, "maintainer"), participants)).toBe(false);
+    }
   });
 
   it("mentions the reviewers when an artifact is ready, else the owner", () => {

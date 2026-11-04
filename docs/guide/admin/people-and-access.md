@@ -10,6 +10,7 @@ Everyone has one workspace role.
 - Member: sees open spaces, creates spaces and tasks, comments and asks agents; asks for code on tasks they're on, or in spaces they maintain.
 - Guest: only the spaces they're invited to. Comments, and asks the agent, including to build, on tasks they're on. Can't create spaces or tasks.
 - Viewer: read-only. Sees every open space and task, but can't create, comment or ask the agent anything. Viewers land on Overview.
+- App user: only opens the apps they're given. Sees no spaces, tasks or settings, and lands on a list of their apps. App users can't join spaces.
 
 The full comparison is in [Getting started](../user/getting-started.md#what-your-role-lets-you-do), and under "What each role can do" on the Members page. The server enforces it as well as the screens.
 
@@ -19,12 +20,22 @@ Being on a task as its owner, a reviewer or a watcher is what lets a member or g
 
 1. Open Settings → Members and go to Invite someone.
 2. Enter their email and pick their workspace role.
-3. Pick the spaces they join. A guest must have at least one; they'll see only those.
+3. Pick the spaces they join. A guest must have at least one; they'll see only those. For an app user, pick the apps they can open instead; they need at least one.
 4. Choose Create invite link.
 
 Use Copy link and send it to them. With email set up, it's emailed too. The person opens it, enters their name and a password, and joins. Pending invites are listed until they're used; Revoke cancels one.
 
 ![The Members page with the invite form filled in and the list of people](../images/members-invite.png)
+
+## Who can open an app
+
+Everyone who can see an App space can open its app. Its maintainers can give others the app too, on the space's App page under Who can open it:
+
+- Someone who already has an account goes straight on the list, whatever their role.
+- Someone without one gets an invite as an app user of that app. Copy the link and send it to them; with email set up, it's emailed too.
+- Someone who already has an open invite gets the app added to it, and can open it once they accept.
+
+Remove takes someone off the list, and Cancel invite takes the app off a pending invite. Either takes effect at the app within a few seconds.
 
 ## Passwords
 

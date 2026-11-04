@@ -15,6 +15,7 @@ import request from "supertest";
 import { isWorkspaceRole, type WorkspaceRole } from "@viberglass/types";
 import type { AuthContext } from "../../../../api/auth/context";
 import {
+  confineAppUsers,
   refuseViewerChanges,
   requireRunnerRole,
   runnerOnlyChanges,
@@ -30,14 +31,14 @@ function contextFor(role: WorkspaceRole): AuthContext {
   };
 }
 
-function appWithSignedInRole() {
+function appWithSignedInRole(guard: express.RequestHandler = refuseViewerChanges) {
   const app = express();
   app.use((req, _res, next) => {
     const role = req.headers["x-role"];
     if (isWorkspaceRole(role)) req.authContext = contextFor(role);
     next();
   });
-  app.use(refuseViewerChanges);
+  app.use(guard);
   app.use("/api", (_req, res) => res.json({ ok: true }));
   return app;
 }
@@ -62,6 +63,28 @@ describe("refuseViewerChanges", () => {
   });
 });
 
+describe("confineAppUsers", () => {
+  it("lets app users reach only their session, account and apps", async () => {
+    const app = appWithSignedInRole(confineAppUsers);
+    for (const path of ["/api/auth/me", "/api/me/notification-channels", "/api/account-links/invites/t", "/api/apps", "/api/apps/laptops/handoff"]) {
+      await request(app).get(path).set("x-role", "app_user").expect(200);
+    }
+    for (const path of ["/api/spaces", "/api/tasks/1", "/api/users/directory", "/api/apps-admin", "/api/mcp", "/api/inbox/x"]) {
+      const res = await request(app).get(path).set("x-role", "app_user").expect(403);
+      expect(res.body.error).toBe("App users can only open the apps they're given.");
+    }
+    await request(app).post("/api/spaces").set("x-role", "app_user").expect(403);
+  });
+
+  it("leaves other roles and requests without a user alone", async () => {
+    const app = appWithSignedInRole(confineAppUsers);
+    for (const role of ["admin", "member", "guest", "viewer"]) {
+      await request(app).get("/api/spaces").set("x-role", role).expect(200);
+    }
+    await request(app).post("/api/jobs/1/result").expect(200);
+  });
+});
+
 describe("runnerOnlyChanges", () => {
   it("lets guests read and refuses their changes", async () => {
     const app = express();
@@ -78,7 +101,7 @@ describe("requireRunnerRole", () => {
     app.use("/api/claw", requireRunnerRole, (_req, res) => res.json({ ok: true }));
     await request(app).get("/api/claw/schedules").set("x-role", "member").expect(200);
     await request(app).get("/api/claw/schedules").set("x-role", "admin").expect(200);
-    for (const role of ["guest", "viewer"]) {
+    for (const role of ["guest", "viewer", "app_user"]) {
       const res = await request(app).get("/api/claw/schedules").set("x-role", role).expect(403);
       expect(res.body.error).toBe("Only admins and members can do this.");
     }

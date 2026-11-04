@@ -1,3 +1,4 @@
+import { AppAccessDAO } from "../../persistence/apps/AppAccessDAO";
 import { AppDAO } from "../../persistence/apps/AppDAO";
 import { AppSignInDAO } from "../../persistence/apps/AppSignInDAO";
 import { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
@@ -22,7 +23,7 @@ export function appSignIn(): AppSignIn {
   const spaces = new AppSpaceDAO();
   const apps = new AppDAO();
   const signIns = new AppSignInDAO();
-  const access = new AppAccess(new SpaceMemberDAO());
+  const access = new AppAccess(new SpaceMemberDAO(), new AppAccessDAO());
   const origins = new AppOrigins();
   signIn = {
     origins,

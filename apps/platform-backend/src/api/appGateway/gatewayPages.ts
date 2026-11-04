@@ -37,7 +37,7 @@ export function appNotFoundPage(res: ServerResponse): void {
 }
 
 export function appForbiddenPage(res: ServerResponse): void {
-  sendGatewayPage(res, 403, "You don't have access to this app", "<p>Ask one of its space's maintainers to give you access.</p>");
+  sendGatewayPage(res, 403, "You don't have access to this app", "<p>Ask whoever gave you the link, or whoever looks after the app, to give you access.</p>");
 }
 
 export function appUnreachablePage(res: ServerResponse): void {

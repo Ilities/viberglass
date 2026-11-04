@@ -70,7 +70,7 @@ export const INVITE_AUDIT: AuditRule[] = [
     path: "/",
     action: "invite.created",
     targetType: "invite",
-    details: (req) => ({ email: bodyField(req, "email"), role: bodyField(req, "role"), spaceIds: bodyField(req, "spaceIds") }),
+    details: (req) => ({ email: bodyField(req, "email"), role: bodyField(req, "role"), spaceIds: bodyField(req, "spaceIds"), appIds: bodyField(req, "appIds") }),
   },
   { method: "DELETE", path: "/:id", action: "invite.revoked", targetType: "invite", targetParam: "id" },
 ];
@@ -82,6 +82,9 @@ export const SPACE_AUDIT: AuditRule[] = [
   { method: "DELETE", path: "/:id", action: "space.deleted", targetType: "space", targetParam: "id" },
   { method: "POST", path: "/:projectId/app/on", action: "app.turned_on", targetType: "space", targetParam: "projectId" },
   { method: "POST", path: "/:projectId/app/off", action: "app.turned_off", targetType: "space", targetParam: "projectId" },
+  { method: "POST", path: "/:projectId/app/access", action: "app.access_added", targetType: "space", targetParam: "projectId", details: (req) => ({ email: bodyField(req, "email") }) },
+  { method: "DELETE", path: "/:projectId/app/access/invites/:inviteId", action: "app.access_removed", targetType: "space", targetParam: "projectId", details: (req) => ({ inviteId: req.params.inviteId }) },
+  { method: "DELETE", path: "/:projectId/app/access/:userId", action: "app.access_removed", targetType: "space", targetParam: "projectId", details: (req) => ({ userId: req.params.userId }) },
   {
     method: "PUT",
     path: "/:id/members/:userId",

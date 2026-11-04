@@ -448,6 +448,7 @@ export const createInviteSchema = Joi.object({
   email: EMAIL.required(),
   role: userRoleSchema.required(),
   spaceIds: Joi.array().items(Joi.string().uuid()).unique().default([]),
+  appIds: Joi.array().items(Joi.string().uuid()).unique().default([]),
 });
 
 export const acceptInviteSchema = Joi.object({

@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import db from "../config/database";
 import type { UserRole } from "../types/user";
 
@@ -7,6 +8,8 @@ export interface InviteRecord {
   role: UserRole;
   /** Spaces the invitee joins as a member on accepting. */
   spaceIds: string[];
+  /** Apps whose access lists the invitee joins on accepting. */
+  appIds: string[];
   invitedByName: string | null;
   createdAt: Date;
   expiresAt: Date;
@@ -16,6 +19,7 @@ export interface NewInvite {
   email: string;
   role: UserRole;
   spaceIds: string[];
+  appIds: string[];
   tokenHash: string;
   expiresAt: Date;
   createdBy: string;
@@ -42,6 +46,7 @@ export class InviteDAO {
           email: input.email,
           role: input.role,
           space_ids: input.spaceIds,
+          app_ids: input.appIds,
           token_hash: input.tokenHash,
           expires_at: input.expiresAt,
           created_by: input.createdBy,
@@ -61,6 +66,44 @@ export class InviteDAO {
 
   async findOpenByTokenHash(tokenHash: string): Promise<InviteRecord | null> {
     return this.findOpen((qb) => qb.where("invites.token_hash", "=", tokenHash));
+  }
+
+  async findOpenByEmail(email: string): Promise<InviteRecord | null> {
+    return this.findOpen((qb) => qb.where("invites.email", "=", email));
+  }
+
+  async listOpenForApp(projectId: string): Promise<InviteRecord[]> {
+    const rows = await this.selectOpen()
+      .where(sql<boolean>`${projectId}::uuid = ANY(invites.app_ids)`)
+      .orderBy("invites.created_at", "desc")
+      .execute();
+    return rows.map(toInviteRecord);
+  }
+
+  /** Adds an app to an open invite; null when the invite is no longer open. */
+  async addApp(id: string, projectId: string): Promise<InviteRecord | null> {
+    const result = await this.updateOpen(id)
+      .set({ app_ids: sql<string[]>`array_append(array_remove(app_ids, ${projectId}::uuid), ${projectId}::uuid)` })
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) > 0 ? this.findOpen((qb) => qb.where("invites.id", "=", id)) : null;
+  }
+
+  /** Takes an app off an open invite; null when the invite is no longer open or isn't for that app. */
+  async removeApp(id: string, projectId: string): Promise<InviteRecord | null> {
+    const result = await this.updateOpen(id)
+      .set({ app_ids: sql<string[]>`array_remove(app_ids, ${projectId}::uuid)` })
+      .where(sql<boolean>`${projectId}::uuid = ANY(app_ids)`)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) > 0 ? this.findOpen((qb) => qb.where("invites.id", "=", id)) : null;
+  }
+
+  private updateOpen(id: string) {
+    return db
+      .updateTable("invites")
+      .where("id", "=", id)
+      .where("accepted_at", "is", null)
+      .where("revoked_at", "is", null)
+      .where("expires_at", ">", new Date());
   }
 
   /** True when an open invite was revoked. */
@@ -90,7 +133,7 @@ export class InviteDAO {
         .where("accepted_at", "is", null)
         .where("revoked_at", "is", null)
         .where("expires_at", ">", now)
-        .returning(["id", "email", "role", "space_ids"])
+        .returning(["id", "email", "role", "space_ids", "app_ids", "created_by"])
         .executeTakeFirst();
       if (!invite) return null;
 
@@ -114,6 +157,13 @@ export class InviteDAO {
           .values(invite.space_ids.map((projectId) => ({ project_id: projectId, user_id: created.id, role: "member" as const, added_by: null })))
           .execute();
       }
+      if (invite.app_ids.length > 0) {
+        await trx
+          .insertInto("app_access")
+          .values(invite.app_ids.map((projectId) => ({ project_id: projectId, user_id: created.id, added_by: invite.created_by })))
+          .onConflict((oc) => oc.doNothing())
+          .execute();
+      }
       return { userId: created.id };
     });
   }
@@ -127,6 +177,7 @@ export class InviteDAO {
         "invites.email",
         "invites.role",
         "invites.space_ids",
+        "invites.app_ids",
         "invites.created_at",
         "invites.expires_at",
         "users.name as invited_by_name",
@@ -149,6 +200,7 @@ function toInviteRecord(row: {
   email: string;
   role: UserRole;
   space_ids: string[];
+  app_ids: string[];
   created_at: Date;
   expires_at: Date;
   invited_by_name: string | null;
@@ -158,6 +210,7 @@ function toInviteRecord(row: {
     email: row.email,
     role: row.role,
     spaceIds: row.space_ids,
+    appIds: row.app_ids,
     invitedByName: row.invited_by_name,
     createdAt: row.created_at,
     expiresAt: row.expires_at,

@@ -2,11 +2,7 @@ import express from "express";
 import { validateCreateInvite, validateUuidParam } from "../middleware/validation";
 import { InviteService } from "../../services/people/InviteService";
 import type { InviteRecord } from "../../persistence/user/InviteDAO";
-import type { EmailSender } from "../../services/notifications/EmailSender";
-import { createEmailSender } from "../../services/notifications/createEmailSender";
-import { createChildLogger } from "../../config/logger";
-
-const logger = createChildLogger({ route: "invites" });
+import { InviteEmails } from "../../services/people/InviteEmails";
 
 function toResponse(invite: InviteRecord) {
   return {
@@ -14,6 +10,7 @@ function toResponse(invite: InviteRecord) {
     email: invite.email,
     role: invite.role,
     spaceIds: invite.spaceIds,
+    appIds: invite.appIds,
     invitedByName: invite.invitedByName,
     createdAt: invite.createdAt,
     expiresAt: invite.expiresAt,
@@ -23,8 +20,7 @@ function toResponse(invite: InviteRecord) {
 /** Admin-only (mounted behind requireRole("admin")): make, list and revoke invite links. */
 export function createInvitesRouter(
   invites: Pick<InviteService, "create" | "listOpen" | "revoke"> = new InviteService(),
-  email: Pick<EmailSender, "isConfigured" | "send"> = createEmailSender(),
-  frontendUrl: string | undefined = process.env.PLATFORM_FRONTEND_URL,
+  emails: Pick<InviteEmails, "send"> = new InviteEmails(),
 ) {
   const router = express.Router();
 
@@ -43,10 +39,11 @@ export function createInvitesRouter(
         email: String(req.body.email),
         role: req.body.role,
         spaceIds: req.body.spaceIds,
+        appIds: req.body.appIds,
         createdBy: req.authContext!.user.id,
       });
       const path = `/invite/${token}`;
-      const emailed = await sendInviteEmail(invite, path, req.authContext!.user.name);
+      const emailed = await emails.send({ to: invite.email, path, inviterName: req.authContext!.user.name });
       res.status(201).json({ invite: toResponse(invite), path, emailed });
     } catch (error) {
       next(error);
@@ -61,23 +58,6 @@ export function createInvitesRouter(
       next(error);
     }
   });
-
-  /** Emails the link when SMTP and the platform's address are configured; the admin can always copy it. */
-  async function sendInviteEmail(invite: InviteRecord, path: string, inviterName: string): Promise<boolean> {
-    const base = frontendUrl?.replace(/\/$/, "");
-    if (!email.isConfigured() || !base) return false;
-    try {
-      await email.send({
-        to: invite.email,
-        subject: `${inviterName} invited you to Viberglass`,
-        text: `${inviterName} invited you to Viberglass. Join here (the link works once, for 7 days):\n\n${base}${path}`,
-      });
-      return true;
-    } catch (error) {
-      logger.warn("Failed to email an invite", { error: error instanceof Error ? error.message : String(error) });
-      return false;
-    }
-  }
 
   return router;
 }

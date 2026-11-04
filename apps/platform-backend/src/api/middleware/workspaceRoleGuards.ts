@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { RUNNER_ROLES } from "@viberglass/types";
+import { RUNNER_ROLES, SPACE_MEMBER_ROLES } from "@viberglass/types";
 import { requireRole } from "./authentication";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -19,6 +19,26 @@ export function refuseViewerChanges(req: Request, res: Response, next: NextFunct
     return;
   }
   res.status(403).json({ error: "Viewers can see everything but can't make changes." });
+}
+
+// What app users may reach: their session and account, invite and reset links, and the apps they open.
+const APP_USER_PATHS = ["/api/auth", "/api/me", "/api/account-links", "/api/apps"];
+
+/**
+ * App users only open apps, so every other API refuses them. Mounted once
+ * after the auth context is attached, so new routes are closed to them by default.
+ */
+export function confineAppUsers(req: Request, res: Response, next: NextFunction): void {
+  const role = req.authContext?.user.role;
+  if (!role || SPACE_MEMBER_ROLES.includes(role) || !req.path.startsWith("/api/")) {
+    next();
+    return;
+  }
+  if (APP_USER_PATHS.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: "App users can only open the apps they're given." });
 }
 
 const RUNNER_ONLY = "Only admins and members can do this.";

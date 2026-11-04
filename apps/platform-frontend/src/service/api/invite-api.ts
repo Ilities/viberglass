@@ -7,6 +7,7 @@ export type Invite = {
   email: string
   role: UserRole
   spaceIds: string[]
+  appIds: string[]
   invitedByName: string | null
   createdAt: string
   expiresAt: string
@@ -23,12 +24,13 @@ export async function getInvites(): Promise<Invite[]> {
 export async function createInvite(
   email: string,
   role: UserRole,
-  spaceIds: string[]
+  spaceIds: string[],
+  appIds: string[] = []
 ): Promise<{ invite: Invite; path: string; emailed: boolean }> {
   const response = await apiFetch(`${API_BASE_URL}/api/invites`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, role, spaceIds }),
+    body: JSON.stringify({ email, role, spaceIds, appIds }),
   })
   if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to create the invite')
   return (await response.json()) as { invite: Invite; path: string; emailed: boolean }

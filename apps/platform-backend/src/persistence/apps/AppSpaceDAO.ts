@@ -1,3 +1,4 @@
+import type { AppRunState } from "@viberglass/types";
 import db from "../config/database";
 
 export interface AppSpaceRef {
@@ -18,6 +19,19 @@ export class AppSpaceDAO {
       .orderBy("created_at", "asc")
       .execute();
     return rows.map((row) => row.id);
+  }
+
+  /** App spaces that aren't archived, by name, with what their app is doing. */
+  async listLive(): Promise<Array<AppSpaceRef & { state: AppRunState }>> {
+    const rows = await db
+      .selectFrom("projects")
+      .leftJoin("apps", "apps.project_id", "projects.id")
+      .select(["projects.id", "projects.slug", "projects.name", "projects.is_private", "apps.state"])
+      .where("projects.backing_kind", "=", "app")
+      .where("projects.archived_at", "is", null)
+      .orderBy("projects.name", "asc")
+      .execute();
+    return rows.map((row) => ({ projectId: row.id, slug: row.slug, name: row.name, isPrivate: row.is_private, state: row.state ?? "off" }));
   }
 
   /** The App space an app's host name points at. */
