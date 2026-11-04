@@ -18,6 +18,7 @@ const DEFAULT_TOKEN = '__default__'
 const REQUIREMENTS: Record<AppSpaceRequirement, string> = {
   apps_domain: 'An apps domain. Set APPS_DOMAIN to the wildcard domain apps are served under, such as apps.example.com.',
   object_storage: 'Object storage, where app data and releases are kept. Set S3_BUCKET.',
+  app_host: "Somewhere to run apps. On Kubernetes, set KUBERNETES_APPS_NAMESPACE (the chart does when apps.domain is set). On AWS, set appsDomain in the platform stack.",
   app_home: 'An App home, chosen below.',
 }
 

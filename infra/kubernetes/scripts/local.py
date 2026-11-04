@@ -22,6 +22,7 @@ workers_namespace = args.worker_namespace or f"{args.namespace}-workers"
 kube = ["kubectl", "--kubeconfig", args.kubeconfig]
 catalog = json.loads((ROOT / "packages/types/src/workerImageCatalog.json").read_text())
 agent = {"kimi": "kimi-code", "mistral": "mistral-vibe", "qwen": "qwen-cli"}.get(args.agent, args.agent)
+APP_IMAGES = {"runtime": "viberglass-app-runtime-node:local", "builder": "viberglass-app-builder-node:local"}
 worker_images = [next(entry for entry in catalog if name in entry["defaultForAgents"])
                  for name in dict.fromkeys([agent, "fake"])]
 
@@ -50,6 +51,8 @@ if not args.skip_build:
         ("infra/workers/docker/base/base-worker.Dockerfile", "viberglass-worker-base:kubernetes"),
     ]:
         run(["docker", "build", "-f", dockerfile, "-t", image, "."])
+    for target, image in APP_IMAGES.items():
+        run(["docker", "build", "-f", "infra/apps/docker/app-node.Dockerfile", "--target", target, "-t", image, "."])
     for entry in worker_images:
         run(["docker", "build", "-f", entry["dockerfilePath"],
              "--build-arg", "BASE_IMAGE=viberglass-worker-base:kubernetes", "-t", f"{entry['repositoryName']}:local", "."])
@@ -63,7 +66,7 @@ else:
     pathlib.Path(args.kubeconfig).chmod(0o600)
 
 images = ["viberglass-k8s-backend:local", "viberglass-k8s-frontend:local",
-          *[f"{entry['repositoryName']}:local" for entry in worker_images],
+          *[f"{entry['repositoryName']}:local" for entry in worker_images], *APP_IMAGES.values(),
           "postgres:17-alpine", "cgr.dev/chainguard/minio:latest"]
 for image in images:
     if subprocess.run(["docker", "image", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
@@ -93,5 +96,6 @@ run(["helm", "upgrade", "--install", args.release, "infra/kubernetes/chart", "--
      "--set", f"workers.namespace={workers_namespace}", "--wait", "--wait-for-jobs", "--timeout", "10m"])
 print(f"Installed. Frontend: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-frontend 3100:80")
 print(f"Storage: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-minio 39000:9000")
+print(f"Apps: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-backend 38891:8891")
 print(f"Artifact previews: kubectl --kubeconfig {args.kubeconfig} -n {args.namespace} port-forward svc/{args.release}-backend 38890:8890")
 print("Open http://localhost:3100 and create the first administrator. Secrets and PVC data are retained on reinstall.")

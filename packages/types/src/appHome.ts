@@ -10,7 +10,7 @@ export interface AppHome {
 }
 
 /** What an installation needs before it offers App spaces. */
-export type AppSpaceRequirement = 'apps_domain' | 'object_storage' | 'app_home'
+export type AppSpaceRequirement = 'apps_domain' | 'object_storage' | 'app_host' | 'app_home'
 
 export interface AppSpaceAvailability {
   available: boolean

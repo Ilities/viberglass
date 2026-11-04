@@ -25,6 +25,16 @@ data:
   PREVIEW_PORT: "8890"
   PREVIEW_PUBLIC_URL: {{ trimSuffix "/" .Values.preview.publicUrl | quote }}
   {{- end }}
+  {{- if .Values.apps.domain }}
+  APPS_DOMAIN: {{ .Values.apps.domain | quote }}
+  APPS_PORT: "8891"
+  APPS_PUBLIC_URL: {{ include "viberglass.appsPublicUrl" . | quote }}
+  KUBERNETES_APPS_NAMESPACE: {{ include "viberglass.appsNamespace" . | quote }}
+  KUBERNETES_APPS_IMAGE_PULL_SECRETS: {{ join "," .Values.apps.imagePullSecrets | quote }}
+  {{- with .Values.apps.storageClass }}
+  KUBERNETES_APPS_STORAGE_CLASS: {{ . | quote }}
+  {{- end }}
+  {{- end }}
   KUBERNETES_WORKER_NAMESPACE: {{ include "viberglass.workersNamespace" . | quote }}
   {{- if .Values.workers.envSecret }}
   KUBERNETES_WORKER_ENV_SECRET: {{ .Values.workers.envSecret | quote }}

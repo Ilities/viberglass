@@ -30,6 +30,8 @@ storage:
   workerEndpoint: ""
 preview:
   publicUrl: https://preview.viberglass.example.com
+apps:
+  domain: apps.viberglass.example.com
 ingress:
   enabled: true
   className: REPLACE_WITH_INGRESS_CLASS
@@ -37,6 +39,8 @@ ingress:
   tls:
     - hosts: [viberglass.example.com, preview.viberglass.example.com]
       secretName: viberglass-tls
+    - hosts: ["*.apps.viberglass.example.com"]
+      secretName: viberglass-apps-tls
 networkPolicy:
   enabled: true
   workerExtraEgress: []

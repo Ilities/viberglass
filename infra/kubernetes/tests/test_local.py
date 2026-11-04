@@ -61,6 +61,16 @@ class LocalInstallerTests(unittest.TestCase):
         self.assertFalse(any("isolated-workers" in command and "secret" in command for command in commands))
         self.assertFalse(any(command[:2] == ["docker", "build"] for command in commands))
 
+    def test_builds_and_loads_the_app_images(self):
+        commands = self.install()
+        builds = [command for command in commands if command[:2] == ["docker", "build"]]
+        export = next(command for command in commands if command[:2] == ["docker", "save"])
+        for target in ["runtime", "builder"]:
+            image = f"viberglass-app-{target}-node:local"
+            build = next(command for command in builds if image in command)
+            self.assertEqual(build[build.index("--target") + 1], target)
+            self.assertIn(image, export)
+
     def test_default_namespace_preserves_existing_local_installations(self):
         commands = self.install("--skip-build")
         helm = next(command for command in commands if command[0] == "helm")

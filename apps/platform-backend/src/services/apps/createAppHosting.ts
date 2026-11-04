@@ -14,7 +14,7 @@ import { defaultDeploymentStrategyName } from "../../provisioning/shared/deploym
 import { AppDataStore } from "./AppDataStore";
 import { AppHostRegistry } from "./AppHostRegistry";
 import { AppOrigins } from "./AppOrigins";
-import { dockerAppHostOptions } from "./appHostingConfig";
+import { dockerAppHostOptions, ecsAppHostOptions, kubernetesAppHostOptions } from "./appHostingConfig";
 import { AppInstanceRunner } from "./AppInstanceRunner";
 import { AppInstanceSpecs } from "./AppInstanceSpecs";
 import { AppPreviewReconciler } from "./AppPreviewReconciler";
@@ -27,6 +27,8 @@ import { AppRollbackSettler } from "./AppRollbackSettler";
 import { AppService } from "./AppService";
 import { AppSweep } from "./AppSweep";
 import { DockerAppHost } from "./DockerAppHost";
+import { EcsAppHost } from "./EcsAppHost";
+import { KubernetesAppHost } from "./KubernetesAppHost";
 import { ReleaseBuildService } from "./ReleaseBuildService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { TaskAskPolicyService } from "../taskTurns/TaskAskPolicyService";
@@ -50,7 +52,13 @@ export function appHosting(): AppHosting {
   const apps = new AppDAO();
   const releases = new AppReleaseDAO();
   const spaces = new AppSpaceDAO();
-  const registry = new AppHostRegistry([new DockerAppHost(dockerAppHostOptions(process.env))]);
+  const kubernetes = kubernetesAppHostOptions(process.env);
+  const ecs = ecsAppHostOptions(process.env);
+  const registry = new AppHostRegistry([
+    new DockerAppHost(dockerAppHostOptions(process.env)),
+    ...(kubernetes ? [new KubernetesAppHost(kubernetes)] : []),
+    ...(ecs ? [new EcsAppHost(ecs)] : []),
+  ]);
   const host = () => registry.get(defaultDeploymentStrategyName());
   const runner = new AppInstanceRunner(new AppInstanceSpecs(new StsAppDataCredentials()));
   const backups = new AppDataBackupDAO();

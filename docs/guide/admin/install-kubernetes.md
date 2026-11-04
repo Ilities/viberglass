@@ -138,6 +138,8 @@ Edit this [non-secret example](../../../infra/kubernetes/chart/values-production
 | `storage.endpoint/publicEndpoint/region/bucket/forcePathStyle` | Your provider's endpoints, signing region, existing bucket and addressing mode. Keep `enabled: false` for external storage. |
 | `storage.workerEndpoint` | Optional. The storage address worker Pods use for a Files space's files, when it isn't `storage.endpoint`. |
 | `preview.publicUrl`, `ingress.tls[].hosts` | The HTTPS address of the artifact preview host, on a hostname of its own, and that hostname in the TLS hosts. Empty turns HTML, image and PDF previews off. |
+| `apps.domain`, `ingress.tls[].hosts` | The wildcard domain App spaces' apps are served under, such as `apps.viberglass.example.com`, and `*.apps.viberglass.example.com` in the TLS hosts. Empty means no App spaces. |
+| `apps.storageClass`, `apps.quota` | Optional. The storage class of apps' volumes (each app has a 1 GiB data volume and a 1 GiB volume for its release), and overrides of the [chart defaults](../../../infra/kubernetes/chart/values.yaml) for the apps namespace. |
 | `ingress.className`, `ingress.tls[].secretName` | Your installed ingress class and TLS Secret in the app namespace. |
 | `workers.envSecret` | Optional. A Secret in the worker namespace whose `OTEL_EXPORTER_OTLP_HEADERS` key is passed to worker Pods, for sending traces to a collector that needs headers. Workers read no other key from it, and run without the headers if the Secret or key is missing. You create this Secret yourself; the chart doesn't. |
 | `workers.quota` | Optional overrides of the [chart defaults](../../../infra/kubernetes/chart/values.yaml) for concurrent Pods and CPU/memory/disk. Quotas do not add node capacity. |
@@ -161,6 +163,8 @@ networkPolicy:
           port: 443
 ```
 
+Apps get the same kind of policy: cluster DNS, bundled MinIO and public IPv4 HTTP/HTTPS, nothing else. Add rules for anything more in `apps.extraEgress`, such as storage at a private address.
+
 Storage at a private address, in another namespace or on a port other than 80 or 443 needs such a rule too. Without one, runs in Files spaces fail to restore or save their files. For NodeLocal DNS, add its actual IP as an `ipBlock` and allow both UDP and TCP port 53. Existing cluster policies must also permit app-to-database/storage access and ingress-controller-to-frontend traffic. Verify enforcement on your CNI; creating NetworkPolicy objects alone does not enforce them.
 
 ## 5. Configure DNS, TLS and registry access
@@ -175,12 +179,18 @@ Alternatively, have your existing certificate controller create `viberglass-tls`
 
 Artifact previews run the agent's HTML and scripts, so they load from a host of their own, where the app's sign-in cookies never go. Point the preview hostname, such as `preview.viberglass.example.com`, at the ingress controller too, and include it in the certificate. The chart adds an Ingress rule that sends it to port 8890 of the backend Service, and its network policy lets the ingress controller reach that port; it serves only files named by a signed preview link. The chart refuses a `preview.publicUrl` on the app's own host. Links are signed with `SECRETS_ENCRYPTION_KEY`, or with a `PREVIEW_SIGNING_KEY` you add to `viberglass-app`.
 
+App spaces host the apps their agents build, each at `https://<name>.<apps.domain>`, and a task's change can be tried in a preview at `https://preview-<id>.<apps.domain>`. Point `*.<apps.domain>` at the ingress controller too, and add a wildcard certificate for it to `ingress.tls`; with cert-manager, a wildcard certificate needs a DNS01 issuer. The chart adds an Ingress rule that sends those hosts to port 8891 of the backend Service, which signs people in to an app before passing their requests on.
+
+Each app and preview runs as a Deployment with one Pod in a namespace of its own, `<namespace>-<release>-apps` unless `apps.namespace` names another. The namespace enforces the `restricted` Pod Security level. An app's network policy lets only the backend reach it, and lets it reach only cluster DNS, bundled MinIO and the internet. Its data and its release are on volumes of its own, and its database is copied to object storage as it changes, so the app can be moved or restored. Previews turn off at 03:00 UTC and after 4 hours without being opened; see [Apps on Docker](install-docker.md#apps) for the settings that change that and how long releases and data backups are kept.
+
 For a private registry, create a [pull Secret](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) in both namespaces. With a Docker config already containing the registry login:
 
 ```bash
 kubectl -n viberglass create secret generic registry-pull --type=kubernetes.io/dockerconfigjson --from-file=.dockerconfigjson=/path/to/registry-config.json
 kubectl -n viberglass-workers create secret generic registry-pull --type=kubernetes.io/dockerconfigjson --from-file=.dockerconfigjson=/path/to/registry-config.json
 ```
+
+Apps pull their runtime image in the apps namespace, so with App spaces, create the Secret there too, after the first install creates the namespace, and list it in `apps.imagePullSecrets`.
 
 Add these settings to your values file, merging `workers.imagePullSecrets` into the existing `workers` section:
 
@@ -235,6 +245,14 @@ Stop the watch with Ctrl-C. Verify that the task receives its result and the Job
 
 If you use Files spaces, create one, ask its agent to create an HTML artifact, and run a second turn that changes it. The second Pod should start from the files the first saved, and the artifact should preview from the preview host. A worker Pod that's stopped, for example at the runner's deadline, gets 60 seconds to save its files before Kubernetes kills it.
 
+If you serve App spaces, create one and ask its agent for a small app. Once its change is made live, the app's release is built by a Job in the worker namespace and then runs in the apps namespace:
+
+```bash
+kubectl -n viberglass-viberglass-apps get deployments,pods,pvc
+```
+
+Open the app from its App page. Its address should sign you in and show the app.
+
 Do not use the standalone `smoke:kubernetes` runner as an installed-platform check: it creates its own callback server and is intended for a disposable test cluster. For further deployment checks, use the [manual Kubernetes checklist](../../testing/e2e-manual/06-kubernetes.md).
 
 ## Troubleshooting
@@ -272,7 +290,7 @@ kubectl -n viberglass rollout status deployment/viberglass-backend
 
 Helm rollback does not reverse database migrations. See [deployment operations](../../kubernetes-deployment.md) for backup/restore details and migration limitations.
 
-To remove the installation, first stop/cancel active runs and preserve needed data. This deletes the worker namespace and its Jobs:
+To remove the installation, first stop/cancel active runs and preserve needed data. This deletes the worker namespace and its Jobs, and the apps namespace with every app and its volumes. Apps' data stays in object storage:
 
 ```bash
 helm uninstall viberglass --namespace viberglass

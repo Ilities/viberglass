@@ -3,9 +3,10 @@
 # replica, then runs the app under Litestream so every write is replicated.
 # A preview (VIBERGLASS_DATA_MODE=preview) restores the same way, with
 # read-only credentials, and runs without replicating: its data isn't kept.
+# The bundle comes from VIBERGLASS_BUNDLE_URL, or on ECS from
+# VIBERGLASS_BUNDLE_KEY in the data bucket, signed with the task role.
 set -eu
 
-: "${VIBERGLASS_BUNDLE_URL:?}"
 : "${VIBERGLASS_BUNDLE_SHA256:?}"
 : "${VIBERGLASS_DATA_BUCKET:?}"
 : "${VIBERGLASS_DATA_PATH:?}"
@@ -14,10 +15,32 @@ APP_DIR=/app
 DATABASE=/data/app.db
 CONFIG=/tmp/litestream.yml
 
+fetch_with_task_role() {
+  : "${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI:?}"
+  : "${VIBERGLASS_DATA_REGION:?}"
+  credentials=$(curl -fsS --retry 3 "http://169.254.170.2$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI" | node -e '
+    let input = "";
+    process.stdin.on("data", (chunk) => (input += chunk)).on("end", () => {
+      const c = JSON.parse(input);
+      process.stdout.write(`${c.AccessKeyId}:${c.SecretAccessKey}\n${c.Token}`);
+    });
+  ')
+  user=$(printf '%s\n' "$credentials" | sed -n 1p)
+  token=$(printf '%s\n' "$credentials" | sed -n 2p)
+  curl -fsSL --retry 3 -o "$2" \
+    --aws-sigv4 "aws:amz:$VIBERGLASS_DATA_REGION:s3" --user "$user" \
+    -H "x-amz-security-token: $token" -H "x-amz-content-sha256: UNSIGNED-PAYLOAD" \
+    "https://$VIBERGLASS_DATA_BUCKET.s3.$VIBERGLASS_DATA_REGION.amazonaws.com/$1"
+}
+
 # A restarted container keeps its files, and by then the bundle's URL may have expired.
 if [ "$(cat "$APP_DIR/.viberglass-bundle" 2>/dev/null || true)" != "$VIBERGLASS_BUNDLE_SHA256" ]; then
   find "$APP_DIR" -mindepth 1 -delete
-  curl -fsSL --retry 3 -o /tmp/bundle.tar.gz "$VIBERGLASS_BUNDLE_URL"
+  if [ -n "${VIBERGLASS_BUNDLE_KEY:-}" ]; then
+    fetch_with_task_role "$VIBERGLASS_BUNDLE_KEY" /tmp/bundle.tar.gz
+  else
+    curl -fsSL --retry 3 -o /tmp/bundle.tar.gz "${VIBERGLASS_BUNDLE_URL:?}"
+  fi
   echo "$VIBERGLASS_BUNDLE_SHA256  /tmp/bundle.tar.gz" | sha256sum -c - >/dev/null
   tar -xzf /tmp/bundle.tar.gz -C "$APP_DIR"
   rm /tmp/bundle.tar.gz

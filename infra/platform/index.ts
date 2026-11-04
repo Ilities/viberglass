@@ -15,7 +15,8 @@ import {
   createBackendEcs,
   createBackendService,
 } from "./components/backend-ecs";
-import { createPreviewOrigin } from "./components/preview-origin";
+import { APPS_GATEWAY_PORT, createBackendOrigin, PREVIEW_PORT } from "./components/backend-origin";
+import { createAppHosting } from "./components/app-hosting";
 import {
   AmplifyOidcOutputs,
   createAmplifyOidc,
@@ -213,10 +214,13 @@ const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
 // Artifact previews on their own host, through the same load balancer
 const previewOrigin =
   config.previewDomain && config.route53ZoneId && loadBalancer.httpsListenerArn
-    ? createPreviewOrigin({
+    ? createBackendOrigin({
         environment: config.environment,
+        key: "preview",
         vpcId: vpcId,
-        previewDomain: config.previewDomain,
+        host: config.previewDomain,
+        port: PREVIEW_PORT,
+        priority: 10,
         route53ZoneId: config.route53ZoneId,
         httpsListenerArn: loadBalancer.httpsListenerArn,
         albDnsName: loadBalancer.albDnsName,
@@ -225,6 +229,44 @@ const previewOrigin =
         healthCheckPath: "/health",
         tags: config.tags,
       })
+    : undefined;
+
+// Apps at <name>.<appsDomain>: the backend's gateway takes their requests, and they run on a cluster of their own
+const appsOrigin =
+  config.appsDomain && config.route53ZoneId && loadBalancer.httpsListenerArn
+    ? createBackendOrigin({
+        environment: config.environment,
+        key: "apps",
+        vpcId: vpcId,
+        host: `*.${config.appsDomain}`,
+        port: APPS_GATEWAY_PORT,
+        priority: 11,
+        route53ZoneId: config.route53ZoneId,
+        httpsListenerArn: loadBalancer.httpsListenerArn,
+        albDnsName: loadBalancer.albDnsName,
+        albZoneId: loadBalancer.albCanonicalHostedZoneId,
+        backendHealthPort: 3000,
+        healthCheckPath: "/health",
+        tags: config.tags,
+      })
+    : undefined;
+const appHosting = appsOrigin
+  ? createAppHosting({
+      environment: config.environment,
+      awsRegion: config.awsRegion,
+      vpcId: vpcId,
+      vpcCidr: vpcCidr,
+      subnetIds: backendSubnetIds,
+      assignPublicIp: backendAssignPublicIp,
+      backendSecurityGroupId: backendSecurityGroupId,
+      bucketArn: storage.bucketArn,
+      containerInsights: config.containerInsights,
+      tags: config.tags,
+    })
+  : undefined;
+const apps =
+  config.appsDomain && appsOrigin && appHosting
+    ? { domain: config.appsDomain, targetGroupArn: appsOrigin.targetGroupArn, env: appHosting.backendEnv }
     : undefined;
 
 // =============================================================================
@@ -356,6 +398,7 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   uploadsBucketName: storage.bucketName,
   ticketMediaS3Prefix: "ticket-media",
   preview: previewOrigin,
+  apps,
   // Pass worker infrastructure values for clanker managed provisioning
   worker: {
     imageRegistry: workerImageRegistry,
@@ -393,6 +436,7 @@ const backendService = createBackendService({
   maxTasks: backendMaxTasks,
   taskDefinitionArn: backendEcs.taskDefinitionArn,
   preview: previewOrigin,
+  apps,
   clusterArn: backendCluster.arn,
   clusterName: backendCluster.name,
   assignPublicIp: backendAssignPublicIp,
@@ -423,6 +467,14 @@ new aws.iam.RolePolicy(`${config.environment}-viberglass-backend-exec-kms`, {
     }]
   }`,
 });
+
+// Lets the backend run apps and give each App space its task roles
+if (appHosting) {
+  new aws.iam.RolePolicy(`${config.environment}-viberglass-backend-apps`, {
+    role: backendEcs.taskRoleName,
+    policy: appHosting.backendPolicy,
+  });
+}
 
 // Attach S3 access policy to backend task role
 new aws.iam.RolePolicyAttachment(
@@ -517,6 +569,9 @@ export const albSecurityGroupId = loadBalancer.albSecurityGroupId;
 export const albCertificateArn = loadBalancer.certificateArn;
 export const apiDomain = loadBalancer.apiDomain;
 export const previewUrl = previewOrigin?.publicUrl;
+export const appsUrl = appsOrigin?.publicUrl;
+export const appsClusterArn = appHosting?.clusterArn;
+export const appsSecurityGroupId = appHosting?.securityGroupId;
 
 // Amplify outputs
 export const amplifyAppId = amplifyFrontend.appId;

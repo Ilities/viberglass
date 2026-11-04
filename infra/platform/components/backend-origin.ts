@@ -3,41 +3,50 @@ import * as pulumi from "@pulumi/pulumi";
 
 /** The port the backend serves artifact previews on, next to its API port. */
 export const PREVIEW_PORT = 8890;
+/** The port the backend serves apps on, as their gateway. */
+export const APPS_GATEWAY_PORT = 8891;
 
-export interface PreviewOriginOptions {
+export interface BackendOriginOptions {
   environment: string;
+  /** Names the origin's resources, such as "preview". */
+  key: string;
   vpcId: pulumi.Input<string>;
-  /** Hostname browsers load previews from; never the app's or the API's host. */
-  previewDomain: string;
+  /** Hostname browsers use, such as preview.example.com or *.apps.example.com; never the app's or the API's host. */
+  host: string;
+  /** The backend port the host's requests go to. */
+  port: number;
+  /** Listener rule priority; each origin needs its own. */
+  priority: number;
   route53ZoneId: pulumi.Input<string>;
-  /** The ALB's HTTPS listener, which gets the preview host as a second certificate and rule. */
+  /** The ALB's HTTPS listener, which gets the host as another certificate and rule. */
   httpsListenerArn: pulumi.Input<string>;
   albDnsName: pulumi.Input<string>;
   albZoneId: pulumi.Input<string>;
-  /** The backend's API port: previews have no health route of their own, and both run in one process. */
+  /** The backend's API port: these ports have no health route of their own, and all run in one process. */
   backendHealthPort: number;
   healthCheckPath: string;
   tags: { [key: string]: string };
 }
 
-export interface PreviewOriginOutputs {
-  /** Target group the backend service registers its preview port in. */
+export interface BackendOriginOutputs {
+  /** Target group the backend service registers its port in. */
   targetGroupArn: pulumi.Output<string>;
+  port: number;
   publicUrl: pulumi.Output<string>;
 }
 
 /**
- * Artifact previews on their own host, through the backend's load balancer:
- * a certificate and DNS name for the host, and a listener rule sending its
- * requests to the backend's preview port.
+ * Another host served by the backend through its load balancer, such as
+ * artifact previews or apps: a certificate and DNS name for the host, and a
+ * listener rule sending its requests to one of the backend's ports.
  */
-export function createPreviewOrigin(
-  options: PreviewOriginOptions,
-): PreviewOriginOutputs {
-  const name = `${options.environment}-viberglass-preview`;
+export function createBackendOrigin(
+  options: BackendOriginOptions,
+): BackendOriginOutputs {
+  const name = `${options.environment}-viberglass-${options.key}`;
 
   const certificate = new aws.acm.Certificate(`${name}-cert`, {
-    domainName: options.previewDomain,
+    domainName: options.host,
     validationMethod: "DNS",
     tags: { Name: `${name}-cert`, ...options.tags },
   });
@@ -62,8 +71,8 @@ export function createPreviewOrigin(
   });
 
   const targetGroup = new aws.lb.TargetGroup(`${name}-tg`, {
-    name: `viberglass-${options.environment}-preview-tg`,
-    port: PREVIEW_PORT,
+    name: `viberglass-${options.environment}-${options.key}-tg`,
+    port: options.port,
     protocol: "HTTP",
     vpcId: options.vpcId,
     targetType: "ip",
@@ -83,8 +92,8 @@ export function createPreviewOrigin(
 
   const rule = new aws.lb.ListenerRule(`${name}-rule`, {
     listenerArn: options.httpsListenerArn,
-    priority: 10,
-    conditions: [{ hostHeader: { values: [options.previewDomain] } }],
+    priority: options.priority,
+    conditions: [{ hostHeader: { values: [options.host] } }],
     actions: [{ type: "forward", targetGroupArn: targetGroup.arn }],
     tags: options.tags,
   });
@@ -93,7 +102,7 @@ export function createPreviewOrigin(
     `${name}-alias`,
     {
       zoneId: options.route53ZoneId,
-      name: options.previewDomain,
+      name: options.host,
       type: "A",
       aliases: [
         {
@@ -111,6 +120,7 @@ export function createPreviewOrigin(
     targetGroupArn: pulumi
       .all([targetGroup.arn, rule.arn])
       .apply(([arn]) => arn),
-    publicUrl: pulumi.output(`https://${options.previewDomain}`),
+    port: options.port,
+    publicUrl: pulumi.output(`https://${options.host.replace(/^\*\./, "")}`),
   };
 }

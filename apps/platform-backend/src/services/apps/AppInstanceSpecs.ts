@@ -28,12 +28,16 @@ export class AppInstanceSpecs {
     const env = this.env();
     const storage = appDataStorage(env);
     const preview = role.kind === "preview";
+    // On ECS each App space's tasks have a role of their own, and a task ECS replaces needs the bundle long after any link expired.
+    const taskRole = target === "ecs";
     return {
       instance: preview ? role.instance : liveAppInstance(release.projectId),
       projectId: release.projectId,
       image: appRuntimeImage(target, env),
       env: {
-        VIBERGLASS_BUNDLE_URL: await this.bundleUrl(storage, release),
+        ...(taskRole
+          ? { VIBERGLASS_BUNDLE_KEY: releaseBundleKey(release.projectId, release.id) }
+          : { VIBERGLASS_BUNDLE_URL: await this.bundleUrl(storage, release) }),
         VIBERGLASS_BUNDLE_SHA256: release.bundleSha256,
         VIBERGLASS_DATA_BUCKET: storage.bucket,
         VIBERGLASS_DATA_PATH: appDataPath(release.projectId),
@@ -41,7 +45,7 @@ export class AppInstanceSpecs {
         ...(storage.client.endpoint ? { VIBERGLASS_DATA_ENDPOINT: storage.client.endpoint } : {}),
         ...(storage.client.forcePathStyle ? { VIBERGLASS_DATA_FORCE_PATH_STYLE: "true" } : {}),
         ...(preview ? { VIBERGLASS_DATA_MODE: "preview" } : {}),
-        ...(await (preview ? this.credentials.forPreview(release.projectId) : this.credentials.forApp(release.projectId))),
+        ...(taskRole ? {} : await (preview ? this.credentials.forPreview(release.projectId) : this.credentials.forApp(release.projectId))),
       },
     };
   }

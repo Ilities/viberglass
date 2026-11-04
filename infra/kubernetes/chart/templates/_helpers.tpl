@@ -1,5 +1,7 @@
 {{- define "viberglass.name" -}}{{ .Release.Name }}{{- end -}}
 {{- define "viberglass.workersNamespace" -}}{{ default (printf "%s-%s-workers" .Release.Namespace .Release.Name) .Values.workers.namespace }}{{- end -}}
+{{- define "viberglass.appsNamespace" -}}{{ default (printf "%s-%s-apps" .Release.Namespace .Release.Name) .Values.apps.namespace }}{{- end -}}
+{{- define "viberglass.appsPublicUrl" -}}{{ trimSuffix "/" (default (printf "https://%s" .Values.apps.domain) .Values.apps.publicUrl) }}{{- end -}}
 {{- define "viberglass.databaseHost" -}}
 {{- if .Values.database.enabled -}}{{ include "viberglass.name" . }}-postgres{{- else -}}{{ required "database.host is required with an external database" .Values.database.host }}{{- end -}}
 {{- end -}}

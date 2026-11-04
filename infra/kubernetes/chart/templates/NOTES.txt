@@ -1,6 +1,15 @@
 Viberglass is installed. Open {{ .Values.publicUrl }} and create the first administrator.
 
 Agent runs start as Jobs in the {{ include "viberglass.workersNamespace" . }} namespace.
+{{- if .Values.apps.domain }}
+
+Apps run in the {{ include "viberglass.appsNamespace" . }} namespace and open at
+{{ include "viberglass.appsPublicUrl" . }} under their own names, through port 8891 of the
+{{ include "viberglass.name" . }}-backend Service.
+{{- if .Values.ingress.enabled }} Point *.{{ .Values.apps.domain }} at your ingress controller and
+add a wildcard certificate for it to ingress.tls.
+{{- end }}
+{{- end }}
 {{- if .Values.preview.publicUrl }}
 
 Artifact previews load from {{ .Values.preview.publicUrl }}, served by port 8890 of the

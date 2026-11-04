@@ -1,7 +1,9 @@
 import fs from "fs";
 import os from "os";
-import { objectStorageBucket, objectStorageClientConfig, type ObjectStorageClientConfig } from "@viberglass/types";
+import { FARGATE_CPU_UNITS, fargateMemoryOptions, objectStorageBucket, objectStorageClientConfig, type ObjectStorageClientConfig } from "@viberglass/types";
 import type { DockerAppHostOptions } from "./DockerAppHost";
+import type { EcsAppHostOptions } from "./EcsAppHost";
+import type { KubernetesAppHostOptions } from "./KubernetesAppHost";
 import { AppSubnetPool } from "./AppSubnetPool";
 
 type Env = Record<string, string | undefined>;
@@ -33,6 +35,70 @@ export function dockerAppHostOptions(env: Env): DockerAppHostOptions {
     cpus: positive(env.APPS_CPUS, 1),
     subnets: new AppSubnetPool(env.APPS_NETWORK_POOL?.trim() || DEFAULT_APP_NETWORK_POOL),
   };
+}
+
+/** The namespace apps run in on Kubernetes; null when apps don't run there. */
+export function kubernetesAppsNamespace(env: Env): string | null {
+  return env.KUBERNETES_APPS_NAMESPACE?.trim() || null;
+}
+
+/** Null when this installation doesn't run apps on Kubernetes. */
+export function kubernetesAppHostOptions(env: Env): KubernetesAppHostOptions | null {
+  const namespace = kubernetesAppsNamespace(env);
+  if (!namespace) return null;
+  return {
+    namespace,
+    storageClass: env.KUBERNETES_APPS_STORAGE_CLASS?.trim() || null,
+    imagePullSecrets: (env.KUBERNETES_APPS_IMAGE_PULL_SECRETS ?? "").split(",").map((name) => name.trim()).filter(Boolean),
+    memoryMb: positive(env.APPS_MEMORY_MB, 512),
+    cpus: positive(env.APPS_CPUS, 1),
+    dataSize: env.APPS_DATA_SIZE?.trim() || "1Gi",
+    releaseSize: env.APPS_RELEASE_SIZE?.trim() || "1Gi",
+  };
+}
+
+/** Null when this installation doesn't run apps on ECS; the platform stack sets all of these together. */
+export function ecsAppHostOptions(env: Env): EcsAppHostOptions | null {
+  const value = (name: string) => env[name]?.trim() || "";
+  const cluster = value("ECS_APPS_CLUSTER");
+  const subnetIds = value("ECS_APPS_SUBNET_IDS").split(",").map((id) => id.trim()).filter(Boolean);
+  const required = [
+    cluster,
+    value("ECS_APPS_SECURITY_GROUP_ID"),
+    value("ECS_APPS_EXECUTION_ROLE_ARN"),
+    value("ECS_APPS_LOG_GROUP"),
+    value("ECS_APPS_NAMESPACE_ID"),
+    value("ECS_APPS_NAMESPACE_NAME"),
+    value("ECS_APPS_ROLE_PATH"),
+    value("ECS_APPS_PERMISSIONS_BOUNDARY_ARN"),
+  ];
+  if (required.some((item) => !item) || subnetIds.length === 0) return null;
+  return {
+    region: value("AWS_REGION") || "eu-west-1",
+    prefix: value("ECS_APPS_PREFIX") || "viberglass",
+    cluster,
+    subnetIds,
+    securityGroupId: value("ECS_APPS_SECURITY_GROUP_ID"),
+    assignPublicIp: value("ECS_APPS_ASSIGN_PUBLIC_IP") === "true",
+    executionRoleArn: value("ECS_APPS_EXECUTION_ROLE_ARN"),
+    logGroup: value("ECS_APPS_LOG_GROUP"),
+    namespace: { id: value("ECS_APPS_NAMESPACE_ID"), name: value("ECS_APPS_NAMESPACE_NAME") },
+    rolePath: value("ECS_APPS_ROLE_PATH"),
+    permissionsBoundaryArn: value("ECS_APPS_PERMISSIONS_BOUNDARY_ARN"),
+    bucket: objectStorageBucket(env),
+    size: fargateSize(positive(env.APPS_CPUS, 0.25), positive(env.APPS_MEMORY_MB, 512)),
+  };
+}
+
+/** The smallest Fargate size with at least this many vCPUs and MiB, or the largest there is. */
+export function fargateSize(cpus: number, memoryMb: number): { cpu: string; memory: string } {
+  for (const cpu of FARGATE_CPU_UNITS) {
+    if (Number(cpu) < cpus * 1024) continue;
+    const memory = fargateMemoryOptions(cpu).find((option) => Number(option) >= memoryMb);
+    if (memory) return { cpu, memory };
+  }
+  const largest = FARGATE_CPU_UNITS[FARGATE_CPU_UNITS.length - 1];
+  return { cpu: largest, memory: fargateMemoryOptions(largest).at(-1)! };
 }
 
 /** Host firewall rules for apps name this range, so changing it means changing them too. */

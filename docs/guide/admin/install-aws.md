@@ -48,6 +48,18 @@ HTML, image and PDF artifacts preview from a host of their own, so the agent's s
 
 The backend service ignores task definition changes, because the deploy workflow registers its own. When you turn previews on for an existing stack, update the base stack first, then run `pulumi up` in the platform stack and the backend deploy workflow, which picks up the new task definition with the preview port. If ECS refuses the service's new target group because the running task definition has no port 8890, run `pulumi up` in the platform stack once more after the deploy.
 
+## Apps
+
+App spaces need `appsDomain` in the platform stack: a domain in the same Route 53 zone that nothing else uses, such as `apps.viberglass.example.com`. Each app is served at `<name>.<appsDomain>`. The stack gives `*.<appsDomain>` a certificate, a wildcard DNS alias to the API's load balancer and a listener rule that sends it to the backend's app gateway port, 8891, which the base stack opens to the load balancer. Once an App home is set in Settings > Apps, App spaces are offered.
+
+Apps run on an ECS cluster of their own, one Fargate service per app and per preview, with 0.25 vCPU and 512 MB unless `APPS_CPUS` and `APPS_MEMORY_MB` say otherwise; those are rounded up to a size Fargate runs. The backend finds them through a private Cloud Map namespace, `apps.<environment>.viberglass.internal`. An app's database lives on its task's scratch storage and is restored from its Litestream replica in S3 every time the task starts, so a task ECS replaces comes back with its data. A task that crashes loses what Litestream hadn't sent yet, about the last second.
+
+Every App space gets two IAM task roles, created by the backend under `/viberglass/<environment>/apps/` and limited by a permissions boundary from the stack: one for the live app, which reads and writes its own replica, and a read-only one for its previews. Both can read the space's release bundles, which the runtime image downloads with them. The backend may only create roles there with that boundary.
+
+Apps share one security group. It accepts connections only from the backend, on port 3000, and lets apps out only on ports 443 and 80 and to the VPC's DNS. The backend, the database and the workers don't accept connections from it. Fargate tasks have no instance metadata service; an app can reach only its own task's credentials. App logs go to the `/ecs/viberglass-<environment>-apps` log group.
+
+When you turn apps on for an existing stack, update the base stack first, then run `pulumi up` in the platform stack and the backend deploy workflow, as for previews. If ECS refuses the service's new target group because the running task definition has no port 8891, run `pulumi up` in the platform stack once more after the deploy.
+
 ## Files spaces
 
 Files spaces keep their files and artifacts in the platform's S3 bucket; nothing extra is needed. ECS workers fetch and save a space's files through short-lived signed URLs from the backend, so they need outbound HTTPS to S3 like their other traffic, and no S3 permissions of their own. Lambda runners can't run in Files spaces. A stopped worker task gets 60 seconds to save its files before ECS kills it; a task definition you supply yourself keeps its own `stopTimeout`, 30 seconds unless set. In production the bucket moves objects to Glacier Instant Retrieval after 90 days, which S3 still serves directly, so a space left alone for months can still be restored. The dev stack deletes objects after 90 days, including the files of a space nobody changed in that time.

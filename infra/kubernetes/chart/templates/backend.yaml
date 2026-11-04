@@ -35,6 +35,9 @@ spec:
             {{- if .Values.preview.publicUrl }}
             - {name: preview, containerPort: 8890}
             {{- end }}
+            {{- if .Values.apps.domain }}
+            - {name: apps, containerPort: 8891}
+            {{- end }}
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
           startupProbe: {httpGet: {path: /health, port: http}, failureThreshold: 60, periodSeconds: 5}
           readinessProbe: {httpGet: {path: /health, port: http}}
@@ -54,4 +57,7 @@ spec:
     - {name: http, port: 3000, targetPort: http}
     {{- if .Values.preview.publicUrl }}
     - {name: preview, port: 8890, targetPort: preview}
+    {{- end }}
+    {{- if .Values.apps.domain }}
+    - {name: apps, port: 8891, targetPort: apps}
     {{- end }}

@@ -47,6 +47,11 @@ export type ReleaseCompleteRequest =
 /** The tail of a build's output kept with the release. */
 export const RELEASE_BUILD_LOG_MAX_LENGTH = 64_000
 
+/** Where an App space's release bundles are, previews' included. */
+export function appReleasesPath(projectId: string): string {
+  return `spaces/${projectId}/releases`
+}
+
 export function releaseBundleKey(projectId: string, releaseId: string): string {
-  return `spaces/${projectId}/releases/${releaseId}/bundle.tar.gz`
+  return `${appReleasesPath(projectId)}/${releaseId}/bundle.tar.gz`
 }

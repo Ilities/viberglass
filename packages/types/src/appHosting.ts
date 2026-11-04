@@ -50,6 +50,10 @@ export function previewInstance(previewId: string): string {
   return `preview-${previewId}`
 }
 
+export function isPreviewInstance(instance: string): boolean {
+  return instance.startsWith('preview-')
+}
+
 /** One release of one app, ready to be run by an `AppHost` as `instance`. */
 export interface AppInstanceSpec {
   instance: string
@@ -60,7 +64,8 @@ export interface AppInstanceSpec {
 }
 
 export interface AppInstanceStatus {
-  state: 'missing' | 'running' | 'stopped' | 'restarting'
+  /** `starting`: started, but not running yet, such as while its image is pulled. */
+  state: 'missing' | 'starting' | 'running' | 'stopped' | 'restarting'
   detail?: string
 }
 

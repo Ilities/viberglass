@@ -33,6 +33,8 @@ export interface InfrastructureConfig {
   appDomain?: string;
   /** Host artifact previews load from (e.g., "preview.viberglass.io"); needs apiDomain and route53ZoneId, and must differ from both app hosts */
   previewDomain?: string;
+  /** Domain apps are served under, each at <name>.<appsDomain> (e.g., "apps.viberglass.io"); needs apiDomain and route53ZoneId */
+  appsDomain?: string;
   /** Route 53 hosted zone ID for DNS validation and alias records (required if apiDomain is set) */
   route53ZoneId?: string;
   /** Domain to send email from through SES (e.g., "viberglass.io"); its DKIM records go in route53ZoneId when set */
@@ -80,6 +82,15 @@ export function getConfig(): InfrastructureConfig {
     }
     if (previewDomain === apiDomain || previewDomain === appDomain) {
       throw new Error("previewDomain must be a host of its own, not apiDomain or appDomain");
+    }
+  }
+  const appsDomain = config.get("appsDomain")?.replace(/^\*\./, "");
+  if (appsDomain) {
+    if (!apiDomain || !route53ZoneId) {
+      throw new Error("appsDomain needs apiDomain and route53ZoneId: apps are served over HTTPS by the API's load balancer");
+    }
+    if ([apiDomain, appDomain, previewDomain].some((host) => host && (host === appsDomain || host.endsWith(`.${appsDomain}`)))) {
+      throw new Error("appsDomain must be a domain of its own: every name under it is an app");
     }
   }
   const emailDomain = config.get("emailDomain");
@@ -135,6 +146,7 @@ export function getConfig(): InfrastructureConfig {
     apiDomain,
     appDomain,
     previewDomain,
+    appsDomain,
     route53ZoneId,
     emailDomain,
     emailFrom,

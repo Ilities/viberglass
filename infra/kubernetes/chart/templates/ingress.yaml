@@ -34,4 +34,15 @@ spec:
                 name: {{ include "viberglass.name" . }}-backend
                 port: {number: 8890}
     {{- end }}
+    {{- if .Values.apps.domain }}
+    - host: {{ printf "*.%s" .Values.apps.domain | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "viberglass.name" . }}-backend
+                port: {number: 8891}
+    {{- end }}
 {{- end }}

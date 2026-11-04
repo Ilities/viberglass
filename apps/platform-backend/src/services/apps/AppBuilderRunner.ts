@@ -29,7 +29,7 @@ export class AppBuilderRunner {
     private readonly runners: Pick<ClankerDAO, "getClanker" | "updateClanker"> = new ClankerDAO(),
     private readonly strategies: Pick<DeploymentStrategyDAO, "getDeploymentStrategyByName"> = new DeploymentStrategyDAO(),
     private readonly starter: Pick<ClankerStartService, "start"> = new ClankerStartService(),
-    private readonly strategyName: () => StrategyName = defaultDeploymentStrategyName,
+    private readonly strategyName: () => StrategyName = () => defaultDeploymentStrategyName(),
   ) {}
 
   async ready(): Promise<Clanker> {

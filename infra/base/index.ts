@@ -233,6 +233,13 @@ const backendSecurityGroup = new aws.ec2.SecurityGroup(
         protocol: "tcp",
         cidrBlocks: [vpcCidr],
       },
+      {
+        description: "App gateway port from VPC",
+        fromPort: 8891,
+        toPort: 8891,
+        protocol: "tcp",
+        cidrBlocks: [vpcCidr],
+      },
     ],
     egress: [
       {

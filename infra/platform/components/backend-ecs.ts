@@ -1,7 +1,7 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { InfrastructureConfig } from "../config";
-import { PREVIEW_PORT } from "./preview-origin";
+import { APPS_GATEWAY_PORT, PREVIEW_PORT } from "./backend-origin";
 
 /**
  * Backend ECS configuration options.
@@ -62,6 +62,13 @@ export interface BackendEcsOptions {
   preview?: {
     publicUrl: pulumi.Input<string>;
     targetGroupArn: pulumi.Input<string>;
+  };
+  /** Apps under their own domain, served by the backend's gateway and run on the apps cluster */
+  apps?: {
+    domain: string;
+    targetGroupArn: pulumi.Input<string>;
+    /** What the backend needs to run apps on ECS */
+    env: pulumi.Input<Record<string, string>>;
   };
   /** S3 bucket used for uploaded assets and ticket media */
   uploadsBucketName?: pulumi.Input<string>;
@@ -391,6 +398,7 @@ export function createBackendEcs(
           platformApiUrl: options.platformApiUrl ?? "",
           platformFrontendUrl: options.platformFrontendUrl ?? "",
           previewPublicUrl: options.preview?.publicUrl ?? "",
+          appsEnv: options.apps?.env ?? {},
           workerExecRole: options.worker.executionRoleArn ?? "",
           workerTaskRole: options.worker.taskRoleArn ?? "",
           workerImageRegistry: options.worker.imageRegistry,
@@ -415,6 +423,7 @@ export function createBackendEcs(
             platformApiUrl,
             platformFrontendUrl,
             previewPublicUrl,
+            appsEnv,
             workerExecRole,
             workerTaskRole,
             workerImageRegistry,
@@ -467,6 +476,14 @@ export function createBackendEcs(
             if (previewPublicUrl) {
               envVars.push({ name: "PREVIEW_PORT", value: String(PREVIEW_PORT) });
               envVars.push({ name: "PREVIEW_PUBLIC_URL", value: previewPublicUrl });
+            }
+
+            if (options.apps) {
+              envVars.push({ name: "APPS_DOMAIN", value: options.apps.domain });
+              envVars.push({ name: "APPS_PORT", value: String(APPS_GATEWAY_PORT) });
+              for (const [name, value] of Object.entries(appsEnv)) {
+                envVars.push({ name, value });
+              }
             }
 
             if (options.email) {
@@ -550,6 +567,9 @@ export function createBackendEcs(
                   },
                   ...(previewPublicUrl
                     ? [{ containerPort: PREVIEW_PORT, protocol: "tcp" }]
+                    : []),
+                  ...(options.apps
+                    ? [{ containerPort: APPS_GATEWAY_PORT, protocol: "tcp" }]
                     : []),
                 ],
                 logConfiguration: {
@@ -653,6 +673,15 @@ export function createBackendService(
                 targetGroupArn: options.preview.targetGroupArn,
                 containerName: "viberglass-backend",
                 containerPort: PREVIEW_PORT,
+              },
+            ]
+          : []),
+        ...(options.apps
+          ? [
+              {
+                targetGroupArn: options.apps.targetGroupArn,
+                containerName: "viberglass-backend",
+                containerPort: APPS_GATEWAY_PORT,
               },
             ]
           : []),

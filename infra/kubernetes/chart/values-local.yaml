@@ -22,3 +22,6 @@ storage:
   forcePathStyle: true
 preview:
   publicUrl: http://127.0.0.1:38890
+apps:
+  domain: apps.localhost
+  publicUrl: http://apps.localhost:38891
