@@ -12,6 +12,7 @@ on:
       - 'packages/model-hosting-verda/**'
       - '.github/workflows/deploy-backend-dev.yml'
       - 'apps/platform-backend/Dockerfile.prod'
+  workflow_dispatch:
 
 permissions:
   id-token: write   # Required for OIDC authentication
