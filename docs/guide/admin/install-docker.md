@@ -150,6 +150,10 @@ Artifact previews run the agent's HTML and scripts, so they load from a host of 
 
 Files spaces keep their files and artifacts in object storage. Set the `S3_*` settings in `.env` to a bucket that already exists; `.env.production.example` describes each. Agents running in containers on the server fetch and save files through signed URLs for `S3_WORKER_ENDPOINT`, or `S3_ENDPOINT` when it's unset, so it has to be an address they reach from the Docker bridge network. A bucket also moves task media and plan documents to it, and browsers download media from `S3_PUBLIC_ENDPOINT`.
 
+Apps need object storage and a domain of their own, such as `apps.viberglass.example.com`, with a wildcard DNS record (`*.apps.viberglass.example.com`) pointing at the server. Set `VIBERGLASS_APPS_DOMAIN` in `.env`. With `--profile https`, Caddy gets a certificate for each app and preview the first time someone opens it, after asking the backend whether the name belongs to one. Let's Encrypt issues at most 50 certificates a week for one registered domain, and every preview is a new name. With your own proxy, send the whole domain to `127.0.0.1:8891` (`VIBERGLASS_APPS_PORT`) with a wildcard certificate. The proxy must append the client's address to `X-Forwarded-For`, which the backend passes on to apps. Add the [firewall rules](#apps) before you run apps. They drop private addresses, so apps have to reach object storage at a public address: `S3_ENDPOINT`, or `APPS_DATA_ENDPOINT` when they need another one.
+
+Each app gets storage credentials that only reach its own data, and it's restarted with new ones before they expire. On MinIO they last a week, and the restart waits for 03:00 UTC (`APPS_RESTART_HOUR`). On AWS S3, set `APPS_DATA_ROLE_ARN` to a role that the S3 keys may assume, and `APPS_DATA_CREDENTIAL_SECONDS` to no more than that role's maximum session duration (12 hours at most). The apps then restart a few times a day, each time for a few seconds.
+
 What else to know:
 
 - Agents run as containers on the same server. The backend starts them through the Docker socket, so treat access to the backend container as root access to the server.

@@ -9,8 +9,8 @@ describe("AppInstanceSpecs on ECS", () => {
   it("names the bundle by its key and leaves the credentials to the task role", async () => {
     const release = appRelease("r1", { bundleSha256: "abc" });
 
-    const spec = await specs.specFor("ecs", release);
-    const preview = await specs.specFor("ecs", release, { kind: "preview", instance: "preview-x" });
+    const { spec, credentialsExpireAt } = await specs.specFor("ecs", release);
+    const { spec: preview } = await specs.specFor("ecs", release, { kind: "preview", instance: "preview-x" });
 
     expect(spec.env).toEqual({
       VIBERGLASS_BUNDLE_KEY: "spaces/space-1/releases/r1/bundle.tar.gz",
@@ -21,6 +21,7 @@ describe("AppInstanceSpecs on ECS", () => {
     });
     expect(preview.env).toMatchObject({ VIBERGLASS_DATA_MODE: "preview" });
     expect(preview.env).not.toHaveProperty("AWS_SESSION_TOKEN");
+    expect(credentialsExpireAt).toBeNull();
     expect(credentials.forApp).not.toHaveBeenCalled();
     expect(credentials.forPreview).not.toHaveBeenCalled();
   });

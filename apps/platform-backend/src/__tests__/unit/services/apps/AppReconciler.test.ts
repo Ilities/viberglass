@@ -8,10 +8,13 @@ jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, 
 const NOW = new Date("2026-11-03T12:00:00Z");
 const OLD = appRelease("old", { createdAt: "2026-11-03T10:00:00.000Z" });
 const NEW = appRelease("new", { createdAt: "2026-11-03T11:00:00.000Z" });
+const HOUR_MS = 60 * 60 * 1000;
+const WEEKLY = { lifetimeMs: 7 * 24 * HOUR_MS, restartHour: 3 };
+const expiringIn = (hours: number, from = NOW) => new Date(from.getTime() + hours * HOUR_MS);
 const BACK_TO_OLD = { releaseId: OLD.id, backupId: "backup-1", requestedBy: "user-1" };
 
 function record(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, ...overrides };
 }
 
 function build(app: AppRecord | null, options: { candidate?: AppRelease | null; host?: AppHost | null } = {}) {
@@ -29,12 +32,12 @@ function build(app: AppRecord | null, options: { candidate?: AppRelease | null; 
       newestLiveCandidate: jest.fn(async () => (options.candidate === undefined ? OLD : options.candidate)),
       markLiveFailure: jest.fn(async () => undefined),
     },
-    runner: { run: jest.fn(async (): Promise<string | null> => null) },
+    runner: { run: jest.fn(async (): Promise<string | null> => null), restart: jest.fn(async (): Promise<string | null> => null) },
     switcher: { switchTo: jest.fn(async (): Promise<AppChange> => ({ state: "running", statusMessage: null, currentReleaseId: NEW.id })) },
     rollbacks: { settle: jest.fn(async () => undefined) },
   };
   const resolved = options.host === undefined ? host : options.host;
-  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks);
+  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks, () => WEEKLY);
   return { reconciler, host, deps };
 }
 
@@ -195,5 +198,70 @@ describe("AppReconciler", () => {
       await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(false);
       expect(deps.switcher.switchTo).not.toHaveBeenCalled();
     });
+  });
+
+  it("restarts a running app whose credentials are about to run out", async () => {
+    const { reconciler, host, deps } = build(record({ credentialsExpireAt: expiringIn(10) }));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.runner.restart).toHaveBeenCalledWith(host, OLD);
+    expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "running", statusMessage: null });
+  });
+
+  it("waits for the restart hour while the credentials have days left", async () => {
+    const atNoon = build(record({ credentialsExpireAt: expiringIn(47) }));
+    await expect(atNoon.reconciler.reconcile("space-1", NOW)).resolves.toBe(false);
+
+    const threeAm = new Date("2026-11-04T03:10:00Z");
+    const atThree = build(record({ credentialsExpireAt: expiringIn(47, threeAm) }));
+    await expect(atThree.reconciler.reconcile("space-1", threeAm)).resolves.toBe(true);
+    expect(atThree.deps.runner.restart).toHaveBeenCalled();
+
+    const fresh = build(record({ credentialsExpireAt: expiringIn(6 * 24, threeAm) }));
+    await expect(fresh.reconciler.reconcile("space-1", threeAm)).resolves.toBe(false);
+  });
+
+  it("leaves apps on ECS alone, whose task role keeps their credentials fresh", async () => {
+    const threeAm = new Date("2026-11-04T03:10:00Z");
+    const { reconciler, deps } = build(record({ credentialsExpireAt: null }), { host: { ...fakeAppHost(), target: "ecs" } });
+
+    await expect(reconciler.reconcile("space-1", threeAm)).resolves.toBe(false);
+    expect(deps.runner.restart).not.toHaveBeenCalled();
+  });
+
+  it("restarts an app started before credential expiry was recorded once, in the restart hour", async () => {
+    const atNoon = build(record({ credentialsExpireAt: null }));
+    await expect(atNoon.reconciler.reconcile("space-1", NOW)).resolves.toBe(false);
+
+    const threeAm = new Date("2026-11-04T03:10:00Z");
+    const atThree = build(record({ credentialsExpireAt: null }));
+    await expect(atThree.reconciler.reconcile("space-1", threeAm)).resolves.toBe(true);
+    expect(atThree.deps.runner.restart).toHaveBeenCalled();
+  });
+
+  it("keeps an app running on its credentials when new ones can't be issued", async () => {
+    const { reconciler, deps } = build(record({ credentialsExpireAt: expiringIn(1) }));
+    deps.runner.restart.mockRejectedValue(new Error("STS is down"));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.apps.finish).toHaveBeenCalledWith("space-1", {
+      statusMessage: "Couldn't issue new storage credentials, so the app keeps its current ones for now: STS is down",
+    });
+  });
+
+  it("records a restart that didn't come up healthy as failed", async () => {
+    const { reconciler, deps } = build(record({ credentialsExpireAt: expiringIn(1) }));
+    deps.runner.restart.mockResolvedValue("The app answered 500 on /healthz within 120 seconds");
+
+    await reconciler.reconcile("space-1", NOW);
+    expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "failed", statusMessage: "The app answered 500 on /healthz within 120 seconds" });
+  });
+
+  it("switches to a newer release rather than restarting the current one", async () => {
+    const { reconciler, deps } = build(record({ credentialsExpireAt: expiringIn(1) }), { candidate: NEW });
+
+    await reconciler.reconcile("space-1", NOW);
+    expect(deps.switcher.switchTo).toHaveBeenCalled();
+    expect(deps.runner.restart).not.toHaveBeenCalled();
   });
 });

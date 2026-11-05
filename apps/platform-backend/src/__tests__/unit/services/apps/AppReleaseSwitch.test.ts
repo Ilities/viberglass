@@ -9,7 +9,7 @@ const PREVIOUS = appRelease("prev");
 const NEXT = appRelease("next", { commitSha: "abcdef1".padEnd(40, "0") });
 
 function app(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: PREVIOUS.id, busySince: new Date(), rollback: null, ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: PREVIOUS.id, busySince: new Date(), rollback: null, credentialsExpireAt: null, ...overrides };
 }
 
 function build(results: Array<string | null>) {

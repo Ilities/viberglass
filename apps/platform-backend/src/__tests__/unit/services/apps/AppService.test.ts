@@ -16,7 +16,7 @@ function build(app: AppRecord | null, isApp = true) {
     spaces: { findById: jest.fn(async () => (isApp ? { projectId: "space-1", slug: "laptops", name: "Laptops", isPrivate: false } : null)) },
     apps: {
       get: jest.fn(async () => app),
-      ensure: jest.fn(async () => app ?? { projectId: "space-1", power: "on" as const, state: "off" as const, statusMessage: null, currentReleaseId: null, busySince: null, rollback: null }),
+      ensure: jest.fn(async () => app ?? { projectId: "space-1", power: "on" as const, state: "off" as const, statusMessage: null, currentReleaseId: null, busySince: null, rollback: null, credentialsExpireAt: null }),
       update: jest.fn(async () => undefined),
     },
     releases: { listForProject: jest.fn(async () => [NEWER, LIVE]), getById: jest.fn(async () => LIVE) },
@@ -26,7 +26,7 @@ function build(app: AppRecord | null, isApp = true) {
   return { service: new AppService(deps.spaces, deps.apps, deps.releases, deps.backups, deps.reconciler, () => host, origins), deps, host };
 }
 
-const failed: AppRecord = { projectId: "space-1", power: "on", state: "failed", statusMessage: "exit code 1", currentReleaseId: "live", busySince: null, rollback: null };
+const failed: AppRecord = { projectId: "space-1", power: "on", state: "failed", statusMessage: "exit code 1", currentReleaseId: "live", busySince: null, rollback: null, credentialsExpireAt: null };
 
 describe("AppService", () => {
   it("shows an app that has no release yet as on but not running", async () => {

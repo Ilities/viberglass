@@ -29,6 +29,9 @@ data:
   APPS_DOMAIN: {{ .Values.apps.domain | quote }}
   APPS_PORT: "8891"
   APPS_PUBLIC_URL: {{ include "viberglass.appsPublicUrl" . | quote }}
+  {{- if .Values.ingress.enabled }}
+  APPS_TRUST_PROXY: "true"
+  {{- end }}
   KUBERNETES_APPS_NAMESPACE: {{ include "viberglass.appsNamespace" . | quote }}
   KUBERNETES_APPS_IMAGE_PULL_SECRETS: {{ join "," .Values.apps.imagePullSecrets | quote }}
   {{- with .Values.apps.storageClass }}

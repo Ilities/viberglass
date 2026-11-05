@@ -487,6 +487,7 @@ export function createBackendEcs(
             if (options.apps) {
               envVars.push({ name: "APPS_DOMAIN", value: options.apps.domain });
               envVars.push({ name: "APPS_PORT", value: String(APPS_GATEWAY_PORT) });
+              envVars.push({ name: "APPS_TRUST_PROXY", value: "true" });
               for (const [name, value] of Object.entries(appsEnv)) {
                 envVars.push({ name, value });
               }

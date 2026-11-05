@@ -59,7 +59,7 @@ function inApp(method: "GET" | "POST", url: string, instance = INSTANCE): string
 async function startRelease(preview?: string): Promise<void> {
   const release = appRelease(RELEASE_ID, { projectId: PROJECT, bundleSha256: env.BUNDLE_SHA256 });
   const role = preview ? { kind: "preview" as const, instance: preview } : undefined;
-  const spec = await new AppInstanceSpecs(new StsAppDataCredentials(() => env), () => env).specFor("docker", release, role);
+  const { spec } = await new AppInstanceSpecs(new StsAppDataCredentials(() => env), () => env).specFor("docker", release, role);
   await host.create(spec);
   await host.start(spec.instance);
   await waitForHealth(spec.instance);
@@ -151,7 +151,8 @@ describeWithRuntime("running an app on Docker", () => {
   }, 180_000);
 
   it("gives the app credentials that reach only its own replica", async () => {
-    const credentials = await new StsAppDataCredentials(() => env).forApp(PROJECT);
+    const { env: credentials, expiresAt } = await new StsAppDataCredentials(() => env).forApp(PROJECT);
+    expect(expiresAt.getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
     const client = new S3Client({
       ...objectStorageClientConfig(env),
       credentials: { accessKeyId: credentials.AWS_ACCESS_KEY_ID, secretAccessKey: credentials.AWS_SECRET_ACCESS_KEY, sessionToken: credentials.AWS_SESSION_TOKEN },
@@ -181,7 +182,7 @@ describeWithRuntime("running an app on Docker", () => {
   }, 180_000);
 
   it("gives a preview credentials that only read its app's replica", async () => {
-    const credentials = await new StsAppDataCredentials(() => env).forPreview(PROJECT);
+    const { env: credentials } = await new StsAppDataCredentials(() => env).forPreview(PROJECT);
     const client = new S3Client({
       ...objectStorageClientConfig(env),
       credentials: { accessKeyId: credentials.AWS_ACCESS_KEY_ID, secretAccessKey: credentials.AWS_SECRET_ACCESS_KEY, sessionToken: credentials.AWS_SESSION_TOKEN },

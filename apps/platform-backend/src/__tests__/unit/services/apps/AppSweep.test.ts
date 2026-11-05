@@ -4,7 +4,7 @@ import { appRelease, fakeAppHost } from "../../../helpers/fakeAppHost";
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const NOW = new Date("2026-11-03T12:00:00Z");
-const EXISTING = { projectId: "has-app", power: "on" as const, state: "running" as const, statusMessage: null, currentReleaseId: "r", busySince: null, rollback: null };
+const EXISTING = { projectId: "has-app", power: "on" as const, state: "running" as const, statusMessage: null, currentReleaseId: "r", busySince: null, rollback: null, credentialsExpireAt: null };
 
 function build() {
   const host = fakeAppHost();

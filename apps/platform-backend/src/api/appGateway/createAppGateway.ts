@@ -32,7 +32,14 @@ export interface AppGatewayDeps {
   socketCheckMs?: number;
   /** Told about every request a preview serves, so idle previews can be turned off. */
   previewOpened?: (previewId: string) => void;
+  /** The gateway's peer is a proxy, whose last `X-Forwarded-For` address is the person's. */
+  trustProxy?: boolean;
+  /** Whether a name under the apps domain may get a certificate; answers TLS_ASK_PATH for a proxy issuing them on demand. */
+  certificateAllowed?: (host: string) => Promise<boolean>;
 }
+
+/** Asked with `?domain=` by a proxy before it gets a certificate, on a host that isn't an app's. */
+export const TLS_ASK_PATH = "/_viberglass/tls";
 
 /**
  * Every request to an app goes through here: it signs the person in, refuses
@@ -113,10 +120,18 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
     res.end();
   };
 
+  const certificateAnswer = async (url: URL, res: ServerResponse) => {
+    const domain = url.searchParams.get("domain") ?? "";
+    const allowed = domain !== "" && (await deps.certificateAllowed?.(domain));
+    res.writeHead(allowed ? 200 : 404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(allowed ? "yes" : "no");
+  };
+
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? "/", "http://gateway");
     const slug = deps.origins.slugFromHost(req.headers.host);
     if (slug && url.pathname === APP_CALLBACK_PATH) return callback(req, slug, url, res);
+    if (!slug && url.pathname === TLS_ASK_PATH && deps.certificateAllowed) return certificateAnswer(url, res);
 
     if (refusedAsCrossOrigin(req, false)) {
       res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
@@ -147,7 +162,7 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
         return previewOffPage(res, route.taskKey, `${frontendUrl}${route.taskPath}`);
       case "proxy":
         if (route.previewId) deps.previewOpened?.(route.previewId);
-        prepareAppRequest(req, route.user, { cookieNames, secure });
+        prepareAppRequest(req, route.user, { cookieNames, secure, trustProxy: deps.trustProxy });
         return proxy.web(req, res, { target: route.target });
     }
   };
@@ -158,7 +173,7 @@ export function createAppGateway(deps: AppGatewayDeps): http.Server {
       socket.end("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
       return;
     }
-    prepareAppRequest(req, resolved.route.user, { cookieNames, secure });
+    prepareAppRequest(req, resolved.route.user, { cookieNames, secure, trustProxy: deps.trustProxy });
     sockets.add(socket, resolved.slug, resolved.token);
     proxy.ws(req, socket, head, { target: resolved.route.target });
   };

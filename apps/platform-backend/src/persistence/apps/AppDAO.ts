@@ -13,6 +13,8 @@ export interface AppRecord {
   currentReleaseId: string | null;
   busySince: Date | null;
   rollback: RollbackOrder | null;
+  /** When the running instance's storage credentials expire; null when the host's role supplies them. */
+  credentialsExpireAt: Date | null;
 }
 
 /** A rollback a maintainer asked for, done on the app's next switch. */
@@ -77,6 +79,10 @@ export class AppDAO {
   }
 
   /** Ends what `claim` began. */
+  async recordCredentials(projectId: string, expiresAt: Date | null): Promise<void> {
+    await db.updateTable("apps").set({ credentials_expire_at: expiresAt, updated_at: new Date() }).where("project_id", "=", projectId).execute();
+  }
+
   async finish(projectId: string, change: AppChange): Promise<void> {
     await db
       .updateTable("apps")
@@ -103,6 +109,7 @@ function toApp(row: AppRow): AppRecord {
     statusMessage: row.status_message,
     currentReleaseId: row.current_release_id,
     busySince: row.busy_since,
+    credentialsExpireAt: row.credentials_expire_at,
     rollback:
       row.rollback_release_id && row.rollback_by
         ? { releaseId: row.rollback_release_id, backupId: row.rollback_backup_id, requestedBy: row.rollback_by }

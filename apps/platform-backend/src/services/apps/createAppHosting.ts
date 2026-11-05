@@ -60,7 +60,7 @@ export function appHosting(): AppHosting {
     ...(ecs ? [new EcsAppHost(ecs)] : []),
   ]);
   const host = () => registry.get(defaultDeploymentStrategyName());
-  const runner = new AppInstanceRunner(new AppInstanceSpecs(new StsAppDataCredentials()));
+  const runner = new AppInstanceRunner(new AppInstanceSpecs(new StsAppDataCredentials()), apps);
   const backups = new AppDataBackupDAO();
   const switcher = new AppReleaseSwitch(apps, releases, backups, new AppDataStore(), runner);
   const settler = new AppRollbackSettler(new AppReleaseRollbackDAO(), apps, new UserDAO(), new TaskActivityRecorder());

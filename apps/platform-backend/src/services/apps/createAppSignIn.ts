@@ -15,6 +15,7 @@ export interface AppSignIn {
   origins: AppOrigins;
   service: AppSignInService;
   resolver: AppGatewayResolver;
+  targets: AppTargets;
 }
 
 let signIn: AppSignIn | null = null;
@@ -30,6 +31,7 @@ export function appSignIn(): AppSignIn {
     origins,
     service: new AppSignInService(targets, signIns, origins),
     resolver: new AppGatewayResolver(targets, signIns, appHosting().host),
+    targets,
   };
   return signIn;
 }

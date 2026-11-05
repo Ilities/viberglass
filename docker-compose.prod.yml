@@ -79,6 +79,15 @@ services:
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      # Apps, each at https://<name>.<VIBERGLASS_APPS_DOMAIN>, served by the backend's
+      # gateway behind Caddy or your own proxy. Empty VIBERGLASS_APPS_DOMAIN turns them off.
+      APPS_DOMAIN: ${VIBERGLASS_APPS_DOMAIN:-}
+      APPS_PORT: 8891
+      APPS_PUBLIC_URL: ${VIBERGLASS_APPS_URL:-}
+      APPS_TRUST_PROXY: "true"
+      APPS_DATA_ENDPOINT: ${APPS_DATA_ENDPOINT:-}
+      APPS_DATA_ROLE_ARN: ${APPS_DATA_ROLE_ARN:-}
+      APPS_DATA_CREDENTIAL_SECONDS: ${APPS_DATA_CREDENTIAL_SECONDS:-}
       # Optional: email and traces. Empty means off.
       EMAIL_FROM: ${EMAIL_FROM:-}
       SMTP_URL: ${SMTP_URL:-}
@@ -92,6 +101,8 @@ services:
       - "${VIBERGLASS_WORKER_API_BIND:-172.17.0.1}:${VIBERGLASS_WORKER_API_PORT:-8888}:3000"
       # Artifact previews, for your own reverse proxy; the `https` profile reaches it inside the network.
       - "${VIBERGLASS_HTTP_BIND:-127.0.0.1}:${VIBERGLASS_PREVIEW_PORT:-8890}:8890"
+      # Apps, for your own reverse proxy, which must append the client's address to X-Forwarded-For.
+      - "${VIBERGLASS_HTTP_BIND:-127.0.0.1}:${VIBERGLASS_APPS_PORT:-8891}:8891"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}:${VIBERGLASS_DATA_DIR:-/var/lib/viberglass}
@@ -113,9 +124,9 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # HTTPS with Let's Encrypt certificates for VIBERGLASS_DOMAIN and
-  # VIBERGLASS_PREVIEW_DOMAIN. Needs ports 80 and 443 open, and both domains' DNS
-  # pointing at this host.
+  # HTTPS with Let's Encrypt certificates for VIBERGLASS_DOMAIN,
+  # VIBERGLASS_PREVIEW_DOMAIN and each app under VIBERGLASS_APPS_DOMAIN. Needs
+  # ports 80 and 443 open, and the domains' DNS pointing at this host.
   caddy:
     image: caddy:2-alpine
     profiles: ["https"]
@@ -123,6 +134,8 @@ services:
       VIBERGLASS_DOMAIN: ${VIBERGLASS_DOMAIN:-localhost}
       # A placeholder that never gets a public certificate when previews are off.
       VIBERGLASS_PREVIEW_DOMAIN: ${VIBERGLASS_PREVIEW_DOMAIN:-preview.localhost}
+      # Without apps the gateway doesn't run, so no name here gets a certificate.
+      VIBERGLASS_APPS_DOMAIN: ${VIBERGLASS_APPS_DOMAIN:-apps.localhost}
     ports:
       - "80:80"
       - "443:443"

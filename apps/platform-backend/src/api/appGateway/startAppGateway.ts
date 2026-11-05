@@ -16,11 +16,23 @@ export function startAppGateway(env: Record<string, string | undefined> = proces
     logger.warn("Not serving apps: PLATFORM_FRONTEND_URL is needed to sign people in to them");
     return;
   }
-  const { origins, service, resolver } = appSignIn();
+  const { origins, service, resolver, targets } = appSignIn();
   const domain = origins.domain ?? "";
   if (!origins.secure && domain !== "localhost" && !domain.endsWith(".localhost")) {
     logger.warn("Apps are served over http on a name other than localhost: one app can sign people in to another as someone else. Set APPS_PUBLIC_URL to an https address.", { domain });
   }
   const openings = new PreviewOpenings(new AppPreviewDAO());
-  createAppGateway({ origins, resolver, signIn: service, frontendUrl, previewOpened: (id) => openings.opened(id) }).listen(port, () => logger.info("App gateway listening", { port }));
+  const certificateAllowed = async (host: string) => {
+    const label = origins.slugFromHost(host);
+    return Boolean(label && (await targets.find(label)));
+  };
+  createAppGateway({
+    origins,
+    resolver,
+    signIn: service,
+    frontendUrl,
+    previewOpened: (id) => openings.opened(id),
+    trustProxy: env.APPS_TRUST_PROXY?.trim() === "true",
+    certificateAllowed,
+  }).listen(port, () => logger.info("App gateway listening", { port }));
 }

@@ -234,6 +234,7 @@ export interface AppsTable {
   rollback_release_id: string | null;
   rollback_backup_id: string | null;
   rollback_by: string | null;
+  credentials_expire_at: Timestamp | null;
   updated_at: Generated<Timestamp>;
 }
 

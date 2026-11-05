@@ -112,11 +112,28 @@ export function appHealthTimeoutMs(env: Env): number {
 /** Long enough for the app to shut down and Litestream to send its last changes. */
 export const APP_STOP_GRACE_SECONDS = 30;
 
+/**
+ * How long a live app's storage credentials last. A week on MinIO; AWS caps
+ * role sessions at 12 hours or less, so set APPS_DATA_CREDENTIAL_SECONDS there.
+ */
+export function appDataCredentialSeconds(env: Env): number {
+  return positive(env.APPS_DATA_CREDENTIAL_SECONDS, 7 * 24 * 60 * 60);
+}
+
+/** The hour (UTC) apps are restarted for new credentials when they can wait for it. */
+export function appRestartHour(env: Env): number {
+  return hourOfDay(env.APPS_RESTART_HOUR, 3);
+}
+
 /** The hour (UTC) every running preview is turned off. */
 export function previewOffHour(env: Env): number {
-  const configured = env.APPS_PREVIEW_OFF_HOUR?.trim();
+  return hourOfDay(env.APPS_PREVIEW_OFF_HOUR, 3);
+}
+
+function hourOfDay(value: string | undefined, fallback: number): number {
+  const configured = value?.trim();
   const hour = Number(configured);
-  return configured && Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 3;
+  return configured && Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : fallback;
 }
 
 /** How long a preview runs without being opened before it's turned off. */

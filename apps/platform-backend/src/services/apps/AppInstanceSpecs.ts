@@ -16,6 +16,12 @@ const BUNDLE_URL_SECONDS = 24 * 60 * 60;
  */
 export type AppInstanceRole = { kind: "live" } | { kind: "preview"; instance: string };
 
+/** An instance to create, and when the storage credentials in it expire; null when the host's role supplies them. */
+export interface AppLaunch {
+  spec: AppInstanceSpec;
+  credentialsExpireAt: Date | null;
+}
+
 /** What the runtime image needs to run one release: its bundle, and its app's replica with credentials for it. */
 export class AppInstanceSpecs {
   constructor(
@@ -23,14 +29,15 @@ export class AppInstanceSpecs {
     private readonly env: () => Env = () => process.env,
   ) {}
 
-  async specFor(target: AppHostTarget, release: AppRelease, role: AppInstanceRole = { kind: "live" }): Promise<AppInstanceSpec> {
+  async specFor(target: AppHostTarget, release: AppRelease, role: AppInstanceRole = { kind: "live" }): Promise<AppLaunch> {
     if (!release.bundleSha256) throw new Error(`Release ${release.commitSha.slice(0, 7)} has no bundle`);
     const env = this.env();
     const storage = appDataStorage(env);
     const preview = role.kind === "preview";
     // On ECS each App space's tasks have a role of their own, and a task ECS replaces needs the bundle long after any link expired.
     const taskRole = target === "ecs";
-    return {
+    const credentials = taskRole ? null : await (preview ? this.credentials.forPreview(release.projectId) : this.credentials.forApp(release.projectId));
+    const spec: AppInstanceSpec = {
       instance: preview ? role.instance : liveAppInstance(release.projectId),
       projectId: release.projectId,
       image: appRuntimeImage(target, env),
@@ -45,9 +52,10 @@ export class AppInstanceSpecs {
         ...(storage.client.endpoint ? { VIBERGLASS_DATA_ENDPOINT: storage.client.endpoint } : {}),
         ...(storage.client.forcePathStyle ? { VIBERGLASS_DATA_FORCE_PATH_STYLE: "true" } : {}),
         ...(preview ? { VIBERGLASS_DATA_MODE: "preview" } : {}),
-        ...(taskRole ? {} : await (preview ? this.credentials.forPreview(release.projectId) : this.credentials.forApp(release.projectId))),
+        ...credentials?.env,
       },
     };
+    return { spec, credentialsExpireAt: credentials?.expiresAt ?? null };
   }
 
   private async bundleUrl(storage: ReturnType<typeof appDataStorage>, release: AppRelease): Promise<string> {

@@ -89,6 +89,7 @@ describe("the app gateway", () => {
       signIn: { redeem },
       frontendUrl: "https://viberglass.example.com/",
       socketCheckMs: 20,
+      certificateAllowed: async (host) => host === HOST,
     });
     servers.push(gateway);
     gatewayPort = await listen(gateway);
@@ -169,6 +170,35 @@ describe("the app gateway", () => {
       "viberglass_app=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Domain=apps.example.com",
       expect.stringMatching(/^viberglass_app_state=/),
     ]);
+  });
+
+  it("tells a proxy issuing certificates which names are apps, but only when asked outside the apps", async () => {
+    const ask = (domain: string, host = "backend:8891") => send(gatewayPort, { path: `/_viberglass/tls?domain=${domain}`, headers: { host } });
+
+    expect((await ask(HOST)).status).toBe(200);
+    expect((await ask("payroll.apps.example.com")).status).toBe(404);
+    expect((await ask("")).status).toBe(404);
+    route = { kind: "sign-in" };
+    expect((await ask(HOST, HOST)).status).toBe(302);
+  });
+
+  it("takes the person's address from the proxy in front of it, ignoring what the client added", async () => {
+    const behindProxy = createAppGateway({
+      origins: new AppOrigins({ APPS_DOMAIN: "apps.example.com", APPS_PUBLIC_URL: "https://apps.example.com" }),
+      resolver: { resolve: async () => route },
+      signIn: { redeem },
+      frontendUrl: "https://viberglass.example.com/",
+      trustProxy: true,
+    });
+    servers.push(behindProxy);
+    const port = await listen(behindProxy);
+
+    const seen = JSON.parse((await send(port, { headers: { cookie: "__Host-viberglass_app=good", "x-forwarded-for": "6.6.6.6, 203.0.113.7" } })).body);
+    expect(seen.headers["x-forwarded-for"]).toBe("203.0.113.7");
+    expect(seen.headers["x-forwarded-proto"]).toBe("https");
+
+    const direct = JSON.parse((await send(port, { headers: { cookie: "__Host-viberglass_app=good" } })).body);
+    expect(direct.headers["x-forwarded-for"]).toBe("127.0.0.1");
   });
 
   it("passes the person's identity to the app in place of any sent along, without the gateway cookie", async () => {
