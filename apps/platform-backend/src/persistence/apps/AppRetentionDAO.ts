@@ -110,4 +110,30 @@ export class AppRetentionDAO {
   async deleteBackup(backupId: string): Promise<void> {
     await db.deleteFrom("app_data_backups").where("id", "=", backupId).execute();
   }
+
+  /** Git spaces whose app was ejected before `ejectedBefore` and not brought back in. */
+  async listEjectedBefore(ejectedBefore: Date): Promise<string[]> {
+    const rows = await db
+      .selectFrom("apps")
+      .innerJoin("projects", "projects.id", "apps.project_id")
+      .select("apps.project_id")
+      .where("apps.ejected_at", "<", ejectedBefore)
+      .where("projects.backing_kind", "=", "git")
+      .execute();
+    return rows.map((row) => row.project_id);
+  }
+
+  /** Once its data is deleted: the app's row and backups go, and its bundles are retired to be purged. */
+  async forgetEjected(projectId: string): Promise<void> {
+    await db.transaction().execute(async (trx) => {
+      await trx.deleteFrom("app_data_backups").where("project_id", "=", projectId).execute();
+      await trx
+        .updateTable("app_releases")
+        .set({ bundle_removed_at: new Date() })
+        .where("project_id", "=", projectId)
+        .where("bundle_removed_at", "is", null)
+        .execute();
+      await trx.deleteFrom("apps").where("project_id", "=", projectId).execute();
+    });
+  }
 }

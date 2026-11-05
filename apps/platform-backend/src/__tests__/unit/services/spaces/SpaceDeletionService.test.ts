@@ -5,10 +5,10 @@ jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, 
 function build(backingKind: "git" | "files" | "app" | null, bucket = "uploads") {
   const deps = {
     projects: {
-      getProject: jest.fn(async () => (backingKind ? { id: "space-1", backingKind } : null)),
+      getProject: jest.fn(async () => (backingKind ? { id: "space-1", name: "Laptops", backingKind } : null)),
       deleteProject: jest.fn(async () => undefined),
     },
-    apps: { tearDown: jest.fn(async () => ["The repository acme/laptops wasn't archived."]) },
+    apps: { tearDown: jest.fn(async (_projectId: string, _name: string) => ["The repository acme/laptops wasn't archived."]) },
     storage: { delete: jest.fn(async () => undefined) },
   };
   const service = new SpaceDeletionService(deps.projects, deps.apps, deps.storage, () => bucket);
@@ -20,6 +20,7 @@ describe("SpaceDeletionService", () => {
     const { service, deps } = build("app");
 
     await expect(service.delete("space-1")).resolves.toEqual({ warnings: ["The repository acme/laptops wasn't archived."] });
+    expect(deps.apps.tearDown).toHaveBeenCalledWith("space-1", "Laptops");
     expect(deps.storage.delete).toHaveBeenCalledWith("s3://uploads/spaces/space-1/");
     expect(deps.apps.tearDown.mock.invocationCallOrder[0]).toBeLessThan(deps.storage.delete.mock.invocationCallOrder[0]);
     expect(deps.storage.delete.mock.invocationCallOrder[0]).toBeLessThan(deps.projects.deleteProject.mock.invocationCallOrder[0]);

@@ -1,4 +1,4 @@
-import { appBackupPath, releaseBundleKey } from "@viberglass/types";
+import { appBackupPath, appBackupsPath, appDataPath, ejectedAppDataPath, releaseBundleKey } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppRetentionDAO } from "../../persistence/apps/AppRetentionDAO";
 import type { SpaceFilesStore } from "../spaceFiles/SpaceFilesStore";
@@ -32,8 +32,9 @@ export function appRetentionLimits(env: Record<string, string | undefined> = pro
 /**
  * Removes release bundles and data backups apps no longer need. A bundle is
  * retired first, so nothing starts it again, and its bytes go after a grace
- * period; its release stays listed. A failed deletion is tried again on the
- * next sweep.
+ * period; its release stays listed. An ejected app's data, backups and
+ * bundles go once its backups would have. A failed deletion is tried again on
+ * the next sweep.
  */
 export class AppRetention {
   constructor(
@@ -60,7 +61,18 @@ export class AppRetention {
         removed++;
       }
     }
+    for (const projectId of await this.retention.listEjectedBefore(new Date(now.getTime() - this.limits.backupDays * DAY_MS))) {
+      if (await this.forgetEjected(projectId)) removed++;
+    }
     return removed;
+  }
+
+  private async forgetEjected(projectId: string): Promise<boolean> {
+    for (const prefix of [appDataPath(projectId), appBackupsPath(projectId), ejectedAppDataPath(projectId)]) {
+      if (!(await this.remove(`${prefix}/`, `data of the app ejected from space ${projectId}`))) return false;
+    }
+    await this.retention.forgetEjected(projectId);
+    return true;
   }
 
   private async remove(key: string, what: string): Promise<boolean> {

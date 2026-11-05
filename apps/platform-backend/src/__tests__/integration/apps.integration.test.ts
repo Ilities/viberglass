@@ -11,6 +11,9 @@ import { up, down } from "../../migrations/136_apps";
 import { up as releaseTasksUp } from "../../migrations/140_app_release_tasks";
 import { addPreviewBuilds } from "../../migrations/141_app_previews";
 import { up as rollbackUp, down as rollbackDown } from "../../migrations/142_app_rollback";
+import { up as credentialExpiryUp } from "../../migrations/143_app_credential_expiry";
+import { up as archiveBackupUp } from "../../migrations/144_app_archive_backup";
+import { up as backingSwitchUp } from "../../migrations/147_space_backing_switch";
 
 let mockDb: Kysely<Database>;
 jest.mock("../../persistence/config/database", () => ({
@@ -22,7 +25,7 @@ jest.mock("../../persistence/config/database", () => ({
 
 const SPACE = "11111111-1111-4111-8111-111111111111";
 const TASK = "22222222-2222-4222-8222-222222222222";
-const READY = { status: "ready" as const, bundleSha256: "c".repeat(64), bundleBytes: 2048, nodeVersion: "v24.11.0", buildLog: "ok" };
+const READY = { status: "ready" as const, bundleSha256: "c".repeat(64), bundleBytes: 2048, nodeVersion: "v24.11.0", buildLog: "ok", settings: null };
 let container: StartedPostgreSqlContainer;
 const apps = new AppDAO();
 const releases = new AppReleaseDAO();
@@ -50,6 +53,12 @@ beforeAll(async () => {
   await releaseTasksUp(mockDb);
   await addPreviewBuilds(mockDb);
   await rollbackUp(mockDb);
+  await credentialExpiryUp(mockDb);
+  await archiveBackupUp(mockDb);
+  // The app_settings table needs secrets; only its columns on apps and releases matter here.
+  await sql`ALTER TABLE apps ADD COLUMN restart_due boolean NOT NULL DEFAULT false`.execute(mockDb);
+  await sql`ALTER TABLE app_releases ADD COLUMN settings jsonb`.execute(mockDb);
+  await backingSwitchUp(mockDb);
 }, 60_000);
 
 afterAll(async () => {

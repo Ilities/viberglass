@@ -99,6 +99,16 @@ ${JSON.stringify(EXAMPLE_MANIFEST, null, 2)}
 
 Keep the manifest up to date whenever you add, rename or remove a setting or change how the app is built or started.
 
+## An existing codebase
+
+A repository can be brought into Viberglass with code that was written without this contract. When \`${APP_MANIFEST_FILE}\` is missing, your first task is to make the app fit it, and nothing else:
+
+- Keep its stack, framework and structure where they fit the runtime above. Don't rewrite it or move it to another framework.
+- Add the manifest, listen on \`PORT\`, answer \`${APP_HEALTH_PATH}\`, and keep its data in the SQLite database at \`APP_DATABASE_PATH\` (default \`${APP_DATABASE_PATH}\`).
+- Replace its own sign-in with the identity headers above, and its own config files or \`.env\` values with declared settings.
+- When something it does can't fit (another database, background jobs, inbound webhooks, email), say so in the pull request and in your reply, and leave that part out rather than faking it.
+- The people who brought it in may have uploaded a SQLite file as its starting data. If its tables don't match what the code expects, add a migration that brings them in line without losing rows.
+
 ## What apps can't do
 
 Tell the person plainly when they ask for one of these, and suggest what the app can do instead:

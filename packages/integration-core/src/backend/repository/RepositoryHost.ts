@@ -36,8 +36,12 @@ export interface RepositoryHost {
   parseRepository(input: string): RepositoryRef | null
   /** Throws RepositoryAccessError when the token can't read the repository or push to it. */
   checkAccess(repository: RepositoryRef, token: string): Promise<RepositoryAccess>
-  /** Set when the host can archive repositories; throws RepositoryAccessError when it refuses. */
-  archiveRepository?(repository: RepositoryRef, token: string): Promise<void>
+  /**
+   * Set when the host can archive repositories. `note` replaces the
+   * repository's description, so whoever finds it archived sees why. Throws
+   * RepositoryAccessError when the host refuses.
+   */
+  archiveRepository?(repository: RepositoryRef, token: string, note: string): Promise<void>
   /** Opens the pull request and returns its address; the open one's address when there already is one for the branch. */
   openPullRequest(pullRequest: PullRequestToOpen, token: string): Promise<string>
   /** Whether a pull request address is one of this host's. */
@@ -51,6 +55,8 @@ export interface RepositoryHost {
   mergePullRequest(url: string, token: string, options: { expectedHeadSha: string }): Promise<string>
   /** The commit a branch points at; null when the branch doesn't exist yet, as in an empty repository. */
   fetchBranchHead(repository: RepositoryRef, branch: string, token: string): Promise<string | null>
+  /** Set when the host can tell whether a file is on a branch. */
+  hasFile?(repository: RepositoryRef, path: string, branch: string, token: string): Promise<boolean>
   /** Unresolved review threads, and review summaries and comments written after `since`. */
   fetchPullRequestReview(url: string, token: string, since: Date | null): Promise<PullRequestReview>
 }

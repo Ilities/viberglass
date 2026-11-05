@@ -3,8 +3,8 @@ import db from "../config/database";
 export interface NewAppDataBackup {
   id: string;
   projectId: string;
-  reason: "release" | "rollback" | "archive";
-  /** The release being switched to; null for the copy kept when the space was archived. */
+  reason: "release" | "rollback" | "archive" | "eject";
+  /** The release being switched to; null for the copy kept when the space was archived or ejected. */
   releaseId: string | null;
   /** The release whose data it is; null when nothing was serving. */
   fromReleaseId: string | null;

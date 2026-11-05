@@ -113,8 +113,21 @@ export function appDataPath(projectId: string): string {
 }
 
 /** Outside the replica's prefix, so the app's credentials can't touch it. */
+export function appBackupsPath(projectId: string): string {
+  return `spaces/${projectId}/backups`
+}
+
 export function appBackupPath(projectId: string, backupId: string): string {
-  return `spaces/${projectId}/backups/${backupId}`
+  return `${appBackupsPath(projectId)}/${backupId}`
+}
+
+/** The last copy of an ejected app's database, as one SQLite file to download. */
+export function ejectedAppDataPath(projectId: string): string {
+  return `spaces/${projectId}/ejected`
+}
+
+export function ejectedAppDataKey(projectId: string, backupId: string): string {
+  return `${ejectedAppDataPath(projectId)}/${backupId}/app.db`
 }
 
 /** A copy of the app's database made for one agent turn; outside the replica, like backups. */

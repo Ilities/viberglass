@@ -13,8 +13,9 @@ import {
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { SpaceBackingSwitch } from './SpaceBackingSwitch'
 
-/** Archiving a space for its maintainers, and deleting it for admins. */
+/** Switching between git and App and archiving a space for its maintainers, and deleting it for admins. */
 export function SpaceHousekeeping({ project }: { project: Project }) {
   const navigate = useNavigate()
   const isAppSpace = project.backingKind === 'app'
@@ -64,6 +65,7 @@ export function SpaceHousekeeping({ project }: { project: Project }) {
     <>
       <div className="mt-16 space-y-6 border-t border-zinc-200 pt-8 dark:border-zinc-800">
         {error && !showDeleteDialog && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        <SpaceBackingSwitch project={project} />
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-6 dark:border-zinc-800 dark:bg-zinc-900/50">
           <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Archive space</h3>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -111,7 +113,8 @@ export function SpaceHousekeeping({ project }: { project: Project }) {
             {deletionSummary?.app?.repository ? (
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 The repository <span className="font-mono">{deletionSummary.app.repository}</span> is archived on its
-                code host, not deleted.
+                code host, not deleted. It becomes read-only, with a description saying Viberglass archived it, and
+                anyone who owns it can unarchive it in its settings.
               </p>
             ) : null}
             <p className="text-sm text-zinc-600 dark:text-zinc-400">

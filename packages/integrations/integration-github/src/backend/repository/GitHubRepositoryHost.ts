@@ -6,6 +6,7 @@ import { fetchGitHubBranchHead } from './fetchGitHubBranchHead'
 import { fetchGitHubPullRequestOutcome } from './fetchGitHubPullRequestOutcome'
 import { fetchGitHubPullRequestReview } from './fetchGitHubPullRequestReview'
 import type { GitHubApi, GitHubFetch } from './gitHubApi'
+import { hasGitHubFile } from './hasGitHubFile'
 import { GitHubRepositoryCreator } from './GitHubRepositoryCreator'
 import { gitHubWebHost, parseGitHubPullRequestUrl, parseGitHubRepository } from './gitHubRepositoryNames'
 import { mergeGitHubPullRequest } from './mergeGitHubPullRequest'
@@ -48,8 +49,8 @@ export class GitHubRepositoryHost implements RepositoryHost {
     return checkGitHubAccess(this.api, repository, token)
   }
 
-  archiveRepository(repository: RepositoryRef, token: string): Promise<void> {
-    return archiveGitHubRepository(this.api, repository, token)
+  archiveRepository(repository: RepositoryRef, token: string, note: string): Promise<void> {
+    return archiveGitHubRepository(this.api, repository, token, note)
   }
 
   openPullRequest(pullRequest: PullRequestToOpen, token: string): Promise<string> {
@@ -70,6 +71,10 @@ export class GitHubRepositoryHost implements RepositoryHost {
 
   fetchBranchHead(repository: RepositoryRef, branch: string, token: string): Promise<string | null> {
     return fetchGitHubBranchHead(this.api, repository, branch, token)
+  }
+
+  hasFile(repository: RepositoryRef, path: string, branch: string, token: string): Promise<boolean> {
+    return hasGitHubFile(this.api, repository, path, branch, token)
   }
 
   fetchPullRequestReview(url: string, token: string, since: Date | null): Promise<PullRequestReview> {

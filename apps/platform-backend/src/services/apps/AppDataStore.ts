@@ -25,6 +25,11 @@ export class AppDataStore {
     return this.copy(appBackupPath(projectId, backupId), appDataPath(projectId));
   }
 
+  /** Empties the app's replica, so it next starts without data. */
+  async clearReplica(projectId: string): Promise<void> {
+    await this.clear(appDataPath(projectId));
+  }
+
   private async copy(fromPath: string, toPath: string): Promise<CopiedData> {
     const Bucket = this.bucket();
     const copied: CopiedData = { objects: 0, bytes: 0 };

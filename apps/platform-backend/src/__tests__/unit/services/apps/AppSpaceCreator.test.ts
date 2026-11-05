@@ -68,11 +68,21 @@ describe("AppSpaceCreator", () => {
 
   it("removes the space again when its repository can't be created", async () => {
     const { creator, deps } = build();
-    deps.creator.create.mockRejectedValue(new RepositoryCreationError("REPOSITORY_EXISTS", "acme/laptops already exists."));
+    deps.creator.create.mockRejectedValue(new RepositoryCreationError("REPOSITORY_NAME_INVALID", "GitHub couldn't create acme/laptops."));
 
     expect(await failure(creator.create("Laptops"))).toBeInstanceOf(RepositoryCreationError);
     expect(deps.projects.deleteProject).toHaveBeenCalledWith("project-1");
     expect(deps.scmConfigs.upsertByProjectId).not.toHaveBeenCalled();
+  });
+
+  it("points at bringing in a repository that already exists", async () => {
+    const { creator, deps } = build();
+    deps.creator.create.mockRejectedValue(new RepositoryCreationError("REPOSITORY_EXISTS", "acme/laptops already exists."));
+
+    expect(await failure(creator.create("Laptops"))).toMatchObject({
+      code: "REPOSITORY_EXISTS",
+      message: expect.stringContaining("make its git space an App space"),
+    });
   });
 
   it("sends a problem with the App home's token to an administrator", async () => {

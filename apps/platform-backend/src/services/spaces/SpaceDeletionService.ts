@@ -15,7 +15,7 @@ export interface SpaceDeletion {
 export class SpaceDeletionService {
   constructor(
     private readonly projects: {
-      getProject(projectId: string): Promise<Pick<Project, "backingKind"> | null>;
+      getProject(projectId: string): Promise<Pick<Project, "backingKind" | "name"> | null>;
       deleteProject(projectId: string): Promise<void>;
     },
     private readonly apps: Pick<AppSpaceTeardown, "tearDown">,
@@ -27,7 +27,7 @@ export class SpaceDeletionService {
   async delete(projectId: string): Promise<SpaceDeletion | null> {
     const project = await this.projects.getProject(projectId);
     if (!project) return null;
-    const warnings = project.backingKind === "app" ? await this.apps.tearDown(projectId) : [];
+    const warnings = project.backingKind === "app" ? await this.apps.tearDown(projectId, project.name) : [];
     const bucket = this.bucket();
     if (bucket) await this.storage.delete(spaceObjectsPrefix(bucket, projectId));
     await this.projects.deleteProject(projectId);

@@ -48,6 +48,8 @@ export const AUDIT_ACTION_TEXT = {
   'space.member_set': "added someone to a space or changed their role",
   'space.member_removed': 'removed someone from a space',
   'space.deleted': 'deleted a space',
+  'space.made_app': 'made a space an App space',
+  'space.ejected_app': "stopped hosting a space's app",
   'app.turned_on': 'turned an app on',
   'app.turned_off': 'turned an app off',
   'app.change_made_live': 'made a change to an app live',

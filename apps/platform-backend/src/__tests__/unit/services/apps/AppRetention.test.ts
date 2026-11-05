@@ -14,8 +14,10 @@ function build() {
       markBundlePurged: jest.fn(async () => undefined),
       listBackupsToDelete: jest.fn(async () => [{ id: "b1", projectId: "space-1" }]),
       deleteBackup: jest.fn(async () => undefined),
+      listEjectedBefore: jest.fn(async (): Promise<string[]> => []),
+      forgetEjected: jest.fn(async () => undefined),
     },
-    store: { bucket: () => "uploads", delete: jest.fn(async () => undefined) },
+    store: { bucket: () => "uploads", delete: jest.fn(async (_url: string): Promise<void> => undefined) },
   };
   return { retention: new AppRetention(deps.retention, deps.store, LIMITS, 15 * 60_000), deps };
 }
@@ -43,5 +45,29 @@ describe("AppRetention", () => {
     await expect(retention.sweep(NOW)).resolves.toBe(1);
     expect(deps.retention.markBundlePurged).not.toHaveBeenCalled();
     expect(deps.retention.deleteBackup).not.toHaveBeenCalled();
+  });
+
+  it("deletes an ejected app's data once its backups would have gone", async () => {
+    const { retention, deps } = build();
+    deps.retention.listEjectedBefore.mockResolvedValue(["space-2"]);
+
+    await expect(retention.sweep(NOW)).resolves.toBe(4);
+
+    expect(deps.retention.listEjectedBefore).toHaveBeenCalledWith(new Date("2026-10-05T12:00:00Z"));
+    expect(deps.store.delete).toHaveBeenCalledWith("s3://uploads/spaces/space-2/app-data/");
+    expect(deps.store.delete).toHaveBeenCalledWith("s3://uploads/spaces/space-2/backups/");
+    expect(deps.store.delete).toHaveBeenCalledWith("s3://uploads/spaces/space-2/ejected/");
+    expect(deps.retention.forgetEjected).toHaveBeenCalledWith("space-2");
+  });
+
+  it("keeps an ejected app's rows while its data can't be deleted", async () => {
+    const { retention, deps } = build();
+    deps.retention.listEjectedBefore.mockResolvedValue(["space-2"]);
+    deps.store.delete.mockImplementation(async (url: string) => {
+      if (url.includes("space-2/backups")) throw new Error("storage unreachable");
+    });
+
+    await retention.sweep(NOW);
+    expect(deps.retention.forgetEjected).not.toHaveBeenCalled();
   });
 });

@@ -9,11 +9,11 @@ import { appDataPath, objectStorageBucket, objectStorageClientConfig } from "@vi
 import { AppSpaceError } from "./AppSpaceError";
 
 type Env = Record<string, string | undefined>;
-type Run = (command: string, args: string[], env: Env) => Promise<void>;
+export type Run = (command: string, args: string[], env: Env) => Promise<void>;
 
 const RESTORE_TIMEOUT_MS = 5 * 60 * 1000;
 
-const runFile: Run = async (command, args, env) => {
+export const runFile: Run = async (command, args, env) => {
   await promisify(execFile)(command, args, { env, timeout: RESTORE_TIMEOUT_MS });
 };
 

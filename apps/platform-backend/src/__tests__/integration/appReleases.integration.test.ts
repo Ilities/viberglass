@@ -46,6 +46,7 @@ beforeAll(async () => {
   await sql`CREATE TABLE tickets (id uuid PRIMARY KEY)`.execute(mockDb);
   await up(mockDb);
   await releaseTasksUp(mockDb);
+  await sql`ALTER TABLE app_releases ADD COLUMN settings jsonb`.execute(mockDb);
   await addPreviewBuilds(mockDb);
 }, 60_000);
 
@@ -72,7 +73,7 @@ describe("app releases", () => {
     const jobId = await job("active");
     await releases.setJob(release!.id, jobId);
 
-    const ready = { status: "ready" as const, bundleSha256: "c".repeat(64), bundleBytes: 3_000_000_000, nodeVersion: "v24.11.0", buildLog: "ok" };
+    const ready = { status: "ready" as const, bundleSha256: "c".repeat(64), bundleBytes: 3_000_000_000, nodeVersion: "v24.11.0", buildLog: "ok", settings: null };
     await expect(releases.finish(release!.id, ready)).resolves.toBe(true);
     await expect(releases.finish(release!.id, { status: "failed", failureReason: "late", buildLog: null })).resolves.toBe(false);
     await expect(releases.getByJobId(jobId)).resolves.toMatchObject({ status: "ready", bundleBytes: 3_000_000_000, nodeVersion: "v24.11.0" });

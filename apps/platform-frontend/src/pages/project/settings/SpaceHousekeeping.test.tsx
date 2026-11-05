@@ -6,6 +6,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { toast } from 'sonner'
 import { SpaceHousekeeping } from './SpaceHousekeeping'
 
+jest.mock('./SpaceBackingSwitch', () => ({ SpaceBackingSwitch: () => null }))
+
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'user-1', role: 'admin' } }) }))
 jest.mock('sonner', () => ({ toast: { warning: jest.fn() } }))
 jest.mock('@/service/api/project-api', () => ({

@@ -11,6 +11,7 @@ export * from './plugin'
 // Project types
 export * from './project'
 export * from './spaceBacking'
+export * from './spaceBackingSwitch'
 export * from './appContract'
 export * from './appSettings'
 export * from './appDataGrant'

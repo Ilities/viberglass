@@ -11,7 +11,13 @@ import { AppSpaceError } from "./AppSpaceError";
 /** Whoever creates an App space can't choose the connection or token, so these are for an admin to fix. */
 const APP_HOME_PROBLEMS = new Set<RepositoryCreationErrorCode>(["CONNECTION_NOT_FOUND", "CREATION_UNSUPPORTED", "NO_TOKEN", "TOKEN_REJECTED", "CREATE_FORBIDDEN"]);
 
-function forPersonCreating(error: unknown): unknown {
+function forPersonCreating(error: unknown, repository: string): unknown {
+  if (error instanceof RepositoryCreationError && error.code === "REPOSITORY_EXISTS") {
+    return new AppSpaceError(
+      "REPOSITORY_EXISTS",
+      `There's already a repository called ${repository}. Choose another name, or make its git space an App space in that space's settings.`,
+    );
+  }
   if (!(error instanceof RepositoryCreationError) || !APP_HOME_PROBLEMS.has(error.code)) return error;
   return new AppSpaceError(
     "APP_HOME_BROKEN",
@@ -86,7 +92,7 @@ export class AppSpaceCreator {
           error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
         });
       });
-      throw forPersonCreating(error);
+      throw forPersonCreating(error, `${home.owner}/${slug}`);
     }
   }
 }

@@ -42,6 +42,18 @@ export class AppDataGrantDAO {
     return row ? toGrant(row) : null;
   }
 
+  /** Every copy in the space still waiting for a turn. */
+  async listUntakenForProject(projectId: string): Promise<AppDataGrantRecord[]> {
+    const rows = await db
+      .selectFrom("app_data_grants")
+      .selectAll()
+      .where("project_id", "=", projectId)
+      .where("taken_at", "is", null)
+      .where("removed_at", "is", null)
+      .execute();
+    return rows.map(toGrant);
+  }
+
   async insert(grant: NewAppDataGrant): Promise<AppDataGrantRecord> {
     const row = await db
       .insertInto("app_data_grants")

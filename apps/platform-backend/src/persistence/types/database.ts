@@ -239,6 +239,10 @@ export interface AppsTable {
   credentials_expire_at: Timestamp | null;
   archive_backup_due: Generated<boolean>;
   restart_due: Generated<boolean>;
+  /** Its space stopped hosting it; the last copy of its data is kept for a while. */
+  ejected_at: Timestamp | null;
+  ejected_backup_id: string | null;
+  ejected_copy_bytes: ColumnType<string | null, number | null | undefined, number | null>;
   updated_at: Generated<Timestamp>;
 }
 
@@ -283,7 +287,7 @@ export interface AppSettingsTable {
 export interface AppDataBackupsTable {
   id: Generated<string>;
   project_id: string;
-  reason: "release" | "rollback" | "archive";
+  reason: "release" | "rollback" | "archive" | "eject";
   release_id: string | null;
   /** The release whose data this is: the one serving when the copy was taken. */
   from_release_id: string | null;

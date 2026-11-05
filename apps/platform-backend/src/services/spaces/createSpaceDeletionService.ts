@@ -4,6 +4,7 @@ import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import { AppSettingDAO } from "../../persistence/apps/AppSettingDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
+import { AppClaims } from "../apps/AppClaims";
 import { AppSpaceTeardown } from "../apps/AppSpaceTeardown";
 import { appHosting } from "../apps/createAppHosting";
 import { createProjectRepositoryResolver } from "../repositories/createProjectRepositoryResolver";
@@ -12,9 +13,10 @@ import { S3SpaceFilesStore } from "../spaceFiles/SpaceFilesStore";
 import { SpaceDeletionService } from "./SpaceDeletionService";
 
 export function createSpaceDeletionService(): SpaceDeletionService {
+  const apps = new AppDAO();
   const teardown = new AppSpaceTeardown(
-    new AppDAO(),
-    new AppPreviewDAO(),
+    apps,
+    new AppClaims(apps, new AppPreviewDAO()),
     appHosting().host,
     new ProjectScmConfigDAO(),
     createProjectRepositoryResolver(),
