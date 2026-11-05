@@ -35,6 +35,14 @@ export class WebhookService {
     private config: WebhookServiceConfig = {},
   ) {}
 
+  /** The response headers that complete a subscription handshake, when the provider asks for one. */
+  handshake(
+    providerName: string,
+    headers: Record<string, string | string[] | undefined>,
+  ): Record<string, string> | null {
+    return this.receivers.get(providerName)?.handshake?.(normalizeHeaders(headers)) ?? null;
+  }
+
   async processWebhook(
     headers: Record<string, string | string[] | undefined>,
     payload: unknown,

@@ -3,7 +3,7 @@ import request from "supertest";
 import { createInboundRoutes } from "../../../../../api/routes/webhooks/inbound.routes";
 
 describe("inbound webhook route", () => {
-  function createApp(processWebhook: jest.Mock) {
+  function createApp(processWebhook: jest.Mock, handshake?: jest.Mock) {
     const app = express();
     app.use(
       express.json({
@@ -16,7 +16,7 @@ describe("inbound webhook route", () => {
       req.tenantId = "tenant-1";
       next();
     });
-    app.use("/api/webhooks", createInboundRoutes(() => ({ processWebhook })));
+    app.use("/api/webhooks", createInboundRoutes(() => ({ processWebhook, handshake })));
     return app;
   }
 
@@ -51,6 +51,21 @@ describe("inbound webhook route", () => {
     const response = await request(createApp(processWebhook)).post("/api/webhooks/custom/cfg-1").send({}).expect(code);
 
     expect(response.body).toEqual(body);
+  });
+
+  it("answers a subscription handshake without processing a delivery", async () => {
+    const processWebhook = jest.fn();
+    const handshake = jest.fn().mockReturnValue({ "X-Hook-Secret": "asana-secret" });
+
+    const response = await request(createApp(processWebhook, handshake))
+      .post("/api/webhooks/asana/cfg-1")
+      .set("x-hook-secret", "asana-secret")
+      .send({})
+      .expect(200);
+
+    expect(response.headers["x-hook-secret"]).toBe("asana-secret");
+    expect(handshake).toHaveBeenCalledWith("asana", expect.objectContaining({ "x-hook-secret": "asana-secret" }));
+    expect(processWebhook).not.toHaveBeenCalled();
   });
 
   it("answers 500 when processing throws", async () => {

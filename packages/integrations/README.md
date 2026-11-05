@@ -6,6 +6,7 @@ Each integration (a code host, issue tracker, inbound webhook or chat service) i
 packages/integrations/
 ├── integration-github/     code host and tracker
 ├── integration-jira/       tracker
+├── integration-asana/      tracker
 ├── integration-shortcut/   tracker
 ├── integration-custom/     inbound JSON webhooks
 ├── integration-slack/      chat

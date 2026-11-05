@@ -1,6 +1,6 @@
 # Issue trackers
 
-Connect GitHub Issues, Jira or Shortcut, and issues become tasks in Viberglass. Each task stays linked to its issue: comments go both ways, and the plan, the agent's questions, the pull request and done are posted back to the issue. People who live in the tracker can follow the work and take part without opening Viberglass.
+Connect GitHub Issues, Jira, Shortcut or Asana, and issues become tasks in Viberglass. Each task stays linked to its issue: comments go both ways, and the plan, the agent's questions, the pull request and done are posted back to the issue. People who live in the tracker can follow the work and take part without opening Viberglass.
 
 Setting it up has two halves:
 
@@ -11,7 +11,7 @@ Setting it up has two halves:
 
 The tracker has to reach your Viberglass backend over HTTPS. On a server install that's your backend's public address. When you try Viberglass on your own machine, use a tunnel such as `ngrok http 8888` and give the tracker the tunnel's address.
 
-Use a separate account for the bot if you can, such as a "Viberglass" user in Jira or Shortcut. Its token posts the comments, and mentioning it in a comment asks the agent. Your own account works too, but then your comments and the bot's look alike in the tracker.
+Use a separate account for the bot if you can, such as a "Viberglass" user in Jira, Shortcut or Asana. Its token posts the comments, and mentioning it in a comment asks the agent. Your own account works too, but then your comments and the bot's look alike in the tracker.
 
 ## Connect a tracker
 
@@ -56,6 +56,25 @@ On Jira Data Center, set the bot account to the bot's username instead of an acc
 4. Set the bot account to the mention name, without the @, and choose Save.
 5. In Shortcut, open Settings → Integrations → Webhooks, add a webhook, and paste the URL and the secret. Shortcut sends story and comment changes to it.
 
+### Asana
+
+1. Create a personal access token for the bot account in Asana's developer console, on the account that should post the comments. Note the account's name: mentioning it asks the agent.
+2. In Viberglass, open Settings → Connections → Asana, choose Create connection, and add the token under Credentials. Choose Test connection: Asana's own message says what is wrong when the token is refused.
+3. Under Webhook, choose Set up the webhook, and copy the URL and the secret.
+4. Set the bot account to the Asana account's name or email, and choose Save.
+5. In Asana, open the project and copy the GID: the number after `/0/` in its address. Create a webhook for it with Asana's API, using the URL from step 3:
+
+   ```bash
+   curl https://app.asana.com/api/1.0/webhooks \
+     -H "Authorization: Bearer $ASANA_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"data":{"resource":"PROJECT_GID","target":"WEBHOOK_URL"}}'
+   ```
+
+   Viberglass answers the handshake Asana sends to the URL. Asana's response contains an `X-Hook-Secret`; paste it on the connection as the webhook secret, replacing the generated one.
+
+A connection's webhook watches one Asana project. To take tasks from several projects, create a connection for each.
+
 ## Choose which issues a space takes
 
 Open the space's Settings tab → Incoming issues. There's a row for each tracker connection; choose Edit on one to change it.
@@ -63,7 +82,7 @@ Open the space's Settings tab → Incoming issues. There's a row for each tracke
 ![A space's Incoming issues: labels for Jira and Shortcut, and its repository for GitHub](../images/incoming-issues.png)
 
 - Under Create tasks for, choose None, All issues (All stories for Shortcut), or Matching labels. A space takes nothing from a tracker until it chooses.
-- Labels are separated by commas, and case doesn't matter. For Jira and Shortcut, an issue with one of them from any project in the Jira site or Shortcut workspace becomes the space's task.
+- Labels are separated by commas, and case doesn't matter. For Jira, Shortcut and Asana, an issue with one of them from any project in the Jira site, Shortcut workspace or Asana project becomes the space's task.
 - GitHub issues belong to a repository, so a space only ever takes those in its own repository. Spaces that share a repository each choose for themselves.
 - Automatically write a plan has the agent start on the plan as soon as an issue arrives. With it off, the task waits until someone asks the agent, in Viberglass or by mentioning the bot on the issue. Nothing is built before there's a plan.
 
@@ -79,7 +98,7 @@ A few things to know:
 
 - A new issue creates a task in each space that takes it. The person who opened it becomes the task's requester when their email matches a Viberglass account.
 - Editing the issue's title or description updates its tasks.
-- Closing the issue marks its tasks done, and reopening it reopens them. In Jira that's resolving the issue or moving it to a done status, and clearing the resolution; in Shortcut, completing or archiving the story and moving it out of a done state.
+- Closing the issue marks its tasks done, and reopening it reopens them. In Jira that's resolving the issue or moving it to a done status, and clearing the resolution; in Shortcut, completing or archiving the story and moving it out of a done state; in Asana, completing the task and marking it incomplete again.
 - A comment on the issue appears in the task's thread, as the Viberglass person whose email matches the commenter, or otherwise under the commenter's name and where they wrote, such as "Pat · on Jira". Jira Cloud often hides people's email, so expect names there.
 - A comment that mentions the bot account asks the agent, like mentioning it in the thread. A reply from the person the agent asked answers its question.
 - Viberglass comments on the issue when the plan is ready, with a short summary and a link, when the agent asks a question, when it opens the pull request, and when the task is done. When the agent was asked from the issue, its reply is posted there too. Messages written in Viberglass stay in Viberglass, and Viberglass never reads its own comments back as new messages.
@@ -98,4 +117,4 @@ Every delivery from the tracker is listed under Deliveries on the connection's p
 - ignored: Viberglass received the event and chose not to act on it. The reason is shown next to it, such as "No space takes issues labelled 'bug'" or "Posted by Viberglass" for its own comments. After changing what a space takes, choose Retry to run the event again.
 - failed: the event was refused or something went wrong, such as a signature that doesn't match. Regenerate the secret, paste it into the tracker again, and choose Retry.
 
-If nothing is listed at all, the tracker isn't reaching Viberglass. Check that the URL in the tracker is the one on the connection's page, that it uses your public address, and the tracker's own delivery log. GitHub shows recent deliveries under the webhook's settings; Jira and Shortcut keep fewer details.
+If nothing is listed at all, the tracker isn't reaching Viberglass. Check that the URL in the tracker is the one on the connection's page, that it uses your public address, and the tracker's own delivery log. GitHub shows recent deliveries under the webhook's settings; Jira, Shortcut and Asana keep fewer details. In Asana, fetching the webhook through the API shows its last delivery and any failure.
