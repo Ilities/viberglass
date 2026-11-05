@@ -20,6 +20,8 @@ export default defineConfig([
     clean: true,
     sourcemap: true,
     target: "node20",
+    // node:sqlite has no unprefixed name.
+    removeNodeProtocol: false,
     external: [/^[^.]/],
     noExternal: [/@viberglass\/.*/],
   },
