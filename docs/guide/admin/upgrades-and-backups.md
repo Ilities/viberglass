@@ -6,9 +6,13 @@ How to update an installation, and what to back up so you can restore it. In eve
 
 - The PostgreSQL database: people, spaces, tasks, threads, plans, runners and encrypted secrets.
 - The encryption keys, `SECRETS_ENCRYPTION_KEY` and `WEBHOOK_SECRET_ENCRYPTION_KEY`. A database restored without them can't read its secrets.
-- Object storage, on Kubernetes and AWS, and on Docker when a bucket is set: task media, documents, agent instructions, saved agent conversations, and the files and artifacts of Files spaces.
+- Object storage, on Kubernetes and AWS, and on Docker when a bucket is set: task media, documents, agent instructions, saved agent conversations, the files and artifacts of Files spaces, and apps' data, backups and releases.
 
 Keep the keys apart from the database backups, somewhere as safe as the rest of your credentials.
+
+## Apps
+
+An App space's app keeps its data in object storage, not in the database: its SQLite database is copied there continuously, under `spaces/<space id>/app-data/`, with data backups under `spaces/<space id>/backups/` and its releases under `spaces/<space id>/releases/`. On Docker on your machine that's the bundled MinIO's volume. Back up the bucket with the database. Each app's code is in its own repository on the code host. See [Apps](apps.md) for how long data backups are kept.
 
 ## Docker on your machine
 

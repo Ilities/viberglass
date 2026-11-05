@@ -43,5 +43,6 @@ The thread follows the task, whatever caused the change: the web, Slack or a sch
 - Answers given on the web.
 - Failed and cancelled runs.
 - "Done." when the pull request is merged or the task is finished or marked done.
+- In an App space, "Made live by" whoever made the change live, then "It's live." with a link to the app, or why it didn't go live, and when a rollback took the change back out. See [Apps](apps.md).
 
 Only tasks started with `/viberglass` have a Slack thread. For other tasks, Slack sends DMs to people who linked their account; see [Home and notifications](home-and-notifications.md).

@@ -268,6 +268,10 @@ Then check:
 - Cancelling a running task removes its Job from `viberglass-workers`.
 - A Files space's HTML page opens from the preview host.
 
+## Apps
+
+To offer App spaces, add `apps.domain`, such as `apps.viberglass.example.com`, to the values, point `*.apps.viberglass.example.com` at the Traefik address as well, and add that wildcard name to `ingress.tls`. Let's Encrypt issues wildcard certificates only through a DNS01 challenge, so the issuer above needs a DNS01 solver for your DNS provider. Apps keep their data in the same Object Storage bucket, which they reach at its public address. Then choose an App home under Settings → Apps. See [Apps](apps.md) and [Install on Kubernetes](install-kubernetes.md#5-configure-dns-tls-and-registry-access).
+
 ## Costs
 
 Billed by the hour while they exist: the two nodes (the Free plan's control plane costs nothing), the Load Balancer, the PostgreSQL service, and the bucket by stored GB and outgoing traffic. Check current prices for your region in the console.

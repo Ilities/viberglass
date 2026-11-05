@@ -1,6 +1,6 @@
 # Viberglass guide
 
-How to use Viberglass with your team, and how to run it. Viberglass is a self-hosted workspace where people and coding agents work on the same tasks: someone asks for a change, an agent writes a plan, the team discusses it, and the agent builds it as a GitHub pull request. For work that isn't code, a space can keep shared files instead of a repository, and the agent delivers documents and presentations there.
+How to use Viberglass with your team, and how to run it. Viberglass is a self-hosted workspace where people and coding agents work on the same tasks: someone asks for a change, an agent writes a plan, the team discusses it, and the agent builds it as a GitHub pull request. For work that isn't code, a space can keep shared files instead of a repository, and the agent delivers documents and presentations there. An App space builds an internal app for the team, which Viberglass runs, backs up and signs people in to.
 
 ## Using Viberglass
 
@@ -11,6 +11,7 @@ For product managers, support and QA leads, designers, reviewers and engineers.
 - [Plans and reviews](user/plans-and-reviews.md): asking for a plan, commenting on it, answering the agent's questions and bringing people in.
 - [Building and pull requests](user/building-and-prs.md): building the plan, plans in parts, pull requests and finishing a task.
 - [Files and artifacts](user/files-and-artifacts.md): spaces without a repository, their shared files, and the documents and presentations agents make there.
+- [Apps](user/apps.md): App spaces, trying a change on a preview, making it live, rolling back, and who can open an app.
 - [Steering the agent](user/steering.md): pausing, interrupting, taking over the branch yourself and handing it back.
 - [Home and notifications](user/home-and-notifications.md): what needs you, Overview, Slack DMs and email.
 - [Slack](user/slack.md): starting and following tasks from a Slack thread.
@@ -28,9 +29,10 @@ For whoever installs and looks after the workspace.
 - [Install on OVHcloud](admin/install-ovhcloud.md): the Helm chart on OVHcloud Managed Kubernetes, with its managed PostgreSQL and Object Storage.
 - [Install on AWS](admin/install-aws.md): the Pulumi stacks.
 - [Agents and models](admin/agents-and-models.md): runners, coding agents, model keys, and connected and deployed models.
+- [Apps](admin/apps.md): what App spaces need, the App home, the apps domain, and how apps run, are isolated and backed up.
 - [Repositories and integrations](admin/repositories-and-integrations.md): GitHub, Files spaces and what they need, custom webhooks, the Slack app and email.
 - [Issue trackers](admin/issue-trackers.md): GitHub Issues, Jira and Shortcut, and which issues each space takes.
-- [People and access](admin/people-and-access.md): members, guests, viewers, spaces and invites.
+- [People and access](admin/people-and-access.md): members, guests, viewers, app users, spaces and invites.
 - [Secrets](admin/secrets.md): where keys and tokens are kept and how runners get them.
 - [Security](admin/security.md): what runs where, and what an agent can see.
 - [Upgrades and backups](admin/upgrades-and-backups.md): keeping an installation current and recoverable.

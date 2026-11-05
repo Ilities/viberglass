@@ -27,6 +27,10 @@ Inside the run, the coding agent sees less than the worker. It gets its model ke
 
 Keep credentials in secrets, not in task descriptions, comments or agent instructions: everything on a task can reach the agent and the people on it.
 
+## App settings
+
+An App space's app gets its own settings, such as an API key for another service, which the space's maintainers set on the App page rather than here. A secret app setting is kept like a workspace secret: in the database encrypted on Docker and Kubernetes, in SSM on AWS. Only the app receives it, as an environment variable; agents never do, and previews only when a maintainer allows it. See [Apps](../user/apps.md#settings-and-secrets).
+
 ## The encryption key
 
 Secrets stored in the database are encrypted with AES-256-GCM using the backend's `SECRETS_ENCRYPTION_KEY`. Webhook secrets use `WEBHOOK_SECRET_ENCRYPTION_KEY`.

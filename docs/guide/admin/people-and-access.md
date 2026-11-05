@@ -37,6 +37,8 @@ Everyone who can see an App space can open its app. Its maintainers can give oth
 
 Remove takes someone off the list, and Cancel invite takes the app off a pending invite. Either takes effect at the app within a few seconds.
 
+Changing someone's role to app user takes them out of every space, off the tasks they review or watch, out of space defaults, and deletes their API tokens. Tasks they asked for or own keep them as history. What they can open afterwards is the apps on their list; add those before or after the change. See [Apps](../user/apps.md) for the rest of an app's life.
+
 ## Passwords
 
 People can't reset their own password yet. On Settings → Members, Reset link gives a link to send them for setting a new password.
@@ -51,7 +53,7 @@ A space holds the tasks for one product or repository. Members and admins create
 
 In a space's Settings tab:
 
-- General: the space's name, and Private space. Open spaces are visible to every member and viewer, and membership sets defaults and notifications. A private space is visible only to its members and admins. General also shows the space's backing, Git repository or Files, and archives or deletes the space.
+- General: the space's name, and Private space. Open spaces are visible to every member and viewer, and membership sets defaults and notifications. A private space is visible only to its members and admins. General also shows the space's backing, Git repository, Files or App, switches a Git space to an App space and back (see [Apps](../user/apps.md#bringing-in-an-existing-repository)), and archives or deletes the space.
 - Members: the people in the space, each with a space role, and Add someone. Maintainers manage the space's settings, members and defaults, and can steer its tasks. Members belong to it.
 - Task defaults: the space's default agent (see [Which agent takes a task](agents-and-models.md#which-agent-takes-a-task)); the default owner of new tasks, whoever creates a task unless you pick someone; default reviewers, added to every new task; and Unanswered questions, which reminds people about the agent's unanswered questions after a while.
 

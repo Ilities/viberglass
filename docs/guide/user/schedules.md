@@ -24,6 +24,10 @@ A template can be used by several schedules.
 
 Each schedule shows whether it's Active or Paused and when it last ran. Runs / fails counts the runs that have ended and how many of those failed; a run that was cancelled counts as a run but not as a failure. Pause stops it until you Resume it. The runs are listed under the space's Runs.
 
+## Turning an app on and off
+
+In an App space, maintainers can also schedule the space's app. A schedule's What it does is Run a task template, Turn the app on or Turn the app off; the app actions need no template and can't be changed on an existing schedule. A common pair turns the app off at night and on in the morning, and the App page offers to add exactly that. Only maintainers create, change, pause or delete app schedules. See [Apps](apps.md#turning-the-app-off-at-night).
+
 ## What a scheduled run does
 
 In a space with a repository, a scheduled run works in the repository; if the agent changes code, it opens a pull request.

@@ -17,7 +17,7 @@ Each task keeps one branch, named the first time it's built or taken over.
 
 ## Files spaces
 
-A space is backed by a Git repository or by Files, chosen when it's created; the backing can't be changed later. A Files space has no repository. Its tasks share one set of working files, which are kept between runs, and agents produce named artifacts with versions people can preview and download. How people use them is in [Files and artifacts](../user/files-and-artifacts.md).
+A space is backed by a Git repository, by Files or by an App, chosen when it's created. A Files space keeps its backing; a Git space can become an App space and back, on the same repository (see [Apps](apps.md)). A Files space has no repository. Its tasks share one set of working files, which are kept between runs, and agents produce named artifacts with versions people can preview and download. How people use them is in [Files and artifacts](../user/files-and-artifacts.md).
 
 What the installation needs:
 

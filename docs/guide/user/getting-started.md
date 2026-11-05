@@ -9,11 +9,12 @@ Open the invitation link you were sent, enter your name and a password, and join
 ## The words
 
 - Workspace: the whole installation, with its people, agents and connections.
-- Space: a group of related tasks, usually one product or one repository. Each space has its own members, defaults and settings. Most spaces are backed by a Git repository; a Files space has shared files instead, for documents, presentations and other work that isn't code.
+- Space: a group of related tasks, usually one product or one repository. Each space has its own members, defaults and settings. Most spaces are backed by a Git repository; a Files space has shared files instead, for documents, presentations and other work that isn't code, and an App space builds one app that Viberglass runs for the team.
 - Task: something someone wants done. It has a key such as WEB-42, a description, people, a plan, code, and one conversation thread.
 - Thread: the task's conversation. Messages from people, the agent's questions and replies, plan revisions, comments, runs and pull requests all appear there, in order.
 - Plan: the document an agent writes before building. It says what the agent found in the code and what it would change.
 - Code: the pull requests the agent opens when it builds the plan.
+- App: in an App space, the internal tool the agent builds, such as an equipment tracker. Each change to it is tried on a preview, a copy running with a copy of the app's data, and then made live. See [Apps](apps.md).
 - Artifact: in a Files space, the deliverable the agent makes instead of a pull request, such as a document or a presentation. Each revision is a new version.
 - Agent: the coding agent that does the work, such as Claude Code, Codex or OpenCode. An admin sets up the agents and the models they use; you ask them for things from a task.
 - Run: one piece of work by an agent, such as writing the plan. Each run has a record of what the agent did.
@@ -35,7 +36,7 @@ The sidebar has Home, Overview, and your spaces.
 
 - Home shows your conversations and anything that needs you: a question from the agent, a review request, a mention, or your move on a task you own. See [Home and notifications](home-and-notifications.md).
 - Overview shows work across every space you can see: what needs attention, what agents are working on now, what waits on people, and what hasn't started.
-- A space shows its tasks as a list or a table, grouped by where they stand, with search and filters. Its other pages are tabs under the space's name: Files and Artifacts in a Files space, Schedules, Track record and Runs for members and admins, and Settings (About for those who don't maintain the space).
+- A space shows its tasks as a list or a table, grouped by where they stand, with search and filters. Its other pages are tabs under the space's name: Files and Artifacts in a Files space, App in an App space, Schedules, Track record and Runs for members and admins, and Settings (About for those who don't maintain the space).
 - Your name at the bottom of the sidebar opens your notification settings and, for members and admins, API tokens. Admins also have Settings for the whole workspace.
 
 ![Home, with Needs you and your conversations](../images/home-needs-you.png)
@@ -63,3 +64,4 @@ If a space or a task link doesn't open for you, you probably don't have access t
 - [Tasks](tasks.md): ask for something.
 - [Plans and reviews](plans-and-reviews.md): work on the plan with the agent and your team.
 - [Files and artifacts](files-and-artifacts.md): work in a space without a repository.
+- [Apps](apps.md): ask for an internal app and look after it.

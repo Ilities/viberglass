@@ -50,7 +50,7 @@ The backend service ignores task definition changes, because the deploy workflow
 
 ## Apps
 
-App spaces need `appsDomain` in the platform stack: a domain in the same Route 53 zone that nothing else uses, such as `apps.viberglass.example.com`. Each app is served at `<name>.<appsDomain>`. The stack gives `*.<appsDomain>` a certificate, a wildcard DNS alias to the API's load balancer and a listener rule that sends it to the backend's app gateway port, 8891, which the base stack opens to the load balancer. Once an App home is set in Settings > Apps, App spaces are offered.
+App spaces need `appsDomain` in the platform stack: a domain in the same Route 53 zone that nothing else uses, such as `apps.viberglass.example.com`. Each app is served at `<name>.<appsDomain>`. The stack gives `*.<appsDomain>` a certificate, a wildcard DNS alias to the API's load balancer and a listener rule that sends it to the backend's app gateway port, 8891, which the base stack opens to the load balancer. Once an App home is set in Settings > Apps, App spaces are offered; see [Apps](apps.md).
 
 Apps run on an ECS cluster of their own, one Fargate service per app and per preview, with 0.25 vCPU and 512 MB unless `APPS_CPUS` and `APPS_MEMORY_MB` say otherwise; those are rounded up to a size Fargate runs. The backend finds them through a private Cloud Map namespace, `apps.<environment>.viberglass.internal`. An app's database lives on its task's scratch storage and is restored from its Litestream replica in S3 every time the task starts, so a task ECS replaces comes back with its data. A task that crashes loses what Litestream hadn't sent yet, about the last second.
 
