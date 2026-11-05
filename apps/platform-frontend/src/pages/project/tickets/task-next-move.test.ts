@@ -1,4 +1,4 @@
-import { codeProgress, decideTaskNextMove, describeStep, type TaskNextMoveInput } from './task-next-move'
+import { activeStep, codeProgress, decideTaskNextMove, describeStep, type TaskNextMoveInput } from './task-next-move'
 import type { TaskPlanPartStatus } from '@viberglass/types'
 
 type Run = TaskNextMoveInput['runs'][number]
@@ -110,5 +110,17 @@ describe('codeProgress', () => {
     expect(describeStep('execution', 'execution', { kind: 'pull_request', url: 'u' }, true, null, 'Change ready').label).toBe('Change ready')
     expect(describeStep('execution', 'planning', { kind: 'ready', step: 'planning' }, true, null, 'Change ready').label).toBe('Change ready')
     expect(describeStep('planning', 'planning', { kind: 'ready', step: 'planning' }, true, null, 'Change ready').label).toBe('Ready')
+  })
+})
+
+describe('activeStep', () => {
+  it("follows a running code turn while the task's phase is still planning", () => {
+    expect(activeStep({ kind: 'working', step: 'execution', runId: 'r', sessionId: null }, 'planning')).toBe('execution')
+    expect(describeStep('planning', 'execution', { kind: 'working', step: 'execution', runId: 'r', sessionId: null }, false).label).toBe('None yet')
+  })
+
+  it("is the task's phase when nothing runs", () => {
+    expect(activeStep({ kind: 'start', step: 'planning' }, 'planning')).toBe('planning')
+    expect(activeStep({ kind: 'done' }, 'execution')).toBe('execution')
   })
 })

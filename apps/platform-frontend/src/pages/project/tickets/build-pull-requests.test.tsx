@@ -152,4 +152,17 @@ describe('BuildPullRequests in an App space', () => {
     expect(screen.queryByRole('button', { name: 'Make it live' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try it' })).not.toBeInTheDocument()
   })
+
+  it("doesn't show a preview for a change that was made live", async () => {
+    const change = openChange()
+    mockList.mockResolvedValue([{ ...change, details: change.details && { ...change.details, state: 'merged' } }])
+    render(
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: true, canTry: true, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(await screen.findByText('Made live')).toBeInTheDocument()
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not tried yet')).not.toBeInTheDocument()
+  })
 })

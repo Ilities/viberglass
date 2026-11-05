@@ -30,7 +30,7 @@ import { TaskContextLine } from './task-context-line'
 import { TaskDescription } from './task-description'
 import { TaskFailureNotice } from './task-failure-notice'
 import { TaskHeader } from './task-header'
-import { codeProgress, decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
+import { activeStep, codeProgress, decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
 import { WatchButton } from './task-people'
 import { TaskRunHistory } from './task-run-history'
 import { TaskRunInspector } from './task-run-inspector'
@@ -156,7 +156,6 @@ export function TicketDetailPage() {
   const taskData =
     filesSpace && data.capabilities ? { ...data, capabilities: { ...data.capabilities, canAskForCode: false } } : data
   const { ticket } = data
-  const currentStep = ticket.workflowPhase
   // Forks run side by side on their own branches, which a Files space's shared files can't do.
   const canCompare = canInspectRuns && !filesSpace && Boolean(capabilities?.canAsk)
   const move = decideTaskNextMove({
@@ -165,6 +164,7 @@ export function TicketDetailPage() {
     plan: data.plan,
     workingSession: workingSession(data.sessions),
   })
+  const currentStep = activeStep(move, ticket.workflowPhase)
 
   const failedRunnerId = move.kind === 'failed' ? data.runs.find((run) => run.jobId === move.runId)?.clankerId : null
   const failedRunner = data.clankers.find((clanker) => clanker.id === failedRunnerId)

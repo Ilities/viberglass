@@ -67,6 +67,11 @@ export function decideTaskNextMove({ ticket, runs, plan, workingSession }: TaskN
   return { kind: 'start', step }
 }
 
+/** The step the task is on: a running turn's, since a task asked straight for code stays in planning until its run ends. */
+export function activeStep(move: TaskNextMove, workflowPhase: TaskStep): TaskStep {
+  return move.kind === 'working' ? move.step : workflowPhase
+}
+
 export const TASK_STEPS: TaskStep[] = ['planning', 'execution']
 export const STEP_NAME: Record<TaskStep, string> = { planning: 'Plan', execution: 'Code' }
 

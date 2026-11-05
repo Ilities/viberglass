@@ -315,10 +315,12 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false }
           <TableBody>
             {schedules.map((s) => (
               <TableRow key={s.id}>
-                <TableCell className="font-medium text-zinc-950 dark:text-white">{s.name}</TableCell>
+                <TableCell className="min-w-40 font-medium whitespace-normal text-zinc-950 dark:text-white">
+                  {s.name}
+                </TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400">{whatItDoes(s)}</TableCell>
                 <TableCell
-                  className="text-zinc-500 dark:text-zinc-400"
+                  className="min-w-48 whitespace-normal text-zinc-500 dark:text-zinc-400"
                   title={s.scheduleType === 'cron' ? (s.cronExpression ?? undefined) : undefined}
                 >
                   {formatExpression(s)}

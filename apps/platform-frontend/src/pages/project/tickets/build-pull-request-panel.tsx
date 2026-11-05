@@ -107,7 +107,7 @@ export function BuildPullRequestPanel({
               <ExternalLinkIcon className="mt-0.5 size-3.5 shrink-0" />
             </a>
           </Fact>
-          {change && (
+          {change && (details?.state === 'open' || change.preview) && (
             <Fact label="Preview">
               {previewStatus(change.preview, headSha)}
               {change.preview?.state === 'failed' && change.preview.statusMessage && (
