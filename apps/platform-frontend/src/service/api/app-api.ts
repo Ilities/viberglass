@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   AppAccessAddition,
   AppAccessList,
+  AppDataGrant,
   AppHandoff,
   AppSettingsView,
   AppView,
@@ -118,4 +119,20 @@ export async function removeAppSetting(projectId: string, name: string): Promise
     await apiFetch(`${appUrl(projectId)}/settings/${encodeURIComponent(name)}`, { method: 'DELETE' }),
     "Couldn't remove the setting"
   )
+}
+
+const grantUrl = (taskId: string) => `${API_BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/app-data-grant`
+
+/** The copy of the app's data waiting for the task's next turn, if there is one. */
+export async function getAppDataGrant(taskId: string): Promise<AppDataGrant | null> {
+  return readData(await apiFetch(grantUrl(taskId)), "Couldn't check for a copy of the app's data")
+}
+
+export async function grantAppData(taskId: string): Promise<AppDataGrant> {
+  return readData(await apiFetch(grantUrl(taskId), { method: 'POST' }), "Couldn't copy the app's data")
+}
+
+export async function withdrawAppDataGrant(taskId: string): Promise<void> {
+  const response = await apiFetch(grantUrl(taskId), { method: 'DELETE' })
+  if (!response.ok) await readData(response, "Couldn't withdraw the copy of the app's data")
 }

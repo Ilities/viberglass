@@ -2,10 +2,10 @@ import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
 import { PageMeta } from '@/components/page-meta'
 import { ProjectReadinessBanner } from '@/components/project-readiness'
-import { useProject } from '@/context/project-context'
 import { useAuth } from '@/context/auth-context'
-import { isRunner } from '@/lib/roles'
+import { useProject } from '@/context/project-context'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { isRunner } from '@/lib/roles'
 import { archiveTickets, deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
@@ -15,24 +15,30 @@ import { CompareAgentsDialog, type ForkPoint } from './compare-agents-dialog'
 import { CopyTaskDialog } from './copy-task-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
-import { TaskActionsMenu } from './task-actions-menu'
-import { artifactTabLabel, FilesTaskTabs, TaskArtifactView, useTaskArtifacts, type FilesTaskTab } from './task-artifact-view'
-import { runnableAgents, taskAgents } from './task-agents'
 import { runName } from './step-runs'
+import { TaskActionsMenu } from './task-actions-menu'
+import { runnableAgents, taskAgents } from './task-agents'
+import {
+  artifactTabLabel,
+  FilesTaskTabs,
+  TaskArtifactView,
+  useTaskArtifacts,
+  type FilesTaskTab,
+} from './task-artifact-view'
+import { ComparisonForkBanner, TaskComparisons } from './task-comparisons'
 import { TaskContextLine } from './task-context-line'
 import { TaskDescription } from './task-description'
-import { TaskRunHistory } from './task-run-history'
-import { TaskRunInspector } from './task-run-inspector'
 import { TaskFailureNotice } from './task-failure-notice'
 import { TaskHeader } from './task-header'
 import { codeProgress, decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
 import { WatchButton } from './task-people'
+import { TaskRunHistory } from './task-run-history'
+import { TaskRunInspector } from './task-run-inspector'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
-import { ComparisonForkBanner, TaskComparisons } from './task-comparisons'
-import { useTaskComparisons } from './use-task-comparisons'
 import { TaskThread } from './task-thread'
 import { TaskViewSwitch } from './task-view-switch'
+import { useTaskComparisons } from './use-task-comparisons'
 import { useTaskPage, workingSession } from './use-task-page'
 import { useTaskParticipants } from './use-task-participants'
 
@@ -64,7 +70,9 @@ export function TicketDetailPage() {
   // Hidden panels stay mounted so switching preserves a draft and its scroll position.
   const wide = useMediaQuery('(min-width: 1280px)')
   const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
-    ['step', 'version', 'tab'].some((key) => searchParams.has(key)) || searchParams.get('view') === 'comments' ? 'artifact' : 'conversation'
+    ['step', 'version', 'tab'].some((key) => searchParams.has(key)) || searchParams.get('view') === 'comments'
+      ? 'artifact'
+      : 'conversation'
   )
 
   const linkedRunId = searchParams.get('run')
@@ -111,7 +119,13 @@ export function TicketDetailPage() {
         setTicket(updated)
         // Finishing or reopening changes the task's situation, which only a load brings back.
         changed()
-        toast.success(done ? (filesSpace ? 'Task marked done' : 'Task finished. Its history stays; finishing merges nothing.') : 'Task reopened')
+        toast.success(
+          done
+            ? filesSpace
+              ? 'Task marked done'
+              : 'Task finished. Its history stays; finishing merges nothing.'
+            : 'Task reopened'
+        )
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update the task')
       }
@@ -164,10 +178,17 @@ export function TicketDetailPage() {
   // A Files task shows its artifact unless the plan was asked for, or there's only a plan to show.
   const requestedTab = searchParams.get('tab')
   const planRequested =
-    requestedTab === 'plan' || searchParams.has('step') || searchParams.has('version') || searchParams.get('view') === 'comments'
+    requestedTab === 'plan' ||
+    searchParams.has('step') ||
+    searchParams.has('version') ||
+    searchParams.get('view') === 'comments'
   const hasPlan = data.plan.content.trim().length > 0
   const filesTab: FilesTaskTab =
-    requestedTab === 'artifact' ? 'artifact' : planRequested || (artifacts?.length === 0 && hasPlan) ? 'plan' : 'artifact'
+    requestedTab === 'artifact'
+      ? 'artifact'
+      : planRequested || (artifacts?.length === 0 && hasPlan)
+        ? 'plan'
+        : 'artifact'
   const showFilesTab = (tab: FilesTaskTab) =>
     setSearchParams({
       ...(linkedRunId ? { run: linkedRunId } : {}),
@@ -264,37 +285,41 @@ export function TicketDetailPage() {
                   planLabel={hasPlan ? 'Written' : 'None yet'}
                   onShow={showFilesTab}
                 />
-              ) : <TaskStepper
-                currentStep={currentStep}
-                move={move}
-                shownStep={shownStep}
-                exists={{
-                  planning: data.plan.content.trim().length > 0,
-                  execution: Boolean(ticket.pullRequestUrl),
-                }}
-                codeProgress={codeProgress(data.planParts)}
-                openLabel={space?.backingKind === 'app' ? 'Change ready' : undefined}
-                onShowStep={showStep}
-              />}
+              ) : (
+                <TaskStepper
+                  currentStep={currentStep}
+                  move={move}
+                  shownStep={shownStep}
+                  exists={{
+                    planning: data.plan.content.trim().length > 0,
+                    execution: Boolean(ticket.pullRequestUrl),
+                  }}
+                  codeProgress={codeProgress(data.planParts)}
+                  openLabel={space?.backingKind === 'app' ? 'Change ready' : undefined}
+                  onShowStep={showStep}
+                />
+              )}
             </div>
             <div className="px-6 py-5 max-sm:px-4">
               {filesSpace && filesTab === 'artifact' && space ? (
                 <TaskArtifactView space={{ id: space.id, slug: project }} artifacts={artifacts} />
-              ) : <TaskStepView
-                step={shownStep}
-                view={shownView}
-                version={shownVersion}
-                comparing={searchParams.get('compare') === '1'}
-                onCompare={(version) => showStep(shownStep, version, true)}
-                onView={showView}
-                data={taskData}
-                move={move}
-                onDocumentSaved={setDocument}
-                onNewComments={countNewComments}
-                onAsked={changed}
-                onCommentsChanged={commentsChanged}
-                isApp={space?.backingKind === 'app'}
-              />}
+              ) : (
+                <TaskStepView
+                  step={shownStep}
+                  view={shownView}
+                  version={shownVersion}
+                  comparing={searchParams.get('compare') === '1'}
+                  onCompare={(version) => showStep(shownStep, version, true)}
+                  onView={showView}
+                  data={taskData}
+                  move={move}
+                  onDocumentSaved={setDocument}
+                  onNewComments={countNewComments}
+                  onAsked={changed}
+                  onCommentsChanged={commentsChanged}
+                  isApp={space?.backingKind === 'app'}
+                />
+              )}
             </div>
           </section>
 
@@ -332,6 +357,7 @@ export function TicketDetailPage() {
               canPost={Boolean(capabilities?.canPost)}
               canAsk={Boolean(capabilities?.canAsk)}
               canSteer={Boolean(capabilities?.canSteer)}
+              canGrantAppData={space?.backingKind === 'app' && Boolean(capabilities?.canGrantAppData)}
               paused={data.sessions.some((session) => session.status === 'paused')}
               pausedForSetup={move.kind === 'failed' && move.failure?.category === 'setup'}
               mentionsYou={Boolean(ticket.mentionsYou)}
@@ -354,7 +380,11 @@ export function TicketDetailPage() {
           {canInspectRuns && (
             <TaskRunInspector
               jobId={linkedRunId}
-              title={linkedRun ? `${runName(linkedRun.jobKind)} #${data.runs.length - data.runs.indexOf(linkedRun)}` : 'Run details'}
+              title={
+                linkedRun
+                  ? `${runName(linkedRun.jobKind)} #${data.runs.length - data.runs.indexOf(linkedRun)}`
+                  : 'Run details'
+              }
               linkedTab={searchParams.get('runTab')}
               onClose={closeRun}
             />
@@ -387,7 +417,12 @@ export function TicketDetailPage() {
           changed()
         }}
       />
-      <CopyTaskDialog ticket={ticket} open={isCopyDialogOpen} onClose={() => setIsCopyDialogOpen(false)} onCopied={changed} />
+      <CopyTaskDialog
+        ticket={ticket}
+        open={isCopyDialogOpen}
+        onClose={() => setIsCopyDialogOpen(false)}
+        onCopied={changed}
+      />
       <DeleteTicketDialog
         ticket={ticket}
         open={isDeleteDialogOpen}

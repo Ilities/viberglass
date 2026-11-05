@@ -41,6 +41,8 @@ function readReferences(payload: Record<string, unknown>): string[] {
     if (typeof file.s3Url === "string") references.push(file.s3Url);
     if (typeof file.storageUrl === "string" && file.storageUrl.startsWith("s3://")) references.push(file.storageUrl);
   }
+  const copy = isObjectRecord(payload.context) && isObjectRecord(payload.context.appDataCopy) ? payload.context.appDataCopy : null;
+  if (copy && typeof copy.s3Url === "string") references.push(copy.s3Url);
   return references;
 }
 

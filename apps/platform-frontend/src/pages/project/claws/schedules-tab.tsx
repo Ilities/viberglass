@@ -20,7 +20,13 @@ import {
   updateClawSchedule,
 } from '@/service/api/claw-api'
 import { PauseIcon, Pencil1Icon, PlayIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
-import { parseIntervalExpression, type ClawScheduleSummary, type ClawTaskTemplateSummary } from '@viberglass/types'
+import {
+  isAppScheduleAction,
+  parseIntervalExpression,
+  type ClawScheduleAction,
+  type ClawScheduleSummary,
+  type ClawTaskTemplateSummary,
+} from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CronScheduleField } from './cron-schedule-field'
@@ -32,6 +38,7 @@ const UNIT_SUFFIX: Record<IntervalUnit, string> = { minutes: 'm', hours: 'h', da
 type ScheduleForm = {
   name: string
   description: string
+  action: ClawScheduleAction
   taskTemplateId: string
   taskInstructions: string
   scheduleType: 'interval' | 'cron'
@@ -44,6 +51,7 @@ type ScheduleForm = {
 const emptyForm: ScheduleForm = {
   name: '',
   description: '',
+  action: 'run_template',
   taskTemplateId: '',
   taskInstructions: '',
   scheduleType: 'interval',
@@ -69,13 +77,21 @@ function formatExpression(s: ClawScheduleSummary): string {
   return '—'
 }
 
+const ACTION_LABELS: Record<ClawScheduleAction, string> = {
+  run_template: 'Run a task template',
+  app_start: 'Turn the app on',
+  app_stop: 'Turn the app off',
+}
+
 interface Props {
   projectId: string
   /** Schedules run task templates, so with none yet this is where to make one. */
   onCreateTemplate: () => void
+  /** An App space's maintainers also schedule when its app is on. */
+  appActions?: boolean
 }
 
-export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
+export function SchedulesTab({ projectId, onCreateTemplate, appActions = false }: Props) {
   const [schedules, setSchedules] = useState<ClawScheduleSummary[]>([])
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -117,7 +133,8 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
         /* use empty default */
       }
     }
-    setForm({ ...emptyForm, taskTemplateId: firstTemplateId, taskInstructions })
+    const action = firstTemplateId || !appActions ? 'run_template' : 'app_stop'
+    setForm({ ...emptyForm, action, taskTemplateId: firstTemplateId, taskInstructions })
     setDialogOpen(true)
   }
 
@@ -134,16 +151,19 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
       }
     }
     let taskInstructions = ''
-    try {
-      const tmpl = await getClawTaskTemplate(s.taskTemplateId)
-      taskInstructions = tmpl.taskInstructions
-    } catch {
-      /* use empty default */
+    if (s.taskTemplateId) {
+      try {
+        const tmpl = await getClawTaskTemplate(s.taskTemplateId)
+        taskInstructions = tmpl.taskInstructions
+      } catch {
+        /* use empty default */
+      }
     }
     setForm({
       name: s.name,
       description: s.description ?? '',
-      taskTemplateId: s.taskTemplateId,
+      action: s.action,
+      taskTemplateId: s.taskTemplateId ?? '',
       taskInstructions,
       scheduleType: s.scheduleType,
       intervalValue,
@@ -170,7 +190,8 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
       toast.error('Name is required')
       return
     }
-    if (!form.taskTemplateId) {
+    const runsTemplate = form.action === 'run_template'
+    if (runsTemplate && !form.taskTemplateId) {
       toast.error('Task template is required')
       return
     }
@@ -187,7 +208,8 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
       if (dialogMode === 'create') {
         await createClawSchedule({
           projectId,
-          taskTemplateId: form.taskTemplateId,
+          action: form.action,
+          ...(runsTemplate ? { taskTemplateId: form.taskTemplateId } : {}),
           name: form.name.trim(),
           description: form.description.trim() || null,
           scheduleType: form.scheduleType,
@@ -246,15 +268,18 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
     }
   }
 
-  const templateName = (id: string) => {
-    return templates.find((t) => t.id === id)?.name ?? id.slice(0, 8)
+  const whatItDoes = (s: ClawScheduleSummary) => {
+    if (!s.taskTemplateId) return ACTION_LABELS[s.action]
+    return templates.find((t) => t.id === s.taskTemplateId)?.name ?? s.taskTemplateId.slice(0, 8)
   }
+  // Only maintainers may change when the app is on.
+  const canChange = (s: ClawScheduleSummary) => appActions || !isAppScheduleAction(s.action)
 
   if (loading) return <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">Loading...</div>
 
   return (
     <>
-      {templates.length === 0 ? (
+      {templates.length === 0 && !appActions ? (
         <EmptyState
           title="No task templates yet"
           description="A schedule runs a task template."
@@ -279,7 +304,7 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
           <TableHead>
             <TableRow>
               <TableHeader>Name</TableHeader>
-              <TableHeader>Template</TableHeader>
+              <TableHeader>Does</TableHeader>
               <TableHeader>Schedule</TableHeader>
               <TableHeader>Status</TableHeader>
               <TableHeader>Last run</TableHeader>
@@ -291,7 +316,7 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
             {schedules.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="font-medium text-zinc-950 dark:text-white">{s.name}</TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">{templateName(s.taskTemplateId)}</TableCell>
+                <TableCell className="text-zinc-500 dark:text-zinc-400">{whatItDoes(s)}</TableCell>
                 <TableCell
                   className="text-zinc-500 dark:text-zinc-400"
                   title={s.scheduleType === 'cron' ? (s.cronExpression ?? undefined) : undefined}
@@ -308,36 +333,38 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
                   {s.runCount} / {s.failureCount}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button plain aria-label={`Edit ${s.name}`} onClick={() => openEdit(s)}>
-                      <Pencil1Icon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      plain
-                      onClick={() => toggleActive(s)}
-                      aria-label={`${s.isActive ? 'Pause' : 'Resume'} ${s.name}`}
-                      title={s.isActive ? 'Pause' : 'Resume'}
-                    >
-                      {s.isActive ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      surface
-                      color="red"
-                      aria-label={`Delete ${s.name}`}
-                      onClick={() => {
-                        setToDelete(s)
-                        setDeleteOpen(true)
-                      }}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canChange(s) && (
+                    <div className="flex items-center justify-end gap-2">
+                      <Button plain aria-label={`Edit ${s.name}`} onClick={() => openEdit(s)}>
+                        <Pencil1Icon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        plain
+                        onClick={() => toggleActive(s)}
+                        aria-label={`${s.isActive ? 'Pause' : 'Resume'} ${s.name}`}
+                        title={s.isActive ? 'Pause' : 'Resume'}
+                      >
+                        {s.isActive ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        surface
+                        color="red"
+                        aria-label={`Delete ${s.name}`}
+                        onClick={() => {
+                          setToDelete(s)
+                          setDeleteOpen(true)
+                        }}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      ) : templates.length > 0 ? (
+      ) : templates.length > 0 || appActions ? (
         <div className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-zinc-500 dark:text-zinc-400">No schedules yet.</p>
         </div>
@@ -366,20 +393,47 @@ export function SchedulesTab({ projectId, onCreateTemplate }: Props) {
                     placeholder="Optional description"
                   />
                 </Field>
-                <Field>
-                  <Label>Task template</Label>
-                  <Select value={form.taskTemplateId} onChange={handleTemplateChange}>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field>
-                  <Label>Task instructions</Label>
-                  <Textarea readOnly value={form.taskInstructions} rows={6} />
-                </Field>
+                {appActions && (
+                  <Field>
+                    <Label>What it does</Label>
+                    <Select
+                      value={form.action}
+                      onChange={(v) => setForm((p) => ({ ...p, action: v as ClawScheduleAction }))}
+                      disabled={dialogMode === 'edit'}
+                    >
+                      {(templates.length > 0 || form.action === 'run_template'
+                        ? (['run_template', 'app_start', 'app_stop'] as const)
+                        : (['app_start', 'app_stop'] as const)
+                      ).map((action) => (
+                        <option key={action} value={action}>
+                          {ACTION_LABELS[action]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+                {form.action === 'run_template' && (
+                  <>
+                    <Field>
+                      <Label>Task template</Label>
+                      <Select
+                        value={form.taskTemplateId}
+                        onChange={handleTemplateChange}
+                        disabled={dialogMode === 'edit'}
+                      >
+                        {templates.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field>
+                      <Label>Task instructions</Label>
+                      <Textarea readOnly value={form.taskInstructions} rows={6} />
+                    </Field>
+                  </>
+                )}
                 <Field>
                   <Label>Schedule type</Label>
                   <Select

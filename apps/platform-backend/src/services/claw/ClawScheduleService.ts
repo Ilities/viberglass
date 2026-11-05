@@ -11,6 +11,7 @@ import type {
 import {
   ClawSchedule,
   intervalToMilliseconds,
+  isAppScheduleAction,
   isValidCronExpression,
 } from "@viberglass/types";
 import {
@@ -35,13 +36,23 @@ export class ClawScheduleService {
       );
     }
 
-    // A template from another space is treated as missing, so its existence isn't revealed.
-    const template = await this.templateDAO.getTemplate(request.taskTemplateId);
-    if (!template || template.projectId !== request.projectId) {
-      throw new ClawServiceError(
-        CLAW_SERVICE_ERROR_CODE.TEMPLATE_NOT_FOUND,
-        "Task template not found",
-      );
+    const action = request.action ?? "run_template";
+    if (isAppScheduleAction(action)) {
+      if (project.backingKind !== "app") {
+        throw new ClawServiceError(
+          CLAW_SERVICE_ERROR_CODE.NOT_AN_APP_SPACE,
+          "Only App spaces have an app to turn on or off",
+        );
+      }
+    } else {
+      // A template from another space is treated as missing, so its existence isn't revealed.
+      const template = request.taskTemplateId ? await this.templateDAO.getTemplate(request.taskTemplateId) : null;
+      if (!template || template.projectId !== request.projectId) {
+        throw new ClawServiceError(
+          CLAW_SERVICE_ERROR_CODE.TEMPLATE_NOT_FOUND,
+          "Task template not found",
+        );
+      }
     }
 
     if (request.scheduleType === "interval") {
@@ -130,6 +141,7 @@ export class ClawScheduleService {
       schedules: result.schedules.map((s) => ({
         id: s.id,
         projectId: s.projectId,
+        action: s.action,
         taskTemplateId: s.taskTemplateId,
         name: s.name,
         description: s.description,

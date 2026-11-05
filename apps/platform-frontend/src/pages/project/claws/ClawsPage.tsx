@@ -54,6 +54,7 @@ export function ClawsPage() {
         {activeTab === 'schedules' && (
           <SchedulesTab
             projectId={project.id}
+            appActions={project.backingKind === 'app' && Boolean(project.viewerAccess?.canMaintain)}
             onCreateTemplate={() => {
               setCreatingTemplate(true)
               showTab('templates')

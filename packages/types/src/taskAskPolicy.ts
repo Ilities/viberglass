@@ -54,6 +54,12 @@ export function canMakeChangeLive(person: AskingPerson, participants: AskingPart
   return isOwnerOrMaintainer(person, participants)
 }
 
+/** Who may give an App space task's next agent turn a copy of the app's data: the space's maintainers and workspace admins. */
+export function canGrantAppData(person: AskingPerson): boolean {
+  if (!TASK_POSTING_ROLES.includes(person.workspaceRole)) return false
+  return person.workspaceRole === 'admin' || person.spaceRole === 'maintainer'
+}
+
 function isOwnerOrMaintainer(person: AskingPerson, participants: AskingParticipant[]): boolean {
   if (!TASK_POSTING_ROLES.includes(person.workspaceRole)) return false
   if (person.workspaceRole === 'admin' || person.spaceRole === 'maintainer') return true
@@ -74,6 +80,8 @@ export interface TaskAskCapabilities {
   canSteer: boolean
   /** In an App space, making the task's change live. */
   canMakeLive: boolean
+  /** In an App space, giving the agent's next turn a copy of the app's data. */
+  canGrantAppData: boolean
 }
 
 /** What the caller may do on a task. */

@@ -1,5 +1,5 @@
-import type { TaskActivityEntry } from '@viberglass/types'
 import { integrationLabel } from '@/integrations/integrationLabels'
+import type { TaskActivityEntry } from '@viberglass/types'
 import { readableQuote } from './readable-quote'
 
 const STEP: Record<string, string> = { planning: 'plan', execution: 'build', claw: 'scheduled run' }
@@ -21,11 +21,17 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'reviewer_removed':
       return `${who} took ${person} off reviewing`
     case 'watcher_added':
-      return entry.actor?.id === entry.payload.userId ? `${who} started watching` : `${who} added ${person} as a watcher`
+      return entry.actor?.id === entry.payload.userId
+        ? `${who} started watching`
+        : `${who} added ${person} as a watcher`
     case 'watcher_removed':
-      return entry.actor?.id === entry.payload.userId ? `${who} stopped watching` : `${who} removed ${person} as a watcher`
+      return entry.actor?.id === entry.payload.userId
+        ? `${who} stopped watching`
+        : `${who} removed ${person} as a watcher`
     case 'message_posted': {
-      const mentioned = Array.isArray(entry.payload.mentioned) ? entry.payload.mentioned.filter((id) => typeof id === 'string') : []
+      const mentioned = Array.isArray(entry.payload.mentioned)
+        ? entry.payload.mentioned.filter((id) => typeof id === 'string')
+        : []
       return mentioned.length > 0
         ? `${who} wrote in the discussion and mentioned ${mentioned.map(nameOf).join(', ')}`
         : `${who} wrote in the discussion`
@@ -35,7 +41,9 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'run_finished':
       return `The ${step} run finished`
     case 'run_failed':
-      return typeof entry.payload.reason === 'string' ? `The ${step} run failed: ${entry.payload.reason}` : `The ${step} run failed`
+      return typeof entry.payload.reason === 'string'
+        ? `The ${step} run failed: ${entry.payload.reason}`
+        : `The ${step} run failed`
     case 'run_cancelled':
       return `${who} cancelled a run`
     case 'document_edited':
@@ -47,18 +55,35 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'task_reopened':
       return tracker ? `Reopened on ${tracker}, so the task is open again` : `${who} reopened the task`
     case 'pull_request_merged':
-      if (entry.payload.madeLive === true) return typeof entry.payload.mergedBy === 'string' ? `Made live by ${entry.payload.mergedBy}` : 'The change was made live'
-      return typeof entry.payload.mergedBy === 'string' ? `Merged by ${entry.payload.mergedBy}` : 'The pull request was merged'
+      if (entry.payload.madeLive === true)
+        return typeof entry.payload.mergedBy === 'string'
+          ? `Made live by ${entry.payload.mergedBy}`
+          : 'The change was made live'
+      return typeof entry.payload.mergedBy === 'string'
+        ? `Merged by ${entry.payload.mergedBy}`
+        : 'The pull request was merged'
     case 'release_live':
-      return typeof entry.payload.withCommitSha === 'string' ? 'The change went live with a later release' : 'The change is live'
+      return typeof entry.payload.withCommitSha === 'string'
+        ? 'The change went live with a later release'
+        : 'The change is live'
     case 'release_failed':
-      return typeof entry.payload.reason === 'string' ? `The change didn't go live: ${entry.payload.reason}` : "The change didn't go live"
+      return typeof entry.payload.reason === 'string'
+        ? `The change didn't go live: ${entry.payload.reason}`
+        : "The change didn't go live"
     case 'release_rolled_back':
       return typeof entry.payload.rolledBackBy === 'string'
         ? `${entry.payload.rolledBackBy} rolled the app back, taking the change out of it`
         : 'The app was rolled back, taking the change out of it'
+    case 'app_data_granted':
+      return typeof entry.payload.copiedAt === 'string'
+        ? `${who} gave the agent's next turn a copy of the app's data from ${copyTime(entry.payload.copiedAt)}`
+        : `${who} gave the agent's next turn a copy of the app's data`
+    case 'app_data_grant_withdrawn':
+      return `${who} withdrew the copy of the app's data before the agent used it`
     case 'part_merged': {
-      const parts = Array.isArray(entry.payload.parts) ? entry.payload.parts.filter((part) => typeof part === 'number') : []
+      const parts = Array.isArray(entry.payload.parts)
+        ? entry.payload.parts.filter((part) => typeof part === 'number')
+        : []
       const merged = parts.length > 0 ? `Part ${parts.join(', ')} merged` : 'A part of the plan merged'
       const by = typeof entry.payload.mergedBy === 'string' ? ` by ${entry.payload.mergedBy}` : ''
       const next = typeof entry.payload.next === 'number' ? `; part ${entry.payload.next} is next` : ''
@@ -66,7 +91,9 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     }
     case 'part_marked': {
       const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
-      return entry.payload.mark === 'skipped' ? `${who} skipped ${part} of the plan` : `${who} marked ${part} of the plan done`
+      return entry.payload.mark === 'skipped'
+        ? `${who} skipped ${part} of the plan`
+        : `${who} marked ${part} of the plan done`
     }
     case 'part_unmarked': {
       const part = typeof entry.payload.part === 'number' ? `part ${entry.payload.part}` : 'a part'
@@ -77,8 +104,11 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       return `${who} discarded the build of ${typeof entry.payload.parts === 'string' ? entry.payload.parts : 'some parts'}, which never opened its pull request`
     case 'comment_added':
       // Entries from before quotes name the line instead.
-      if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`
-      return typeof entry.payload.line === 'number' ? `${who} commented on the ${step}, line ${entry.payload.line}` : `${who} commented on the ${step}`
+      if (typeof entry.payload.quote === 'string')
+        return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`
+      return typeof entry.payload.line === 'number'
+        ? `${who} commented on the ${step}, line ${entry.payload.line}`
+        : `${who} commented on the ${step}`
     case 'comment_status_changed':
       return `${who} ${entry.payload.status === 'resolved' ? 'resolved' : 'reopened'} a comment on the ${step}`
     case 'question_asked':
@@ -86,7 +116,9 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'question_answered':
       return `${who} answered the agent's question`
     case 'question_reminded':
-      return entry.payload.escalated === true ? `Told ${person} the agent's question is still unanswered` : `Reminded ${person} of the agent's question`
+      return entry.payload.escalated === true
+        ? `Told ${person} the agent's question is still unanswered`
+        : `Reminded ${person} of the agent's question`
     case 'agent_paused':
       return `${who} paused the agent`
     case 'agent_resumed':
@@ -96,4 +128,8 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'handed_back':
       return `${who} handed the work back to the agent`
   }
+}
+
+function copyTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }

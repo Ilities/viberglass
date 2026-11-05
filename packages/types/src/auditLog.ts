@@ -56,6 +56,7 @@ export const AUDIT_ACTION_TEXT = {
   'app.access_removed': "removed someone's access to an app",
   'app.setting_saved': 'set an app setting',
   'app.setting_removed': 'removed an app setting',
+  'app.data_granted': "gave an agent turn a copy of an app's data",
   'invite.created': 'invited someone',
   'invite.revoked': 'revoked an invite',
   'invite.accepted': 'accepted an invite',

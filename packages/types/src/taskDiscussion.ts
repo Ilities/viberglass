@@ -112,6 +112,9 @@ export const TASK_ACTIVITY_KINDS = [
   'release_failed',
   /** A rollback took the release built from the task's change back out of the live app. */
   'release_rolled_back',
+  /** A maintainer gave the agent's next turn a copy of the app's data, or withdrew it before a turn took it. */
+  'app_data_granted',
+  'app_data_grant_withdrawn',
   /** Someone marked a part done or skipped, or took the mark back. */
   'part_marked',
   'part_unmarked',

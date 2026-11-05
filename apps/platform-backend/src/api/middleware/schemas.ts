@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { AVAILABLE_AGENT_TYPES, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SPACE_BACKING_KINDS, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
+import { AVAILABLE_AGENT_TYPES, CLAW_SCHEDULE_ACTIONS, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SPACE_BACKING_KINDS, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -494,7 +494,12 @@ export const updateClawTaskTemplateSchema = Joi.object({
 
 export const clawScheduleSchema = Joi.object({
   projectId: Joi.string().uuid().required(),
-  taskTemplateId: Joi.string().uuid().required(),
+  action: Joi.string().valid(...CLAW_SCHEDULE_ACTIONS).default("run_template"),
+  taskTemplateId: Joi.when("action", {
+    is: "run_template",
+    then: Joi.string().uuid().required(),
+    otherwise: Joi.valid(null).optional(),
+  }),
   name: Joi.string().min(1).max(255).required(),
   description: Joi.string().allow(null, "").optional(),
   scheduleType: Joi.string().valid("interval", "cron").required(),

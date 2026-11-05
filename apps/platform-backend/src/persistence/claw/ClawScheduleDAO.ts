@@ -37,7 +37,8 @@ export class ClawScheduleDAO {
       .values({
         id: scheduleId,
         project_id: request.projectId,
-        task_template_id: request.taskTemplateId,
+        action: request.action ?? "run_template",
+        task_template_id: request.taskTemplateId ?? null,
         name: request.name,
         description: request.description ?? null,
         schedule_type: request.scheduleType,
@@ -299,6 +300,7 @@ export class ClawScheduleDAO {
     return {
       id: row.id,
       projectId: row.project_id,
+      action: row.action,
       taskTemplateId: row.task_template_id,
       name: row.name,
       description: row.description ?? null,

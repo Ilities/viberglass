@@ -5,6 +5,7 @@ import type { AgentSession, AgentSessionDAO } from "../../persistence/agentSessi
 import type { AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import type { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { TaskMessageDAO } from "../../persistence/ticketing/TaskMessageDAO";
+import { AppDataGrantDAO } from "../../persistence/apps/AppDataGrantDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import {
   AGENT_SESSION_EVENT_TYPE,
@@ -36,6 +37,7 @@ interface Collaborators {
   projects: Pick<ProjectDAO, "getProject">;
   artifacts: Pick<ArtifactDAO, "listForTicket">;
   messages: Pick<TaskMessageDAO, "imagesOf">;
+  dataGrants: Pick<AppDataGrantDAO, "take">;
 }
 
 /**
@@ -64,6 +66,7 @@ export class SessionTurnContinuationService {
       projects: new ProjectDAO(),
       artifacts: new ArtifactDAO(),
       messages: new TaskMessageDAO(),
+      dataGrants: new AppDataGrantDAO(),
       ...deps,
     };
   }
@@ -93,6 +96,7 @@ export class SessionTurnContinuationService {
       buildParts,
     });
     await this.agentTurnDAO.markConsumed(pending.map((entry) => entry.id), turn.id);
+    const appDataGrant = await this.deps.dataGrants.take(ticket.id, turn.id);
 
     try {
       const context = await this.deps.context.load({
@@ -124,6 +128,7 @@ export class SessionTurnContinuationService {
           lastAgentCommit: context.lastAgentCommit,
           keptCommit: context.keptCommit,
           messageImages: asked.flatMap((messageId) => images.get(messageId) ?? []),
+          appDataGrant,
         },
         async (submitted) => {
           await this.agentTurnDAO.update(turn.id, { jobId: submitted.id });

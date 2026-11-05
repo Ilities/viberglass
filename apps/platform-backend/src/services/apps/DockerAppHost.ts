@@ -183,7 +183,9 @@ export class DockerAppHost implements AppHost {
   private async join(network: string, container: string, aliases: string[], joined: Array<string | undefined>): Promise<void> {
     const info = await this.docker.getContainer(container).inspect();
     if (joined.includes(info.Name.replace(/^\//, ""))) return;
-    await this.docker.getNetwork(network).connect({ Container: info.Id, EndpointConfig: { Aliases: aliases } });
+    // Below the platform's own network, so that one keeps carrying the container's published ports.
+    const endpoint: Docker.EndpointSettings & { GwPriority: number } = { Aliases: aliases, GwPriority: -1 };
+    await this.docker.getNetwork(network).connect({ Container: info.Id, EndpointConfig: endpoint });
   }
 
   private async ensureVolume(volume: string, projectId: string): Promise<void> {

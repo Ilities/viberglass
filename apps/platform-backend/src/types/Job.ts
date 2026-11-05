@@ -19,6 +19,14 @@ export interface JobTicketMedia {
   accessUrl?: string;
 }
 
+/** A copy of an App space's data that a maintainer gave this turn. */
+export interface JobAppDataCopy {
+  s3Url: string;
+  accessUrl: string;
+  copiedAt: string;
+  bytes: number;
+}
+
 export interface VolumeMount {
   hostPath: string;
   containerPath: string;
@@ -84,6 +92,7 @@ export interface TicketJobContext extends BaseJobContext {
   consoleErrors?: string[];
   affectedFiles?: string[];
   ticketMedia?: JobTicketMedia[];
+  appDataCopy?: JobAppDataCopy;
   planDocument?: string;
   /** The task's latest summary, for a summarise turn to rewrite. */
   summaryDocument?: string;

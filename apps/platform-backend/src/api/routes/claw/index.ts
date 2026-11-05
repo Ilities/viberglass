@@ -8,6 +8,9 @@ import { requireAuth } from "../../middleware/authentication";
 import { clawSpaceGuard } from "../../middleware/clawSpaceGuard";
 import { registerClawTaskTemplateRoutes } from "./task-templates";
 import { registerClawScheduleRoutes } from "./schedules";
+import { appScheduleGuard } from "./appScheduleGuard";
+import { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
+import { ClawScheduleDAO } from "../../../persistence/claw/ClawScheduleDAO";
 import { registerClawExecutionRoutes } from "./executions";
 import { registerClawStatsRoutes } from "./stats";
 
@@ -36,6 +39,7 @@ registerClawTaskTemplateRoutes(router, { clawTaskTemplateService });
 registerClawScheduleRoutes(router, {
   clawScheduleService,
   clawSchedulingEngine,
+  maintainersOnly: appScheduleGuard(new SpaceAccessService(), new ClawScheduleDAO()),
 });
 registerClawExecutionRoutes(router, { clawExecutionService });
 registerClawStatsRoutes(router);

@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { AppAccess } from './app-access'
 import { AppLogs } from './app-logs'
 import { AppSettings } from './app-settings'
+import { NightScheduleHint } from './night-schedule-hint'
 import { ReleasesTable, shortSha } from './releases-table'
 import { RollbackDialog } from './rollback-dialog'
 
@@ -120,6 +121,8 @@ export function AppPage() {
       />
 
       {app && <RollbackNotice app={app} />}
+
+      {canMaintain && app && app.releases.length > 0 && <NightScheduleHint projectId={project.id} />}
 
       {missingSettings.length > 0 && (
         <p role="status" className="mb-4 rounded-md bg-[var(--amber-3)] px-4 py-3 text-sm text-[var(--amber-11)]">

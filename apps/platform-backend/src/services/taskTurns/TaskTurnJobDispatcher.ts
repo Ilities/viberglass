@@ -19,6 +19,8 @@ import { JobBootstrapService } from "../job/JobBootstrapService";
 import { TicketMediaExecutionService } from "../TicketMediaExecutionService";
 import { buildBootstrapPayload, buildScmPayloadFromContext, prepareTicketRunContext } from "../ticketRunOrchestration";
 import type { TurnPrompts } from "./TaskTurnPromptBuilder";
+import type { AppDataGrantRecord } from "../../persistence/apps/AppDataGrantDAO";
+import { linkAppDataCopy, type AppDataCopyLinker } from "../apps/appDataCopyForJob";
 import { TURN_JOB_KIND } from "./turnActions";
 import { JOB_FAILURE_CODE, type Clanker, type Project } from "@viberglass/types";
 import { JobLaunchDAO, type QueuedJobRecord } from "../../persistence/job/JobLaunchDAO";
@@ -46,6 +48,8 @@ export interface DispatchTurnInput {
   keptCommit: string | null;
   /** Images attached to the thread messages this turn answers. */
   messageImages?: MediaAsset[];
+  /** A copy of the App space's data a maintainer gave this turn. */
+  appDataGrant?: AppDataGrantRecord | null;
 }
 
 /** What a harness with a compact command keeps when it compacts after a summary. */
@@ -97,6 +101,7 @@ export class TaskTurnJobDispatcher {
     private readonly tickets: Pick<TicketDAO, "getTicket"> = new TicketDAO(),
     private readonly failures: Pick<JobService, "updateJobStatus"> = new JobService(),
     private readonly comparisons: Pick<TaskComparisonDAO, "armOf"> = new TaskComparisonDAO(),
+    private readonly appDataCopies: AppDataCopyLinker = linkAppDataCopy,
   ) {}
 
   /**
@@ -115,6 +120,7 @@ export class TaskTurnJobDispatcher {
     );
     const files = prepared.project.backingKind === "files";
     const ticketMedia = await this.media.prepareForExecution(ticket, prepared.executionClanker, input.messageImages ?? []);
+    const appDataCopy = input.appDataGrant ? await this.appDataCopies(input.appDataGrant) : null;
     const { acpSessionId, conversationStateUrl } = resumeState(session.metadataJson);
     // Until a fork opens a pull request of its own, its runs start from the code its original had when it was forked.
     const forkBase = files || ticket.pullRequestUrl ? null : await this.forkBaseOf(ticket.id);
@@ -144,6 +150,7 @@ export class TaskTurnJobDispatcher {
         summaryDocument: input.summary || undefined,
         instructionFiles: prepared.mergedInstructionFiles,
         ...(ticketMedia.media.length > 0 ? { ticketMedia: ticketMedia.media } : {}),
+        ...(appDataCopy ? { appDataCopy } : {}),
       },
     );
 

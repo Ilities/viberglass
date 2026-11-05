@@ -8,13 +8,14 @@ import type { Clanker, SpaceBackingKind, TaskArtifactKind, TaskTimelineEntry } f
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
-import type { ForkPoint } from './compare-agents-dialog'
+import { AppDataGrantLine } from './app-data-grant'
 import { BringInAgent, type BringableAgent } from './bring-in-agent'
 import { CommentEntry, commentStatuses, isFullComment } from './comment-entry'
+import type { ForkPoint } from './compare-agents-dialog'
+import { useComposerDraft } from './composer-draft'
 import { NextAgentLine } from './next-agent-line'
 import { OpenQuestions, QuestionEntry, withAnswer, type OnAnswered } from './question-entry'
 import { PinnedSummary, SummaryEntry } from './summary-entry'
-import { useComposerDraft } from './composer-draft'
 import { TaskComposer, type Mentionable } from './task-composer'
 import { RetryTurnButton, TaskSuggestedActions } from './task-suggested-actions'
 import { retrySuggestion, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
@@ -39,6 +40,8 @@ interface TaskThreadProps {
   canAsk: boolean
   /** Whether the person may interrupt, pause and resume the agent. */
   canSteer?: boolean
+  /** In an App space, whether the person may give the agent's next turn a copy of the app's data. */
+  canGrantAppData?: boolean
   /** Whether someone has the agent paused. */
   paused?: boolean
   /** Whether a setup failure paused it. */
@@ -74,6 +77,7 @@ export function TaskThread({
   canPost,
   canAsk,
   canSteer = false,
+  canGrantAppData = false,
   paused = false,
   pausedForSetup = false,
   mentionsYou = false,
@@ -119,11 +123,7 @@ export function TaskThread({
   if (!entries) return null
   // A comment is a message about a document; a change to its status shows on the comment itself.
   const listed = entries.filter(
-    (entry) =>
-      !(
-        entry.kind === 'event' &&
-        entry.activity.kind === 'comment_status_changed'
-      )
+    (entry) => !(entry.kind === 'event' && entry.activity.kind === 'comment_status_changed')
   )
   const shown = messagesOnly ? listed.filter((entry) => entry.kind !== 'event' || isFullComment(entry)) : listed
   const statuses = commentStatuses(entries)
@@ -136,7 +136,9 @@ export function TaskThread({
     suggestionInput.agentWorking || latestTurn?.status === 'queued' || latestTurn?.status === 'running'
   const summaries = summaryFacts(entries)
   const retry = retrySuggestion({ ...suggestionInput, agentWorking, latestTurn })
-  const hasArtifacts = entries.some((entry) => entry.kind === 'agent_turn' && (entry.outcome?.artifacts?.length ?? 0) > 0)
+  const hasArtifacts = entries.some(
+    (entry) => entry.kind === 'agent_turn' && (entry.outcome?.artifacts?.length ?? 0) > 0
+  )
   const suggestions = suggestTaskActions({
     ...suggestionInput,
     agentWorking,
@@ -174,7 +176,10 @@ export function TaskThread({
         backing={backing}
         space={space}
         summaryVersion={summaries.versionByTurn.get(entry.id)}
-        retry={retry && entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />}
+        retry={
+          retry &&
+          entry.id === latestTurn?.id && <RetryTurnButton taskId={taskId} suggestion={retry} onAsked={posted} />
+        }
         onCompare={
           onCompareFrom && entry.status === 'completed'
             ? () => onCompareFrom({ turnId: entry.id, label: `${entry.agent.name}'s turn` })
@@ -231,7 +236,11 @@ export function TaskThread({
             row.kind === 'entry' ? (
               renderEntry(row.entry)
             ) : (
-              <FoldedAttempts key={row.id} label={attemptsLabel(row.turns)} latestAt={row.turns[row.turns.length - 1].at}>
+              <FoldedAttempts
+                key={row.id}
+                label={attemptsLabel(row.turns)}
+                latestAt={row.turns[row.turns.length - 1].at}
+              >
                 {row.entries.map(renderEntry)}
               </FoldedAttempts>
             )
@@ -254,6 +263,7 @@ export function TaskThread({
       {canAsk && !agentWorking && (
         <NextAgentLine taskId={taskId} refreshKey={refreshKey} clankers={clankers} agentsOnTask={onTask} />
       )}
+      {canGrantAppData && <AppDataGrantLine taskId={taskId} refreshKey={refreshKey} onChanged={posted} />}
       {canPost && mentionsYou && (
         <div className="flex items-center justify-between gap-4 text-sm text-[var(--gray-11)]">
           <p>You were mentioned here.</p>
@@ -277,7 +287,11 @@ export function TaskThread({
           agentWorking={agentWorking}
           onAsked={posted}
           draft={canPost ? draft : undefined}
-          trailing={bringable.length > 0 && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} draft={canPost ? draft : undefined} />}
+          trailing={
+            bringable.length > 0 && (
+              <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} draft={canPost ? draft : undefined} />
+            )
+          }
         />
       )}
     </section>

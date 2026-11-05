@@ -100,10 +100,19 @@ describe("TaskAskPolicyService", () => {
   }
 
   it("describes what the caller may ask for", async () => {
-    await expect(service().describe("tomi", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canMakeLive: false });
-    await expect(service().describe("stranger", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canMakeLive: false });
-    await expect(service({ role: "guest" }).describe("visitor", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false });
-    await expect(service({ role: "viewer" }).describe("tomi", TASK_ID)).resolves.toEqual({ canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false });
+    await expect(service().describe("tomi", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canMakeLive: false, canGrantAppData: false });
+    await expect(service().describe("stranger", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canMakeLive: false, canGrantAppData: false });
+    await expect(service({ role: "guest" }).describe("visitor", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canGrantAppData: false });
+    await expect(service({ role: "viewer" }).describe("tomi", TASK_ID)).resolves.toEqual({ canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canGrantAppData: false });
+  });
+
+  it("lets only the space's maintainers and admins give a turn the app's data", async () => {
+    const grants = async (options: Parameters<typeof service>[0], userId: string) => (await service(options).describe(userId, TASK_ID)).canGrantAppData;
+    expect(await grants({ spaceRole: "maintainer" }, "stranger")).toBe(true);
+    expect(await grants({ role: "admin" }, "stranger")).toBe(true);
+    // Owning the task isn't enough: the data is the whole app's.
+    expect(await grants({}, "owner")).toBe(false);
+    expect(await grants({ role: "viewer", spaceRole: "maintainer" }, "stranger")).toBe(false);
   });
 
   it("refuses a build from someone who isn't on the task, saying who can ask", async () => {

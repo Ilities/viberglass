@@ -1,4 +1,4 @@
-import type { Router } from "express";
+import type { RequestHandler, Router } from "express";
 import logger from "../../../config/logger";
 import type { ClawScheduleService } from "../../../services/claw/ClawScheduleService";
 import type { ClawSchedulingEngine } from "../../../services/claw/ClawSchedulingEngine";
@@ -12,13 +12,14 @@ import { resolveClawServiceError } from "./routeErrors";
 interface ClawScheduleRouteDependencies {
   clawScheduleService: ClawScheduleService;
   clawSchedulingEngine: ClawSchedulingEngine;
+  maintainersOnly: RequestHandler;
 }
 
 export function registerClawScheduleRoutes(
   router: Router,
-  { clawScheduleService, clawSchedulingEngine }: ClawScheduleRouteDependencies,
+  { clawScheduleService, clawSchedulingEngine, maintainersOnly }: ClawScheduleRouteDependencies,
 ) {
-  router.post("/schedules", validateCreateClawSchedule, async (req, res) => {
+  router.post("/schedules", validateCreateClawSchedule, maintainersOnly, async (req, res) => {
     try {
       const actor = req.authContext?.user.id;
       const schedule = await clawScheduleService.createSchedule(
@@ -127,6 +128,7 @@ export function registerClawScheduleRoutes(
     "/schedules/:id",
     validateUuidParam("id"),
     validateUpdateClawSchedule,
+    maintainersOnly,
     async (req, res) => {
       try {
         const schedule = await clawScheduleService.updateSchedule(
@@ -160,7 +162,7 @@ export function registerClawScheduleRoutes(
     },
   );
 
-  router.delete("/schedules/:id", validateUuidParam("id"), async (req, res) => {
+  router.delete("/schedules/:id", validateUuidParam("id"), maintainersOnly, async (req, res) => {
     try {
       await clawScheduleService.deleteSchedule(req.params.id);
       await clawSchedulingEngine.triggerRefresh();
@@ -188,6 +190,7 @@ export function registerClawScheduleRoutes(
   router.post(
     "/schedules/:id/pause",
     validateUuidParam("id"),
+    maintainersOnly,
     async (req, res) => {
       try {
         const schedule = await clawScheduleService.pauseSchedule(req.params.id);
@@ -220,6 +223,7 @@ export function registerClawScheduleRoutes(
   router.post(
     "/schedules/:id/resume",
     validateUuidParam("id"),
+    maintainersOnly,
     async (req, res) => {
       try {
         const schedule = await clawScheduleService.resumeSchedule(

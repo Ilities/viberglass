@@ -17,6 +17,7 @@ const execution: ClawExecution = {
 const schedule: ClawSchedule = {
   id: "sched-1",
   projectId: "proj-1",
+  action: "run_template",
   taskTemplateId: "tmpl-1",
   name: "Nightly",
   description: null,

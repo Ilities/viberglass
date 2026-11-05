@@ -24,6 +24,9 @@ import { PeriodicSweeper } from "../workers/PeriodicSweeper";
 import { createAppReleasePoller } from "../services/apps/createAppReleasePoller";
 import { ReleaseTaskReporter } from "../services/apps/ReleaseTaskReporter";
 import { AppReleaseReportDAO } from "../persistence/apps/AppReleaseReportDAO";
+import { AppDataGrantSweep } from "../services/apps/AppDataGrantSweep";
+import { AppDataGrantDAO } from "../persistence/apps/AppDataGrantDAO";
+import { AppDataCopier } from "../services/apps/AppDataCopier";
 import { AppRetentionDAO } from "../persistence/apps/AppRetentionDAO";
 import { AppRetention } from "../services/apps/AppRetention";
 import { S3SpaceFilesStore } from "../services/spaceFiles/SpaceFilesStore";
@@ -110,6 +113,7 @@ const questionReminders = new QuestionReminderService();
 const appReleasePoller = createAppReleasePoller();
 const releaseReports = new ReleaseTaskReporter(new AppReleaseReportDAO(), new TaskActivityRecorder());
 const appRetention = new AppRetention(new AppRetentionDAO(), new S3SpaceFilesStore());
+const appDataGrantSweep = new AppDataGrantSweep(new AppDataGrantDAO(), new AppDataCopier());
 const credentialExpiry = new CredentialExpiryWarner();
 const periodicSweepers = shouldRunBackgroundSweepers
   ? [
@@ -146,6 +150,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
       new PeriodicSweeper(
         "app release reports",
         () => releaseReports.sweep(),
+        parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
+      ),
+      new PeriodicSweeper(
+        "app data copies",
+        (now) => appDataGrantSweep.sweep(now),
         parseInt(process.env.APP_SWEEP_INTERVAL_MS || "15000", 10),
       ),
       new PeriodicSweeper(

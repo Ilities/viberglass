@@ -85,6 +85,7 @@ describe("SessionTurnContinuationService", () => {
   const projects = { getProject: jest.fn() };
   const artifacts = { listForTicket: jest.fn() };
   const messages = { imagesOf: jest.fn() };
+  const dataGrants = { take: jest.fn() };
   const service = new SessionTurnContinuationService(sessions, turns, events, {
     tickets,
     context: loader,
@@ -93,6 +94,7 @@ describe("SessionTurnContinuationService", () => {
     projects,
     artifacts,
     messages,
+    dataGrants,
   });
 
   beforeEach(() => {
@@ -101,6 +103,7 @@ describe("SessionTurnContinuationService", () => {
     projects.getProject.mockResolvedValue({ id: "proj-1", backingKind: "git" });
     artifacts.listForTicket.mockResolvedValue([]);
     messages.imagesOf.mockResolvedValue(new Map());
+    dataGrants.take.mockResolvedValue(null);
     turns.nextSequence.mockResolvedValue(7);
     turns.create.mockResolvedValue({ id: "a1" });
     events.getMaxSequence.mockResolvedValue(10);
@@ -161,6 +164,17 @@ describe("SessionTurnContinuationService", () => {
       expect.objectContaining({ messageImages: [image("a"), image("b"), image("c")] }),
       expect.any(Function),
     );
+  });
+
+  it("gives the turn the copy of the app's data waiting for it", async () => {
+    const grant = { id: "grant-1", objectKey: "spaces/proj-1/data-grants/grant-1/app.db", copiedAt: new Date(), bytes: 4096 };
+    dataGrants.take.mockResolvedValue(grant);
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn({ id: "u1", action: "reply" })]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(dataGrants.take).toHaveBeenCalledWith("ticket-1", "a1");
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ appDataGrant: grant }), expect.any(Function));
   });
 
   it("tells the prompt when the agent works in a Files space's files", async () => {

@@ -29,3 +29,32 @@ describe("ClawScheduleService.createSchedule", () => {
     ).rejects.toThrow("Task template not found");
   });
 });
+
+describe("ClawScheduleService.createSchedule with an app action", () => {
+  const createSchedule = jest.fn();
+  const getScheduleByProjectAndName = jest.fn();
+
+  beforeEach(() => {
+    const { ClawScheduleDAO } = jest.requireMock("../../../../persistence/claw/ClawScheduleDAO");
+    ClawScheduleDAO.mockImplementation(() => ({ createSchedule, getScheduleByProjectAndName }));
+    getScheduleByProjectAndName.mockResolvedValue(null);
+    createSchedule.mockReset().mockImplementation(async (request) => ({ id: "schedule-1", ...request }));
+    getTemplate.mockReset();
+  });
+
+  const nightly = { projectId: "space-a", action: "app_stop" as const, name: "Off at night", scheduleType: "cron" as const, cronExpression: "0 0 22 * * *" };
+
+  it("needs no template in an App space", async () => {
+    getProject.mockResolvedValue({ id: "space-a", backingKind: "app" });
+
+    await expect(new ClawScheduleService().createSchedule(nightly)).resolves.toMatchObject({ action: "app_stop" });
+    expect(getTemplate).not.toHaveBeenCalled();
+  });
+
+  it("refuses it outside App spaces", async () => {
+    getProject.mockResolvedValue({ id: "space-a", backingKind: "git" });
+
+    await expect(new ClawScheduleService().createSchedule(nightly)).rejects.toMatchObject({ code: "NOT_AN_APP_SPACE", statusCode: 400 });
+    expect(createSchedule).not.toHaveBeenCalled();
+  });
+});

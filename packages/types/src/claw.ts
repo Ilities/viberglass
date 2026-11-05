@@ -14,6 +14,14 @@ export type ClawScheduleType = 'interval' | 'cron'
 // Active status of a schedule
 export type ClawScheduleActiveStatus = 'active' | 'paused'
 
+// What a schedule does when it fires: run a task template, or turn an App space's app on or off
+export const CLAW_SCHEDULE_ACTIONS = ['run_template', 'app_start', 'app_stop'] as const
+export type ClawScheduleAction = (typeof CLAW_SCHEDULE_ACTIONS)[number]
+
+export function isAppScheduleAction(action: ClawScheduleAction): boolean {
+  return action !== 'run_template'
+}
+
 // Task template entity - reusable definition of a task
 export interface ClawTaskTemplate {
   id: string
@@ -65,7 +73,8 @@ export interface ClawTaskTemplateSummary {
 export interface ClawSchedule {
   id: string
   projectId: string
-  taskTemplateId: string
+  action: ClawScheduleAction
+  taskTemplateId: string | null
   name: string
   description: string | null
   scheduleType: ClawScheduleType
@@ -96,7 +105,9 @@ export type ClawEventType = 'started' | 'completed' | 'failed'
 // Request body for creating a schedule
 export interface CreateClawScheduleRequest {
   projectId: string
-  taskTemplateId: string
+  action?: ClawScheduleAction
+  /** Required when the action is `run_template`, and only then. */
+  taskTemplateId?: string | null
   name: string
   description?: string | null
   scheduleType: ClawScheduleType
@@ -123,7 +134,8 @@ export interface UpdateClawScheduleRequest {
 export interface ClawScheduleSummary {
   id: string
   projectId: string
-  taskTemplateId: string
+  action: ClawScheduleAction
+  taskTemplateId: string | null
   name: string
   description: string | null
   scheduleType: ClawScheduleType

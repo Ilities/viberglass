@@ -6,7 +6,7 @@ import type { SpaceBackingKind, TaskCapabilities } from '@viberglass/types'
 import { testTask } from '../space/test-task'
 import { TaskActionsMenu } from './task-actions-menu'
 
-const NOTHING: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canEdit: false, canDelete: false }
+const NOTHING: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canGrantAppData: false, canEdit: false, canDelete: false }
 
 async function itemsFor(capabilities: TaskCapabilities, backingKind: SpaceBackingKind = 'git', done = false) {
   render(

@@ -116,3 +116,8 @@ export function appDataPath(projectId: string): string {
 export function appBackupPath(projectId: string, backupId: string): string {
   return `spaces/${projectId}/backups/${backupId}`
 }
+
+/** A copy of the app's database made for one agent turn; outside the replica, like backups. */
+export function appDataGrantKey(projectId: string, grantId: string): string {
+  return `spaces/${projectId}/data-grants/${grantId}/app.db`
+}

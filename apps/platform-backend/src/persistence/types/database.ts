@@ -292,6 +292,21 @@ export interface AppDataBackupsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface AppDataGrantsTable {
+  id: Generated<string>;
+  project_id: string;
+  ticket_id: string;
+  granted_by: string | null;
+  copied_at: Timestamp;
+  object_key: string;
+  bytes: ColumnType<string, number, number>;
+  /** The turn that took the copy; null until one does. */
+  turn_id: string | null;
+  taken_at: Timestamp | null;
+  removed_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface ProjectScmConfigsTable {
   id: Generated<string>;
   project_id: string;
@@ -799,7 +814,8 @@ export interface ClawTaskTemplatesTable {
 export interface ClawSchedulesTable {
   id: Generated<string>;
   project_id: string;
-  task_template_id: string;
+  action: Generated<"run_template" | "app_start" | "app_stop">;
+  task_template_id: string | null;
   name: string;
   description: string | null;
   schedule_type: Generated<"interval" | "cron">;
@@ -1037,6 +1053,7 @@ export interface Database {
   app_settings: AppSettingsTable;
   apps: AppsTable;
   app_data_backups: AppDataBackupsTable;
+  app_data_grants: AppDataGrantsTable;
   app_handoff_codes: AppHandoffCodesTable;
   app_sessions: AppSessionsTable;
   app_access: AppAccessTable;

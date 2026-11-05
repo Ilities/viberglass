@@ -59,6 +59,13 @@ export interface ScmPayload {
   gitUsername?: string;
 }
 
+/** A copy of an App space's data that a maintainer gave this turn. */
+export interface AppDataCopyPayload {
+  accessUrl: string;
+  copiedAt: string;
+  bytes: number;
+}
+
 export interface TicketMediaPayload {
   id: string;
   kind: "screenshot" | "recording" | "image";
@@ -108,6 +115,7 @@ export interface BaseWorkerPayload {
     /** The task's latest summary, for the agent to rewrite on a summarise turn. */
     summaryDocument?: string;
     ticketMedia?: TicketMediaPayload[];
+    appDataCopy?: AppDataCopyPayload;
     instructionFiles?: Array<{ fileType: string; content: string }>;
   };
   settings?: {
@@ -276,6 +284,7 @@ export interface CodingJobData {
     /** The task's latest summary, for the agent to rewrite on a summarise turn. */
     summaryDocument?: string;
     ticketMedia?: TicketMediaPayload[];
+    appDataCopy?: AppDataCopyPayload;
     instructionFiles?: Array<{ fileType: string; content: string }>;
   };
   settings?: {

@@ -21,6 +21,7 @@ import { JobFailureError } from "./JobFailureError";
 import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { onStop } from "../runtime/stopSignal";
 import { localTaskMedia, taskMediaDir, withTaskMedia } from "./taskMedia";
+import { appDataCopyDir, localAppDataCopy, removeAppDataCopy, withAppDataCopy } from "./appDataCopy";
 
 /**
  * One turn of a task's conversation with its agent. The agent gets
@@ -44,8 +45,9 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const pushed = continued ? await peoplesChanges(repoDir, params.lastAgentCommit ?? `origin/${checkoutBaseBranch}`) : null;
     const preface = [kept, pushed].filter(Boolean).join("\n\n");
     const media = await localTaskMedia(data.context?.ticketMedia || [], taskMediaDir(repoDir), logger);
+    const appData = await localAppDataCopy(data.context?.appDataCopy, appDataCopyDir(repoDir), logger);
     const withPushed = (prompt: string | undefined) =>
-      withTaskMedia(prompt && preface ? `${preface}\n\n${prompt}` : prompt, media);
+      withAppDataCopy(withTaskMedia(prompt && preface ? `${preface}\n\n${prompt}` : prompt, media), appData);
     const snapshot = materializeArtifacts(repoDir, {
       plan: data.context?.planDocument,
       summary: data.context?.summaryDocument,
@@ -114,6 +116,8 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       })
       .finally(() => {
         stopped();
+        // The copy was for the agent's turn only.
+        if (appData) removeAppDataCopy(appDataCopyDir(repoDir));
         return relay.close();
       });
     await params.sessionEventForwarder?.flush();

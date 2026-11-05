@@ -1,4 +1,4 @@
-import { canAskAgent, canAskForCode, canMakeChangeLive, canSteerAgent, TASK_POSTING_ROLES, type TaskAskCapabilities, type TaskTurnAction } from "@viberglass/types";
+import { canAskAgent, canAskForCode, canGrantAppData, canMakeChangeLive, canSteerAgent, TASK_POSTING_ROLES, type TaskAskCapabilities, type TaskTurnAction } from "@viberglass/types";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
@@ -15,7 +15,7 @@ interface Dependencies {
   participants: Pick<TaskParticipantDAO, "list">;
 }
 
-const NO_CAPABILITIES: TaskAskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false };
+const NO_CAPABILITIES: TaskAskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canMakeLive: false, canGrantAppData: false };
 
 /**
  * The one place that decides who may ask the agent for what on a task.
@@ -52,6 +52,7 @@ export class TaskAskPolicyService {
       canAskForCode: canAskForCode(person, participants),
       canSteer: canSteerAgent(person, participants),
       canMakeLive: canMakeChangeLive(person, participants),
+      canGrantAppData: canGrantAppData(person),
     };
   }
 
