@@ -4,13 +4,13 @@ import { appRelease, fakeAppHost } from "../../../helpers/fakeAppHost";
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const NOW = new Date("2026-11-03T12:00:00Z");
-const EXISTING = { projectId: "has-app", power: "on" as const, state: "running" as const, statusMessage: null, currentReleaseId: "r", busySince: null, rollback: null, credentialsExpireAt: null };
+const EXISTING = { projectId: "has-app", power: "on" as const, state: "running" as const, statusMessage: null, currentReleaseId: "r", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false };
 
 function build() {
   const host = fakeAppHost();
   const deps = {
     host,
-    spaces: { listLiveIds: jest.fn(async () => ["has-app", "first-release", "nothing-built"]) },
+    spaces: { listSweptIds: jest.fn(async () => ["has-app", "first-release", "nothing-built"]) },
     apps: {
       get: jest.fn(async (projectId: string) => (projectId === "has-app" ? EXISTING : null)),
       ensure: jest.fn(async () => EXISTING),

@@ -5,10 +5,10 @@ import type {
   CreateProjectRequest,
   PaginatedResponse,
   Project,
-  ProjectScmConfig,
   ProjectReadiness,
-  UpsertProjectScmConfigRequest,
+  ProjectScmConfig,
   UpdateProjectRequest,
+  UpsertProjectScmConfigRequest,
 } from '@viberglass/types'
 
 export async function getProjects(limit: number = 50, offset: number = 0): Promise<Project[]> {
@@ -76,13 +76,21 @@ export async function updateProject(id: string, updates: UpdateProjectRequest): 
   return data.data
 }
 
-export async function deleteProject(id: string): Promise<void> {
+/** What couldn't be done while deleting; the space is gone anyway. */
+export interface SpaceDeletion {
+  warnings: string[]
+}
+
+export async function deleteProject(id: string): Promise<SpaceDeletion> {
   const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {
-    throw new Error('Failed to delete space')
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to delete space')
   }
+  const data: ApiResponse<SpaceDeletion> = await response.json()
+  return data.data
 }
 
 export async function archiveProject(id: string): Promise<Project> {
@@ -104,6 +112,15 @@ export interface ProjectDeletionSummary {
   runs: number
   sessions: number
   schedules: number
+  /** Set for an App space. */
+  app: AppDeletionSummary | null
+}
+
+export interface AppDeletionSummary {
+  releases: number
+  backups: number
+  /** The repository that gets archived on its code host. */
+  repository: string | null
 }
 
 export async function getProjectDeletionSummary(id: string): Promise<ProjectDeletionSummary> {
@@ -166,6 +183,6 @@ export type {
   CreateProjectRequest,
   Project,
   ProjectScmConfig,
-  UpsertProjectScmConfigRequest,
   UpdateProjectRequest,
+  UpsertProjectScmConfigRequest,
 } from '@viberglass/types'

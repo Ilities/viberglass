@@ -36,6 +36,8 @@ export interface RepositoryHost {
   parseRepository(input: string): RepositoryRef | null
   /** Throws RepositoryAccessError when the token can't read the repository or push to it. */
   checkAccess(repository: RepositoryRef, token: string): Promise<RepositoryAccess>
+  /** Set when the host can archive repositories; throws RepositoryAccessError when it refuses. */
+  archiveRepository?(repository: RepositoryRef, token: string): Promise<void>
   /** Opens the pull request and returns its address; the open one's address when there already is one for the branch. */
   openPullRequest(pullRequest: PullRequestToOpen, token: string): Promise<string>
   /** Whether a pull request address is one of this host's. */

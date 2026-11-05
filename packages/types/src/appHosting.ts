@@ -95,6 +95,8 @@ export interface AppHost {
    * instances may belong to another installation on the same host.
    */
   rejoinPlatform(projectIds: string[]): Promise<void>
+  /** Removes what a deleted App space kept on the host besides its instances, such as its roles. */
+  forgetSpace(projectId: string): Promise<void>
 }
 
 /** The app's live replica, which only the app itself writes. */

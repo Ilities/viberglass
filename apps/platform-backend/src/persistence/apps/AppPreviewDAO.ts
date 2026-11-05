@@ -62,6 +62,11 @@ export class AppPreviewDAO {
     return rows.map(toPreview);
   }
 
+  async listForProject(projectId: string): Promise<AppPreviewRecord[]> {
+    const rows = await db.selectFrom("app_previews").selectAll().where("project_id", "=", projectId).execute();
+    return rows.map(toPreview);
+  }
+
   /** Null when the change already has a preview, or another preview has the address. */
   async create(input: { address: string; projectId: string; ticketId: string; pullRequestUrl: string; commitSha: string; releaseId: string }): Promise<AppPreviewRecord | null> {
     const row = await db

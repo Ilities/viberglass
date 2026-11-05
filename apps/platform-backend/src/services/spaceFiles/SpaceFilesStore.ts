@@ -52,6 +52,11 @@ export function spacePrefix(bucket: string, projectId: string, kind: "snapshots"
   return `s3://${bucket}/spaces/${projectId}/${kind}/`;
 }
 
+/** Every object a space has, whatever its backing: Files content, app data, backups and releases. */
+export function spaceObjectsPrefix(bucket: string, projectId: string): string {
+  return `s3://${bucket}/spaces/${projectId}/`;
+}
+
 export class S3SpaceFilesStore implements SpaceFilesStore, SpaceFilesObjectListing {
   constructor(private readonly env: () => Record<string, string | undefined> = () => process.env) {}
 

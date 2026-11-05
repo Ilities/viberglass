@@ -61,6 +61,8 @@ function build() {
       }),
       createRole: jest.fn(async () => ({ Role: { Arn: "arn:aws:iam::123456789012:role/viberglass/dev/apps/dev-viberglass-app-space-1" } })),
       putRolePolicy: jest.fn(async () => ({})),
+      deleteRolePolicy: jest.fn(async () => ({})),
+      deleteRole: jest.fn(async (): Promise<object> => ({})),
     },
     logs: { getLogEvents: jest.fn(async () => ({ events: [{ message: "listening" }, { message: "on 3000" }] })) },
   };
@@ -267,6 +269,21 @@ describe("EcsAppHost", () => {
     expect(client.ecs.deleteService).toHaveBeenCalledWith({ cluster: "apps-cluster", service: SERVICE, force: true });
     expect(client.discovery.deleteService).toHaveBeenCalledTimes(2);
     expect(client.ecs.deregisterTaskDefinition.mock.calls).toEqual([[{ taskDefinition: `arn:aws:ecs:eu-west-1:1:task-definition/${SERVICE}:2` }]]);
+  });
+
+  it("removes both of a deleted space's roles, even when one is already gone", async () => {
+    const { host, client } = build();
+    client.iam.deleteRole.mockImplementationOnce(async () => {
+      throw awsError("NoSuchEntityException");
+    });
+
+    await host.forgetSpace("space-1");
+
+    expect(client.iam.deleteRolePolicy).toHaveBeenCalledWith({ RoleName: "dev-viberglass-app-space-1", PolicyName: "app-data" });
+    expect(client.iam.deleteRole.mock.calls).toEqual([
+      [{ RoleName: "dev-viberglass-app-space-1" }],
+      [{ RoleName: "dev-viberglass-preview-space-1" }],
+    ]);
   });
 
   it("has no local data to clear", async () => {

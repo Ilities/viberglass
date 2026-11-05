@@ -235,6 +235,7 @@ export interface AppsTable {
   rollback_backup_id: string | null;
   rollback_by: string | null;
   credentials_expire_at: Timestamp | null;
+  archive_backup_due: Generated<boolean>;
   updated_at: Generated<Timestamp>;
 }
 
@@ -269,7 +270,7 @@ export interface AppSessionsTable {
 export interface AppDataBackupsTable {
   id: Generated<string>;
   project_id: string;
-  reason: "release" | "rollback";
+  reason: "release" | "rollback" | "archive";
   release_id: string | null;
   /** The release whose data this is: the one serving when the copy was taken. */
   from_release_id: string | null;

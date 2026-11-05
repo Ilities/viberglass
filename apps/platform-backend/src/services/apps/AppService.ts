@@ -13,11 +13,11 @@ const logger = createChildLogger({ service: "AppService" });
 const RELEASES_SHOWN = 20;
 const LOG_LINES = 300;
 
-/** An App space's app as its page shows it, and turning it on or off. */
+/** An App space's app as its page shows it, and turning it on or off, for good when its space is archived. */
 export class AppService {
   constructor(
-    private readonly spaces: Pick<AppSpaceDAO, "findById">,
-    private readonly apps: Pick<AppDAO, "get" | "ensure" | "update">,
+    private readonly spaces: Pick<AppSpaceDAO, "findById" | "isArchived">,
+    private readonly apps: Pick<AppDAO, "get" | "ensure" | "update" | "turnOffForArchive">,
     private readonly releases: Pick<AppReleaseDAO, "listForProject" | "getById">,
     private readonly backups: Pick<AppDataBackupDAO, "dataPoints">,
     private readonly reconciler: Pick<AppReconciler, "reconcile">,
@@ -49,18 +49,33 @@ export class AppService {
   /** Records what's wanted and returns at once; starting or stopping goes on in the background. */
   async setPower(projectId: string, power: AppPower): Promise<AppView> {
     await this.appSpace(projectId);
+    if (power === "on" && (await this.spaces.isArchived(projectId))) {
+      throw new AppSpaceError("ARCHIVED", "This space is archived, so its app stays off.");
+    }
     const app = await this.apps.ensure(projectId);
     // Turning a failed app on again is how a maintainer retries it.
     await this.apps.update(projectId, power === "on" && app.state === "failed" ? { power, state: "off", statusMessage: null } : { power });
-    this.reconciler.reconcile(projectId).catch((error: unknown) => {
-      logger.error("Turning an app on or off failed", { projectId, power, error: error instanceof Error ? error.message : String(error) });
-    });
+    this.reconcileLater(projectId, power);
     return this.view(projectId);
+  }
+
+  /** Called once the space is archived; the app stops and leaves a copy of its data in the background. */
+  async turnOffForArchive(projectId: string): Promise<void> {
+    const app = await this.apps.get(projectId);
+    if (!app) return;
+    await this.apps.turnOffForArchive(projectId, app.currentReleaseId !== null);
+    this.reconcileLater(projectId, "off");
   }
 
   async logs(projectId: string): Promise<string> {
     await this.appSpace(projectId);
     return (await this.host()?.logs(liveAppInstance(projectId), LOG_LINES)) ?? "";
+  }
+
+  private reconcileLater(projectId: string, power: AppPower): void {
+    this.reconciler.reconcile(projectId).catch((error: unknown) => {
+      logger.error("Turning an app on or off failed", { projectId, power, error: error instanceof Error ? error.message : String(error) });
+    });
   }
 
   private async appSpace(projectId: string): Promise<AppSpaceRef> {

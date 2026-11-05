@@ -21,6 +21,28 @@ export class AppSpaceDAO {
     return rows.map((row) => row.id);
   }
 
+  /** What the apps sweep visits: App spaces that aren't archived, and archived ones whose app hasn't settled off yet. */
+  async listSweptIds(): Promise<string[]> {
+    const rows = await db
+      .selectFrom("projects")
+      .leftJoin("apps", "apps.project_id", "projects.id")
+      .select("projects.id")
+      .where("projects.backing_kind", "=", "app")
+      .where((eb) => eb.or([
+        eb("projects.archived_at", "is", null),
+        eb("apps.state", "!=", "off"),
+        eb("apps.archive_backup_due", "=", true),
+      ]))
+      .orderBy("projects.created_at", "asc")
+      .execute();
+    return rows.map((row) => row.id);
+  }
+
+  async isArchived(projectId: string): Promise<boolean> {
+    const row = await db.selectFrom("projects").select("archived_at").where("id", "=", projectId).executeTakeFirst();
+    return Boolean(row?.archived_at);
+  }
+
   /** App spaces that aren't archived, by name, with what their app is doing. */
   async listLive(): Promise<Array<AppSpaceRef & { state: AppRunState }>> {
     const rows = await db

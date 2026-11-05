@@ -176,6 +176,9 @@ export class KubernetesAppHost implements AppHost {
   /** Services and NetworkPolicies don't change when the platform's pods are replaced. */
   async rejoinPlatform(): Promise<void> {}
 
+  /** Nothing outlives a space's instances on Kubernetes. */
+  async forgetSpace(): Promise<void> {}
+
   private k8s(): Promise<KubernetesAppClient> {
     this.client ??= this.clientFactory().catch((error: unknown) => {
       this.client = null;

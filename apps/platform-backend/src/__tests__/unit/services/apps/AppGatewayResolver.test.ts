@@ -8,7 +8,7 @@ import { fakeAppHost } from "../../../helpers/fakeAppHost";
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const SPACE = { projectId: "space-1", slug: "laptops", name: "Laptops", isPrivate: true };
-const RUNNING: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null };
+const RUNNING: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false };
 const ADA = { id: "user-1", email: "ada@example.com", name: "Ada", role: "member" as const };
 const PREVIEW: PreviewAddressRef = {
   previewId: "pv-1",

@@ -52,12 +52,14 @@ import { TaskParticipantService } from "../../services/tasks/TaskParticipantServ
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { ClawSchedulingEngine } from "../../services/claw/ClawSchedulingEngine";
 import { createAppAccessListService, createAppSpaceCreator } from "../../services/apps/createAppSpaceServices";
+import { createSpaceDeletionService } from "../../services/spaces/createSpaceDeletionService";
 import { APP_NAME_RULE, isAppSpaceSlug } from "../../services/apps/AppOrigins";
 import { isDomainError } from "../../services/errors/DomainError";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
 const appSpaceCreator = createAppSpaceCreator();
+const spaceDeletion = createSpaceDeletionService();
 const taskParticipants = new TaskParticipantService();
 
 async function everyoneCanSeeSpace(projectId: string, userIds: string[]): Promise<boolean> {
@@ -275,6 +277,7 @@ router.post("/:id/archive", validateUuidParam("id"), async (req, res) => {
 
     const archived = await projectService.archiveProject(req.params.id);
     await ClawSchedulingEngine.getInstance().triggerRefresh();
+    if (project.backingKind === "app") await appHosting().service.turnOffForArchive(project.id);
     res.json({ success: true, data: archived });
   } catch (error) {
     logger.error("Error archiving project", {
@@ -302,17 +305,16 @@ router.get("/:id/deletion-summary", validateUuidParam("id"), async (req, res) =>
   }
 });
 
-// DELETE /api/spaces/:id - Delete a project
-router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req, res) => {
+// DELETE /api/spaces/:id - Delete a project with what it keeps outside the database
+router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req, res, next) => {
   try {
-    const project = await projectService.getProject(req.params.id);
-    if (!project) {
+    const deleted = await spaceDeletion.delete(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: "Project not found" });
     }
-
-    await projectService.deleteProject(req.params.id);
-    res.status(204).send();
+    res.json({ success: true, data: deleted });
   } catch (error) {
+    if (isDomainError(error)) return next(error);
     logger.error("Error deleting project", {
       error: error instanceof Error ? error.message : error,
     });

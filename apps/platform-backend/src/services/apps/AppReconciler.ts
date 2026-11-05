@@ -4,6 +4,7 @@ import type { AppChange, AppDAO, AppRecord, RollbackOrder } from "../../persiste
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { APP_STOP_GRACE_SECONDS } from "./appHostingConfig";
 import type { AppInstanceRunner } from "./AppInstanceRunner";
+import type { AppFinalBackup } from "./AppFinalBackup";
 import type { AppReleaseSwitch } from "./AppReleaseSwitch";
 import type { AppRollbackSettler } from "./AppRollbackSettler";
 import { credentialsDue, rotationSchedule, UNKNOWN_EXPIRY, type RotationSchedule } from "./credentialRotation";
@@ -17,6 +18,7 @@ export const NO_APP_HOST = "Apps can't run where this installation runs its agen
 
 type Action =
   | { kind: "stop" }
+  | { kind: "final_backup" }
   | { kind: "start"; release: AppRelease }
   | { kind: "switch"; release: AppRelease }
   | { kind: "refresh"; release: AppRelease }
@@ -34,8 +36,9 @@ function message(error: unknown): string {
 /**
  * Brings an app to what its maintainers asked for: stopped when it's off, and
  * serving the release they rolled back to, or else its newest, when it's on.
- * A running app is restarted before its storage credentials expire. One app
- * does one thing at a time.
+ * A running app is restarted before its storage credentials expire, and an
+ * archived space's app leaves a last copy of its data once it's stopped. One
+ * app does one thing at a time.
  */
 export class AppReconciler {
   constructor(
@@ -45,6 +48,7 @@ export class AppReconciler {
     private readonly runner: Pick<AppInstanceRunner, "run" | "restart">,
     private readonly switcher: Pick<AppReleaseSwitch, "switchTo">,
     private readonly rollbacks: Pick<AppRollbackSettler, "settle">,
+    private readonly finalBackup: Pick<AppFinalBackup, "take">,
     private readonly rotation: () => RotationSchedule = () => rotationSchedule(),
   ) {}
 
@@ -77,7 +81,10 @@ export class AppReconciler {
     const order = app.rollback;
     // A rollback that went live but whose releases weren't set aside yet.
     if (order && current && order.releaseId === current.id) return { kind: "settle", release: current, order };
-    if (app.power === "off") return app.state === "off" ? null : { kind: "stop" };
+    if (app.power === "off") {
+      if (app.state !== "off") return { kind: "stop" };
+      return app.archiveBackupDue ? { kind: "final_backup" } : null;
+    }
 
     const wanted = order ? await this.rollbackAction(order) : await this.releaseAction(app, current, now);
     if (wanted && RUNS.has(wanted.kind) && !host) return app.state === "failed" ? null : { kind: "no_host" };
@@ -111,7 +118,12 @@ export class AppReconciler {
         await this.apps.update(app.projectId, { state: "stopping" });
         await host.stop(liveAppInstance(app.projectId), APP_STOP_GRACE_SECONDS);
       }
+      if (app.archiveBackupDue) await this.finalBackup.take(app);
       return { state: "off", statusMessage: null };
+    }
+    if (action.kind === "final_backup") {
+      await this.finalBackup.take(app);
+      return {};
     }
     if (action.kind === "drop") {
       await this.apps.clearRollback(app.projectId, action.order.releaseId);

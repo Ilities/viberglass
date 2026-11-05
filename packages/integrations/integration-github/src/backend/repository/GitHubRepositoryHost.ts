@@ -1,5 +1,6 @@
 import type { PullRequestToOpen, RepositoryCreator, RepositoryHost, RepositoryRef } from '@viberglass/integration-core'
 import type { PullRequestOutcome, PullRequestReview, RepositoryAccess } from '@viberglass/types'
+import { archiveGitHubRepository } from './archiveGitHubRepository'
 import { checkGitHubAccess } from './checkGitHubAccess'
 import { fetchGitHubBranchHead } from './fetchGitHubBranchHead'
 import { fetchGitHubPullRequestOutcome } from './fetchGitHubPullRequestOutcome'
@@ -45,6 +46,10 @@ export class GitHubRepositoryHost implements RepositoryHost {
 
   checkAccess(repository: RepositoryRef, token: string): Promise<RepositoryAccess> {
     return checkGitHubAccess(this.api, repository, token)
+  }
+
+  archiveRepository(repository: RepositoryRef, token: string): Promise<void> {
+    return archiveGitHubRepository(this.api, repository, token)
   }
 
   openPullRequest(pullRequest: PullRequestToOpen, token: string): Promise<string> {

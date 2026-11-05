@@ -12,10 +12,12 @@ import {
 } from '@/service/api/project-api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 /** Archiving a space for its maintainers, and deleting it for admins. */
 export function SpaceHousekeeping({ project }: { project: Project }) {
   const navigate = useNavigate()
+  const isAppSpace = project.backingKind === 'app'
   const isAdmin = useAuth().user?.role === 'admin'
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteConfirmName, setDeleteConfirmName] = useState('')
@@ -28,7 +30,8 @@ export function SpaceHousekeeping({ project }: { project: Project }) {
     setIsDeleting(true)
     setError(null)
     try {
-      await deleteProject(project.id)
+      const { warnings } = await deleteProject(project.id)
+      for (const warning of warnings) toast.warning(warning, { duration: Infinity })
       navigate('/')
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to delete space'))
@@ -65,6 +68,7 @@ export function SpaceHousekeeping({ project }: { project: Project }) {
           <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Archive space</h3>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Hides it from lists. Its tasks, runs and settings stay.
+            {isAppSpace && ' Its app is turned off for good, with a last copy of its data, and nobody can open it.'}
           </p>
           <Button className="mt-4" outline disabled={isArchiving} onClick={() => void handleArchive()}>
             {isArchiving ? 'Archiving…' : 'Archive space'}
@@ -100,6 +104,14 @@ export function SpaceHousekeeping({ project }: { project: Project }) {
               <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
                 Also deleted: {deletionSummary.tickets} tasks, {deletionSummary.runs} runs, {deletionSummary.sessions}{' '}
                 agent sessions, and {deletionSummary.schedules} schedules.
+                {deletionSummary.app &&
+                  ` The app goes too, with ${deletionSummary.app.releases} releases, its data and ${deletionSummary.app.backups} data backups.`}
+              </p>
+            ) : null}
+            {deletionSummary?.app?.repository ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                The repository <span className="font-mono">{deletionSummary.app.repository}</span> is archived on its
+                code host, not deleted.
               </p>
             ) : null}
             <p className="text-sm text-zinc-600 dark:text-zinc-400">

@@ -112,6 +112,9 @@ export class DockerAppHost implements AppHost {
   }
 
   /** A recreated platform or storage container has left every app network; this puts it back. */
+  /** Nothing outlives a space's instances on Docker. */
+  async forgetSpace(): Promise<void> {}
+
   async rejoinPlatform(projectIds: string[]): Promise<void> {
     const ours = new Set(projectIds);
     const networks = await this.docker.listNetworks({ filters: { label: [LABEL] } });

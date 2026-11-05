@@ -7,12 +7,10 @@ import { APP_STOP_GRACE_SECONDS } from "./appHostingConfig";
 import {
   APP_PORT,
   ecsAppNames,
-  ecsAppRoleName,
-  ecsAppRolePolicy,
   ecsAppTags,
   ecsAppTaskDefinition,
-  ecsAppTrustPolicy,
 } from "./ecsAppResources";
+import { EcsAppRoles } from "./EcsAppRoles";
 
 export interface EcsAppClient {
   ecs: Pick<
@@ -28,7 +26,7 @@ export interface EcsAppClient {
     | "describeTasks"
   >;
   discovery: Pick<ServiceDiscovery, "createService" | "listServices" | "getService" | "deleteService">;
-  iam: Pick<IAM, "getRole" | "createRole" | "putRolePolicy">;
+  iam: Pick<IAM, "getRole" | "createRole" | "putRolePolicy" | "deleteRolePolicy" | "deleteRole">;
   logs: Pick<CloudWatchLogs, "getLogEvents">;
 }
 
@@ -66,8 +64,6 @@ const POLL_MS = 3000;
 const STOP_WAIT_MS = 180_000;
 // A deleted service drains before its name can be used again.
 const DRAIN_WAIT_MS = 300_000;
-// IAM is eventually consistent: ECS may not be able to take a role created a moment ago.
-const NEW_ROLE_SETTLE_MS = 10_000;
 // Stop reasons a new task won't get past without someone changing something.
 const STUCK_REASONS = ["CannotPullContainerError", "ResourceInitializationError", "CannotStartContainerError"];
 
@@ -80,19 +76,22 @@ const STUCK_REASONS = ["CannotPullContainerError", "ResourceInitializationError"
 export class EcsAppHost implements AppHost {
   readonly target = "ecs" as const;
   private client: Promise<EcsAppClient> | null = null;
+  private readonly roles: EcsAppRoles;
 
   constructor(
     private readonly options: EcsAppHostOptions,
     private readonly clientFactory: () => Promise<EcsAppClient> = () => createEcsAppClient(options.region),
     private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     private readonly now: () => number = Date.now,
-  ) {}
+  ) {
+    this.roles = new EcsAppRoles(options, async () => (await this.aws()).iam, sleep);
+  }
 
   async create(spec: AppInstanceSpec): Promise<void> {
     const aws = await this.aws();
     const name = this.names(spec.instance).service;
     await this.stop(spec.instance, 1);
-    const taskRoleArn = await this.ensureRole(spec.projectId, isPreviewInstance(spec.instance));
+    const taskRoleArn = await this.roles.ensure(spec.projectId, isPreviewInstance(spec.instance));
     const registryArn = await this.ensureDiscovery(spec.instance);
     const registered = await aws.ecs.registerTaskDefinition(ecsAppTaskDefinition(spec, name, {
       region: this.options.region,
@@ -234,6 +233,10 @@ export class EcsAppHost implements AppHost {
   /** Services and security groups don't change when the platform's tasks are replaced. */
   async rejoinPlatform(): Promise<void> {}
 
+  async forgetSpace(projectId: string): Promise<void> {
+    await this.roles.remove(projectId);
+  }
+
   private names(instance: string) {
     return ecsAppNames(this.options.prefix, instance);
   }
@@ -274,36 +277,6 @@ export class EcsAppHost implements AppHost {
       tasks.push(...(described ?? []));
     }
     return tasks;
-  }
-
-  /** The role exists before its first task, with a policy that only reaches this App space's replica. */
-  private async ensureRole(projectId: string, preview: boolean): Promise<string> {
-    const aws = await this.aws();
-    const RoleName = ecsAppRoleName(this.options.prefix, projectId, preview);
-    let arn: string | undefined;
-    let created = false;
-    try {
-      arn = (await aws.iam.getRole({ RoleName })).Role?.Arn;
-    } catch (error) {
-      if (awsErrorName(error) !== "NoSuchEntityException") throw error;
-      arn = (await aws.iam.createRole({
-        RoleName,
-        Path: this.options.rolePath,
-        PermissionsBoundary: this.options.permissionsBoundaryArn,
-        AssumeRolePolicyDocument: JSON.stringify(ecsAppTrustPolicy(accountOf(this.options.permissionsBoundaryArn))),
-        Description: preview ? `Previews of Viberglass app ${projectId}` : `Viberglass app ${projectId}`,
-        Tags: [{ Key: "viberglass:app-project", Value: projectId }],
-      })).Role?.Arn;
-      created = true;
-    }
-    if (!arn) throw new Error(`IAM returned no role for ${RoleName}`);
-    await aws.iam.putRolePolicy({
-      RoleName,
-      PolicyName: "app-data",
-      PolicyDocument: JSON.stringify(ecsAppRolePolicy(this.options.bucket, projectId, preview)),
-    });
-    if (created) await this.sleep(NEW_ROLE_SETTLE_MS);
-    return arn;
   }
 
   private async discoveryId(instance: string): Promise<string | null> {
@@ -375,10 +348,4 @@ function newest(tasks: Task[]): Task | undefined {
 
 function awsErrorName(error: unknown): string | undefined {
   return error instanceof Error ? error.name : undefined;
-}
-
-function accountOf(arn: string): string {
-  const account = arn.split(":")[4];
-  if (!account) throw new Error(`Can't read the AWS account from ${arn}`);
-  return account;
 }

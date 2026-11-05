@@ -15,6 +15,8 @@ export interface AppRecord {
   rollback: RollbackOrder | null;
   /** When the running instance's storage credentials expire; null when the host's role supplies them. */
   credentialsExpireAt: Date | null;
+  /** The space was archived and a last copy of the data is owed once the app is off. */
+  archiveBackupDue: boolean;
 }
 
 /** A rollback a maintainer asked for, done on the app's next switch. */
@@ -78,11 +80,24 @@ export class AppDAO {
       .execute();
   }
 
-  /** Ends what `claim` began. */
+  /** Turns the app off for good when its space is archived. */
+  async turnOffForArchive(projectId: string, backupDue: boolean): Promise<void> {
+    await db
+      .updateTable("apps")
+      .set({ power: "off", archive_backup_due: backupDue, updated_at: new Date() })
+      .where("project_id", "=", projectId)
+      .execute();
+  }
+
+  async clearArchiveBackup(projectId: string): Promise<void> {
+    await db.updateTable("apps").set({ archive_backup_due: false, updated_at: new Date() }).where("project_id", "=", projectId).execute();
+  }
+
   async recordCredentials(projectId: string, expiresAt: Date | null): Promise<void> {
     await db.updateTable("apps").set({ credentials_expire_at: expiresAt, updated_at: new Date() }).where("project_id", "=", projectId).execute();
   }
 
+  /** Ends what `claim` began. */
   async finish(projectId: string, change: AppChange): Promise<void> {
     await db
       .updateTable("apps")
@@ -110,6 +125,7 @@ function toApp(row: AppRow): AppRecord {
     currentReleaseId: row.current_release_id,
     busySince: row.busy_since,
     credentialsExpireAt: row.credentials_expire_at,
+    archiveBackupDue: row.archive_backup_due,
     rollback:
       row.rollback_release_id && row.rollback_by
         ? { releaseId: row.rollback_release_id, backupId: row.rollback_backup_id, requestedBy: row.rollback_by }

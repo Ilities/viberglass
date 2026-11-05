@@ -14,6 +14,7 @@ export function fakeAppHost() {
     clearData: jest.fn(async () => undefined),
     delete: jest.fn(async () => undefined),
     rejoinPlatform: jest.fn(async () => undefined),
+    forgetSpace: jest.fn(async () => undefined),
   } satisfies AppHost;
 }
 

@@ -7,10 +7,13 @@ import type { AppReconciler } from "./AppReconciler";
 
 const logger = createChildLogger({ service: "AppSweep" });
 
-/** Looks at every App space's app: new releases go live, and apps turned on or off get there. */
+/**
+ * Looks at every App space's app: new releases go live, and apps turned on or
+ * off get there, including those of spaces just archived.
+ */
 export class AppSweep {
   constructor(
-    private readonly spaces: Pick<AppSpaceDAO, "listLiveIds">,
+    private readonly spaces: Pick<AppSpaceDAO, "listSweptIds">,
     private readonly apps: Pick<AppDAO, "get" | "ensure">,
     private readonly releases: Pick<AppReleaseDAO, "newestLiveCandidate">,
     private readonly reconciler: Pick<AppReconciler, "reconcile">,
@@ -19,7 +22,7 @@ export class AppSweep {
 
   /** Returns how many apps it acted on. Apps are independent, so one slow switch doesn't hold up the rest. */
   async sweep(now: Date): Promise<number> {
-    const ids = await this.spaces.listLiveIds();
+    const ids = await this.spaces.listSweptIds();
     await this.host()?.rejoinPlatform(ids).catch((error: unknown) => {
       logger.warn("Could not reconnect the platform to the apps' networks", { error: error instanceof Error ? error.message : String(error) });
     });

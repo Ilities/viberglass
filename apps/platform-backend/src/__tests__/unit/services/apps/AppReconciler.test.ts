@@ -14,7 +14,7 @@ const expiringIn = (hours: number, from = NOW) => new Date(from.getTime() + hour
 const BACK_TO_OLD = { releaseId: OLD.id, backupId: "backup-1", requestedBy: "user-1" };
 
 function record(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, ...overrides };
 }
 
 function build(app: AppRecord | null, options: { candidate?: AppRelease | null; host?: AppHost | null } = {}) {
@@ -35,9 +35,10 @@ function build(app: AppRecord | null, options: { candidate?: AppRelease | null; 
     runner: { run: jest.fn(async (): Promise<string | null> => null), restart: jest.fn(async (): Promise<string | null> => null) },
     switcher: { switchTo: jest.fn(async (): Promise<AppChange> => ({ state: "running", statusMessage: null, currentReleaseId: NEW.id })) },
     rollbacks: { settle: jest.fn(async () => undefined) },
+    finalBackup: { take: jest.fn(async () => undefined) },
   };
   const resolved = options.host === undefined ? host : options.host;
-  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks, () => WEEKLY);
+  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks, deps.finalBackup, () => WEEKLY);
   return { reconciler, host, deps };
 }
 
@@ -93,6 +94,30 @@ describe("AppReconciler", () => {
     await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
     expect(host.stop).toHaveBeenCalledWith("app-space-1", 30);
     expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "off", statusMessage: null });
+  });
+
+  it("keeps a copy of an archived space's data once its app has stopped", async () => {
+    const { reconciler, host, deps } = build(record({ power: "off", archiveBackupDue: true }));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(host.stop.mock.invocationCallOrder[0]).toBeLessThan(deps.finalBackup.take.mock.invocationCallOrder[0]);
+    expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "off", statusMessage: null });
+  });
+
+  it("copies the data of an archived space whose app was already off", async () => {
+    const { reconciler, host, deps } = build(record({ power: "off", state: "off", archiveBackupDue: true }));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(host.stop).not.toHaveBeenCalled();
+    expect(deps.finalBackup.take).toHaveBeenCalledWith(expect.objectContaining({ projectId: "space-1" }));
+  });
+
+  it("stops an archived space's app again when its copy failed, so the copy is tried again", async () => {
+    const { reconciler, deps } = build(record({ power: "off", archiveBackupDue: true }));
+    deps.finalBackup.take.mockRejectedValueOnce(new Error("storage down"));
+
+    await reconciler.reconcile("space-1", NOW);
+    expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "failed", statusMessage: "storage down" });
   });
 
   it("leaves an app alone while another start or stop is under way", async () => {
@@ -223,18 +248,18 @@ describe("AppReconciler", () => {
 
   it("leaves apps on ECS alone, whose task role keeps their credentials fresh", async () => {
     const threeAm = new Date("2026-11-04T03:10:00Z");
-    const { reconciler, deps } = build(record({ credentialsExpireAt: null }), { host: { ...fakeAppHost(), target: "ecs" } });
+    const { reconciler, deps } = build(record({ credentialsExpireAt: null, archiveBackupDue: false }), { host: { ...fakeAppHost(), target: "ecs" } });
 
     await expect(reconciler.reconcile("space-1", threeAm)).resolves.toBe(false);
     expect(deps.runner.restart).not.toHaveBeenCalled();
   });
 
   it("restarts an app started before credential expiry was recorded once, in the restart hour", async () => {
-    const atNoon = build(record({ credentialsExpireAt: null }));
+    const atNoon = build(record({ credentialsExpireAt: null, archiveBackupDue: false }));
     await expect(atNoon.reconciler.reconcile("space-1", NOW)).resolves.toBe(false);
 
     const threeAm = new Date("2026-11-04T03:10:00Z");
-    const atThree = build(record({ credentialsExpireAt: null }));
+    const atThree = build(record({ credentialsExpireAt: null, archiveBackupDue: false }));
     await expect(atThree.reconciler.reconcile("space-1", threeAm)).resolves.toBe(true);
     expect(atThree.deps.runner.restart).toHaveBeenCalled();
   });
