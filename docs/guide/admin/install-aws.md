@@ -62,7 +62,7 @@ When you turn apps on for an existing stack, update the base stack first, then r
 
 ## Files spaces
 
-Files spaces keep their files and artifacts in the platform's S3 bucket; nothing extra is needed. ECS workers fetch and save a space's files through short-lived signed URLs from the backend, so they need outbound HTTPS to S3 like their other traffic, and no S3 permissions of their own. Lambda runners can't run in Files spaces. A stopped worker task gets 60 seconds to save its files before ECS kills it; a task definition you supply yourself keeps its own `stopTimeout`, 30 seconds unless set. In production the bucket moves objects to Glacier Instant Retrieval after 90 days, which S3 still serves directly, so a space left alone for months can still be restored. The dev stack deletes objects after 90 days, including the files of a space nobody changed in that time.
+Files spaces keep their files and artifacts in the platform's S3 bucket; nothing extra is needed. ECS workers fetch and save a space's files through short-lived signed URLs from the backend, so they need outbound HTTPS to S3 like their other traffic, and no S3 permissions of their own. Lambda runners can't run in Files spaces. A stopped worker task gets 60 seconds to save its files before ECS kills it; a task definition you supply yourself keeps its own `stopTimeout`, 30 seconds unless set. In production the bucket moves objects to Glacier Instant Retrieval after 90 days, which S3 still serves directly, so a space left alone for months can still be restored. The dev stack keeps them in S3 Standard.
 
 ## Email
 

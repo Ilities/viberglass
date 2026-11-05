@@ -18,6 +18,8 @@ export interface RegistryOptions {
 export interface RegistryOutputs {
   /** Repository URL for docker push/pull */
   repositoryUrl: pulumi.Output<string>;
+  /** Repository name */
+  repositoryName: pulumi.Output<string>;
   /** Repository ARN */
   repositoryArn: pulumi.Output<string>;
   /** Repository ID */
@@ -43,6 +45,7 @@ export function createRegistry(options: RegistryOptions): RegistryOutputs {
 
   return {
     repositoryUrl: repo.url,
+    repositoryName: repo.repository.name,
     repositoryArn: repo.repository.arn,
     repositoryId: repo.repository.id,
   };

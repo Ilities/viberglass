@@ -15,8 +15,6 @@ export interface LoadBalancerOptions {
   publicSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
   /** VPC CIDR block for security group rules */
   vpcCidr: pulumi.Input<string>;
-  /** Backend security group ID for allowing traffic from ALB */
-  backendSecurityGroupId: pulumi.Input<string>;
   /** ACM certificate ARN for HTTPS (optional - will create cert if apiDomain provided) */
   certificateArn?: pulumi.Input<string> | undefined;
   /** API domain name for ACM certificate and Route53 alias (e.g., "api.viberglass.io") */
@@ -172,20 +170,6 @@ export function createLoadBalancer(
     },
   );
 
-  // Allow traffic from ALB to backend security group
-  const albToBackendRule = new aws.ec2.SecurityGroupRule(
-    `${options.environment}-viberglass-alb-to-backend`,
-    {
-      description: "Allow traffic from ALB to backend",
-      type: "egress",
-      fromPort: backendPort,
-      toPort: backendPort,
-      protocol: "tcp",
-      securityGroupId: albSecurityGroup.id,
-      sourceSecurityGroupId: options.backendSecurityGroupId,
-    },
-  );
-
   // 2. Create Target Group
   const targetGroup = new aws.lb.TargetGroup(
     `${options.environment}-viberglass-backend-tg`,
@@ -315,9 +299,7 @@ export function createLoadBalancer(
     targetGroupArn: targetGroup.arn,
     targetGroupName: targetGroup.name,
     albSecurityGroupId: albSecurityGroup.id,
-    httpListenerArn: pulumi
-      .all([httpListener.arn, albToBackendRule.id])
-      .apply(([arn]) => arn),
+    httpListenerArn: httpListener.arn,
     httpsListenerArn: httpsListener?.arn,
     certificateArn: certificate?.arn,
     apiDomain: apiDomainOutput,

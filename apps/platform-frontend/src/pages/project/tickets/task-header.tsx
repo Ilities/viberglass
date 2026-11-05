@@ -1,4 +1,4 @@
-import { Link } from '@/components/link'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Timestamp } from '@/components/timestamp'
 import { situationPhrase, type TaskSituationState, type Ticket } from '@viberglass/types'
 import clsx from 'clsx'
@@ -30,12 +30,14 @@ export function TaskHeader({
   const situation = ticket.situation
   return (
     <header>
-      <p className="mb-3 text-xs text-[var(--gray-10)]">
-        <Link href={`/spaces/${project}`} className="hover:text-[var(--gray-12)] hover:underline">
-          {spaceName}
-        </Link>{' '}
-        › {ticket.key}
-      </p>
+      <Breadcrumbs
+        className="mb-3"
+        items={[
+          { label: spaceName, href: `/spaces/${project}` },
+          { label: 'Tasks', href: `/spaces/${project}/tasks` },
+          { label: ticket.key },
+        ]}
+      />
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h1 className="text-[28px] leading-tight font-bold tracking-[-0.025em] text-[var(--gray-12)]">

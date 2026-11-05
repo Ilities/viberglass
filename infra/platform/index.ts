@@ -204,7 +204,6 @@ const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
   vpcId: vpcId,
   vpcCidr: vpcCidr,
   publicSubnetIds: publicSubnetIds,
-  backendSecurityGroupId: backendSecurityGroupId,
   healthCheckPath: "/health",
   backendPort: 80,
   apiDomain: config.apiDomain,
@@ -366,6 +365,7 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   config,
   email: email && { identityArn: email.identityArn, configurationSetArn: email.configurationSetArn, from: email.from },
   repositoryUrl: registry.repositoryUrl,
+  repositoryName: registry.repositoryName,
   logGroupName: backendLogGroupName,
   targetGroupArn: loadBalancer.targetGroupArn,
   subnetIds: backendSubnetIds,
@@ -418,6 +418,7 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
 const backendService = createBackendService({
   config,
   repositoryUrl: registry.repositoryUrl,
+  repositoryName: registry.repositoryName,
   logGroupName: backendLogGroupName,
   targetGroupArn: loadBalancer.targetGroupArn,
   subnetIds: backendSubnetIds,

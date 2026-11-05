@@ -11,6 +11,8 @@ export interface BackendEcsOptions {
   config: InfrastructureConfig;
   /** ECR repository URL for the backend image */
   repositoryUrl: pulumi.Output<string>;
+  /** ECR repository name, to pin the image by digest */
+  repositoryName: pulumi.Input<string>;
   /** CloudWatch log group name for backend logs */
   logGroupName: pulumi.Input<string>;
   /** Target group ARN from load balancer */
@@ -134,7 +136,11 @@ export function createBackendEcs(
   const defaultImageTag =
     options.config.environment === "prod" ? "prod-latest" : "latest";
   const imageTag = options.imageTag ?? defaultImageTag;
-  const backendImageUri = pulumi.interpolate`${options.repositoryUrl}:${imageTag}`;
+  const backendImageUri = pinnedImageUri(
+    options.repositoryUrl,
+    options.repositoryName,
+    imageTag,
+  );
 
   // IAM role for ECS task execution (pulls images, writes logs)
   const backendTaskExecutionRole = new aws.iam.Role(
@@ -689,15 +695,35 @@ export function createBackendService(
       enableExecuteCommand: true,
       tags: options.config.tags,
     },
-    {
-      // Backend deploy workflows update the service to CI-registered task definitions.
-      // Ignore taskDefinition drift so Pulumi doesn't roll back those updates.
-      ignoreChanges: ["taskDefinition"],
-    },
   );
 
   return {
     serviceArn: backendService.id,
     serviceName: backendService.name,
   };
+}
+
+/**
+ * The image the backend deploy workflow pushed under `tag`, by digest, so a
+ * `pulumi up` keeps the running image instead of rolling the service back.
+ * Before the first deploy there's no image yet, and the tag is used as is.
+ */
+function pinnedImageUri(
+  repositoryUrl: pulumi.Input<string>,
+  repositoryName: pulumi.Input<string>,
+  tag: pulumi.Input<string>,
+): pulumi.Output<string> {
+  return pulumi
+    .all([repositoryUrl, repositoryName, tag])
+    .apply(([url, name, imageTag]) =>
+      aws.ecr.getImage({ repositoryName: name, imageTag }).then(
+        (image) => `${url}@${image.imageDigest}`,
+        (error) => {
+          pulumi.log.warn(
+            `No backend image tagged ${imageTag} in ${name}, using the tag: ${error}`,
+          );
+          return `${url}:${imageTag}`;
+        },
+      ),
+    );
 }

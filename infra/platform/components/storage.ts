@@ -51,7 +51,8 @@ export interface StorageOutputs {
 /**
  * Gets lifecycle rules based on environment.
  *
- * Dev: Aggressive cleanup to save costs
+ * Dev: No expiry. Space files and live app bundles are read back however
+ * old they are.
  * Staging: Keep data longer with tiered storage
  * Prod: Long-term retention with Glacier Instant Retrieval. Space files and
  * artifacts are read back after months without changes, so current objects
@@ -69,10 +70,6 @@ function getLifecycleRules(environment: string): LifecycleRule[] {
       {
         id: "delete-noncurrent-versions",
         noncurrentVersionExpirationDays: 7,
-      },
-      {
-        id: "expire-current-objects",
-        expirationDays: 90,
       },
     ];
   }
