@@ -43,7 +43,7 @@ export class ReleaseCallbackService {
     const finished = await this.releases.finish(
       release.id,
       request.outcome === "ready"
-        ? { status: "ready", bundleSha256: request.sha256, bundleBytes: request.bundleBytes, nodeVersion: request.nodeVersion, buildLog }
+        ? { status: "ready", bundleSha256: request.sha256, bundleBytes: request.bundleBytes, nodeVersion: request.nodeVersion, buildLog, settings: request.settings ?? null }
         : { status: "failed", failureReason: request.reason.slice(0, 2000), buildLog },
     );
     if (!finished) throw new ReleaseCallbackDenied("This release already has its outcome");

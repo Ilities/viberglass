@@ -59,8 +59,16 @@ export interface AppInstanceSpec {
   instance: string
   projectId: string
   image: string
-  /** What the runtime image needs: the bundle, the data replica and its credentials. */
+  /** What the runtime image needs: the bundle, the data replica and its credentials, and the app's settings. */
   env: Record<string, string>
+  /** Secret settings the host fetches itself, so their values never appear in what it registers; only ECS uses these. */
+  secretRefs?: AppSecretRef[]
+}
+
+/** A secret setting as an environment variable read from an SSM parameter when the instance starts. */
+export interface AppSecretRef {
+  name: string
+  ssmParameter: string
 }
 
 export interface AppInstanceStatus {

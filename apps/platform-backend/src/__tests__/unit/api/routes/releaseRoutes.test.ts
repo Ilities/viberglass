@@ -51,12 +51,22 @@ describe("release build callbacks", () => {
     expect(releases.complete).toHaveBeenLastCalledWith("build_1", "api-server", failed);
   });
 
+  it("records the settings a ready build's manifest declares", async () => {
+    const { app, releases } = setup();
+    const settings = [{ name: "SLACK_TOKEN", secret: true, description: "Posts to Slack" }];
+
+    await request(app).post("/api/jobs/build_1/release/complete").send({ ...READY, settings }).expect(200);
+    expect(releases.complete).toHaveBeenLastCalledWith("build_1", "api-server", { ...READY, settings });
+  });
+
   it.each([
     ["a sha256 that isn't one", { ...READY, sha256: "nope" }],
     ["an empty bundle", { ...READY, bundleBytes: 0 }],
     ["a Node version that isn't one", { ...READY, nodeVersion: "24" }],
     ["no build log", { outcome: "failed", reason: "x" }],
     ["an unknown outcome", { ...READY, outcome: "live" }],
+    ["settings that aren't a list", { ...READY, settings: "SLACK_TOKEN" }],
+    ["a reserved setting name", { ...READY, settings: [{ name: "AWS_REGION", secret: false }] }],
   ])("refuses %s", async (_case, body) => {
     const { app, releases } = setup();
 

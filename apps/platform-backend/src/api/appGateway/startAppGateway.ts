@@ -3,6 +3,7 @@ import { appsDomain } from "../../services/apps/appSpaceAvailability";
 import { appSignIn } from "../../services/apps/createAppSignIn";
 import { PreviewOpenings } from "../../services/apps/PreviewOpenings";
 import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
+import { refuseAppNetworks } from "../refuseAppNetworks";
 import { createAppGateway } from "./createAppGateway";
 
 const logger = createChildLogger({ server: "app-gateway" });
@@ -26,7 +27,7 @@ export function startAppGateway(env: Record<string, string | undefined> = proces
     const label = origins.slugFromHost(host);
     return Boolean(label && (await targets.find(label)));
   };
-  createAppGateway({
+  refuseAppNetworks(createAppGateway({
     origins,
     resolver,
     signIn: service,
@@ -34,5 +35,5 @@ export function startAppGateway(env: Record<string, string | undefined> = proces
     previewOpened: (id) => openings.opened(id),
     trustProxy: env.APPS_TRUST_PROXY?.trim() === "true",
     certificateAllowed,
-  }).listen(port, () => logger.info("App gateway listening", { port }));
+  })).listen(port, () => logger.info("App gateway listening", { port }));
 }

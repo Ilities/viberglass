@@ -44,6 +44,7 @@ import { TaskIssueMirror } from "../services/trackers/TaskIssueMirror";
 import { spaceFilesRuns } from "../services/spaceFiles/SpaceFilesRunService";
 import { TaskTurnJobDispatcher } from "../services/taskTurns/TaskTurnJobDispatcher";
 import { createPreviewApp } from "./previewServer";
+import { refuseAppNetworks } from "./refuseAppNetworks";
 import { startAppGateway } from "./appGateway/startAppGateway";
 import { SpaceFileChangeQueue } from "../services/spaceFiles/SpaceFileChangeQueue";
 import { SpaceFilesOrphanCleanup } from "../services/spaceFiles/SpaceFilesOrphanCleanup";
@@ -295,11 +296,12 @@ async function startServer(): Promise<void> {
   // Artifact previews run on their own origin, so their scripts never share the app's.
   const previewPort = process.env.PREVIEW_PORT ? Number(process.env.PREVIEW_PORT) : null;
   if (previewPort) {
-    http.createServer(createPreviewApp()).listen(previewPort, () => logger.info("Preview origin listening", { port: previewPort }));
+    refuseAppNetworks(http.createServer(createPreviewApp())).listen(previewPort, () => logger.info("Preview origin listening", { port: previewPort }));
   }
 
   startAppGateway();
 
+  refuseAppNetworks(server);
   // Listen on provided port and optional host.
   if (typeof port === "string") {
     server.listen(port);

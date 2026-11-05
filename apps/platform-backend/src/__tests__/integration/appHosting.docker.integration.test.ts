@@ -15,6 +15,7 @@ import { appRelease } from "../helpers/fakeAppHost";
 
 const RUNTIME_IMAGE = process.env.APP_RUNTIME_IMAGE || "viberglass-app-runtime-node:latest";
 const BUCKET = "apps-test";
+const NO_SETTINGS = { forInstance: async () => ({ env: {}, secretRefs: [] }) };
 
 function imageExists(image: string): boolean {
   try {
@@ -59,7 +60,7 @@ function inApp(method: "GET" | "POST", url: string, instance = INSTANCE): string
 async function startRelease(preview?: string): Promise<void> {
   const release = appRelease(RELEASE_ID, { projectId: PROJECT, bundleSha256: env.BUNDLE_SHA256 });
   const role = preview ? { kind: "preview" as const, instance: preview } : undefined;
-  const { spec } = await new AppInstanceSpecs(new StsAppDataCredentials(() => env), () => env).specFor("docker", release, role);
+  const { spec } = await new AppInstanceSpecs(new StsAppDataCredentials(() => env), NO_SETTINGS, () => env).specFor("docker", release, role);
   await host.create(spec);
   await host.start(spec.instance);
   await waitForHealth(spec.instance);

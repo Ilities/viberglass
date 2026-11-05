@@ -81,6 +81,7 @@ The gateway also sets \`X-Forwarded-For\`, \`X-Forwarded-Proto\` and \`X-Forward
 
 - App settings are values the space's maintainers set, such as an API key or a channel URL. The app reads them from environment variables.
 - Declare every setting the app reads in the manifest. Use names of upper-case letters, digits and underscores, starting with a letter, and mark keys, tokens and passwords as secret.
+- Viberglass sets some variables itself, so they can't be settings: \`PORT\`, \`HOME\`, \`PATH\`, \`NODE_OPTIONS\`, \`APP_DATABASE_PATH\`, and names starting with \`VIBERGLASS_\`, \`AWS_\` or \`LITESTREAM_\`. A manifest that declares one fails the build.
 - You never see secret values. Don't put real values in code, tests or the repository.
 - A missing setting must never stop the app from starting. Start anyway, keep \`${APP_HEALTH_PATH}\` answering 200, and show the people using the app which settings are missing and what doesn't work until a maintainer sets them. Features that don't need the setting keep working.
 

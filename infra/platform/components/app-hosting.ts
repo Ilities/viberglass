@@ -87,6 +87,20 @@ export function createAppHosting(options: AppHostingOptions): AppHostingOutputs 
     role: executionRole.name,
     policyArn: "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   });
+  // ECS reads apps' secret settings into their containers; the backend keeps them under this prefix.
+  new aws.iam.RolePolicy(`${name}-exec-settings`, {
+    role: executionRole.id,
+    policy: accountId.apply((account) => JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: ["ssm:GetParameters"],
+          Resource: `arn:aws:ssm:${options.awsRegion}:${account}:parameter/viberator/secrets/apps/*`,
+        },
+      ],
+    })),
+  });
 
   // The most any app's role can do; each role's own policy narrows it to one App space.
   const boundary = new aws.iam.Policy(`${name}-boundary`, {

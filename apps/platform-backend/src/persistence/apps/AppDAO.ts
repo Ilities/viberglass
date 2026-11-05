@@ -17,6 +17,8 @@ export interface AppRecord {
   credentialsExpireAt: Date | null;
   /** The space was archived and a last copy of the data is owed once the app is off. */
   archiveBackupDue: boolean;
+  /** Its settings changed while it ran, so it's restarted with them. */
+  restartDue: boolean;
 }
 
 /** A rollback a maintainer asked for, done on the app's next switch. */
@@ -89,6 +91,15 @@ export class AppDAO {
       .execute();
   }
 
+  /** Only an app that exists can be running with old settings. */
+  async requestRestart(projectId: string): Promise<void> {
+    await db.updateTable("apps").set({ restart_due: true, updated_at: new Date() }).where("project_id", "=", projectId).execute();
+  }
+
+  async clearRestart(projectId: string): Promise<void> {
+    await db.updateTable("apps").set({ restart_due: false }).where("project_id", "=", projectId).execute();
+  }
+
   async clearArchiveBackup(projectId: string): Promise<void> {
     await db.updateTable("apps").set({ archive_backup_due: false, updated_at: new Date() }).where("project_id", "=", projectId).execute();
   }
@@ -126,6 +137,7 @@ function toApp(row: AppRow): AppRecord {
     busySince: row.busy_since,
     credentialsExpireAt: row.credentials_expire_at,
     archiveBackupDue: row.archive_backup_due,
+    restartDue: row.restart_due,
     rollback:
       row.rollback_release_id && row.rollback_by
         ? { releaseId: row.rollback_release_id, backupId: row.rollback_backup_id, requestedBy: row.rollback_by }

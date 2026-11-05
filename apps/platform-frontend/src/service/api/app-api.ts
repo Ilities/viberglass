@@ -1,6 +1,15 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { ApiResponse, AppAccessAddition, AppAccessList, AppHandoff, AppView, OpenableApp } from '@viberglass/types'
+import type {
+  ApiResponse,
+  AppAccessAddition,
+  AppAccessList,
+  AppHandoff,
+  AppSettingsView,
+  AppView,
+  OpenableApp,
+  SaveAppSettingRequest,
+} from '@viberglass/types'
 
 async function readData<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
@@ -36,7 +45,10 @@ export async function rollBackApp(projectId: string, releaseId: string, withData
 }
 
 export async function getAppLogs(projectId: string): Promise<string> {
-  const { logs } = await readData<{ logs: string }>(await apiFetch(`${appUrl(projectId)}/logs`), "Couldn't load the app's logs")
+  const { logs } = await readData<{ logs: string }>(
+    await apiFetch(`${appUrl(projectId)}/logs`),
+    "Couldn't load the app's logs"
+  )
   return logs
 }
 
@@ -80,5 +92,30 @@ export async function cancelAppInvite(projectId: string, inviteId: string): Prom
   return readData(
     await apiFetch(`${appUrl(projectId)}/access/invites/${encodeURIComponent(inviteId)}`, { method: 'DELETE' }),
     "Couldn't cancel the invite"
+  )
+}
+
+export async function getAppSettings(projectId: string): Promise<AppSettingsView> {
+  return readData(await apiFetch(`${appUrl(projectId)}/settings`), "Couldn't load the app's settings")
+}
+
+/** Saving restarts the running app with the new value. */
+export async function saveAppSetting(
+  projectId: string,
+  name: string,
+  request: SaveAppSettingRequest
+): Promise<AppSettingsView> {
+  const response = await apiFetch(`${appUrl(projectId)}/settings/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  return readData(response, "Couldn't save the setting")
+}
+
+export async function removeAppSetting(projectId: string, name: string): Promise<AppSettingsView> {
+  return readData(
+    await apiFetch(`${appUrl(projectId)}/settings/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+    "Couldn't remove the setting"
   )
 }

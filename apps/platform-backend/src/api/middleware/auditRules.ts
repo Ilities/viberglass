@@ -92,6 +92,15 @@ export const SPACE_AUDIT: AuditRule[] = [
   },
   { method: "POST", path: "/:projectId/app/access", action: "app.access_added", targetType: "space", targetParam: "projectId", details: (req) => ({ email: bodyField(req, "email") }) },
   { method: "DELETE", path: "/:projectId/app/access/invites/:inviteId", action: "app.access_removed", targetType: "space", targetParam: "projectId", details: (req) => ({ inviteId: req.params.inviteId }) },
+  {
+    method: "PUT",
+    path: "/:projectId/app/settings/:settingName",
+    action: "app.setting_saved",
+    targetType: "space",
+    targetParam: "projectId",
+    details: (req) => ({ name: req.params.settingName, secret: bodyField(req, "secret") === true }),
+  },
+  { method: "DELETE", path: "/:projectId/app/settings/:settingName", action: "app.setting_removed", targetType: "space", targetParam: "projectId", details: (req) => ({ name: req.params.settingName }) },
   { method: "DELETE", path: "/:projectId/app/access/:userId", action: "app.access_removed", targetType: "space", targetParam: "projectId", details: (req) => ({ userId: req.params.userId }) },
   {
     method: "PUT",

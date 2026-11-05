@@ -199,6 +199,8 @@ export interface AppReleasesTable {
   rolled_back_at: Timestamp | null;
   bundle_removed_at: Timestamp | null;
   bundle_purged_at: Timestamp | null;
+  /** The settings its manifest declares; null for releases built before they were recorded. */
+  settings: Json | null;
   created_at: Generated<Timestamp>;
   finished_at: Timestamp | null;
 }
@@ -236,6 +238,7 @@ export interface AppsTable {
   rollback_by: string | null;
   credentials_expire_at: Timestamp | null;
   archive_backup_due: Generated<boolean>;
+  restart_due: Generated<boolean>;
   updated_at: Generated<Timestamp>;
 }
 
@@ -265,6 +268,16 @@ export interface AppSessionsTable {
   preview_id: string | null;
   created_at: Generated<Timestamp>;
   expires_at: Timestamp;
+}
+
+export interface AppSettingsTable {
+  project_id: string;
+  name: string;
+  value: string | null;
+  secret_id: string | null;
+  for_previews: Generated<boolean>;
+  updated_by: string | null;
+  updated_at: Generated<Timestamp>;
 }
 
 export interface AppDataBackupsTable {
@@ -1021,6 +1034,7 @@ export interface Database {
   workspace_settings: WorkspaceSettingsTable;
   app_releases: AppReleasesTable;
   app_previews: AppPreviewsTable;
+  app_settings: AppSettingsTable;
   apps: AppsTable;
   app_data_backups: AppDataBackupsTable;
   app_handoff_codes: AppHandoffCodesTable;

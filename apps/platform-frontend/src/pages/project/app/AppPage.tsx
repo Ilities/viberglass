@@ -6,12 +6,13 @@ import { Timestamp } from '@/components/timestamp'
 import { useProject } from '@/context/project-context'
 import { getApp, rollBackApp, turnAppOff, turnAppOn } from '@/service/api/app-api'
 import { RocketIcon } from '@radix-ui/react-icons'
-import type { AppRelease, AppRunState, AppView } from '@viberglass/types'
+import type { AppRelease, AppRunState, AppSettingsView, AppView } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AppAccess } from './app-access'
 import { AppLogs } from './app-logs'
+import { AppSettings } from './app-settings'
 import { ReleasesTable, shortSha } from './releases-table'
 import { RollbackDialog } from './rollback-dialog'
 
@@ -32,6 +33,8 @@ export function AppPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [switching, setSwitching] = useState(false)
   const [restoring, setRestoring] = useState<AppRelease | null>(null)
+  const [missingSettings, setMissingSettings] = useState<string[]>([])
+  const settingsLoaded = useCallback((view: AppSettingsView) => setMissingSettings(view.missing), [])
   const projectId = project?.id
   const isApp = project?.backingKind === 'app'
 
@@ -65,7 +68,9 @@ export function AppPage() {
   const canOpen = app?.state === 'running'
   const canToggle =
     canMaintain &&
-    Boolean(app && (app.currentRelease || app.power === 'on' || app.releases.some((release) => release.status === 'ready')))
+    Boolean(
+      app && (app.currentRelease || app.power === 'on' || app.releases.some((release) => release.status === 'ready'))
+    )
   const toggle = async () => {
     if (!app) return
     setSwitching(true)
@@ -101,7 +106,11 @@ export function AppPage() {
                 </Button>
               )}
               {canToggle && (
-                <Button {...(canOpen ? { outline: true } : { color: 'brand' })} onClick={() => void toggle()} disabled={switching || turning}>
+                <Button
+                  {...(canOpen ? { outline: true } : { color: 'brand' })}
+                  onClick={() => void toggle()}
+                  disabled={switching || turning}
+                >
                   {app.power === 'on' ? 'Turn off' : 'Turn on'}
                 </Button>
               )}
@@ -111,6 +120,14 @@ export function AppPage() {
       />
 
       {app && <RollbackNotice app={app} />}
+
+      {missingSettings.length > 0 && (
+        <p role="status" className="mb-4 rounded-md bg-[var(--amber-3)] px-4 py-3 text-sm text-[var(--amber-11)]">
+          The app asks for {missingSettings.length === 1 ? 'a setting' : 'settings'} that{' '}
+          {missingSettings.length === 1 ? "isn't" : "aren't"} set: {missingSettings.join(', ')}. Set{' '}
+          {missingSettings.length === 1 ? 'it' : 'them'} under Settings below.
+        </p>
+      )}
 
       {app?.statusMessage && (
         <p role="status" className="mb-4 rounded-md bg-[var(--gray-3)] px-4 py-3 text-sm text-[var(--gray-11)]">
@@ -151,6 +168,7 @@ export function AppPage() {
         />
       )}
 
+      {canMaintain && <AppSettings projectId={project.id} onLoad={settingsLoaded} />}
       {canMaintain && <AppAccess projectId={project.id} />}
       {canMaintain && app && app.releases.length > 0 && <AppLogs projectId={project.id} />}
     </>
@@ -169,7 +187,8 @@ function awaitingChange(app: AppView): boolean {
 function RollbackNotice({ app }: { app: AppView }) {
   const pending = app.rollback && app.releases.find((release) => release.id === app.rollback?.releaseId)
   const current = app.currentRelease
-  const setAside = current && app.releases.some((release) => release.rolledBackAt && release.createdAt > current.createdAt)
+  const setAside =
+    current && app.releases.some((release) => release.rolledBackAt && release.createdAt > current.createdAt)
   const message = pending
     ? `Switching to release ${shortSha(pending.commitSha)}${app.rollback?.withData ? ' with its data' : ''}…`
     : setAside

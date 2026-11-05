@@ -4,7 +4,8 @@ import { appRelease } from "../../../helpers/fakeAppHost";
 
 describe("AppInstanceSpecs on ECS", () => {
   const credentials = { forApp: jest.fn(), forPreview: jest.fn() };
-  const specs = new AppInstanceSpecs(credentials, () => ECS_APPS_ENV);
+  const settings = { forInstance: jest.fn(async () => ({ env: {}, secretRefs: [] as Array<{ name: string; ssmParameter: string }> })) };
+  const specs = new AppInstanceSpecs(credentials, settings, () => ECS_APPS_ENV);
 
   it("names the bundle by its key and leaves the credentials to the task role", async () => {
     const release = appRelease("r1", { bundleSha256: "abc" });
@@ -24,5 +25,15 @@ describe("AppInstanceSpecs on ECS", () => {
     expect(credentialsExpireAt).toBeNull();
     expect(credentials.forApp).not.toHaveBeenCalled();
     expect(credentials.forPreview).not.toHaveBeenCalled();
+  });
+
+  it("puts the app's settings under what the runtime sets, and passes secret references on", async () => {
+    settings.forInstance.mockResolvedValueOnce({ env: { SLACK_CHANNEL: "#laptops" }, secretRefs: [{ name: "SLACK_TOKEN", ssmParameter: "/viberator/secrets/apps/space-1/SLACK_TOKEN" }] });
+
+    const { spec } = await specs.specFor("ecs", appRelease("r1", { bundleSha256: "abc" }));
+
+    expect(settings.forInstance).toHaveBeenCalledWith("space-1", false, "ecs");
+    expect(spec.env).toMatchObject({ SLACK_CHANNEL: "#laptops", VIBERGLASS_DATA_PATH: "spaces/space-1/app-data" });
+    expect(spec.secretRefs).toEqual([{ name: "SLACK_TOKEN", ssmParameter: "/viberator/secrets/apps/space-1/SLACK_TOKEN" }]);
   });
 });

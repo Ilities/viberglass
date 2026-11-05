@@ -1,6 +1,7 @@
 import { liveAppInstance, previewInstance, type AppHost } from "@viberglass/types";
 import type { AppDAO } from "../../persistence/apps/AppDAO";
 import type { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
+import type { AppSettingDAO } from "../../persistence/apps/AppSettingDAO";
 import type { RepositoryHost } from "@viberglass/integration-core";
 import { AppSpaceError } from "./AppSpaceError";
 
@@ -15,8 +16,8 @@ function message(error: unknown): string {
 
 /**
  * What deleting an App space removes outside its rows: the app's and its
- * previews' instances, what the host keeps for the space, and the repository,
- * which is archived. Returns what couldn't be done but doesn't stop the deletion.
+ * previews' instances, what the host keeps for the space, its secret settings,
+ * and the repository, which is archived. Returns what couldn't be done but doesn't stop the deletion.
  */
 export class AppSpaceTeardown {
   constructor(
@@ -25,6 +26,8 @@ export class AppSpaceTeardown {
     private readonly host: () => AppHost | null,
     private readonly scmConfigs: { getByProjectId(projectId: string): Promise<{ sourceRepository: string } | null> },
     private readonly repositories: { resolve(projectId: string): Promise<SpaceRepository> },
+    private readonly settings: Pick<AppSettingDAO, "list">,
+    private readonly secrets: { deleteSecret(id: string): Promise<boolean> },
   ) {}
 
   /** Throws APP_BUSY while the app or a preview is starting or stopping, before anything is removed. */
@@ -37,6 +40,9 @@ export class AppSpaceTeardown {
       for (const id of previewIds) await host.delete(previewInstance(id));
       await host.delete(liveAppInstance(projectId));
       await host.forgetSpace(projectId);
+    }
+    for (const setting of await this.settings.list(projectId)) {
+      if (setting.secretId) await this.secrets.deleteSecret(setting.secretId);
     }
     const warning = await this.archiveRepository(projectId);
     return warning ? [warning] : [];

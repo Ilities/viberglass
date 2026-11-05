@@ -36,13 +36,13 @@ function message(error: unknown): string {
 /**
  * Brings an app to what its maintainers asked for: stopped when it's off, and
  * serving the release they rolled back to, or else its newest, when it's on.
- * A running app is restarted before its storage credentials expire, and an
+ * A running app is restarted when its settings change and before its storage credentials expire, and an
  * archived space's app leaves a last copy of its data once it's stopped. One
  * app does one thing at a time.
  */
 export class AppReconciler {
   constructor(
-    private readonly apps: Pick<AppDAO, "get" | "claim" | "update" | "finish" | "clearRollback">,
+    private readonly apps: Pick<AppDAO, "get" | "claim" | "update" | "finish" | "clearRollback" | "clearRestart">,
     private readonly releases: Pick<AppReleaseDAO, "getById" | "newestLiveCandidate" | "markLiveFailure">,
     private readonly host: () => AppHost | null,
     private readonly runner: Pick<AppInstanceRunner, "run" | "restart">,
@@ -60,6 +60,8 @@ export class AppReconciler {
 
     const app = await this.apps.claim(projectId, staleBefore);
     if (!app) return false;
+    // Whatever runs next reads the settings as they are now; a change after this asks again.
+    if (app.restartDue) await this.apps.clearRestart(projectId);
     let outcome: AppChange = {};
     try {
       const action = await this.actionFor(app, now);
@@ -100,7 +102,9 @@ export class AppReconciler {
     const candidate = await this.releases.newestLiveCandidate(app.projectId);
     const newer = candidate && candidate.id !== current?.id && (!current || candidate.createdAt > current.createdAt);
     if (newer) return { kind: "switch", release: candidate };
-    if (current && app.state === "running" && credentialsDue(this.expiry(app), now, this.rotation())) return { kind: "refresh", release: current };
+    if (current && app.state === "running" && (app.restartDue || credentialsDue(this.expiry(app), now, this.rotation()))) {
+      return { kind: "refresh", release: current };
+    }
     return current && app.state !== "running" && app.state !== "failed" ? { kind: "start", release: current } : null;
   }
 
@@ -165,8 +169,8 @@ export class AppReconciler {
     try {
       failure = await this.runner.restart(host, release);
     } catch (error) {
-      logger.warn("Could not issue new storage credentials for an app", { projectId: release.projectId, error: message(error) });
-      return { statusMessage: `Couldn't issue new storage credentials, so the app keeps its current ones for now: ${message(error)}` };
+      logger.warn("Could not prepare an app's restart", { projectId: release.projectId, error: message(error) });
+      return { statusMessage: `Couldn't restart the app, so it keeps running as it was for now: ${message(error)}` };
     }
     return failure ? { state: "failed", statusMessage: failure } : { state: "running", statusMessage: null };
   }

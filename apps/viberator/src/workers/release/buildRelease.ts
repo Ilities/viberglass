@@ -50,6 +50,7 @@ export async function buildRelease(deps: BuildReleaseDeps): Promise<void> {
     bundleBytes: bundle.bytes,
     nodeVersion: process.version,
     buildLog: built.log,
+    settings: manifest.manifest.settings,
   });
 }
 

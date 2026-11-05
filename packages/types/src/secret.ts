@@ -5,10 +5,10 @@ import { MCP_HEADER_ENV_VAR_PREFIX } from './mcpServer'
 export type SecretLocation = 'env' | 'database' | 'ssm'
 
 /** What the platform keeps a secret for, when it manages the secret itself. */
-export type SecretPurpose = 'agent_login' | 'model_host'
+export type SecretPurpose = 'agent_login' | 'model_host' | 'app_setting'
 
 export function isSecretPurpose(value: unknown): value is SecretPurpose {
-  return value === 'agent_login' || value === 'model_host'
+  return value === 'agent_login' || value === 'model_host' || value === 'app_setting'
 }
 
 export interface Secret {

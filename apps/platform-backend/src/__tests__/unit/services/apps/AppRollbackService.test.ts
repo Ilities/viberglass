@@ -7,7 +7,7 @@ jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, 
 
 const OLD = appRelease("old", { wentLiveAt: "2026-11-02T10:00:00.000Z" });
 const CURRENT = appRelease("current", { wentLiveAt: "2026-11-03T10:00:00.000Z" });
-const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: CURRENT.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false };
+const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: CURRENT.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false };
 
 function build(release = OLD) {
   const deps = {

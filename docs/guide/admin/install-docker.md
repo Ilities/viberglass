@@ -55,7 +55,7 @@ A task's change can be tried in a preview at `http://preview-<id>.apps.localhost
 
 Object storage keeps what's needed to roll an app back. That's the bundles of the 5 releases that went live most recently (`APPS_KEEP_LIVE_RELEASES`), plus the current one, and data backups from the last 30 days (`APPS_KEEP_BACKUP_DAYS`). It also keeps the newest copy of each kept release's data. Builds that never went live, including previews' builds once no preview uses them, are removed after 7 days (`APPS_UNUSED_BUILD_DAYS`). The release list on the App page still shows a removed release, but it can't be made live again.
 
-Each app and preview runs in its own container, on its own Docker network that only the backend and object storage join. Each network gets a /24 subnet from `10.250.0.0/16` (`APPS_NETWORK_POOL`), so the pool holds 256 apps and previews at a time. Docker doesn't stop a container from opening connections to the machine it runs on or to private addresses, so before you run apps, add host firewall rules that drop them. Without the rules an app can reach the backend's API, every port the machine publishes and, on a cloud server, its metadata service.
+Each app and preview runs in its own container, on its own Docker network that only the backend and object storage join. Each network gets a /24 subnet from `10.250.0.0/16` (`APPS_NETWORK_POOL`), so the pool holds 256 apps and previews at a time. Docker doesn't filter traffic between containers on one network, so the backend itself drops every connection that comes from the pool; only the gateway opens connections to apps. Object storage on the same network is reached with the app's own credentials. Docker also doesn't stop a container from opening connections to the machine it runs on or to private addresses, so before you run apps, add host firewall rules that drop them. Without the rules an app can reach every port the machine publishes, other machines on its private network and, on a cloud server, its metadata service.
 
 On Linux, with Docker's iptables firewall backend (the default), save this as `/usr/local/sbin/viberglass-apps-firewall` and make it executable:
 
@@ -80,7 +80,7 @@ iptables -C INPUT -s "$POOL" -m conntrack --ctstate NEW -j DROP 2>/dev/null || i
 
 Run it once with `sudo`, and again after every reboot, for example from a systemd unit that runs after `docker.service`. Running it twice is safe. If you change `APPS_NETWORK_POOL`, change `POOL` to match.
 
-To check the rules, open a shell in a running app's container (`docker exec -it viberglass-app-<space id> sh`) and try `curl -m 3 http://viberglass-local-backend-1:8888/health`. It should time out, and `curl -m 3 https://example.com` should answer. On a cloud server, also require IMDSv2 with a hop limit of 1 on the instance.
+To check the rules, find the machine's private address (`hostname -I`), open a shell in a running app's container (`docker exec -it viberglass-app-<space id> sh`) and try `curl -m 3 http://<private address>:8080/`. It should time out, and `curl -m 3 https://example.com` should answer. On a cloud server, also require IMDSv2 with a hop limit of 1 on the instance.
 
 The rules can't be added this way on Docker Desktop (macOS and Windows), so there apps can reach the machine. Run only apps you trust there.
 

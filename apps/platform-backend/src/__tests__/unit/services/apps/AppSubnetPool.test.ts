@@ -20,4 +20,15 @@ describe("AppSubnetPool", () => {
     expect(() => new AppSubnetPool("10.250.0.0/25")).toThrow(/APPS_NETWORK_POOL/);
     expect(() => new AppSubnetPool("fd00::/64")).toThrow(/APPS_NETWORK_POOL/);
   });
+
+  it("knows which connection addresses come from an app network", () => {
+    const pool = new AppSubnetPool("10.250.0.0/16");
+
+    expect(pool.containsAddress("10.250.3.7")).toBe(true);
+    expect(pool.containsAddress("::ffff:10.250.0.2")).toBe(true);
+    expect(pool.containsAddress("10.251.0.1")).toBe(false);
+    expect(pool.containsAddress("172.18.0.5")).toBe(false);
+    expect(pool.containsAddress("::1")).toBe(false);
+    expect(pool.containsAddress(undefined)).toBe(false);
+  });
 });

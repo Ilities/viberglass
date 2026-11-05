@@ -7,7 +7,7 @@ import { appPreview, fakeAppHost } from "../../../helpers/fakeAppHost";
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const NOW = new Date("2026-11-05T12:00:00Z");
-const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false };
+const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false };
 const REPOSITORY = { fullName: "acme/laptops", url: "https://github.com/acme/laptops" };
 
 function build(options: { app?: AppRecord | null; archive?: RepositoryHost["archiveRepository"]; unavailable?: string } = {}) {
@@ -31,13 +31,20 @@ function build(options: { app?: AppRecord | null; archive?: RepositoryHost["arch
       resolve: jest.fn(async () => (options.unavailable ? { unavailable: options.unavailable } : { host: codeHost, token: "tok" })),
     },
   };
-  const teardown = new AppSpaceTeardown(deps.apps, deps.previews, () => host, deps.scmConfigs, deps.repositories);
-  return { teardown, host, deps, archiveRepository };
+  const settings = {
+    list: jest.fn(async () => [
+      { projectId: "space-1", name: "SLACK_CHANNEL", value: "#laptops", secretId: null, forPreviews: false, updatedAt: NOW },
+      { projectId: "space-1", name: "SLACK_TOKEN", value: null, secretId: "sec-1", forPreviews: false, updatedAt: NOW },
+    ]),
+  };
+  const secrets = { deleteSecret: jest.fn(async () => true) };
+  const teardown = new AppSpaceTeardown(deps.apps, deps.previews, () => host, deps.scmConfigs, deps.repositories, settings, secrets);
+  return { teardown, host, deps, archiveRepository, secrets };
 }
 
 describe("AppSpaceTeardown", () => {
   it("removes the previews, the app and what the host keeps, then archives the repository", async () => {
-    const { teardown, host, deps, archiveRepository } = build();
+    const { teardown, host, deps, archiveRepository, secrets } = build();
 
     await expect(teardown.tearDown("space-1", NOW)).resolves.toEqual([]);
 
@@ -45,6 +52,7 @@ describe("AppSpaceTeardown", () => {
     expect(deps.apps.update).toHaveBeenCalledWith("space-1", { power: "off" });
     expect(host.delete.mock.calls).toEqual([["preview-pv-1"], ["preview-pv-2"], ["app-space-1"]]);
     expect(host.forgetSpace).toHaveBeenCalledWith("space-1");
+    expect(secrets.deleteSecret.mock.calls).toEqual([["sec-1"]]);
     expect(archiveRepository).toHaveBeenCalledWith(REPOSITORY, "tok");
   });
 

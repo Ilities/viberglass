@@ -47,6 +47,7 @@ import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipSer
 import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
 import { registerAppRoutes } from "./appRoutes";
 import { registerAppAccessRoutes } from "./appAccessRoutes";
+import { registerAppSettingsRoutes } from "./appSettingsRoutes";
 import { appHosting } from "../../services/apps/createAppHosting";
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
@@ -98,6 +99,7 @@ router.param("name", spaceGuard);
 registerSpaceMemberRoutes(router, new SpaceMembershipService());
 registerAppRoutes(router, appHosting().service, spaceAccess, appHosting().rollbacks);
 registerAppAccessRoutes(router, createAppAccessListService(), spaceAccess);
+registerAppSettingsRoutes(router, appHosting().settings, spaceAccess);
 
 /**
  * Enrich project with derived ticket system from primaryTicketingIntegrationId

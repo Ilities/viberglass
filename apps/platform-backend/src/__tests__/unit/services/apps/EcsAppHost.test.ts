@@ -123,6 +123,7 @@ describe("EcsAppHost", () => {
       { name: "HOME", value: "/tmp" },
     ]));
     expect(app.mountPoints?.map((m) => m.containerPath)).toEqual(["/data", "/app", "/tmp"]);
+    expect(app).not.toHaveProperty("secrets");
 
     expect(client.ecs.createService).toHaveBeenCalledWith(expect.objectContaining({
       serviceName: SERVICE,
@@ -131,6 +132,16 @@ describe("EcsAppHost", () => {
       networkConfiguration: { awsvpcConfiguration: { subnets: ["subnet-a", "subnet-b"], securityGroups: ["sg-apps"], assignPublicIp: "DISABLED" } },
       serviceRegistries: [{ registryArn: "arn:aws:servicediscovery:eu-west-1:1:service/srv-1" }],
     }));
+  });
+
+  it("has ECS read secret settings from SSM, keeping their values out of the task definition", async () => {
+    const { host, client } = build();
+
+    await host.create({ ...SPEC, secretRefs: [{ name: "SLACK_TOKEN", ssmParameter: "/viberator/secrets/apps/space-1/SLACK_TOKEN" }] });
+
+    const app = registered(client).containerDefinitions![1];
+    expect(app.secrets).toEqual([{ name: "SLACK_TOKEN", valueFrom: "/viberator/secrets/apps/space-1/SLACK_TOKEN" }]);
+    expect(app.environment?.map((variable) => variable.name)).not.toContain("SLACK_TOKEN");
   });
 
   it("gives previews their space's read-only role", async () => {

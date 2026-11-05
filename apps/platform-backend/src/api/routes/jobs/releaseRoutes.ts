@@ -1,5 +1,5 @@
 import type { Router } from "express";
-import { isObjectRecord, type ReleaseCompleteRequest } from "@viberglass/types";
+import { isObjectRecord, parseAppManifestSettings, type ReleaseCompleteRequest } from "@viberglass/types";
 import logger from "../../../config/logger";
 import { ReleaseCallbackDenied, type ReleaseCallbackService } from "../../../services/apps/ReleaseCallbackService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
@@ -22,7 +22,16 @@ function completeRequestOf(body: unknown): ReleaseCompleteRequest | null {
   ) {
     return null;
   }
-  return { outcome: "ready", sha256: body.sha256, bundleBytes: body.bundleBytes, nodeVersion: body.nodeVersion, buildLog: body.buildLog };
+  const settings = body.settings === undefined ? { settings: undefined } : parseAppManifestSettings(body.settings);
+  if ("error" in settings) return null;
+  return {
+    outcome: "ready",
+    sha256: body.sha256,
+    bundleBytes: body.bundleBytes,
+    nodeVersion: body.nodeVersion,
+    buildLog: body.buildLog,
+    ...(settings.settings ? { settings: settings.settings } : {}),
+  };
 }
 
 function failureStatus(error: unknown, jobId: string, action: string): { status: number; message: string } {

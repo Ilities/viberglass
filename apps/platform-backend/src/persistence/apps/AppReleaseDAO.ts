@@ -1,9 +1,10 @@
-import type { AppRelease } from "@viberglass/types";
+import { parseAppManifestSettings, type AppManifestSetting, type AppRelease } from "@viberglass/types";
+import { sql } from "kysely";
 import db from "../config/database";
 import { toRelease } from "./appReleaseRow";
 
 export type ReleaseOutcome =
-  | { status: "ready"; bundleSha256: string; bundleBytes: number; nodeVersion: string; buildLog: string }
+  | { status: "ready"; bundleSha256: string; bundleBytes: number; nodeVersion: string; buildLog: string; settings: AppManifestSetting[] | null }
   | { status: "failed"; failureReason: string; buildLog: string | null };
 
 export class AppReleaseDAO {
@@ -122,6 +123,7 @@ export class AppReleaseDAO {
               bundle_bytes: outcome.bundleBytes,
               node_version: outcome.nodeVersion,
               build_log: outcome.buildLog,
+              settings: outcome.settings ? JSON.stringify(outcome.settings) : null,
               finished_at: new Date(),
             }
           : { status: "failed", failure_reason: outcome.failureReason, build_log: outcome.buildLog, finished_at: new Date() },
@@ -130,6 +132,23 @@ export class AppReleaseDAO {
       .where("status", "=", "building")
       .executeTakeFirst();
     return Number(result.numUpdatedRows) > 0;
+  }
+
+  /** The settings the current release declares, or else the newest ready release that recorded any; none for older releases. */
+  async declaredSettings(projectId: string, currentReleaseId: string | null): Promise<AppManifestSetting[]> {
+    const row = await db
+      .selectFrom("app_releases")
+      .select("settings")
+      .where("project_id", "=", projectId)
+      .where("preview", "=", false)
+      .where("status", "=", "ready")
+      .where("settings", "is not", null)
+      .$if(currentReleaseId !== null, (query) => query.orderBy(sql`id = ${currentReleaseId}`, "desc"))
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .executeTakeFirst();
+    const parsed = parseAppManifestSettings(row?.settings ?? []);
+    return "settings" in parsed ? parsed.settings : [];
   }
 
   /** Builds whose run ended, or never got one, without reporting; their run's failure says why. */

@@ -54,6 +54,8 @@ export const AUDIT_ACTION_TEXT = {
   'app.rolled_back': 'rolled an app back to an earlier release',
   'app.access_added': 'gave someone access to an app',
   'app.access_removed': "removed someone's access to an app",
+  'app.setting_saved': 'set an app setting',
+  'app.setting_removed': 'removed an app setting',
   'invite.created': 'invited someone',
   'invite.revoked': 'revoked an invite',
   'invite.accepted': 'accepted an invite',

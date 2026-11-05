@@ -1,3 +1,5 @@
+import type { AppManifestSetting } from './appContract'
+
 /** A release is built once per commit of an App space's default branch. */
 export type AppReleaseStatus = 'building' | 'ready' | 'failed'
 
@@ -41,7 +43,7 @@ export interface ReleaseBundleGrant {
 }
 
 export type ReleaseCompleteRequest =
-  | { outcome: 'ready'; sha256: string; bundleBytes: number; nodeVersion: string; buildLog: string }
+  | { outcome: 'ready'; sha256: string; bundleBytes: number; nodeVersion: string; buildLog: string; settings?: AppManifestSetting[] }
   | { outcome: 'failed'; reason: string; buildLog: string }
 
 /** The tail of a build's output kept with the release. */

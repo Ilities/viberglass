@@ -14,7 +14,7 @@ const expiringIn = (hours: number, from = NOW) => new Date(from.getTime() + hour
 const BACK_TO_OLD = { releaseId: OLD.id, backupId: "backup-1", requestedBy: "user-1" };
 
 function record(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, ...overrides };
 }
 
 function build(app: AppRecord | null, options: { candidate?: AppRelease | null; host?: AppHost | null } = {}) {
@@ -26,6 +26,7 @@ function build(app: AppRecord | null, options: { candidate?: AppRelease | null; 
       update: jest.fn(async () => undefined),
       finish: jest.fn(async (_projectId: string, _change: AppChange) => undefined),
       clearRollback: jest.fn(async () => undefined),
+      clearRestart: jest.fn(async () => undefined),
     },
     releases: {
       getById: jest.fn(async (id: string) => [OLD, NEW].find((release) => release.id === id) ?? null),
@@ -248,18 +249,18 @@ describe("AppReconciler", () => {
 
   it("leaves apps on ECS alone, whose task role keeps their credentials fresh", async () => {
     const threeAm = new Date("2026-11-04T03:10:00Z");
-    const { reconciler, deps } = build(record({ credentialsExpireAt: null, archiveBackupDue: false }), { host: { ...fakeAppHost(), target: "ecs" } });
+    const { reconciler, deps } = build(record({ credentialsExpireAt: null }), { host: { ...fakeAppHost(), target: "ecs" } });
 
     await expect(reconciler.reconcile("space-1", threeAm)).resolves.toBe(false);
     expect(deps.runner.restart).not.toHaveBeenCalled();
   });
 
   it("restarts an app started before credential expiry was recorded once, in the restart hour", async () => {
-    const atNoon = build(record({ credentialsExpireAt: null, archiveBackupDue: false }));
+    const atNoon = build(record({ credentialsExpireAt: null }));
     await expect(atNoon.reconciler.reconcile("space-1", NOW)).resolves.toBe(false);
 
     const threeAm = new Date("2026-11-04T03:10:00Z");
-    const atThree = build(record({ credentialsExpireAt: null, archiveBackupDue: false }));
+    const atThree = build(record({ credentialsExpireAt: null }));
     await expect(atThree.reconciler.reconcile("space-1", threeAm)).resolves.toBe(true);
     expect(atThree.deps.runner.restart).toHaveBeenCalled();
   });
@@ -270,8 +271,25 @@ describe("AppReconciler", () => {
 
     await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
     expect(deps.apps.finish).toHaveBeenCalledWith("space-1", {
-      statusMessage: "Couldn't issue new storage credentials, so the app keeps its current ones for now: STS is down",
+      statusMessage: "Couldn't restart the app, so it keeps running as it was for now: STS is down",
     });
+  });
+
+  it("restarts a running app whose settings changed, clearing the request when it claims the app", async () => {
+    const { reconciler, host, deps } = build(record({ restartDue: true, credentialsExpireAt: expiringIn(6 * 24) }));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.apps.clearRestart).toHaveBeenCalledWith("space-1");
+    expect(deps.apps.clearRestart.mock.invocationCallOrder[0]).toBeLessThan(deps.runner.restart.mock.invocationCallOrder[0]);
+    expect(deps.runner.restart).toHaveBeenCalledWith(host, OLD);
+  });
+
+  it("starts an app that's off with its new settings, without a separate restart", async () => {
+    const { reconciler, deps } = build(record({ state: "off", restartDue: true }));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.runner.run).toHaveBeenCalled();
+    expect(deps.runner.restart).not.toHaveBeenCalled();
   });
 
   it("records a restart that didn't come up healthy as failed", async () => {

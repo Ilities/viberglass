@@ -65,7 +65,7 @@ describe("buildRelease", () => {
   it("builds the commit and uploads it with its links and without git history", async () => {
     const build = "mkdir -p dist node_modules/.bin && echo built > dist/server.js && ln -s ../../dist/server.js node_modules/.bin/server && printf '%s%s' \"$CALLBACK_TOKEN\" \"$VIBERGLASS_SCM_TOKEN\" > dist/env.txt && echo done";
     const { all, client, fetchCommit } = deps({
-      "viberglass.app.json": JSON.stringify({ build, start: "node dist/server.js", settings: [] }),
+      "viberglass.app.json": JSON.stringify({ build, start: "node dist/server.js", settings: [{ name: "SLACK_TOKEN", secret: true }] }),
       "package.json": "{}",
     });
 
@@ -88,6 +88,7 @@ describe("buildRelease", () => {
       bundleBytes: fs.statSync(uploaded).size,
       nodeVersion: process.version,
       buildLog: "done\n",
+      settings: [{ name: "SLACK_TOKEN", secret: true }],
     });
   });
 

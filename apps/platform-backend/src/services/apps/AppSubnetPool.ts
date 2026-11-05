@@ -49,6 +49,12 @@ export class AppSubnetPool {
     return cidr.base >= this.pool.base && cidr.base < this.pool.base + size;
   }
 
+  /** Whether a connection's remote address is in the pool; IPv4-mapped IPv6 counts as IPv4. */
+  containsAddress(address: string | undefined): boolean {
+    const ipv4 = address?.replace(/^::ffff:/i, "");
+    return Boolean(ipv4 && toNumber(ipv4) !== null && this.contains(`${ipv4}/32`));
+  }
+
   /** The first /24 in the pool that no network in `used` overlaps; null when the pool is full. */
   free(used: string[]): string | null {
     const taken = used.map(parse).filter((cidr): cidr is Cidr => cidr !== null);

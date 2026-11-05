@@ -81,6 +81,7 @@ export function ecsAppTaskDefinition(spec: AppInstanceSpec, family: string, opti
         user: `${APP_UID}:${APP_UID}`,
         readonlyRootFilesystem: true,
         environment: Object.entries(env).map(([name, value]) => ({ name, value })),
+        ...(spec.secretRefs?.length ? { secrets: spec.secretRefs.map((ref) => ({ name: ref.name, valueFrom: ref.ssmParameter })) } : {}),
         portMappings: [{ name: "http", containerPort: APP_PORT, protocol: "tcp" }],
         stopTimeout: options.stopGraceSeconds,
         linuxParameters: { capabilities: { drop: ["ALL"] } },

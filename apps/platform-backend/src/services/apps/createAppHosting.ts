@@ -4,6 +4,7 @@ import { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { AppReleaseRollbackDAO } from "../../persistence/apps/AppReleaseRollbackDAO";
+import { AppSettingDAO } from "../../persistence/apps/AppSettingDAO";
 import { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
@@ -26,6 +27,9 @@ import { AppReleaseSwitch } from "./AppReleaseSwitch";
 import { AppRollbackService } from "./AppRollbackService";
 import { AppRollbackSettler } from "./AppRollbackSettler";
 import { AppService } from "./AppService";
+import { AppSettingsEnv } from "./AppSettingsEnv";
+import { AppSettingsService } from "./AppSettingsService";
+import { appSettingSecretStorage } from "./appSettingSecretStorage";
 import { AppSweep } from "./AppSweep";
 import { DockerAppHost } from "./DockerAppHost";
 import { EcsAppHost } from "./EcsAppHost";
@@ -34,10 +38,12 @@ import { ReleaseBuildService } from "./ReleaseBuildService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { TaskAskPolicyService } from "../taskTurns/TaskAskPolicyService";
 import { StsAppDataCredentials } from "./StsAppDataCredentials";
+import { SecretService } from "../SecretService";
 
 export interface AppHosting {
   service: AppService;
   rollbacks: AppRollbackService;
+  settings: AppSettingsService;
   sweep: AppSweep;
   previews: AppPreviewService;
   previewSweep: AppPreviewSweep;
@@ -61,7 +67,9 @@ export function appHosting(): AppHosting {
     ...(ecs ? [new EcsAppHost(ecs)] : []),
   ]);
   const host = () => registry.get(defaultDeploymentStrategyName());
-  const runner = new AppInstanceRunner(new AppInstanceSpecs(new StsAppDataCredentials()), apps);
+  const settings = new AppSettingDAO();
+  const secrets = new SecretService();
+  const runner = new AppInstanceRunner(new AppInstanceSpecs(new StsAppDataCredentials(), new AppSettingsEnv(settings, secrets)), apps);
   const backups = new AppDataBackupDAO();
   const dataStore = new AppDataStore();
   const switcher = new AppReleaseSwitch(apps, releases, backups, dataStore, runner);
@@ -73,6 +81,9 @@ export function appHosting(): AppHosting {
   hosting = {
     service: new AppService(spaces, apps, releases, backups, reconciler, host, origins),
     rollbacks: new AppRollbackService(spaces, apps, releases, backups, reconciler),
+    settings: new AppSettingsService(spaces, settings, secrets, releases, apps, reconciler, (projectId, name) =>
+      appSettingSecretStorage(host()?.target ?? null, projectId, name),
+    ),
     sweep: new AppSweep(spaces, apps, releases, reconciler, host),
     previews: new AppPreviewService({
       policy: new TaskAskPolicyService(),

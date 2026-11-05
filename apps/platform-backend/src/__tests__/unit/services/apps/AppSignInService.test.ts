@@ -8,7 +8,7 @@ import type { PreviewAddressRef } from "../../../../persistence/apps/AppPreviewD
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const SPACE = { projectId: "space-1", slug: "laptops", name: "Laptops", isPrivate: false };
-const RUNNING: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false };
+const RUNNING: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false };
 const VIEWER = { id: "user-1", role: "member" as const, sessionId: "session-1" };
 const STATE = "state-from-the-gateway-cookie-0123456789ab";
 const PREVIEW: PreviewAddressRef = {
