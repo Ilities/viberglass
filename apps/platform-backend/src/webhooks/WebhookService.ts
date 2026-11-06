@@ -1,5 +1,5 @@
 import { InvalidWebhookPayloadError, type InboundWebhookEvent, type WebhookReceiver } from "@viberglass/integration-core";
-import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
+import type { WebhookConfig, WebhookConfigDAO } from "../persistence/webhook/WebhookConfigDAO";
 import type { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import type { DeduplicationService } from "./DeduplicationService";
 import type { WebhookSecretService } from "./WebhookSecretService";
@@ -33,6 +33,7 @@ export class WebhookService {
     private deliveryLifecycle: InboundWebhookDeliveryLifecycle,
     private retryService: Pick<WebhookRetryService, "retryDelivery">,
     private config: WebhookServiceConfig = {},
+    private configStore?: Pick<WebhookConfigDAO, "updateConfig">,
   ) {}
 
   async processWebhook(
@@ -50,9 +51,16 @@ export class WebhookService {
       return { status: "not_found", reason: "No webhook with this address" };
     }
 
-    let event: InboundWebhookEvent;
+    const handshake = receiver.handshake?.(normalizedHeaders);
+    if (handshake) {
+      return this.completeHandshake(dbConfig, handshake.secret);
+    }
+
+    let events: InboundWebhookEvent[];
     try {
-      event = receiver.parseEvent(payload, normalizedHeaders);
+      events = receiver.parseEvents
+        ? receiver.parseEvents(payload, normalizedHeaders)
+        : [receiver.parseEvent(payload, normalizedHeaders)];
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Unknown error";
       return error instanceof InvalidWebhookPayloadError
@@ -60,22 +68,29 @@ export class WebhookService {
         : { status: "ignored", reason: `Event parsing failed: ${reason}` };
     }
 
+    if (events.length === 0) {
+      return { status: "ignored", reason: "The delivery carried no events" };
+    }
+
     if (!dbConfig.active) {
       const reason = `Webhook configuration '${dbConfig.id}' is inactive`;
-      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
+      await this.deliveryLifecycle.recordIgnored(events[0], dbConfig, reason);
       return {
         status: "ignored",
         reason,
       };
     }
 
-    if (!isEventAllowed(event, dbConfig)) {
-      const allowedCandidates = getAllowedEventCandidates(event).join(", ");
-      const reason = `The webhook isn't set to receive '${allowedCandidates}'`;
-      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
+    const allowed = events.filter((event) => isEventAllowed(event, dbConfig));
+    for (const event of events) {
+      if (!allowed.includes(event)) {
+        await this.deliveryLifecycle.recordIgnored(event, dbConfig, notAllowedReason(event));
+      }
+    }
+    if (allowed.length === 0) {
       return {
         status: "ignored",
-        reason,
+        reason: notAllowedReason(events[0]),
       };
     }
 
@@ -89,13 +104,43 @@ export class WebhookService {
     });
     if (!signatureResult.valid) {
       const reason = `Rejected: ${signatureResult.reason ?? "Invalid signature"}`;
-      await this.deliveryLifecycle.recordRejected(event, dbConfig, reason);
+      await this.deliveryLifecycle.recordRejected(events[0], dbConfig, reason);
       return {
         status: "rejected",
         reason: signatureResult.reason ?? "Invalid signature",
       };
     }
 
+    const results: WebhookProcessingResult[] = [];
+    for (const event of allowed) {
+      results.push(await this.processEvent(event, payload, dbConfig, receiver, tenantId));
+    }
+    return combineResults(results);
+  }
+
+  /** Stores the secret a handshake hands us, so later deliveries can be verified with it. */
+  private async completeHandshake(config: WebhookConfig, secret: string): Promise<WebhookProcessingResult> {
+    if (!this.configStore) {
+      return { status: "failed", reason: "Webhook handshakes cannot be stored" };
+    }
+    try {
+      await this.configStore.updateConfig(config.id, {
+        webhookSecretEncrypted: secret,
+        secretLocation: "database",
+      });
+    } catch (error) {
+      return { status: "failed", reason: error instanceof Error ? error.message : "Could not store the webhook secret" };
+    }
+    return { status: "handshake", secret };
+  }
+
+  private async processEvent(
+    event: InboundWebhookEvent,
+    payload: unknown,
+    dbConfig: WebhookConfig,
+    receiver: WebhookReceiver,
+    tenantId: string | undefined,
+  ): Promise<WebhookProcessingResult> {
     const { shouldProcess, existingId } =
       await this.deduplication.shouldProcessDelivery(
         event.deduplicationId,
@@ -114,7 +159,7 @@ export class WebhookService {
       webhookConfigId: dbConfig.id,
       deliveryId: event.deduplicationId,
       eventType: event.eventType,
-      payload,
+      payload: event.payload ?? payload,
     });
 
     try {
@@ -164,6 +209,22 @@ export class WebhookService {
   ): Promise<WebhookProcessingResult> {
     return this.retryService.retryDelivery(deliveryId, options);
   }
+}
+
+function notAllowedReason(event: InboundWebhookEvent): string {
+  const allowedCandidates = getAllowedEventCandidates(event).join(", ");
+  return `The webhook isn't set to receive '${allowedCandidates}'`;
+}
+
+/** One result for the whole delivery: the most useful of what its events did. */
+function combineResults(results: WebhookProcessingResult[]): WebhookProcessingResult {
+  return (
+    results.find((result) => result.status === "processed") ??
+    results.find((result) => result.status === "failed") ??
+    results.find((result) => result.status === "ignored") ??
+    results.find((result) => result.status === "duplicate") ??
+    results[0] ?? { status: "ignored", reason: "The delivery carried no events" }
+  );
 }
 
 async function verifySignature(params: {

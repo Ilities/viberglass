@@ -59,19 +59,29 @@ const ISSUE: InboundIssue = {
 
 const TRACKER = { provider: PROVIDER, integrationId: "integration-1", webhookConfigId: "cfg-1" };
 
-function createHarness(params: { config?: WebhookConfig | null; action?: InboundWebhookAction } = {}) {
+function createHarness(
+  params: {
+    config?: WebhookConfig | null;
+    action?: InboundWebhookAction;
+    handshake?: (headers: Record<string, string>) => { secret: string } | undefined;
+    parseEvents?: (payload: unknown, headers: Record<string, string>) => InboundWebhookEvent[];
+  } = {},
+) {
   const config = params.config === undefined ? createConfig() : params.config;
   const receiver = {
     targetsOneSpace: false,
     signatureOf: jest.fn((headers: Record<string, string>) => headers["x-signature"]),
     verifySignature: jest.fn().mockReturnValue(true),
     parseEvent: jest.fn().mockReturnValue(EVENT),
+    parseEvents: params.parseEvents ? jest.fn(params.parseEvents) : undefined,
     retryHeaders: jest.fn().mockReturnValue({ "x-delivery": "delivery-1" }),
     read: jest.fn().mockReturnValue(params.action ?? { kind: "issue", issue: ISSUE }),
+    handshake: params.handshake ? jest.fn(params.handshake) : undefined,
   } satisfies WebhookReceiver;
   const receivers = { get: (provider: string) => (provider === PROVIDER ? receiver : undefined), providers: () => [PROVIDER] };
 
   const configDAO = { getConfigById: jest.fn().mockResolvedValue(config) };
+  const configStore = { updateConfig: jest.fn().mockResolvedValue(undefined) };
   const deliveryDAO = {
     updateDeliveryStatus: jest.fn().mockResolvedValue(undefined),
     getDeliveryById: jest.fn().mockResolvedValue(null),
@@ -110,9 +120,10 @@ function createHarness(params: { config?: WebhookConfig | null; action?: Inbound
     lifecycle,
     retryService,
     serviceConfig,
+    configStore,
   );
 
-  return { service, receiver, configDAO, deliveryDAO, deduplication, secretService, tickets, planner, issues };
+  return { service, receiver, configDAO, configStore, deliveryDAO, deduplication, secretService, tickets, planner, issues };
 }
 
 const rawBody = Buffer.from('{"sample":true}');
@@ -272,6 +283,37 @@ describe("WebhookService", () => {
     expect(result.reason).toContain("issue.opened");
     expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
     expect(harness.deliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith("delivery-row-1", "ignored", expect.stringContaining("isn't set to receive"));
+  });
+
+  it("stores the secret a handshake offers and echoes it, without parsing or verifying", async () => {
+    const harness = createHarness({ handshake: (headers) => (headers["x-hook-secret"] ? { secret: headers["x-hook-secret"] } : undefined) });
+    const result = await deliver(harness, { headers: { "x-hook-secret": "shhh" } });
+
+    expect(result).toEqual({ status: "handshake", secret: "shhh" });
+    expect(harness.configStore.updateConfig).toHaveBeenCalledWith("cfg-1", { webhookSecretEncrypted: "shhh", secretLocation: "database" });
+    expect(harness.receiver.parseEvent).not.toHaveBeenCalled();
+    expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+  });
+
+  it("processes every event in a batched delivery as its own delivery", async () => {
+    const second: InboundWebhookEvent = { ...EVENT, deduplicationId: "delivery-2", metadata: { issueKey: "T-2" } };
+    const harness = createHarness({ parseEvents: () => [EVENT, second] });
+    const result = await deliver(harness);
+
+    expect(result.status).toBe("processed");
+    expect(harness.issues.issue).toHaveBeenCalledTimes(2);
+    expect(harness.deduplication.shouldProcessDelivery).toHaveBeenCalledWith("delivery-1", "cfg-1");
+    expect(harness.deduplication.shouldProcessDelivery).toHaveBeenCalledWith("delivery-2", "cfg-1");
+    expect(harness.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(2);
+  });
+
+  it("acknowledges a delivery that carries no events, without verifying it", async () => {
+    const harness = createHarness({ parseEvents: () => [] });
+    const result = await deliver(harness);
+
+    expect(result).toEqual({ status: "ignored", reason: "The delivery carried no events" });
+    expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
   });
 
   describe("retryDelivery", () => {

@@ -8,7 +8,7 @@
 import express, { Request, Response } from 'express';
 import type { WebhookService } from '../../../webhooks/WebhookService';
 import { createChildLogger } from '../../../config/logger';
-import { getRequestRawBody, respondWithWebhookResult } from './routeHelpers';
+import { getWebhookRawBody, respondWithWebhookResult } from './routeHelpers';
 
 const logger = createChildLogger({ service: 'InboundWebhookRoute' });
 
@@ -22,7 +22,7 @@ export function createInboundRoutes(getWebhookService: () => Pick<WebhookService
       const result = await getWebhookService().processWebhook(
         req.headers,
         req.body,
-        getRequestRawBody(req),
+        getWebhookRawBody(req),
         req.tenantId,
         { providerName: provider, configId },
       );

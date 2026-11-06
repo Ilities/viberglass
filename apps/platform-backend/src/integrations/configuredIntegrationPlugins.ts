@@ -9,6 +9,7 @@ import integrationLinear from "@viberglass/integration-linear";
 import integrationMonday from "@viberglass/integration-monday";
 import integrationShortcut from "@viberglass/integration-shortcut";
 import integrationCustom from "@viberglass/integration-custom";
+import integrationAsana from "@viberglass/integration-asana";
 
 export const configuredIntegrationPlugins: readonly IntegrationPlugin[] = [
   integrationGithub,
@@ -20,4 +21,5 @@ export const configuredIntegrationPlugins: readonly IntegrationPlugin[] = [
   integrationMonday,
   integrationShortcut,
   integrationCustom,
+  integrationAsana,
 ];

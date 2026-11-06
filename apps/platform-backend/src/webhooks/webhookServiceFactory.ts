@@ -1,4 +1,5 @@
 import { integrationRegistry } from "../integrations/registerIntegrationPlugins";
+import type { AuthCredentials } from "@viberglass/types";
 import { webhookReceiversFrom } from "./webhookReceivers";
 import { WebhookConfigDAO } from "../persistence/webhook/WebhookConfigDAO";
 import { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
@@ -21,6 +22,8 @@ import { WebhookConfigResolver } from "./WebhookConfigResolver";
 import { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
 import { WebhookRetryService } from "./WebhookRetryService";
 import { getCredentialFactory } from "../config/credentials";
+import { IntegrationDAO } from "../persistence/integrations/IntegrationDAO";
+import { ConnectionCredentialsResolver } from "../services/trackers/ConnectionCredentialsResolver";
 import { WebhookService } from "./WebhookService";
 
 let webhookService: WebhookService | null = null;
@@ -46,7 +49,11 @@ export function getWebhookService(): WebhookService {
       turns: taskTurns,
       answers: new AgentQuestionAnswerService({ asker: taskTurns }),
     });
-    const handler = new InboundEventHandler(issues, new WebhookTaskCreator(ticketDAO, planner));
+    const handler = new InboundEventHandler(
+      issues,
+      new WebhookTaskCreator(ticketDAO, planner),
+      connectionCredentialsResolver(),
+    );
 
     const serviceConfig = {
       enableAutoExecute: true,
@@ -75,8 +82,19 @@ export function getWebhookService(): WebhookService {
       deliveryLifecycle,
       retryService,
       serviceConfig,
+      configDAO,
     );
   }
 
   return webhookService;
+}
+
+/** The connection's token, for a webhook read that fetches details from the tracker's API. */
+function connectionCredentialsResolver(): (integrationId: string) => Promise<AuthCredentials | null> {
+  const integrations = new IntegrationDAO();
+  const credentials = new ConnectionCredentialsResolver();
+  return async (integrationId) => {
+    const integration = await integrations.getIntegration(integrationId);
+    return integration ? await credentials.resolve(integration) : null;
+  };
 }
