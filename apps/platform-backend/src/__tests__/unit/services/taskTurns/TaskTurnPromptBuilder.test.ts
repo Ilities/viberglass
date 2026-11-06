@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/127_files_turns_declare_artifacts";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/148_artifact_declaration_unmentioned";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -168,6 +168,7 @@ describe("TaskTurnPromptBuilder", () => {
     const { prompt } = await builder.build("p", context(), "code", true, true, [{ id: "a-1", title: "Q4 deck", entrypoint: "deck/index.html" }]);
 
     expect(prompt).toContain("Then declare it in .viberglass/artifacts.json");
+    expect(prompt).toContain("don't mention the declaration or its file");
     expect(prompt).toContain('{"artifacts": [{"title": "Q4 roadmap deck", "entrypoint": "deck/index.html", "files": ["deck/"]}]}');
     expect(prompt).toContain('This task\'s artifacts so far: "Q4 deck" (artifactId a-1, opens deck/index.html).');
     expect(prompt).not.toContain("Build it: make the change in the code");

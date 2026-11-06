@@ -79,7 +79,6 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
         <TableHead>
           <TableRow>
             <TableHeader>Name</TableHeader>
-            <TableHeader>Email</TableHeader>
             <TableHeader>Role</TableHeader>
             <TableHeader />
           </TableRow>
@@ -95,8 +94,8 @@ export function MembersTable({ users, currentUserId, onChanged, onError }: Membe
                     {entry.name}
                     {entry.deactivatedAt && <Badge color="zinc">Deactivated</Badge>}
                   </span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">{entry.email}</span>
                 </TableCell>
-                <TableCell>{entry.email}</TableCell>
                 <TableCell>
                   <div className="max-w-36">
                     <Select

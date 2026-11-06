@@ -14,5 +14,5 @@ export const ROLE_DESCRIPTION: Record<WorkspaceRole, string> = {
   member: 'Sees open spaces, creates spaces and tasks, comments and asks agents; asks for code on tasks they’re on.',
   guest: 'Only the spaces they are invited to: comments, and asks the agent, including to build, on tasks they’re on.',
   viewer: 'Read-only: sees every open space and task, but can’t create, comment or ask the agent anything.',
-  app_user: 'Only opens the apps they’re given. Sees no spaces, tasks or settings.',
+  app_user: 'Opens only the apps shared with this account. Sees no spaces, tasks or settings.',
 }

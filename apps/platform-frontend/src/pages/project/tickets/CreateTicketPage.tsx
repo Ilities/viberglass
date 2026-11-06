@@ -8,7 +8,7 @@ import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
 import { createTicket } from '@/service/api/ticket-api'
-import type { CreateTicketRequest, Severity } from '@viberglass/types'
+import type { CreateTicketRequest, Severity, SpaceBackingKind } from '@viberglass/types'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { OwnerField } from './owner-field'
@@ -20,6 +20,19 @@ const severities = [
   { id: 'high', name: 'High' },
   { id: 'critical', name: 'Critical' },
 ]
+
+const INTRO: Record<SpaceBackingKind, string> = {
+  git: 'Once the task is created, choose Write the plan to have an agent read the codebase and write what it found and what it would change.',
+  files:
+    'Describe the document, presentation or other artifact you want. Once the task is created, ask the agent in the conversation; it works in the space’s shared files.',
+  app: 'Describe the app, or the change to it, the way you’d explain it to a colleague. Once the task is created, choose Make the change, or Write the plan to agree on it first.',
+}
+
+const TITLE_EXAMPLE: Record<SpaceBackingKind, string> = {
+  git: 'e.g. Let customers save their cart',
+  files: 'e.g. Prepare the quarterly presentation',
+  app: 'e.g. Show when each warranty runs out',
+}
 
 export function CreateTicketPage() {
   const { project } = useParams<{ project: string }>()
@@ -77,9 +90,7 @@ export function CreateTicketPage() {
       {projectData ? <div className="mt-6"><ProjectReadinessBanner projectId={projectData.id} /></div> : null}
 
       <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-        {projectData?.backingKind === 'files'
-          ? 'Describe the document, presentation or other artifact you want. Once the task is created, ask the agent in the conversation; it works in the space’s shared files.'
-          : 'Once the task is created, choose Write the plan to have an agent read the codebase and write what it found and what it would change.'}
+        {INTRO[projectData?.backingKind ?? 'git']}
       </p>
 
       {error && (
@@ -92,7 +103,7 @@ export function CreateTicketPage() {
         <FieldGroup>
           <Field>
             <Label>Title</Label>
-            <Input name="title" placeholder={projectData?.backingKind === 'files' ? 'e.g. Prepare the quarterly presentation' : 'e.g. Let customers save their cart'} required />
+            <Input name="title" placeholder={TITLE_EXAMPLE[projectData?.backingKind ?? 'git']} required />
           </Field>
 
           <Field>

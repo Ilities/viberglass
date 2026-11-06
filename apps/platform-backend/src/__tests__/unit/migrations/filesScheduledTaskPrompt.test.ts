@@ -1,5 +1,5 @@
 import { CLAW_SCHEDULED_TASK_TEMPLATE as BEFORE } from "../../../migrations/057_xml_tag_templates";
-import { CLAW_SCHEDULED_TASK_TEMPLATE } from "../../../migrations/126_files_scheduled_task_prompt";
+import { CLAW_SCHEDULED_TASK_TEMPLATE } from "../../../migrations/148_artifact_declaration_unmentioned";
 import { PromptTemplateDAO } from "../../../persistence/promptTemplate/PromptTemplateDAO";
 import { PromptTemplateService } from "../../../services/PromptTemplateService";
 
