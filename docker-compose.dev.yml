@@ -5,7 +5,6 @@
 # them on the host first:
 #
 #   npm ci && npm run backend:build-deps
-#   ./scripts/generate-storage-password.sh
 #   docker compose -f docker-compose.dev.yml up -d
 #
 # Set COMPOSE_FILE=docker-compose.dev.yml in the root .env to leave out the -f.
@@ -30,8 +29,34 @@ volumes:
     name: viberglass-langfuse-minio-data
   storage-data:
     name: viberglass-storage-data
+  storage-password:
+    name: viberglass-storage-password
 
 services:
+  # Picks object storage's password on first start and keeps it in the storage-password
+  # volume, because apps reach storage. VIBERGLASS_STORAGE_PASSWORD in .env, when set,
+  # is used instead.
+  storage-password:
+    image: postgres:16-alpine
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        set -eu
+        file=/run/storage/password
+        if [ -n "$${VIBERGLASS_STORAGE_PASSWORD}" ]; then
+          printf %s "$${VIBERGLASS_STORAGE_PASSWORD}" > "$$file"
+        elif [ ! -s "$$file" ]; then
+          od -An -tx1 -N24 /dev/urandom | tr -d ' \n' > "$$file"
+        fi
+        chmod 644 "$$file"
+    environment:
+      VIBERGLASS_STORAGE_PASSWORD: ${VIBERGLASS_STORAGE_PASSWORD:-}
+    volumes:
+      - storage-password:/run/storage
+    networks:
+      - viberglass-dev-network
+
   # S3-compatible storage for Files spaces, ticket media and plan documents.
   storage:
     # Not docker.io/minio/minio — that repo 404s.
@@ -39,11 +64,9 @@ services:
     container_name: viberglass-dev-storage
     entrypoint: sh
     # Creates the bucket on first boot.
-    command: -c 'mkdir -p /data/viberglass-dev && minio server --address ":9000" --console-address ":9001" /data'
+    command: -c 'export MINIO_ROOT_PASSWORD="$$(cat /run/storage/password)" && mkdir -p /data/viberglass-dev && minio server --address ":9000" --console-address ":9001" /data'
     environment:
       MINIO_ROOT_USER: viberglass
-      # Apps reach storage, so its password isn't one anyone can read here.
-      MINIO_ROOT_PASSWORD: ${VIBERGLASS_STORAGE_PASSWORD:?run ./scripts/generate-storage-password.sh first}
     ports:
       # Docker workers reach storage through the host, so this one isn't loopback-only.
       - "9000:9000"
@@ -56,6 +79,10 @@ services:
       start_period: 5s
     volumes:
       - storage-data:/data
+      - storage-password:/run/storage:ro
+    depends_on:
+      storage-password:
+        condition: service_completed_successfully
     networks:
       - viberglass-dev-network
     restart: unless-stopped
@@ -87,6 +114,8 @@ services:
       context: .
       dockerfile: apps/platform-backend/Dockerfile.dev
     container_name: viberglass-dev-backend
+    entrypoint: ["sh", "-c", "export S3_SECRET_ACCESS_KEY=\"$$(cat /run/storage/password)\" && exec \"$$@\"", "--"]
+    command: ["npm", "run", "dev"]
     environment:
       # Database
       DB_HOST: postgres
@@ -120,7 +149,6 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       S3_REGION: us-east-1
       S3_ACCESS_KEY_ID: viberglass
-      S3_SECRET_ACCESS_KEY: ${VIBERGLASS_STORAGE_PASSWORD:?run ./scripts/generate-storage-password.sh first}
       # Artifact previews run on another host than the app (127.0.0.1, not
       # localhost), so the app's cookies never reach them.
       PREVIEW_PORT: 8890
@@ -193,6 +221,7 @@ services:
       # Root package files needed for workspace-aware Docker builds
       - ./package.json:/app/package.json:cached
       - ./package-lock.json:/app/package-lock.json:cached
+      - storage-password:/run/storage:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -17,11 +17,10 @@ There are two ways to run it with Docker. The first, below, is for trying Viberg
 ```bash
 git clone https://github.com/Ilities/viberglass.git
 cd viberglass
-./scripts/generate-storage-password.sh
 docker compose up -d
 ```
 
-The script writes a random object storage password to `.env`, once; Compose refuses to start without it. This downloads the published backend and frontend images and starts them with PostgreSQL and MinIO. Nothing is built. The backend runs its database migrations on startup. When it's up, open http://localhost:3000. `docker compose logs -f backend` shows what it's doing.
+This downloads the published backend and frontend images and starts them with PostgreSQL and MinIO. Nothing is built. The backend runs its database migrations on startup. When it's up, open http://localhost:3000. `docker compose logs -f backend` shows what it's doing.
 
 ## First-run setup
 
@@ -45,7 +44,7 @@ Agent containers join the `viberglass-workers` Docker network, where they reach 
 
 ## Files spaces and previews
 
-MinIO is the object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-local_storage-data` volume, and its console is at http://localhost:9001 (sign in as `viberglass` with the `VIBERGLASS_STORAGE_PASSWORD` from `.env`). Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
+MinIO is the object storage, so Files spaces work without further setup. Its bucket lives in the `viberglass-local_storage-data` volume, and its console is at http://localhost:9001 (sign in as `viberglass`; `docker compose exec storage cat /run/storage/password` prints the password, which is picked at random on the first start). Task media and plan documents are kept there too. HTML, image and PDF artifacts preview from http://127.0.0.1:8890, a different host from the app's `localhost`, so the app's cookies never reach them.
 
 ## Apps
 

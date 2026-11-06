@@ -1,6 +1,6 @@
 # Local development
 
-`docker-compose.dev.yml` runs the dev servers on your checkout: Postgres (5432), MinIO object storage (9000, console on http://localhost:9001, sign in as `viberglass` with the `VIBERGLASS_STORAGE_PASSWORD` that `./scripts/generate-storage-password.sh` writes to `.env`; Compose refuses to start without it), the backend (8888, hot reload, runs migrations on start) and the frontend (http://localhost:3000, Vite HMR). To try Viberglass without changing it, use `docker-compose.yml` instead ([Install with Docker](guide/admin/install-docker.md)); it runs the published images.
+`docker-compose.dev.yml` runs the dev servers on your checkout: Postgres (5432), MinIO object storage (9000, console on http://localhost:9001, sign in as `viberglass` with the password `docker compose -f docker-compose.dev.yml exec storage cat /run/storage/password` prints), the backend (8888, hot reload, runs migrations on start) and the frontend (http://localhost:3000, Vite HMR). To try Viberglass without changing it, use `docker-compose.yml` instead ([Install with Docker](guide/admin/install-docker.md)); it runs the published images.
 
 The backend container loads the workspace packages under `packages/` from your checkout, through their `dist/`. Build them on the host before the first start, and again after changing one:
 
