@@ -7,6 +7,7 @@ packages/integrations/
 ├── integration-github/     code host and tracker
 ├── integration-jira/       tracker
 ├── integration-shortcut/   tracker
+├── integration-asana/     tracker
 ├── integration-custom/     inbound JSON webhooks
 ├── integration-slack/      chat
 ├── integration-gitlab/     stub
