@@ -100,6 +100,7 @@ Files backed spaces support "artifacts" where an agent makes a deliverable such 
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe)     | Mistral                                                           |
 | [Kimi Code](https://github.com/MoonshotAI/kimi-code)          | Moonshot                                                          |
 | [OpenCode](https://github.com/opencode-ai/opencode)           | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq and custom endpoints |
+| DeepSeek Harness                                               | DeepSeek |
 | [Pi](https://pi.dev)                                          | Many providers and custom endpoints                               |
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/agents-and-runners-dark.png"><img src="docs/guide/images/agents-and-runners.png" alt="Settings, Agents: runners with their harness, model and status"></picture></p>
