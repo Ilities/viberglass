@@ -5,15 +5,49 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
 
-An open-source, self-hosted workspace where people and coding agents work on the same tasks together. Viberglass is for software companies: product, design, QA, support and engineering bring the work, the agents do it, and everyone sees and shapes it in one shared thread, from the first question to the merged pull request.
+An open-source, self-hosted AI workspace for small and medium-sized companies. Anyone on the team asks for what they need in a task, and agents do the work: an internal app that Viberglass builds and runs, a document or presentation, or a change to your product that arrives as a pull request. The people who know the work stay in the conversation: the agent asks them when it's unsure, they review its plan and its results, and they decide when it's done.
 
-Coding agents are good at writing code. They're bad at knowing what your company actually wants. In Viberglass, the people who know what's wanted stay in the conversation: they're asked when the agent is unsure, they review its plan before any code is written, and they decide when it's done. Nobody needs repository access or a dev environment to take part.
+Viberglass runs on your own servers, with the coding agents and models you choose. Your tasks, files, app data and code stay there, and there's no Viberglass cloud or account to sign up for. Agents send a model only what the task in front of them needs, with your own key, and with a model you host yourself nothing leaves your network.
 
 [Documentation](docs/) | [Architecture](docs/ARCHITECTURE.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md)
 
-[![Watch the intro video (1:45): a product change from the request, through the agent's question and the team's review, to a pull request](docs/guide/images/intro-video.jpg)](https://viberglass.io/#video)
+[![Watch the overview (3:00): a week at a 25-person company, with an internal app, a competitor brief, a bug fix and a proposal](docs/guide/images/intro-video.jpg)](https://viberglass.io/#video)
 
-## How a task works
+## Apps
+
+An App space builds one internal tool for the team, such as an equipment tracker or an approval list, and Viberglass runs it. Someone describes the app in a task and the agent writes it. Each change runs in a preview with a copy of the live data, and goes live when the task's owner or a maintainer says so. Viberglass keeps the code in a private repository, backs up the app's data, signs people in with their Viberglass accounts and can give an app to people outside the team without showing them anything else. See [Apps](docs/guide/user/apps.md).
+
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/app-change-dark.png"><img src="docs/guide/images/app-change.png" alt="A task in an App space with its change ready, the preview running, and Make it live"></picture></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/app-rollback-dark.png"><img src="docs/guide/images/app-rollback.png" alt="Rolling back an app to an earlier release, with the choice of code only or code and data"></picture></td>
+</tr>
+<tr>
+<td>A change ready to try in a preview, then make live.</td>
+<td>Any earlier release can be rolled back, with or without its data.</td>
+</tr>
+</table>
+
+## Documents
+
+For documents, presentations and other work that isn't code, a space can be backed by Files instead of a Git repository: a shared set of files the space's tasks and people work on, kept between runs in S3-compatible storage. People can upload files and edit Markdown and text in the app and agents restore the files at the start of each run and save them at the end.
+
+Files backed spaces support "artifacts" where an agent makes a deliverable such as a document, a report or an HTML presentation. These artifacts are versioned by Viberglass. Web pages, presentations, images and PDFs preview in the app from a separate, sandboxed address. These artifacts can be iterated on and asking an agent for a new revision makes the next version. A Files task is finished when someone marks it done.
+
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/files-editor-dark.png"><img src="docs/guide/images/files-editor.png" alt="A Files space's files, with a Markdown file open in the editor"></picture></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/artifact-preview-dark.png"><img src="docs/guide/images/artifact-preview.png" alt="A presentation made by the agent, previewed in the app"></picture></td>
+</tr>
+<tr>
+<td>A Files space: upload files and edit Markdown and text in the app.</td>
+<td>A presentation the agent made, previewed in the app.</td>
+</tr>
+</table>
+
+## Code changes
+
+In a Git space, a task goes from a request to a reviewed pull request:
 
 1. Someone asks for something. A PM, a support lead or an engineer creates a task in a space, from the web, Slack (`/viberglass`) or an issue tracker. They own it, and can bring in reviewers and watchers.
 2. The agent writes a plan. It reads the code and writes one document: what it found and what it would change. When it's missing something, it asks the right person in the thread and waits for their answer.
@@ -45,23 +79,6 @@ Coding agents are good at writing code. They're bad at knowing what your company
 An engineer can step in at any point: pause the agent, take over its branch locally with `viberglass checkout` (`npm install -g viberglass`), and hand it back.
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/taken-over-dark.png"><img src="docs/guide/images/taken-over.png" alt="A task taken over by an engineer, with the checkout commands and the Hand back button"></picture>
-
-## Spaces without a repository
-
-For work that isn't code, a space can be backed by Files instead of a Git repository: a shared set of files the space's tasks and people work on, kept between runs in S3-compatible storage. People can upload files and edit Markdown and text in the app and agents restore the files at the start of each run and save them at the end.
-
-Files backed spaces support "artifacts" where an agent makes a deliverable such as a document, a report or an HTML presentation. These artifacts are versioned by Viberglass. Web pages, presentations, images and PDFs preview in the app from a separate, sandboxed address. These artifacts can be iterated on and asking an agent for a new revision makes the next version. A Files task is finished when someone marks it done.
-
-<table>
-<tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/files-editor-dark.png"><img src="docs/guide/images/files-editor.png" alt="A Files space's files, with a Markdown file open in the editor"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/artifact-preview-dark.png"><img src="docs/guide/images/artifact-preview.png" alt="A presentation made by the agent, previewed in the app"></picture></td>
-</tr>
-<tr>
-<td>A Files space: upload files and edit Markdown and text in the app.</td>
-<td>A presentation the agent made, previewed in the app.</td>
-</tr>
-</table>
 
 ## Features
 
