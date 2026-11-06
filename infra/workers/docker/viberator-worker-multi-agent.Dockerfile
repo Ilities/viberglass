@@ -126,7 +126,15 @@ RUN npm install -g @earendil-works/pi-coding-agent@1.0.2 pi-acp@0.0.34
 
 RUN which pi || echo "Warning: pi not found in PATH"
 
-LABEL agent.types="claude-code,qwen-cli,codex,opencode,kimi-code,mistral-vibe,antigravity,pi" viberator.worker-type="multi-agent"
+# Fragment: DeepSeek Harness agent
+# Source: https://github.com/deepseek-ai/deepseek-harness (dsh, needs Node >= 22.19)
+# ACP bridge: https://github.com/openma-ai/deepseek-harness-acp (dsh-acp)
+RUN npm install -g @deepseek-ai/dsh@0.2.1-rc.2 @openma/deepseek-harness-acp@0.4.40
+
+RUN which dsh || echo "Warning: dsh not found in PATH"
+RUN which dsh-acp || echo "Warning: dsh-acp not found in PATH"
+
+LABEL agent.types="claude-code,qwen-cli,codex,opencode,kimi-code,mistral-vibe,antigravity,pi,deepseek-harness" viberator.worker-type="multi-agent"
 USER root
 
 # Copy package files and install production dependencies
