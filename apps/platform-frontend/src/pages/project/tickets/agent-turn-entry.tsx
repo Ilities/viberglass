@@ -11,6 +11,7 @@ import { NOTHING_SAVED_WHEN_STOPPED, savedFilesLine, type SpaceBackingKind, type
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { MarkdownDocument } from './markdown/markdown-document'
 import { ThreadItem } from './thread-item'
 import { TurnArtifactCard } from './turn-artifact-card'
 
@@ -182,7 +183,7 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, backing = 'g
       )}
       {outcome?.intent && !outcome.stoppedPartway && <p className="text-[var(--gray-12)]">{outcome.intent}</p>}
       {result && <p className="text-[var(--gray-11)]">{result}</p>}
-      {shown && <p className="whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
+      {shown && <MarkdownDocument thread source={shown} />}
       {rest && restLines.length > previewLines && (
         <button
           type="button"

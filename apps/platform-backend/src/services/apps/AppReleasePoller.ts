@@ -1,3 +1,4 @@
+import { APP_MANIFEST_FILE } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import type { AppSpaceDAO } from "../../persistence/apps/AppSpaceDAO";
@@ -54,6 +55,8 @@ export class AppReleasePoller {
 
     const head = await repository.host.fetchBranchHead(ref, scmConfig.baseBranch, repository.token);
     if (!head || (await this.releases.hasCommit(projectId, head))) return false;
+    // A new repository's first commit, or one brought in before it follows the app contract, has nothing to build.
+    if (repository.host.hasFile && !(await repository.host.hasFile(ref, APP_MANIFEST_FILE, head, repository.token))) return false;
     const release = await this.builds.build(scmConfig, head);
     if (release) logger.info("Started a release build", { projectId, releaseId: release.id, commitSha: head });
     return release !== null;

@@ -51,7 +51,7 @@ describe("ClankerStartService", () => {
     await provisioning;
 
     expect(deploying.status).toBe("deploying");
-    expect(updateStatus).toHaveBeenNthCalledWith(1, "clanker-1", "deploying", "Starting clanker...");
+    expect(updateStatus).toHaveBeenNthCalledWith(1, "clanker-1", "deploying", "Starting the agent…");
     expect(updateStatus).toHaveBeenNthCalledWith(2, "clanker-1", "deploying", "Pulling Docker image x: 1 of 2 layers");
     expect(updateClanker).toHaveBeenCalledWith("clanker-1", {
       deploymentConfig: { version: 1, ready: true },

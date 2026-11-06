@@ -1,6 +1,6 @@
 const mockProjectDAO = { getProject: jest.fn() };
 const mockScmConfigDAO = { getByProjectId: jest.fn() };
-const mockCredentialDAO = { getById: jest.fn() };
+const mockCredentialDAO = { getById: jest.fn(), getDefaultForIntegration: jest.fn() };
 const mockClankerDAO = { listClankers: jest.fn() };
 const mockSecretDAO = { getSecret: jest.fn() };
 const mockDemo = { getDemo: jest.fn() };
@@ -184,6 +184,25 @@ describe("ProjectReadinessService", () => {
     expect(readiness?.automationAvailable).toBe(true);
     expect(check(readiness, "agentCredentials")?.state).toBe("ready");
     expect(check(readiness, "agentRunner")?.state).toBe("ready");
+  });
+
+  it("counts the connection's default token when the space names no credential", async () => {
+    mockScmConfigDAO.getByProjectId.mockResolvedValue({ sourceRepository: "acme/shop", integrationId: "scm-1", integrationCredentialId: null });
+    mockCredentialDAO.getDefaultForIntegration.mockResolvedValue({ id: "credential-1", integrationId: "scm-1", credentialType: "token" });
+
+    const readiness = await new ProjectReadinessService().getReadiness("project-1");
+
+    expect(check(readiness, "scmCredential")?.state).toBe("ready");
+    expect(mockCredentialDAO.getDefaultForIntegration).toHaveBeenCalledWith("scm-1");
+  });
+
+  it("asks for a credential when the connection has no default token either", async () => {
+    mockScmConfigDAO.getByProjectId.mockResolvedValue({ sourceRepository: "acme/shop", integrationId: "scm-1", integrationCredentialId: null });
+    mockCredentialDAO.getDefaultForIntegration.mockResolvedValue(null);
+
+    const readiness = await new ProjectReadinessService().getReadiness("project-1");
+
+    expect(check(readiness, "scmCredential")).toEqual(expect.objectContaining({ state: "missing", code: "select_scm_credential" }));
   });
 
   it("distinguishes repository, credential, and runner setup failures", async () => {

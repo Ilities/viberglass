@@ -35,8 +35,8 @@ function release(projectId: string, commitSha: string): AppRelease {
   };
 }
 
-function build(options: { spaces?: string[]; known?: boolean; head?: string | null } = {}) {
-  const host = fakeRepositoryHost();
+function build(options: { spaces?: string[]; known?: boolean; head?: string | null; manifest?: boolean } = {}) {
+  const host = { ...fakeRepositoryHost(), hasFile: jest.fn(async () => options.manifest ?? true) };
   host.parseRepository.mockImplementation((url: string) => ({ fullName: url.replace("https://github.com/", ""), url }));
   host.fetchBranchHead.mockResolvedValue(options.head === undefined ? HEAD : options.head);
   const deps = {
@@ -62,6 +62,14 @@ describe("AppReleasePoller", () => {
     const { poller, deps } = build({ known: true });
 
     await expect(poller.sweep(NOW)).resolves.toBe(0);
+    expect(deps.builds.build).not.toHaveBeenCalled();
+  });
+
+  it("waits until the branch has the app's manifest", async () => {
+    const { poller, deps, host } = build({ manifest: false });
+
+    await expect(poller.sweep(NOW)).resolves.toBe(0);
+    expect(host.hasFile).toHaveBeenCalledWith({ fullName: "acme/laptops", url: "https://github.com/acme/laptops" }, "viberglass.app.json", HEAD, "tok");
     expect(deps.builds.build).not.toHaveBeenCalled();
   });
 

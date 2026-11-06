@@ -16,11 +16,22 @@ interface RenderContext {
   highlights: DocumentHighlight[]
   activeId: string | null
   onHighlightClick?: (id: string, element: HTMLElement) => void
-  reading: boolean
+  scale: Scale
+}
+
+type Scale = 'thread' | 'normal' | 'reading'
+
+const HEADING_GAP: Record<Scale, string> = { thread: 'mt-3', normal: 'mt-6', reading: 'mt-10' }
+
+const BODY_SIZE: Record<Scale, string> = {
+  thread: 'space-y-2 text-[13px] leading-relaxed',
+  normal: 'space-y-3 text-[15px] leading-7',
+  reading: 'space-y-4 text-[18px] leading-8',
 }
 
 /** Heading sizes by depth; reading full screen they grow with the body text. */
 const HEADING_SIZE = {
+  thread: ['text-[15px]', 'text-[14px]', 'text-[13px]'],
   normal: ['text-xl', 'text-lg', 'text-base'],
   reading: ['text-[30px] leading-tight tracking-[-0.02em]', 'text-[23px] leading-snug', 'text-[19px]'],
 } as const
@@ -114,10 +125,10 @@ function renderNode(node: RootContent, key: number, context: RenderContext): Rea
     case 'image':
       return <span key={key} className="text-[var(--gray-10)]">[{node.alt || 'image'}]</span>
     case 'heading': {
-      const size = HEADING_SIZE[context.reading ? 'reading' : 'normal'][Math.min(node.depth, 3) - 1]
+      const size = HEADING_SIZE[context.scale][Math.min(node.depth, 3) - 1]
       const Tag = node.depth === 1 ? 'h3' : node.depth === 2 ? 'h4' : 'h5'
       return (
-        <Tag key={key} className={`${size} ${context.reading ? 'mt-10' : 'mt-6'} font-semibold text-[var(--gray-12)] first:mt-0`}>
+        <Tag key={key} className={`${size} ${HEADING_GAP[context.scale]} font-semibold text-[var(--gray-12)] first:mt-0`}>
           {renderChildren(node.children, context)}
         </Tag>
       )
@@ -197,14 +208,17 @@ interface MarkdownDocumentProps {
   onHighlightClick?: (id: string, element: HTMLElement) => void
   /** Larger type and line height, for reading it full screen. */
   reading?: boolean
+  /** The thread's smaller type, for a reply among messages. */
+  thread?: boolean
 }
 
 /** A plan document, rendered from its markdown, with comments' text highlighted. */
-export function MarkdownDocument({ source, highlights = [], activeHighlightId = null, onHighlightClick, reading = false }: MarkdownDocumentProps) {
+export function MarkdownDocument({ source, highlights = [], activeHighlightId = null, onHighlightClick, reading = false, thread = false }: MarkdownDocumentProps) {
   const tree = useMemo(() => parseMarkdown(source), [source])
-  const context: RenderContext = { source, highlights, activeId: activeHighlightId, onHighlightClick, reading }
+  const scale: Scale = reading ? 'reading' : thread ? 'thread' : 'normal'
+  const context: RenderContext = { source, highlights, activeId: activeHighlightId, onHighlightClick, scale }
   return (
-    <div className={reading ? 'space-y-4 text-[18px] leading-8 text-[var(--gray-12)]' : 'space-y-3 text-[15px] leading-7 text-[var(--gray-12)]'}>
+    <div className={`${BODY_SIZE[scale]} text-[var(--gray-12)]`}>
       {renderChildren(tree.children, context)}
     </div>
   )

@@ -11,7 +11,12 @@ export interface GitHubReply {
 }
 
 /** One REST call with the token; throws RepositoryAccessError when GitHub can't be reached. */
-export async function requestGitHub(api: GitHubApi, path: string, token: string, init: { method?: string; body?: unknown } = {}): Promise<GitHubReply> {
+export async function requestGitHub(
+  api: GitHubApi,
+  path: string,
+  token: string,
+  init: { method?: string; body?: unknown; timeoutMs?: number } = {},
+): Promise<GitHubReply> {
   try {
     const response = await api.fetch(`${api.baseUrl}${path}`, {
       method: init.method ?? 'GET',
@@ -21,7 +26,7 @@ export async function requestGitHub(api: GitHubApi, path: string, token: string,
         ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(init.timeoutMs ?? TIMEOUT_MS),
     })
     return { status: response.status, headers: response.headers, body: await response.json().catch(() => null) }
   } catch {

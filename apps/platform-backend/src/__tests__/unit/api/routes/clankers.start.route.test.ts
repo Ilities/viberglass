@@ -223,7 +223,7 @@ describe("clankers start route provisioning wiring", () => {
     const deployingClanker: Clanker = {
       ...clanker,
       status: "deploying",
-      statusMessage: "Starting clanker...",
+      statusMessage: "Starting the agent…",
     };
 
     mockClankerDAO.getClanker.mockResolvedValue(clanker);
@@ -266,7 +266,7 @@ describe("clankers start route provisioning wiring", () => {
     expect(mockClankerDAO.updateStatus).toHaveBeenCalledWith(
       CLANKER_ID,
       "deploying",
-      "Starting clanker...",
+      "Starting the agent…",
     );
     expect(mockClankerDAO.updateStatus).toHaveBeenCalledWith(
       CLANKER_ID,

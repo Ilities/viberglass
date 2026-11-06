@@ -9,10 +9,16 @@ export const EXPIRY_WARNING_MS = 7 * 24 * 3_600_000;
 export async function scmCredentialCheck(
   projectSlug: string,
   scmConfig: ProjectScmConfig | null,
-  credentials: Pick<IntegrationCredentialDAO, "getById">,
+  credentials: Pick<IntegrationCredentialDAO, "getById" | "getDefaultForIntegration">,
 ): Promise<ProjectReadinessCheck> {
   const remediationUrl = `/spaces/${projectSlug}/settings/repository`;
-  if (!scmConfig?.integrationCredentialId) {
+  // Without a chosen credential, runs use the connection's default token.
+  const fallback =
+    !scmConfig?.integrationCredentialId && scmConfig?.integrationId
+      ? await credentials.getDefaultForIntegration(scmConfig.integrationId)
+      : null;
+  const credentialId = scmConfig?.integrationCredentialId || (fallback?.credentialType === "token" ? fallback.id : null);
+  if (!scmConfig || !credentialId) {
     return {
       key: "scmCredential",
       label: "SCM credential",
@@ -23,9 +29,7 @@ export async function scmCredentialCheck(
       remediationUrl,
     };
   }
-  const credential = await credentials.getById(
-    scmConfig.integrationCredentialId,
-  );
+  const credential = await credentials.getById(credentialId);
   const expiresAt = credential?.expiresAt
     ? new Date(credential.expiresAt)
     : null;

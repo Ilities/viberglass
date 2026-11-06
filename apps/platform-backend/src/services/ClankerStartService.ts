@@ -43,7 +43,7 @@ export class ClankerStartService {
       throw new ClankerServiceError(CLANKER_SERVICE_ERROR_CODE.PROVISIONING_CONFIG_ERROR, preflightError);
     }
 
-    const deploying = await this.clankers.updateStatus(clanker.id, "deploying", "Starting clanker...");
+    const deploying = await this.clankers.updateStatus(clanker.id, "deploying", "Starting the agent…");
     return { clanker: deploying, provisioning: this.provision(deploying) };
   }
 

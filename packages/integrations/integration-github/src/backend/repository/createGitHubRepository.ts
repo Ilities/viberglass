@@ -5,6 +5,8 @@ import { type GitHubReply, readString, requestGitHub, tokenError } from './gitHu
 import { gitHubTokenLogin } from './listGitHubRepositoryOwners'
 
 const VALID_NAME = /^[A-Za-z0-9_.-]{1,100}$/
+// Creating a repository in an organisation, with its first commit, can take GitHub well over ten seconds.
+const CREATE_TIMEOUT_MS = 60_000
 
 /** Creates a private repository with a README, under the token's own account or an organisation. */
 export async function createGitHubRepository(api: GitHubApi, repository: NewRepository, token: string): Promise<RepositoryAccess> {
@@ -20,7 +22,11 @@ export async function createGitHubRepository(api: GitHubApi, repository: NewRepo
   const ownAccount = login.toLowerCase() === owner.toLowerCase()
   const path = ownAccount ? '/user/repos' : `/orgs/${encodeURIComponent(owner)}/repos`
 
-  const reply = await requestGitHub(api, path, token, { method: 'POST', body: { name, private: true, auto_init: true } })
+  const reply = await requestGitHub(api, path, token, {
+    method: 'POST',
+    body: { name, private: true, auto_init: true },
+    timeoutMs: CREATE_TIMEOUT_MS,
+  })
   if (reply.status === 201) return toAccess(reply.body, `${owner}/${name}`, api.webHost)
   throw toError(reply, owner, name, ownAccount)
 }

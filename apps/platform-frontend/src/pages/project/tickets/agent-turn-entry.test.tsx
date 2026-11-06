@@ -97,6 +97,12 @@ describe('AgentTurnEntry in a Files space', () => {
     expect(screen.getByText(/asked for an artifact/)).toBeInTheDocument()
   })
 
+  it('shows the reply as formatted text', () => {
+    renderEntry(turn({ outcome: { ...OUTCOME, reply: '**Layout**\n- `server.js` starts the app' } }), undefined, 'git')
+    expect(screen.getByText('Layout').closest('strong')).not.toBeNull()
+    expect(screen.queryByText(/\*\*Layout/)).not.toBeInTheDocument()
+  })
+
   it("calls an App space's code turn a change", () => {
     renderEntry(turn({ action: 'code' }), undefined, 'app')
     expect(screen.getByText(/asked for a change/)).toBeInTheDocument()
