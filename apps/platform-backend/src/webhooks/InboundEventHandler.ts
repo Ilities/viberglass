@@ -2,6 +2,7 @@ import type { InboundWebhookEvent, WebhookReceiver } from "@viberglass/integrati
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 import type { TrackerContext, TrackerIssueInbound } from "../services/trackers/TrackerIssueInbound";
 import type { WebhookTaskCreator } from "./WebhookTaskCreator";
+import type { WebhookEventEnricher } from "./WebhookEventEnricher";
 
 export interface InboundEventContext {
   event: InboundWebhookEvent;
@@ -31,10 +32,12 @@ export class InboundEventHandler {
   constructor(
     private readonly issues: Pick<TrackerIssueInbound, "issue" | "commented">,
     private readonly tasks: Pick<WebhookTaskCreator, "create">,
+    private readonly enricher: Pick<WebhookEventEnricher, "enrich">,
   ) {}
 
   async handle(context: InboundEventContext): Promise<EventProcessingResult> {
-    const { event, config, receiver } = context;
+    const { config, receiver } = context;
+    const event = await this.enricher.enrich(context.event, receiver, config);
     const action = receiver.read(event, { botUsername: config.botUsername });
     switch (action.kind) {
       case "ignored":

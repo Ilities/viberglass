@@ -1,6 +1,6 @@
 # Issue trackers
 
-Connect GitHub Issues, Jira or Shortcut, and issues become tasks in Viberglass. Each task stays linked to its issue: comments go both ways, and the plan, the agent's questions, the pull request and done are posted back to the issue. People who live in the tracker can follow the work and take part without opening Viberglass.
+Connect GitHub Issues, Jira, Shortcut or Asana, and issues become tasks in Viberglass. Each task stays linked to its issue: comments go both ways, and the plan, the agent's questions, the pull request and done are posted back to the issue. People who live in the tracker can follow the work and take part without opening Viberglass.
 
 Setting it up has two halves:
 
@@ -56,6 +56,27 @@ On Jira Data Center, set the bot account to the bot's username instead of an acc
 4. Set the bot account to the mention name, without the @, and choose Save.
 5. In Shortcut, open Settings → Integrations → Webhooks, add a webhook, and paste the URL and the secret. Shortcut sends story and comment changes to it.
 
+### Asana
+
+Asana sends the webhook's secret itself, so there is no secret to paste. Creating the webhook needs a member who can see the project.
+
+1. Create a personal access token for the bot member in Asana, under My settings → Apps → Manage developer apps.
+2. In Viberglass, open Settings → Connections → Asana, choose Create connection, and add the token under Credentials. Choose Test connection: it says what Asana refused if the token is wrong.
+3. Under Webhook, choose Set up the webhook, and copy the URL.
+4. Find the project's id, the number in its URL, and create the webhook with Asana's API, as the bot member:
+
+   ```bash
+   curl -X POST https://app.asana.com/api/1.0/webhooks \
+     -H "Authorization: Bearer <token>" \
+     -d "data[resource]=<project id>" \
+     -d "data[target]=<URL from step 3>"
+   ```
+
+   Asana checks the URL with a handshake before it answers, and Viberglass answers it and keeps the secret Asana sends.
+5. Set the bot account to the bot member's name as Asana shows it, and choose Save.
+
+Asana webhooks belong to the token that created them: if the token is deleted, or the member leaves, the webhook stops. Viberglass keeps the first secret a webhook receives, so a webhook created again needs its old secret removed first.
+
 ## Choose which issues a space takes
 
 Open the space's Settings tab → Incoming issues. There's a row for each tracker connection; choose Edit on one to change it.
@@ -79,8 +100,9 @@ A few things to know:
 
 - A new issue creates a task in each space that takes it. The person who opened it becomes the task's requester when their email matches a Viberglass account.
 - Editing the issue's title or description updates its tasks.
-- Closing the issue marks its tasks done, and reopening it reopens them. In Jira that's resolving the issue or moving it to a done status, and clearing the resolution; in Shortcut, completing or archiving the story and moving it out of a done state.
+- Closing the issue marks its tasks done, and reopening it reopens them. In Jira that's resolving the issue or moving it to a done status, and clearing the resolution; in Shortcut, completing or archiving the story and moving it out of a done state; in Asana, completing the task.
 - A comment on the issue appears in the task's thread, as the Viberglass person whose email matches the commenter, or otherwise under the commenter's name and where they wrote, such as "Pat · on Jira". Jira Cloud often hides people's email, so expect names there.
+- An Asana comment is plain text, so the Markdown in what Viberglass posts shows as written there.
 - A comment that mentions the bot account asks the agent, like mentioning it in the thread. A reply from the person the agent asked answers its question.
 - Viberglass comments on the issue when the plan is ready, with a short summary and a link, when the agent asks a question, when it opens the pull request, and when the task is done. When the agent was asked from the issue, its reply is posted there too. Messages written in Viberglass stay in Viberglass, and Viberglass never reads its own comments back as new messages.
 

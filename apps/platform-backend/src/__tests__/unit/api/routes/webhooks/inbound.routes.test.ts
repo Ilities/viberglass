@@ -16,7 +16,7 @@ describe("inbound webhook route", () => {
       req.tenantId = "tenant-1";
       next();
     });
-    app.use("/api/webhooks", createInboundRoutes(() => ({ processWebhook })));
+    app.use("/api/webhooks", createInboundRoutes(() => ({ process: processWebhook })));
     return app;
   }
 
@@ -51,6 +51,14 @@ describe("inbound webhook route", () => {
     const response = await request(createApp(processWebhook)).post("/api/webhooks/custom/cfg-1").send({}).expect(code);
 
     expect(response.body).toEqual(body);
+  });
+
+  it("answers a handshake with 200 and echoes its secret in X-Hook-Secret", async () => {
+    const processWebhook = jest.fn().mockResolvedValue({ status: "handshake", handshakeSecret: "secret-1" });
+
+    const response = await request(createApp(processWebhook)).post("/api/webhooks/asana/cfg-1").set("x-hook-secret", "secret-1").send("").expect(200);
+
+    expect(response.headers["x-hook-secret"]).toBe("secret-1");
   });
 
   it("answers 500 when processing throws", async () => {

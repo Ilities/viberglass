@@ -1,10 +1,12 @@
 export interface WebhookProcessingResult {
   /** `invalid`: the sender has to fix its request; `not_found`: no webhook has this address. */
-  status: "processed" | "ignored" | "rejected" | "duplicate" | "failed" | "invalid" | "not_found";
+  status: "processed" | "ignored" | "rejected" | "duplicate" | "failed" | "invalid" | "not_found" | "handshake";
   ticketId?: string;
   jobId?: string;
   reason?: string;
   existingId?: string;
+  /** For `handshake`: the secret the sender sent, which the response echoes back. */
+  handshakeSecret?: string;
 }
 
 export interface WebhookServiceConfig {
