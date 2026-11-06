@@ -57,6 +57,12 @@ export function respondWithWebhookResult(
       return res.status(404).json({
         error: 'Webhook configuration not found',
       });
+    case 'handshake':
+      // The sender is setting up: echo its secret back so it can finish, and it
+      // will sign later deliveries with it.
+      return res.set('X-Hook-Secret', result.secret ?? '').status(200).json({
+        message: 'Webhook handshake complete',
+      });
     case 'failed':
       return res.status(failedStatusCode).json({
         error: failedError,

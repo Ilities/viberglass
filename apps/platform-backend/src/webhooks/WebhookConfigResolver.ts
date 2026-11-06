@@ -1,4 +1,5 @@
 import type {
+  UpdateWebhookConfigDTO,
   WebhookConfig,
   WebhookConfigDAO,
 } from "../persistence/webhook/WebhookConfigDAO";
@@ -10,7 +11,9 @@ export interface ResolveWebhookConfigOptions {
 
 /** Finds the webhook a delivery was sent to; its address carries the webhook's id. */
 export class WebhookConfigResolver {
-  constructor(private configDAO: Pick<WebhookConfigDAO, "getConfigById">) {}
+  constructor(
+    private configDAO: Pick<WebhookConfigDAO, "getConfigById" | "updateConfig">,
+  ) {}
 
   async resolveInboundConfig(options: ResolveWebhookConfigOptions): Promise<WebhookConfig | null> {
     if (!options.configId) return null;
@@ -20,5 +23,9 @@ export class WebhookConfigResolver {
 
   async getConfigById(configId: string): Promise<WebhookConfig | null> {
     return this.configDAO.getConfigById(configId);
+  }
+
+  async updateConfig(configId: string, updates: UpdateWebhookConfigDTO): Promise<void> {
+    await this.configDAO.updateConfig(configId, updates);
   }
 }
