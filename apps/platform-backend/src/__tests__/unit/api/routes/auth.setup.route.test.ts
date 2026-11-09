@@ -31,6 +31,12 @@ jest.mock("../../../../api/auth/config", () => ({
   isAuthEnabled: jest.fn(() => true),
 }));
 
+const mockIsDemoInstance = jest.fn(() => false);
+
+jest.mock("../../../../config/demoInstance", () => ({
+  isDemoInstance: () => mockIsDemoInstance(),
+}));
+
 jest.mock("../../../../api/auth/utils", () => ({
   clearAuthCookie: jest.fn(),
   createSessionToken: jest.fn(() => ({
@@ -89,7 +95,20 @@ describe("initial user authentication setup", () => {
 
     await handler({}, res);
 
-    expect(res.json).toHaveBeenCalledWith({ requiresInitialUser: true });
+    expect(res.json).toHaveBeenCalledWith({ requiresInitialUser: true, demoInstance: false });
+  });
+
+  it("reports a demo instance before anyone signs in", async () => {
+    mockUserDao.hasAnyUsers.mockResolvedValue(true);
+    mockIsDemoInstance.mockReturnValueOnce(true);
+    const handler = getRouteHandler("/setup-status", "get");
+    if (typeof handler !== "function")
+      throw new Error("Route handler was not a function");
+    const res = buildResponse();
+
+    await handler({}, res);
+
+    expect(res.json).toHaveBeenCalledWith({ requiresInitialUser: false, demoInstance: true });
   });
 
   it("creates the initial administrator and signs them in", async () => {

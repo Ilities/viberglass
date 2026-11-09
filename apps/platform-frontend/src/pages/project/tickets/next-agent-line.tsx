@@ -60,7 +60,7 @@ export function NextAgentLine({ taskId, refreshKey, clankers, agentsOnTask }: Ne
   const clanker = clankers.find((each) => each.id === next.clankerId)
   const isAdmin = user?.role === 'admin'
   const readiness = clanker?.readiness
-  const notReady = clanker ? readiness?.state !== 'ready' : Boolean(next.problem)
+  const notReady = clanker ? readiness !== undefined && readiness?.state !== 'ready' : Boolean(next.problem)
 
   function problem() {
     if (!clanker) return <span className="text-[var(--red-11)]">{next?.problem}</span>

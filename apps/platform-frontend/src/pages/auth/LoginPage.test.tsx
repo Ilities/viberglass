@@ -44,7 +44,7 @@ beforeEach(() => {
 describe('LoginPage initial administrator setup', () => {
   it('turns the first login into a one-time administrator setup', async () => {
     const user = userEvent.setup()
-    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: true })
+    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: true, demoInstance: false })
     register.mockResolvedValue({
       id: 'admin-1',
       email: 'admin@example.com',
@@ -67,7 +67,7 @@ describe('LoginPage initial administrator setup', () => {
   })
 
   it('shows normal login without public registration after setup', async () => {
-    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: false })
+    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: false, demoInstance: false })
     renderLogin()
 
     expect(await screen.findByRole('heading', { name: 'Sign in to your account' })).toBeVisible()
@@ -78,7 +78,7 @@ describe('LoginPage initial administrator setup', () => {
 
   it('does not submit mismatched administrator passwords', async () => {
     const user = userEvent.setup()
-    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: true })
+    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: true, demoInstance: false })
     renderLogin()
 
     await screen.findByRole('heading', { name: 'Create the first administrator' })

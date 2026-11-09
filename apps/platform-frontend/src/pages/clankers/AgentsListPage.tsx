@@ -46,9 +46,11 @@ export function AgentsListPage() {
                   </p>
                 </div>
               </div>
-              <div className="mt-4 border-t border-zinc-950/5 pt-3 text-sm dark:border-white/5">
-                <RunnerReadinessBadge readiness={agent.readiness} />
-              </div>
+              {agent.readiness !== undefined && (
+                <div className="mt-4 border-t border-zinc-950/5 pt-3 text-sm dark:border-white/5">
+                  <RunnerReadinessBadge readiness={agent.readiness} />
+                </div>
+              )}
             </li>
           ))}
         </ul>

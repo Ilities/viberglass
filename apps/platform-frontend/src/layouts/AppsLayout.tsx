@@ -1,3 +1,4 @@
+import { DemoInstanceBanner } from '@/components/demo-instance-banner'
 import { useAuth } from '@/context/auth-context'
 import { useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -16,6 +17,7 @@ export function AppsLayout() {
 
   return (
     <main className="app-canvas flex min-h-dvh flex-col p-3">
+      <DemoInstanceBanner className="mb-3" />
       <div className="app-frame flex grow items-center justify-center p-6 lg:p-10">
         {status === 'authenticated' ? (
           <Outlet />

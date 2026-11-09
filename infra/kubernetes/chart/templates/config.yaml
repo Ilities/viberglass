@@ -41,6 +41,9 @@ data:
   APPS_KEEP_PREVIEWS_ON: "true"
   {{- end }}
   {{- end }}
+  {{- if .Values.demo.enabled }}
+  VIBERGLASS_DEMO: "true"
+  {{- end }}
   KUBERNETES_WORKER_NAMESPACE: {{ include "viberglass.workersNamespace" . | quote }}
   {{- if .Values.workers.envSecret }}
   KUBERNETES_WORKER_ENV_SECRET: {{ .Values.workers.envSecret | quote }}

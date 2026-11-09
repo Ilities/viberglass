@@ -1,3 +1,4 @@
+import { DemoInstanceBanner } from '@/components/demo-instance-banner'
 import { DemoWorkspaceBanner } from '@/components/demo-workspace-banner'
 import { Dropdown, DropdownButton } from '@/components/dropdown'
 import { Navbar, NavbarItem, NavbarSection } from '@/components/navbar'
@@ -93,6 +94,7 @@ export function ApplicationLayout() {
           />
         }
       >
+        <DemoInstanceBanner className="mb-6" />
         <DemoWorkspaceBanner />
         <SpaceOutlet />
       </StackedLayout>

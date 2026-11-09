@@ -53,6 +53,8 @@ storage:
   storageClass: ""
 preview:
   publicUrl: ""
+demo:
+  enabled: false
 apps:
   domain: ""
   publicUrl: ""

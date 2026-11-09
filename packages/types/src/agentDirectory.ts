@@ -12,10 +12,11 @@ export interface AgentDirectoryEntry {
   agent: AgentType | null
   /** The model it's set to use; null runs the harness's default. */
   model: string | null
-  status: ClankerStatus
-  readiness: RunnerReadiness | null
+  /** Status, readiness and deployable are left out on a demo instance. */
+  status?: ClankerStatus
+  readiness?: RunnerReadiness | null
   /** Whether it has compute to run on; one without can't take a task. */
-  deployable: boolean
+  deployable?: boolean
 }
 
 /** The runner's value for the setting that takes a provider's default model or endpoint. */

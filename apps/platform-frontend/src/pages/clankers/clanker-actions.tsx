@@ -7,7 +7,7 @@ import type { Clanker } from '@viberglass/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export function canStartClanker(clanker: Pick<Clanker, 'status'>): boolean {
+export function canStartClanker(clanker: Partial<Pick<Clanker, 'status'>>): boolean {
   return clanker.status === 'inactive' || clanker.status === 'failed'
 }
 

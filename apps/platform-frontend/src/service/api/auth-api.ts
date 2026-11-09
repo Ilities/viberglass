@@ -11,7 +11,7 @@ export type AuthUser = {
   role?: WorkspaceRole
 }
 
-export type SetupStatus = { requiresInitialUser: boolean }
+export type SetupStatus = { requiresInitialUser: boolean; demoInstance: boolean }
 
 type AuthResponse = {
   token: string

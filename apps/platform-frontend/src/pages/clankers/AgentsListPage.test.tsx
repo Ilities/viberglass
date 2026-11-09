@@ -28,4 +28,22 @@ describe('AgentsListPage', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
+
+  it('shows no readiness when the list leaves it out, as on a demo instance', async () => {
+    jest.mocked(getAgentDirectory).mockResolvedValue([
+      { id: 'a-1', name: 'Default agent', slug: 'default-agent', agent: 'claude-code', model: 'claude-sonnet' },
+    ])
+    render(
+      <Theme>
+        <MemoryRouter>
+          <AgentsListPage />
+        </MemoryRouter>
+      </Theme>
+    )
+
+    expect(await screen.findByText('Default agent')).toBeInTheDocument()
+    expect(screen.getByText('claude-sonnet')).toBeInTheDocument()
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not running')).not.toBeInTheDocument()
+  })
 })

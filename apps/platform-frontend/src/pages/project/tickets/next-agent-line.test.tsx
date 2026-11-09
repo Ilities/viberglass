@@ -80,6 +80,16 @@ describe('NextAgentLine', () => {
     expect(screen.getByRole('link', { name: 'Open agent' })).toHaveAttribute('href', '/settings/agents/claude')
   })
 
+  it('says nothing about readiness when the list leaves it out, as on a demo instance', async () => {
+    mockNextAgent.mockResolvedValue({ clankerId: 'c-1', name: 'Claude review', via: 'default', problem: 'No model key.' })
+    renderLine([{ id: 'c-1', name: 'Claude review', slug: 'claude', agent: 'opencode', model: null }])
+
+    const line = await screen.findByRole('status', { name: 'Agent for the next ask' })
+    expect(line).toHaveTextContent("Asks go to Claude review, the workspace's default agent.")
+    expect(line).not.toHaveTextContent('Unknown')
+    expect(line).not.toHaveTextContent('No model key.')
+  })
+
   it('says why no agent would run', async () => {
     mockNextAgent.mockResolvedValue({ clankerId: null, name: null, via: null, problem: 'No agent is ready to run.' })
     renderLine([])

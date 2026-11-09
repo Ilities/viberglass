@@ -8,6 +8,7 @@ import path from "path";
 import { existsSync } from "fs";
 import cookieParser from "cookie-parser";
 import logger from "../config/logger";
+import { isDemoInstance } from "../config/demoInstance";
 import passport from "passport";
 import type { ExtendedRequest } from "../webhooks/ExtendedRequest";
 
@@ -226,7 +227,7 @@ app.use("/api/app-home", adminOnlyChanges(), auditRequests(APP_HOME_AUDIT), crea
 app.use(
   "/api/agents",
   requireRunReader,
-  createAgentDirectoryRouter(new ClankerListing(new ClankerDAO(), getClankerProvisioner(), new ClankerReadinessService())),
+  createAgentDirectoryRouter(new ClankerListing(new ClankerDAO(), getClankerProvisioner(), new ClankerReadinessService()), isDemoInstance()),
 );
 app.use("/api/clankers", requireRole("admin"), auditRequests(RUNNER_AUDIT), clankersRouter);
 app.use("/api/deployment-strategies", requireRole("admin"), deploymentStrategiesRouter);

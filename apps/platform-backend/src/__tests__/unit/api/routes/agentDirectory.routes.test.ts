@@ -24,7 +24,7 @@ const RUNNER: Clanker = {
 describe("agent directory route", () => {
   it("lists what each agent is and whether it runs, without its configuration", async () => {
     const app = express();
-    app.use("/api/agents", createAgentDirectoryRouter({ list: jest.fn(async () => [RUNNER]) }));
+    app.use("/api/agents", createAgentDirectoryRouter({ list: jest.fn(async () => [RUNNER]) }, false));
     const res = await request(app).get("/api/agents").expect(200);
     expect(res.body.data).toEqual([
       {
@@ -37,6 +37,15 @@ describe("agent directory route", () => {
         readiness: { state: "ready", problem: null, lastRun: null },
         deployable: true,
       },
+    ]);
+  });
+
+  it("leaves out whether each agent can run on a demo instance", async () => {
+    const app = express();
+    app.use("/api/agents", createAgentDirectoryRouter({ list: jest.fn(async () => [RUNNER]) }, true));
+    const res = await request(app).get("/api/agents").expect(200);
+    expect(res.body.data).toEqual([
+      { id: "c-1", name: "Claude", slug: "claude", agent: "claude-code", model: "claude-sonnet" },
     ]);
   });
 });
