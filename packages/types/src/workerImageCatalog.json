@@ -52,6 +52,7 @@
       "antigravity",
       "claude-code",
       "codex",
+      "deepseek-harness",
       "kimi-code",
       "mistral-vibe",
       "opencode",
@@ -109,6 +110,23 @@
     ],
     "defaultForAgents": [
       "codex"
+    ]
+  },
+  {
+    "variant": "deepseek-harness",
+    "repositoryName": "viberator-worker-deepseek-harness",
+    "scriptImageName": "worker-deepseek-harness",
+    "dockerfilePath": "infra/workers/docker/generated/deepseek-harness.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "deepseek-harness"
+    ],
+    "defaultForAgents": [
+      "deepseek-harness"
     ]
   },
   {

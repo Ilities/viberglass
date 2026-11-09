@@ -9,7 +9,8 @@
     "@viberglass/agent-mistral-vibe",
     "@viberglass/agent-antigravity",
     "@viberglass/agent-pi",
-    "@viberglass/agent-fake"
+    "@viberglass/agent-fake",
+    "@viberglass/agent-deepseek-harness"
   ],
   "integrations": [
     "@viberglass/integration-github",
