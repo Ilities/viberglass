@@ -20,6 +20,7 @@
     "@viberglass/integration-linear",
     "@viberglass/integration-monday",
     "@viberglass/integration-shortcut",
-    "@viberglass/integration-custom"
+    "@viberglass/integration-custom",
+    "@viberglass/integration-asana"
   ]
 }

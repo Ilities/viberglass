@@ -9,6 +9,7 @@ import express, { Request, Response } from 'express';
 import type { WebhookService } from '../../../webhooks/WebhookService';
 import { createChildLogger } from '../../../config/logger';
 import { getRequestRawBody, respondWithWebhookResult } from './routeHelpers';
+import { configuredIntegrationPlugins } from '../../../integrations/configuredIntegrationPlugins';
 
 const logger = createChildLogger({ service: 'InboundWebhookRoute' });
 
@@ -19,6 +20,9 @@ export function createInboundRoutes(getWebhookService: () => Pick<WebhookService
     const { provider, configId } = req.params;
     const context = { provider, configId, tenantId: req.tenantId };
     try {
+      const receiver = configuredIntegrationPlugins.find((plugin) => plugin.id === provider)?.webhook;
+      const handshake = receiver?.handshakeHeaders?.(normalizeHeaders(req.headers));
+      if (handshake) return res.set(handshake).status(200).end();
       const result = await getWebhookService().processWebhook(
         req.headers,
         req.body,
@@ -40,4 +44,13 @@ export function createInboundRoutes(getWebhookService: () => Pick<WebhookService
   });
 
   return router;
+}
+
+function normalizeHeaders(headers: Request['headers']): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === 'string') normalized[key.toLowerCase()] = value;
+    else if (Array.isArray(value)) normalized[key.toLowerCase()] = value[0] ?? '';
+  }
+  return normalized;
 }
