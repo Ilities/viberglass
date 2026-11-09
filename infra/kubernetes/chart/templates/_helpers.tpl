@@ -21,3 +21,22 @@ envFrom:
   - secretRef: {name: {{ .Values.appSecret }}}
   - secretRef: {name: {{ .Values.storageSecret }}}
 {{- end -}}
+{{- define "viberglass.demoResetEnvironment" -}}
+{{- $root := .root -}}
+{{ include "viberglass.backendEnvironment" $root }}
+env:
+  - name: POD_NAMESPACE
+    valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
+  - {name: DEMO_BACKEND_DEPLOYMENT, value: {{ .backend | quote }}}
+  - {name: DEMO_BACKEND_REPLICAS, value: {{ $root.Values.backend.replicas | quote }}}
+  {{- if .seed }}
+  - {name: DEMO_FIXTURES_BUCKET, value: {{ required "demo.reset.fixtures.bucket is required" $root.Values.demo.reset.fixtures.bucket | quote }}}
+  - {name: DEMO_FIXTURES_PREFIX, value: {{ $root.Values.demo.reset.fixtures.prefix | quote }}}
+  - name: DEMO_VIEWER_EMAIL
+    valueFrom: {secretKeyRef: {name: {{ required "demo.reset.viewerSecret is required" $root.Values.demo.reset.viewerSecret | quote }}, key: email}}
+  - name: DEMO_VIEWER_PASSWORD
+    valueFrom: {secretKeyRef: {name: {{ $root.Values.demo.reset.viewerSecret | quote }}, key: password}}
+  {{- end }}
+securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: "1", memory: 1Gi}}
+{{- end -}}

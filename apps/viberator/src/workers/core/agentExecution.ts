@@ -20,7 +20,9 @@ import { ExecutionContext } from "../../types";
 import { classifyAgentFailure } from "./classifyAgentFailure";
 import { failingWith, JobFailureError } from "./JobFailureError";
 import type { AgentAuthContext } from "./agentAuthLifecycle";
-import type { JobRunnerParams, ManifestScratch } from "./jobPipeline";
+import type { JobRunnerParams } from "./jobPipeline";
+import { recordAgentResult } from "./recordAgentResult";
+import { runModelEndpoint } from "./runModelEndpoint";
 import { installSkills } from "./installSkills";
 import { agentRegistry } from "../../agents/registerPlugins";
 
@@ -138,7 +140,9 @@ export async function executeAgentWithRetry(
         }),
       );
 
-      recordAgentResultInManifest(params.manifest, selectedAgent.name, result, stopReason);
+      if (params.manifest) {
+        recordAgentResult(params.manifest, selectedAgent.name, result, stopReason, runModelEndpoint(params.clankerConfig));
+      }
 
       if (!result.success) {
         // Thrown so the job fails as before; marked first so the reason is on
@@ -153,69 +157,4 @@ export async function executeAgentWithRetry(
       return result;
     },
   );
-}
-
-/**
- * Copies what the agent reported into the manifest scratch.
- *
- * Cost provenance is the point of the branching below. A CLI-reported cost is
- * `actual`; the plugin's `costPerExecution` constant is `estimated`; a plugin
- * with neither records `unavailable`. Collapsing these would make a hardcoded
- * constant indistinguishable from a measurement in the eval corpus.
- */
-function recordAgentResultInManifest(
-  manifest: ManifestScratch | undefined,
-  agentName: string,
-  result: ExecutionResultLike,
-  stopReason: string,
-): void {
-  if (!manifest) return;
-
-  manifest.agent = agentName;
-  manifest.stopReason = stopReason;
-  manifest.promptHash = result.promptHash;
-  manifest.promptCharacters = result.promptCharacters;
-
-  const usage = result.usage;
-  manifest.usageAvailable = Boolean(usage);
-
-  manifest.modelSnapshot = usage?.model ?? result.model;
-  if (usage) {
-    manifest.harnessVersion = usage.harnessVersion;
-    manifest.usage = {
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      reasoningOutputTokens: usage.reasoningOutputTokens,
-      cacheReadInputTokens: usage.cacheReadInputTokens,
-      cacheCreationInputTokens: usage.cacheCreationInputTokens,
-    };
-  }
-
-  if (usage?.costUsd !== undefined) {
-    manifest.costUsd = usage.costUsd;
-    manifest.costProvenance = "actual";
-  } else if (typeof result.cost === "number" && Number.isFinite(result.cost)) {
-    manifest.costUsd = result.cost;
-    manifest.costProvenance = "estimated";
-  } else {
-    manifest.costProvenance = "unavailable";
-  }
-}
-
-/** The subset of the agent's ExecutionResult the manifest reads. */
-interface ExecutionResultLike {
-  cost?: number;
-  promptHash?: string;
-  promptCharacters?: number;
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    reasoningOutputTokens?: number;
-    cacheReadInputTokens?: number;
-    cacheCreationInputTokens?: number;
-    costUsd?: number;
-    model?: string;
-    harnessVersion?: string;
-  };
-  model?: string;
 }

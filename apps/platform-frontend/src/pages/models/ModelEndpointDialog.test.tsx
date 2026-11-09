@@ -69,4 +69,19 @@ describe('ModelEndpointDialog', () => {
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Model IDs' })).toHaveValue('qwen\nllama 131072'))
   })
+
+  it('saves a session header, and none when the field is left empty', async () => {
+    const { onSaved } = renderDialog({ ...endpoint, sessionHeader: 'x-opencode-session' })
+    const field = screen.getByRole('textbox', { name: 'Session header' })
+    expect(field).toHaveValue('x-opencode-session')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    expect(mockSave).toHaveBeenLastCalledWith(expect.objectContaining({ sessionHeader: 'x-opencode-session' }), 'endpoint-1')
+
+    fireEvent.change(field, { target: { value: '  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(2))
+    expect(mockSave).toHaveBeenLastCalledWith(expect.objectContaining({ sessionHeader: null }), 'endpoint-1')
+  })
 })

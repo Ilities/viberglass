@@ -40,6 +40,7 @@ export class RunnerModelEndpointResolver {
         apiFormat: endpoint.apiFormat,
         auth: endpoint.auth,
         extraHeaders: endpoint.extraHeaders,
+        ...(endpoint.sessionHeader ? { sessionHeader: endpoint.sessionHeader } : {}),
         model: clanker.modelEndpoint.model,
         mayColdStart: endpoint.mayColdStart,
         ...(contextWindow !== undefined ? { contextWindow } : {}),

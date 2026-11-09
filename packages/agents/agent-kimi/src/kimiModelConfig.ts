@@ -13,6 +13,9 @@ const PROVIDER_TYPES: Record<ModelApiFormat, string> = {
   "anthropic-messages": "anthropic",
 };
 
+/** Kimi refuses a model without a context size; most hosted models take at least this much. */
+const DEFAULT_CONTEXT_SIZE = 131072;
+
 /** Kimi sends a key from the environment as a bearer token to OpenAI-style APIs, and as `x-api-key` to Anthropic ones. */
 function sendsKeyNatively(endpoint: WorkerModelEndpoint): boolean {
   if (endpoint.apiFormat === "anthropic-messages")
@@ -42,7 +45,7 @@ export function kimiModelConfig(
     `[models.viberglass]`,
     `provider = "viberglass"`,
     `model = ${tomlString(endpoint.model)}`,
-    ...(endpoint.contextWindow ? [`max_context_size = ${endpoint.contextWindow}`] : []),
+    `max_context_size = ${endpoint.contextWindow ?? DEFAULT_CONTEXT_SIZE}`,
     ``,
   ].join("\n");
 }

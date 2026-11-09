@@ -238,7 +238,8 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     }
 
     const configuredCost = fallbackCost ?? this.config.costPerExecution;
-    if (typeof configuredCost === "number" && Number.isFinite(configuredCost)) {
+    // A run that reported no usage never reached a model, so there's nothing to estimate.
+    if (usage && typeof configuredCost === "number" && Number.isFinite(configuredCost)) {
       // A per-plugin constant, not a measurement. Labelled so nothing
       // downstream mistakes it for one.
       span.setAttribute(ATTR_VG_COST_USD, configuredCost);

@@ -55,6 +55,21 @@ preview:
   publicUrl: ""
 demo:
   enabled: false
+  # Seeds the demo again every night from a fixture bundle; see apps/platform-backend/src/demo/README.md.
+  reset:
+    enabled: false
+    schedule: "30 3 * * *"
+    timeZone: UTC
+    # The bundle, in a bucket the instance's storage credentials can read.
+    fixtures:
+      bucket: viberglass-demo-fixtures
+      prefix: ""
+    # A Secret with the shared viewer's `email` and `password`.
+    viewerSecret: viberglass-demo-viewer
+    # Where the reset reaches the Kubernetes API; narrow to the API server's address where it's known.
+    apiServer:
+      cidrs: ["0.0.0.0/0"]
+      ports: [443, 6443]
 apps:
   domain: ""
   publicUrl: ""

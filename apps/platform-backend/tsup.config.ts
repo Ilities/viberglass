@@ -14,7 +14,12 @@ export default defineConfig([
   // Server bundle — @viberglass/* inlined so production image needs no workspace symlinks;
   // all other node_modules kept external so CJS packages aren't double-bundled into ESM
   {
-    entry: { "api/server": "src/api/server.ts", "migrations/migrator": "src/migrations/migrator.ts" },
+    entry: {
+      "api/server": "src/api/server.ts",
+      "migrations/migrator": "src/migrations/migrator.ts",
+      "demo/seedDemo": "src/demo/seedDemo.ts",
+      "demo/resetDemo": "src/demo/resetDemo.ts",
+    },
     format: ["esm"],
     outDir: "dist",
     clean: true,

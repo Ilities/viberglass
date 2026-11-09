@@ -78,3 +78,16 @@ test("routes a resolved custom endpoint through the plugin's declared capability
   expect(sanitizeAgentEnvironment(piEnv, { passthrough: Object.keys(piEnv) }).env.PI_CUSTOM_MODELS).toBe(piEnv.PI_CUSTOM_MODELS);
   expect(JSON.parse(piEnv.PI_CUSTOM_MODELS).providers.viberglass.models[0].id).toBe("qwen");
 });
+
+test("sends the run's own value in the endpoint's session header", () => {
+  const factory = new ClankerAgentEndpointEnvironmentFactory();
+  const endpoint = { name: "Go", baseUrl: "https://go.example.com/v1", apiFormat: "openai-chat",
+    auth: { scheme: "none" }, extraHeaders: { "X-Team": "eu" }, sessionHeader: "x-session", model: "glm-5.3", mayColdStart: false };
+  const clankerConfig = { agent: "opencode", deploymentConfig: { resolvedModelEndpoint: endpoint } };
+  const headersFor = (session?: string) =>
+    JSON.parse(factory.create({ requestedAgent: "opencode", clankerConfig, session, logger }).resolve().OPENCODE_CONFIG_CONTENT).provider.viberglass.options.headers;
+  expect(headersFor("session-1")).toEqual({ "X-Team": "eu", "x-session": "session-1" });
+  expect(headersFor(undefined)["x-session"]).not.toEqual(headersFor(undefined)["x-session"]);
+  const qwenEnv = factory.create({ requestedAgent: "qwen-cli", clankerConfig, session: "session-2", logger }).resolve();
+  expect(JSON.parse(qwenEnv.MODEL_ENDPOINT_CONFIG).extraHeaders).toEqual({ "X-Team": "eu", "x-session": "session-2" });
+});

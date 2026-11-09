@@ -1,0 +1,161 @@
+{{- if and .Values.demo.enabled .Values.demo.reset.enabled }}
+{{- $name := printf "%s-demo-reset" (include "viberglass.name" .) }}
+{{- $backend := printf "%s-backend" (include "viberglass.name" .) }}
+# Puts the demo back to its fixtures every night: the backend stops, apps and
+# previews are removed, the database and bucket are emptied and seeded again,
+# and the backend starts, which starts the seeded apps.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+rules:
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    resourceNames: [{{ $backend | quote }}]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+{{- if .Values.apps.domain }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "viberglass.appsNamespace" . }}
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [deletecollection]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [list, delete]
+  # By collection only, so the reset never reads a Secret.
+  - apiGroups: [""]
+    resources: [secrets, persistentvolumeclaims]
+    verbs: [deletecollection]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "viberglass.appsNamespace" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+spec:
+  podSelector: {matchLabels: {app: {{ $name | quote }}}}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    {{- if .Values.database.enabled }}
+    - to: [{podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-postgres"}}}]
+      ports: [{protocol: TCP, port: 5432}]
+    {{- else }}
+    - ports: [{protocol: TCP, port: {{ .Values.database.port }}}]
+    {{- end }}
+    {{- if .Values.storage.enabled }}
+    - to: [{podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-minio"}}}]
+      ports: [{protocol: TCP, port: 9000}]
+    {{- else }}
+    - ports: [{protocol: TCP, port: 443}]
+    {{- end }}
+    # The Kubernetes API, which a policy can't select by label.
+    - to:
+        {{- range .Values.demo.reset.apiServer.cidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports:
+        {{- range .Values.demo.reset.apiServer.ports }}
+        - {protocol: TCP, port: {{ . }}}
+        {{- end }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+spec:
+  schedule: {{ .Values.demo.reset.schedule | quote }}
+  timeZone: {{ .Values.demo.reset.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels: {app: {{ $name | quote }}, database-client: "true", storage-client: "true"}
+        spec:
+          serviceAccountName: {{ $name }}
+          restartPolicy: Never
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+          {{- $steps := list "scale-down" }}
+          {{- if .Values.apps.domain }}{{- $steps = append $steps "clear-apps" }}{{- end }}
+          {{- $steps = append $steps "reset-database" }}
+          initContainers:
+            {{- range $steps }}
+            - name: {{ . }}
+              image: {{ $.Values.backend.image | quote }}
+              imagePullPolicy: {{ $.Values.imagePullPolicy }}
+              command: [node, dist/demo/resetDemo.js, {{ . }}]
+              {{- include "viberglass.demoResetEnvironment" (dict "root" $ "backend" $backend) | nindent 14 }}
+            {{- end }}
+            - name: migrate
+              image: {{ .Values.backend.image | quote }}
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              command: [node, dist/migrations/migrator.js]
+              {{- include "viberglass.demoResetEnvironment" (dict "root" $ "backend" $backend) | nindent 14 }}
+            - name: wipe-bucket
+              image: {{ .Values.backend.image | quote }}
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              command: [node, dist/demo/resetDemo.js, wipe-bucket]
+              {{- include "viberglass.demoResetEnvironment" (dict "root" $ "backend" $backend) | nindent 14 }}
+            - name: seed
+              image: {{ .Values.backend.image | quote }}
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              command: [node, dist/demo/seedDemo.js]
+              {{- include "viberglass.demoResetEnvironment" (dict "root" $ "backend" $backend "seed" true) | nindent 14 }}
+          containers:
+            - name: scale-up
+              image: {{ .Values.backend.image | quote }}
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              command: [node, dist/demo/resetDemo.js, scale-up]
+              {{- include "viberglass.demoResetEnvironment" (dict "root" $ "backend" $backend) | nindent 14 }}
+{{- end }}

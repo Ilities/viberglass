@@ -43,6 +43,7 @@ function toEndpoint(
     auth: row.auth,
     secretId: row.secret_id,
     extraHeaders,
+    sessionHeader: row.session_header,
     models: Array.isArray(row.models)
       ? row.models.filter((value): value is string => typeof value === "string")
       : [],
@@ -67,6 +68,7 @@ export function modelEndpointValues(
     auth: JSON.stringify(input.auth),
     secret_id: input.secretId ?? null,
     extra_headers: JSON.stringify(input.extraHeaders),
+    session_header: input.sessionHeader?.trim() || null,
     models: JSON.stringify(input.models),
     context_windows: JSON.stringify(input.contextWindows ?? {}),
     may_cold_start: input.mayColdStart,

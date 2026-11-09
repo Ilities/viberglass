@@ -1146,6 +1146,7 @@ export interface ModelEndpointsTable {
   auth: Json;
   secret_id: string | null;
   extra_headers: Json;
+  session_header: string | null;
   models: Json;
   context_windows: Generated<Json>;
   source: Generated<"manual" | "deployment">;

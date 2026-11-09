@@ -1,0 +1,61 @@
+import { isObjectRecord } from "@viberglass/types";
+
+export interface ExportConfig {
+  emailDomain: string;
+  /** Source address to exported address; everyone else gets their first name at `emailDomain`. */
+  emails: Record<string, string>;
+  /** Source addresses of people left out, such as the admin who ran the capture. */
+  excludeUsers: string[];
+  /** Space slugs to export; null exports every space. */
+  spaces: string[] | null;
+  viewer: {
+    /** A source person who becomes the shared viewer, keeping what they watch and where they're mentioned. */
+    sourceEmail: string | null;
+    watchTaskKeys: string[];
+  };
+  /** Exact matches the secret scan reported and someone checked are harmless. */
+  allowedFindings: string[];
+}
+
+export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
+  emailDomain: "acme.invalid",
+  emails: {},
+  excludeUsers: [],
+  spaces: null,
+  viewer: { sourceEmail: null, watchTaskKeys: [] },
+  allowedFindings: [],
+};
+
+const strings = (value: unknown, name: string): string[] => {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every((item): item is string => typeof item === "string")) {
+    throw new Error(`${name} must be a list of strings`);
+  }
+  return value;
+};
+
+function emails(value: unknown): Record<string, string> {
+  if (value === undefined) return {};
+  if (!isObjectRecord(value)) throw new Error("emails must map source addresses to exported ones");
+  const mapping: Record<string, string> = {};
+  for (const [from, to] of Object.entries(value)) {
+    if (typeof to !== "string") throw new Error(`emails.${from} must be an address`);
+    mapping[from] = to;
+  }
+  return mapping;
+}
+
+export function parseExportConfig(value: unknown): ExportConfig {
+  if (!isObjectRecord(value)) throw new Error("The export config must be a JSON object");
+  const viewer = isObjectRecord(value.viewer) ? value.viewer : {};
+  if (value.emailDomain !== undefined && typeof value.emailDomain !== "string") throw new Error("emailDomain must be a string");
+  if (viewer.sourceEmail !== undefined && typeof viewer.sourceEmail !== "string") throw new Error("viewer.sourceEmail must be a string");
+  return {
+    emailDomain: value.emailDomain ?? DEFAULT_EXPORT_CONFIG.emailDomain,
+    emails: emails(value.emails),
+    excludeUsers: strings(value.excludeUsers, "excludeUsers"),
+    spaces: value.spaces === undefined ? null : strings(value.spaces, "spaces"),
+    viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys: strings(viewer.watchTaskKeys, "viewer.watchTaskKeys") },
+    allowedFindings: strings(value.allowedFindings, "allowedFindings"),
+  };
+}

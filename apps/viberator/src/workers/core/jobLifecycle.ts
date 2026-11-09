@@ -20,6 +20,7 @@ import { JobResult } from "./types";
 import { JobFailureError } from "./JobFailureError";
 import type { JobRunnerParams, ManifestScratch } from "./jobPipeline";
 import { startWorkerHeartbeat } from "./workerHeartbeat";
+import { changedFileCount } from "./changedFileCount";
 
 /**
  * Wraps a job runner function with shared error handling and result callbacks.
@@ -61,7 +62,7 @@ export async function withJobLifecycle(
 
       span.setAttributes(
         definedAttributes({
-          [ATTR_VG_CHANGED_FILE_COUNT]: result.changedFiles.length,
+          [ATTR_VG_CHANGED_FILE_COUNT]: changedFileCount(result),
           [ATTR_VG_STOP_REASON]: result.success ? "completed" : "failed",
         }),
       );
@@ -103,7 +104,7 @@ async function runJobLifecycle(
         branch: result.branch,
         commitSha: result.commitHash,
         pullRequestUrl: result.pullRequestUrl,
-        changedFileCount: result.changedFiles.length,
+        changedFileCount: changedFileCount(result),
       }),
     };
 

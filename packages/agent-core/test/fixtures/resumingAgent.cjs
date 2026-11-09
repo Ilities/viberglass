@@ -8,6 +8,7 @@
 //   AGENT_ECHO_MCP=1             the reply ends with the MCP servers its session was opened with
 //   AGENT_MCP_HTTP=1             initialize advertises HTTP MCP servers
 //   AGENT_MODEL=glm-5            the model its session replies name, as a model config option
+//   AGENT_RESPONSE_MODEL=x       the model its usage_update names in _meta, as the model its replies came from
 //   AGENT_STATS=1000             answers /session with its totals, as pi-acp does: a continued session starts at 1000 input tokens; each prompt adds 100 in, 10 out, $0.001
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
@@ -80,7 +81,8 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     say(msg.params.sessionId, `calls: ${calls.join(" ")}${echo}${mcp}`);
     if (process.env.AGENT_USAGE) {
       const [used, size] = process.env.AGENT_USAGE.split("/").map(Number);
-      send({ method: "session/update", params: { sessionId: msg.params.sessionId, update: { sessionUpdate: "usage_update", used, size } } });
+      const meta = process.env.AGENT_RESPONSE_MODEL ? { _meta: { "_vendor/model": process.env.AGENT_RESPONSE_MODEL } } : {};
+      send({ method: "session/update", params: { sessionId: msg.params.sessionId, update: { sessionUpdate: "usage_update", used, size, ...meta } } });
     }
     return send({ id: msg.id, result: { stopReason: "end_turn" } });
   }

@@ -9,12 +9,23 @@ import type { SecretService } from "../SecretService";
 import { ModelEndpointServiceError } from "../errors/ModelEndpointServiceError";
 import { buildModelKeyCheckRequest } from "../setup/modelKeyCheckRequest";
 
-/** Where model lists report a model's context length: vLLM, OpenRouter and Together, Groq, LM Studio. */
-const CONTEXT_LENGTH_FIELDS = ["max_model_len", "context_length", "context_window", "max_context_length"];
+/**
+ * Where model lists report a model's context length: vLLM, OpenRouter and Together, Groq, LM Studio,
+ * and nested as `limit.context` (OpenCode's providers) or `top_provider.context_length` (OpenRouter).
+ */
+const CONTEXT_LENGTH_PATHS = [
+  ["max_model_len"],
+  ["context_length"],
+  ["context_window"],
+  ["max_context_length"],
+  ["limit", "context"],
+  ["top_provider", "context_length"],
+];
 
 function contextLengthOf(entry: Record<string, unknown>): number | undefined {
-  for (const field of CONTEXT_LENGTH_FIELDS) {
-    const value = entry[field];
+  for (const path of CONTEXT_LENGTH_PATHS) {
+    let value: unknown = entry;
+    for (const key of path) value = isObjectRecord(value) ? value[key] : undefined;
     if (isContextWindow(value)) return value;
   }
   return undefined;

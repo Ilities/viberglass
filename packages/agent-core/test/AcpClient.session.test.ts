@@ -52,6 +52,11 @@ describe("AcpClient sessions", () => {
     expect(silent.result.model).toBeUndefined();
   });
 
+  it("reports the model the replies came from over the session's picker alias", async () => {
+    const { result } = await runTurn({ AGENT_SUPPORTS: "", AGENT_MODEL: "haiku", AGENT_USAGE: "1200/200000", AGENT_RESPONSE_MODEL: "claude-haiku-5-5" });
+    expect(result.model).toBe("claude-haiku-5-5");
+  });
+
   it("prefers session/resume, which doesn't replay history", async () => {
     const { result, replies } = await runTurn({ AGENT_SUPPORTS: "load,resume", AGENT_KNOWS: "sess_old" }, "sess_old");
     expect(result.sessionStart).toEqual({ resumed: true, via: "resume" });

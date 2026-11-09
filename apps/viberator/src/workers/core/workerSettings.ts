@@ -25,7 +25,7 @@ export const NO_SETTINGS: WorkerSettings = { turn: { allowCode: false }, mcpServ
 export function workerSettingsOf(payload: WorkerPayload, endpoints: AgentEndpointEnvironmentFactory, logger: Logger): WorkerSettings {
   const clankerConfig = resolveClankerConfig(payload);
   const requestedAgent = normalizeAgentName(payload.agent) || normalizeAgentName(clankerConfig?.agent) || undefined;
-  const endpointEnvironment = endpoints.create({ requestedAgent, clankerConfig, logger }).resolve();
+  const endpointEnvironment = endpoints.create({ requestedAgent, clankerConfig, session: payload.agentSessionId ?? payload.jobId, logger }).resolve();
   return {
     clankerConfig,
     clankerEnvironment: extractClankerEnvironment(clankerConfig, endpointEnvironment),

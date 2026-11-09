@@ -6,7 +6,7 @@ Open a space and choose its Track record tab. Members, viewers and admins see it
 
 ## The table
 
-Each row is a harness and a model, such as OpenCode with `opencode-go/kimi-k3`. The model is the one the harness reported running, or the one its runner was set to use when the harness doesn't say. A runner left on its harness's own model shows as its default model.
+Each row is a harness and a model, such as OpenCode with `opencode-go/kimi-k3`. The model is the one the harness reported running, or the one its runner was set to use when the harness doesn't say. A runner on a workspace model shows the endpoint's model ID. A runner left on its harness's own model shows as its default model.
 
 A task counts toward the agent and model that ran its latest build. A task that was never built counts toward the one that wrote its latest plan.
 
@@ -16,7 +16,7 @@ A task counts toward the agent and model that ran its latest build. A task that 
 - Questions: questions the agent asked per task.
 - Taken over: tasks where an engineer took over the branch.
 - Review comments: review comments per pull request.
-- Cost per merge: what all the row's runs cost, divided by its merged pull requests. "est." means some of it is the harness's flat estimate, not a reported cost; runs that report no cost add nothing.
+- Cost per merge: what all the row's runs cost, divided by its merged pull requests. "est." means some of it is the harness's flat estimate, not a reported cost; runs that report no cost add nothing. A run that failed before reaching the model has no cost, and neither does a run on a workspace model: harnesses price tokens from their own provider's list, which doesn't cover the endpoint's model.
 
 A row with fewer than five tasks says "Too few tasks to say" instead of showing rates.
 

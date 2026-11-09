@@ -41,6 +41,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
   const [secretId, setSecretId] = useState(initial?.secretId ?? '')
   const [models, setModels] = useState(initial ? formatModelLines(initial.models, initial.contextWindows) : '')
   const [extraHeaders, setExtraHeaders] = useState(JSON.stringify(initial?.extraHeaders ?? {}, null, 2))
+  const [sessionHeader, setSessionHeader] = useState(initial?.sessionHeader ?? '')
   const [mayColdStart, setMayColdStart] = useState(initial?.mayColdStart ?? false)
   const [error, setError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
@@ -65,6 +66,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
         auth === 'header' ? { scheme: 'header', header } : auth === 'none' ? { scheme: 'none' } : { scheme: 'bearer' },
       secretId: auth === 'none' ? null : secretId || null,
       extraHeaders: headers,
+      sessionHeader: sessionHeader.trim() || null,
       ...readModelLines(models),
       mayColdStart,
     }
@@ -226,6 +228,19 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
                 rows={3}
                 value={extraHeaders}
                 onChange={(e) => setExtraHeaders(e.target.value)}
+                disabled={readOnly}
+              />
+            </Field>
+            <Field>
+              <Label>Session header</Label>
+              <Description>
+                For endpoints that want each session named. Every agent session sends this header with a value of its
+                own. Leave empty when the endpoint doesn't need one.
+              </Description>
+              <Input
+                placeholder="x-session-id"
+                value={sessionHeader}
+                onChange={(e) => setSessionHeader(e.target.value)}
                 disabled={readOnly}
               />
             </Field>

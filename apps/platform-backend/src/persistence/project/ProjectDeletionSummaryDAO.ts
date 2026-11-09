@@ -1,4 +1,5 @@
 import db from "../config/database";
+import { spaceRunIds } from "./spaceRunIds";
 
 /** What permanently deleting a project also deletes. */
 export interface ProjectDeletionSummary {
@@ -27,9 +28,8 @@ export class ProjectDeletionSummaryDAO {
         .executeTakeFirstOrThrow(),
       db
         .selectFrom("jobs")
-        .innerJoin("tickets", "tickets.id", "jobs.ticket_id")
         .select((eb) => eb.fn.countAll<string>().as("count"))
-        .where("tickets.project_id", "=", projectId)
+        .where("id", "in", spaceRunIds(db, projectId))
         .executeTakeFirstOrThrow(),
       db
         .selectFrom("agent_sessions")

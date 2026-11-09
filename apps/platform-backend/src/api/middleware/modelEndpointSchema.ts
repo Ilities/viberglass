@@ -34,6 +34,7 @@ export const modelEndpointSchema = Joi.object({
     )
     .max(20)
     .default({}),
+  sessionHeader: Joi.string().pattern(HTTP_HEADER_NAME_PATTERN).max(255).allow(null, "").optional(),
   models: Joi.array()
     .items(Joi.string().trim().min(1).max(255))
     .unique()

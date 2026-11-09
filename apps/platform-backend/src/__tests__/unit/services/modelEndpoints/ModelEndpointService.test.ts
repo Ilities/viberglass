@@ -72,6 +72,8 @@ describe("workspace model endpoints", () => {
       { ...input, baseUrl: "https://key:secret@host/v1" },
       { ...input, extraHeaders: { authorization: "secret" } },
       { ...input, extraHeaders: { "X-Team": "a", "x-team": "b" } },
+      { ...input, sessionHeader: "x-team" },
+      { ...input, sessionHeader: "Authorization" },
       { ...input, auth: { scheme: "none" as const } },
     ])
       await expect(service.create(invalid)).rejects.toMatchObject({
@@ -193,6 +195,22 @@ describe("workspace model endpoints", () => {
     expect(await resolveWith({})).toBeUndefined();
   });
 
+  test("passes the endpoint's session header on to the run, for the worker to fill", async () => {
+    const { dao, service } = fixture();
+    dao.get.mockResolvedValue({ ...endpoint, sessionHeader: "x-opencode-session" });
+    const resolver = new RunnerModelEndpointResolver(service);
+    const resolved = await resolver.resolve({ agent: "opencode", modelEndpoint: { endpointId: endpoint.id, model: "qwen" } });
+    expect(resolved.endpoint).toMatchObject({ sessionHeader: "x-opencode-session", extraHeaders: { "X-Team": "eu" } });
+    dao.get.mockResolvedValue({ ...endpoint, sessionHeader: null });
+    expect((await resolver.resolve({ agent: "opencode", modelEndpoint: { endpointId: endpoint.id, model: "qwen" } })).endpoint).not.toHaveProperty("sessionHeader");
+  });
+
+  test("accepts a session header name and leaves it out when blank", () => {
+    expect(modelEndpointSchema.validate({ ...input, secretId: null, sessionHeader: "x-opencode-session" }).error).toBeUndefined();
+    expect(modelEndpointSchema.validate({ ...input, secretId: null, sessionHeader: "" }).error).toBeUndefined();
+    expect(modelEndpointSchema.validate({ ...input, secretId: null, sessionHeader: "bad header" }).error).toBeDefined();
+  });
+
   test("reads each listed model's context length where the server reports one", async () => {
     const fetchFn = jest.fn(async () => ({
       status: 200,
@@ -202,6 +220,8 @@ describe("workspace model endpoints", () => {
           { id: "router-model", context_length: 200000 },
           { id: "groq-model", context_window: 131072 },
           { id: "studio-model", max_context_length: 8192 },
+          { id: "go-model", limit: { context: 204800, output: 131072 } },
+          { id: "routed-model", top_provider: { context_length: 65536 } },
           { id: "plain-model" },
           { id: "odd-model", max_model_len: "big" },
         ],
@@ -214,6 +234,8 @@ describe("workspace model endpoints", () => {
       "router-model": 200000,
       "groq-model": 131072,
       "studio-model": 8192,
+      "go-model": 204800,
+      "routed-model": 65536,
       "plain-model": 4096,
     });
   });

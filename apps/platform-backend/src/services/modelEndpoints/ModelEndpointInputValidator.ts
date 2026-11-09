@@ -37,7 +37,7 @@ export class ModelEndpointInputValidator {
       input.auth.scheme === "header"
         ? input.auth.header.toLowerCase()
         : "authorization";
-    const names = Object.keys(input.extraHeaders).map((name) =>
+    const names = [...Object.keys(input.extraHeaders), ...(input.sessionHeader ? [input.sessionHeader] : [])].map((name) =>
       name.toLowerCase(),
     );
     if (
@@ -48,7 +48,7 @@ export class ModelEndpointInputValidator {
     ) {
       throw new ModelEndpointServiceError(
         "MODEL_ENDPOINT_INVALID",
-        "Keep authentication in a shared secret. Extra header names must be unique.",
+        "Keep authentication in a shared secret. Extra header and session header names must be unique.",
       );
     }
   }

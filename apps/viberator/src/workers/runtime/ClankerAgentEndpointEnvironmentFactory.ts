@@ -1,4 +1,5 @@
-import { isObjectRecord, pickSettingValues, readWorkerModelEndpoint, type AgentSettingField } from "@viberglass/types";
+import { randomUUID } from "crypto";
+import { isObjectRecord, pickSettingValues, readWorkerModelEndpoint, withModelEndpointSession, type AgentSettingField } from "@viberglass/types";
 import type {
   AgentEndpointEnvironmentFactory,
   AgentEndpointEnvironmentFactoryInput,
@@ -86,7 +87,7 @@ export class ClankerAgentEndpointEnvironmentFactory implements AgentEndpointEnvi
       if (!endpoint || !plugin?.customEndpoints?.apiFormats.includes(endpoint.apiFormat)) {
         throw new Error("The runner's model endpoint is invalid or unsupported by this agent");
       }
-      return plugin.customEndpoints.environment(endpoint);
+      return plugin.customEndpoints.environment(withModelEndpointSession(endpoint, input.session ?? randomUUID()));
     }
     const env = settingsEnvironment(effectiveAgent, plugin?.settings ?? [], config);
     return Object.keys(env).length > 0 ? { resolve: () => env } : new NoopAgentEndpointEnvironment();

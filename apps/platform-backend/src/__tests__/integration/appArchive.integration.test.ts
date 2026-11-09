@@ -39,7 +39,11 @@ beforeAll(async () => {
   mockDb = new Kysely<Database>({ dialect: new PostgresDialect({ pool: new Pool({ connectionString: container.getConnectionUri() }) }) });
   await sql`CREATE TABLE projects (
     id uuid PRIMARY KEY, backing_kind text NOT NULL, archived_at timestamptz, created_at timestamptz NOT NULL DEFAULT now())`.execute(mockDb);
-  await sql`CREATE TABLE jobs (id varchar(255) PRIMARY KEY, status text NOT NULL, job_kind text NOT NULL, ticket_id uuid)`.execute(mockDb);
+  await sql`CREATE TABLE jobs (
+    id varchar(255) PRIMARY KEY, status text NOT NULL, job_kind text NOT NULL, ticket_id uuid, tenant_id text NOT NULL DEFAULT 'api-server', context jsonb)`.execute(mockDb);
+  await sql`CREATE TABLE job_run_manifests (job_id text PRIMARY KEY, project_id text)`.execute(mockDb);
+  await sql`CREATE TABLE space_file_runs (job_id varchar(255) PRIMARY KEY, project_id uuid NOT NULL)`.execute(mockDb);
+  await sql`CREATE TABLE claw_executions (id uuid PRIMARY KEY, schedule_id uuid NOT NULL, job_id varchar(255))`.execute(mockDb);
   await sql`CREATE TABLE clankers (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), slug text, deleted_at timestamptz)`.execute(mockDb);
   await sql`CREATE TABLE tickets (id uuid PRIMARY KEY, project_id uuid)`.execute(mockDb);
   await sql`CREATE TABLE users (id uuid PRIMARY KEY)`.execute(mockDb);

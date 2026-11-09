@@ -53,6 +53,21 @@ export function promptUsageOf(result: unknown): AcpContextUsage | null {
   return { used: input + cached, size: null };
 }
 
+/**
+ * The model a `usage_update`'s usage came from, which ACP has no field for: a
+ * harness may name it in the update's `_meta`, under `model` or a namespaced
+ * `<vendor>/model` key. Unlike the session's model option, which can be a
+ * picker alias such as `opus`, it is the id the model's responses carried.
+ */
+export function responseModelOf(params: unknown): string | undefined {
+  const update = updateOf(params);
+  if (!update || kindOf(update) !== "usage_update" || !isRecord(update._meta)) return undefined;
+  for (const [key, value] of Object.entries(update._meta)) {
+    if ((key === "model" || key.endsWith("/model")) && typeof value === "string" && value) return value;
+  }
+  return undefined;
+}
+
 /** The harness's compact command, as `/name`, when its command list has one. */
 export function compactCommandOf(params: unknown): string | null | undefined {
   const update = updateOf(params);

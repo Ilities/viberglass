@@ -32,6 +32,8 @@ export interface ModelEndpointInput {
   auth: ModelEndpointAuth;
   secretId?: string | null;
   extraHeaders: Record<string, string>;
+  /** A header each run sends with a value of its own, for endpoints that want every session named. */
+  sessionHeader?: string | null;
   models: string[];
   /** Each model's context length in tokens, where the endpoint reported it or someone entered it. */
   contextWindows?: Record<string, number>;
@@ -71,10 +73,18 @@ export interface WorkerModelEndpoint {
   apiFormat: ModelApiFormat;
   auth: ModelEndpointAuth;
   extraHeaders: Record<string, string>;
+  /** The header the worker fills with the run's own value; it then sends it with the extra headers. */
+  sessionHeader?: string;
   model: string;
   mayColdStart: boolean;
   /** The model's context length in tokens; absent when unknown, and the harness uses its own default. */
   contextWindow?: number;
+}
+
+/** The endpoint as a run uses it: its session header, if it has one, carries `session` among the extra headers. */
+export function withModelEndpointSession(endpoint: WorkerModelEndpoint, session: string): WorkerModelEndpoint {
+  const { sessionHeader, ...rest } = endpoint;
+  return sessionHeader ? { ...rest, extraHeaders: { ...rest.extraHeaders, [sessionHeader]: session } } : rest;
 }
 
 export const MODEL_ENDPOINT_KEY_ENV_VAR = "MODEL_ENDPOINT_API_KEY";
@@ -178,6 +188,8 @@ export function readWorkerModelEndpoint(
   }
   const contextWindow = value.contextWindow;
   if (contextWindow !== undefined && !isContextWindow(contextWindow)) return undefined;
+  const sessionHeader = value.sessionHeader;
+  if (sessionHeader !== undefined && typeof sessionHeader !== "string") return undefined;
   return {
     name: value.name,
     baseUrl: value.baseUrl,
@@ -186,6 +198,7 @@ export function readWorkerModelEndpoint(
     extraHeaders,
     model: value.model,
     mayColdStart: value.mayColdStart,
+    ...(sessionHeader ? { sessionHeader } : {}),
     ...(contextWindow !== undefined ? { contextWindow } : {}),
   };
 }

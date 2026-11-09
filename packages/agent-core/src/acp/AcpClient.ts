@@ -18,7 +18,7 @@ import { AcpSessionTotalsProbe, type AcpSessionTotals, type AcpUsageProbe } from
 import type { AgentUsageReport } from "../usage";
 import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
-import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
+import { compactCommandOf, contextUsageOf, promptUsageOf, responseModelOf, type AcpContextUsage } from "./acpSessionSignals";
 import { describeLeftOutMcpServers, mcpServersSupportedBy } from "./mcpServerSupport";
 import { signalProcessGroup, stopAcpProcess } from "./stopAcpProcess";
 import { acpErrorMessage } from "./acpErrorMessage";
@@ -53,7 +53,7 @@ export interface AcpRunResult {
   compacted: boolean;
   /** The turn's tokens and cost, when the harness reported them. */
   usage?: AgentUsageReport;
-  /** The model the harness said the session runs, when it said. */
+  /** The model the turn's responses came from, else the one the harness said the session runs, when it said. */
   model?: string;
 }
 
@@ -120,6 +120,7 @@ export class AcpClient {
   private readonly turnUsage = new AcpTurnUsage();
   private readonly totalsProbe?: AcpSessionTotalsProbe;
   private contextUsage?: AcpContextUsage;
+  private responseModel?: string;
   private compactCommand: string | null = null;
   /** Why the harness process went away, once it has; requests after that fail straight away. */
   private exitReason?: string;
@@ -220,7 +221,7 @@ export class AcpClient {
       }
       const compacted = await this.compact(options.compactInstructions);
       if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
-      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: opener.model };
+      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: this.responseModel ?? opener.model };
     } finally {
       await this.cleanup();
     }
@@ -318,6 +319,7 @@ export class AcpClient {
     if (this.replaying) return;
     this.turnUsage.noteMessageUsage(params);
     this.contextUsage = contextUsageOf(params) ?? this.contextUsage;
+    this.responseModel = responseModelOf(params) ?? this.responseModel;
     for (const event of this.mapper.mapSessionUpdate(params)) {
       if (this.toolCallStarts.keep(event)) this.onEvent(event);
     }

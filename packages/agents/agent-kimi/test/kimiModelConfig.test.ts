@@ -72,7 +72,7 @@ describe("Kimi model endpoint", () => {
     expect(fs.readFileSync(file, "utf-8")).toContain(`api_key = "unused"`);
   });
 
-  test("leaves the context size to Kimi when the model's isn't known", () => {
-    expect(kimiModelConfig({ ...endpoint, contextWindow: undefined }, env)).not.toContain("max_context_size");
+  test("gives a model whose context size isn't known a default, since Kimi won't run one without it", () => {
+    expect(kimiModelConfig({ ...endpoint, contextWindow: undefined }, env)).toContain("max_context_size = 131072");
   });
 });

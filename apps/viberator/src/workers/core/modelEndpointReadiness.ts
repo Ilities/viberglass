@@ -1,10 +1,9 @@
 import {
   MODEL_ENDPOINT_KEY_ENV_VAR,
-  isObjectRecord,
   modelEndpointHeaders,
   modelEndpointModelsRequest,
-  readWorkerModelEndpoint,
 } from "@viberglass/types";
+import { runModelEndpoint } from "./runModelEndpoint";
 
 interface ReadinessDependencies {
   fetch: (url: string, init: RequestInit) => Promise<Pick<Response, "status">>;
@@ -26,10 +25,7 @@ export async function waitForModelEndpoint(
     key: process.env[MODEL_ENDPOINT_KEY_ENV_VAR],
   },
 ): Promise<void> {
-  const config = isObjectRecord(clankerConfig?.deploymentConfig)
-    ? clankerConfig.deploymentConfig
-    : clankerConfig;
-  const endpoint = readWorkerModelEndpoint(config?.resolvedModelEndpoint);
+  const endpoint = runModelEndpoint(clankerConfig);
   if (!endpoint?.mayColdStart) return;
   const started = deps.now();
   const deadline = started + WAIT_MINUTES * MINUTE;

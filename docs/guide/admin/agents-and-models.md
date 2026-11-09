@@ -77,9 +77,10 @@ Add one under Settings → Models with Connect a model, or with Connect a model 
 - API format: Pi, Qwen CLI, Kimi Code and Mistral Vibe take all three. OpenCode takes OpenAI Chat Completions, Codex takes OpenAI Responses, and Claude Code takes Anthropic Messages.
 - Authentication: a bearer token, a custom header, or none, with the key kept as a shared secret.
 - Extra headers that aren't secret, as JSON.
+- Session header, for endpoints that want each session named. Every agent session sends this header with a value of its own. OpenCode Go needs `x-opencode-session`: without it, agents that don't send one themselves (Qwen CLI, Kimi Code and Mistral Vibe) get `MissingSessionID` errors.
 - May need time to wake up, for endpoints that scale to zero. Runs then wait, up to 15 minutes, for the endpoint to answer before the agent starts.
 
-Viberglass lists the endpoint's models from its `/models` route. If the endpoint doesn't have one, type the model IDs in. The Connected models list shows which runners use each model; one an agent uses can't be removed.
+Viberglass lists the endpoint's models from its `/models` route, with each model's context length where the route reports it. If the endpoint doesn't have one, type the model IDs in, each with its context length after it when you know it. Kimi Code needs a context length, and takes 131,072 tokens for a model that has none. The Connected models list shows which runners use each model; one an agent uses can't be removed.
 
 Endpoints can also be set up in first-run setup with Custom endpoint. The runner's page says when it sends its key to a custom endpoint.
 
