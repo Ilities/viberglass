@@ -118,6 +118,7 @@ An engineer can step in at any point: pause the agent, take over its branch loca
 | [Kimi Code](https://github.com/MoonshotAI/kimi-code)          | Moonshot                                                          |
 | [OpenCode](https://github.com/opencode-ai/opencode)           | OpenCode Go, OpenRouter, DeepSeek, xAI, Groq and custom endpoints |
 | [Pi](https://pi.dev)                                          | Many providers and custom endpoints                               |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | DeepSeek                                                  |
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/agents-and-runners-dark.png"><img src="docs/guide/images/agents-and-runners.png" alt="Settings, Agents: runners with their harness, model and status"></picture></p>
 
