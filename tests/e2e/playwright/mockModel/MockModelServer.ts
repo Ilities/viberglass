@@ -92,7 +92,9 @@ export class MockModelServer {
     this.requests.push(recorded);
     const api = APIS.find((candidate) => path.endsWith(candidate.path));
 
-    if (recorded.authorization !== `Bearer ${this.apiKey}`) {
+    // DeepSeek Harness sends the key as x-api-key, the Anthropic style; the others use Authorization.
+    const presentedKey = req.headers["x-api-key"] ?? recorded.authorization?.replace(/^Bearer /, "");
+    if (presentedKey !== this.apiKey) {
       return writeJson(res, 401, (api ?? chatCompletionsApi).errorBody(401, "Invalid API key."));
     }
     if (req.method === "GET" && path.endsWith("/models")) {
