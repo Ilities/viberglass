@@ -9,7 +9,6 @@ const space: Project = {
   name: "Reports",
   slug: "reports",
   ticketSystem: "custom",
-  credentials: { type: "token" },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

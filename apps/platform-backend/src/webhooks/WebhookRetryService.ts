@@ -12,6 +12,8 @@ import type {
 import type { WebhookConfigResolver } from "./WebhookConfigResolver";
 import type { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
 import { createChildLogger } from "../config/logger";
+import { eventRefusal } from "./WebhookEventFilter";
+import { isRetryableDelivery } from "./retryableDelivery";
 
 const logger = createChildLogger({ service: "WebhookRetryService" });
 
@@ -50,6 +52,13 @@ export class WebhookRetryService {
       };
     }
 
+    if (!isRetryableDelivery(delivery.status)) {
+      return {
+        status: "failed",
+        reason: "Only failed or ignored deliveries can be retried",
+      };
+    }
+
     const receiver = this.receivers.get(delivery.provider);
     if (!receiver) {
       return {
@@ -82,6 +91,11 @@ export class WebhookRetryService {
         eventType: delivery.eventType,
       });
       const event = receiver.parseEvent(delivery.payload, retryHeaders);
+      // Leaves the delivery as it was: the webhook can be switched back on, or set to take the event.
+      const refusal = eventRefusal(event, dbConfig);
+      if (refusal) {
+        return { status: "ignored", reason: refusal };
+      }
       const result = await this.handler.handle({
         event,
         config: dbConfig,

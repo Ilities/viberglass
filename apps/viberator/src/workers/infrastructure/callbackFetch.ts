@@ -28,26 +28,6 @@ export function buildCallbackHeaders(
   return headers;
 }
 
-export function redactSensitiveInfo(log: string): string {
-  const sensitivePatterns = [
-    /token[a-z]*["\s:=]+[a-zA-Z0-9_\-]{20,}/gi,
-    /password["\s:=]+[^\s]+/gi,
-    /sk-[a-zA-Z0-9]{20,}/g,
-    /ghp_[a-zA-Z0-9]{36}/g,
-    /gho_[a-zA-Z0-9]{36}/g,
-    /ghu_[a-zA-Z0-9]{36}/g,
-    /ghs_[a-zA-Z0-9]{36}/g,
-    /ghr_[a-zA-Z0-9]{36}/g,
-    /Bearer\s+[a-zA-Z0-9_\-]{20,}/gi,
-  ];
-
-  let redacted = log;
-  for (const pattern of sensitivePatterns) {
-    redacted = redacted.replace(pattern, "[REDACTED]");
-  }
-  return redacted;
-}
-
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

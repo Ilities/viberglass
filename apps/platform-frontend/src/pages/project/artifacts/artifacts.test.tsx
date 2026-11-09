@@ -22,7 +22,6 @@ const SPACE: Project = {
   name: 'Deck',
   slug: 'deck',
   ticketSystem: 'custom',
-  credentials: { type: 'token' },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

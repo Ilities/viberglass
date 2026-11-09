@@ -70,7 +70,6 @@ export class AppSpaceCreator {
       backingKind: "app",
       primaryScmIntegrationId: home.integrationId,
       ticketSystem: NATIVE_TICKET_ORIGIN,
-      credentials: { type: "token" },
       autoFixEnabled: false,
       autoFixTags: [],
       customFieldMappings: {},

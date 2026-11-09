@@ -1,7 +1,7 @@
 import { spaceTabs } from './spaceTabs'
 
 const labels = (options: Partial<Parameters<typeof spaceTabs>[0]>) =>
-  spaceTabs({ slug: 'web', pathname: '/spaces/web', files: false, app: false, runner: true, canMaintain: true, ...options }).map((tab) => tab.label)
+  spaceTabs({ slug: 'web', pathname: '/spaces/web', files: false, app: false, seesRuns: true, canMaintain: true, ...options }).map((tab) => tab.label)
 
 describe('spaceTabs', () => {
   it('puts the work first, then schedules, the track record, runs and settings', () => {
@@ -11,12 +11,12 @@ describe('spaceTabs', () => {
   })
 
   it('gives guests and viewers the tasks and what the space is', () => {
-    expect(labels({ runner: false, canMaintain: false })).toEqual(['Summary', 'Tasks', 'About'])
+    expect(labels({ seesRuns: false, canMaintain: false })).toEqual(['Summary', 'Tasks', 'About'])
   })
 
   it('marks the page you are on, Tasks only on the space itself', () => {
     const current = (pathname: string) =>
-      spaceTabs({ slug: 'web', pathname, files: false, app: false, runner: true, canMaintain: true }).find((tab) => tab.current)?.label
+      spaceTabs({ slug: 'web', pathname, files: false, app: false, seesRuns: true, canMaintain: true }).find((tab) => tab.current)?.label
 
     expect(current('/spaces/web')).toBe('Summary')
     expect(current('/spaces/web/tasks')).toBe('Tasks')

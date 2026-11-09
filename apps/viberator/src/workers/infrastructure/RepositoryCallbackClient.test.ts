@@ -1,4 +1,5 @@
 import { RepositoryCallbackClient } from "./RepositoryCallbackClient";
+import { SecretRedactor } from "./SecretRedactor";
 
 const PULL_REQUEST = {
   sourceRepository: "https://github.com/acme/web",
@@ -10,7 +11,7 @@ const PULL_REQUEST = {
 };
 
 describe("RepositoryCallbackClient", () => {
-  const client = new RepositoryCallbackClient({ apiUrl: "http://platform", maxRetries: 0, retryDelay: 0, callbackToken: "cb" });
+  const client = new RepositoryCallbackClient({ apiUrl: "http://platform", maxRetries: 0, retryDelay: 0, callbackToken: "cb", redactor: new SecretRedactor([]) });
 
   afterEach(() => jest.restoreAllMocks());
 

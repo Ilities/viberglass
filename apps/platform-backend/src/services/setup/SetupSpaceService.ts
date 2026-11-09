@@ -151,7 +151,6 @@ export class SetupSpaceService {
         name,
         backingKind,
         ticketSystem: NATIVE_TICKET_ORIGIN,
-        credentials: { type: "token" },
         autoFixEnabled: false,
         autoFixTags: [],
         customFieldMappings: {},

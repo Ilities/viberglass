@@ -6,7 +6,7 @@ import { getProjectJobs } from '@/data'
 import type { JobListItem } from '@/data'
 import { useProject } from '@/context/project-context'
 import { useDebounce } from '@/hooks/useDebounce'
-import { getClankers } from '@/service/api/clanker-api'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import { JobsTable } from './jobs-table'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -59,7 +59,7 @@ export function JobsPage() {
       setIsLoading(true)
       setLoadError(null)
       try {
-        const [j, agents] = await Promise.all([getProjectJobs(project, 50), getClankers(100).catch(() => [])])
+        const [j, agents] = await Promise.all([getProjectJobs(project, 50), getAgentDirectory().catch(() => [])])
         if (cancelled) return
         setJobs(j)
         setAgentNames(new Map(agents.map((agent) => [agent.id, agent.name])))

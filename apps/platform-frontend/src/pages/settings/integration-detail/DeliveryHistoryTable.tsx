@@ -56,7 +56,7 @@ export function DeliveryHistoryTable({
                         color={
                           delivery.status === 'succeeded'
                             ? 'green'
-                            : delivery.status === 'failed'
+                            : delivery.status === 'failed' || delivery.status === 'rejected'
                               ? 'red'
                               : delivery.status === 'ignored'
                                 ? 'zinc'
@@ -88,7 +88,7 @@ export function DeliveryHistoryTable({
                     </td>
                     <td className="px-3 py-2 text-zinc-500">{new Date(delivery.createdAt).toLocaleString()}</td>
                     <td className="px-3 py-2">
-                      {(delivery.retryable ?? delivery.status === 'failed') && (
+                      {delivery.retryable && (
                         <Button outline onClick={() => onRetryDelivery(delivery.id)}>
                           Retry
                         </Button>

@@ -96,7 +96,7 @@ describe("SpaceAccessService", () => {
     await expect(service({ isPrivate: false, membership: null }).access.describe({ id: "v", role: "viewer" }, SPACE_ID)).resolves.toMatchObject({
       canMaintain: false,
       canCreateTasks: false,
-      canSeeRuns: false,
+      canSeeRuns: true,
     });
   });
 

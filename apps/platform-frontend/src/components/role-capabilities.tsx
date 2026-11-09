@@ -39,7 +39,11 @@ const ROWS: Array<{ what: string; can: Record<WorkspaceRole, string> }> = [
     what: 'Pause, take over and hand back',
     can: { admin: 'Yes', member: 'As the task owner or a space maintainer', guest: 'As the task owner', viewer: 'No', app_user: 'No' },
   },
-  { what: 'Agents, connections, secrets and members', can: { admin: 'Yes', member: 'No', guest: 'No', viewer: 'No', app_user: 'No' } },
+  {
+    what: 'See runs, schedules, track records and the agents list',
+    can: { admin: 'Yes', member: 'Yes', guest: 'No', viewer: 'Yes, read-only', app_user: 'No' },
+  },
+  { what: 'Set up agents, connections, secrets and members', can: { admin: 'Yes', member: 'No', guest: 'No', viewer: 'No', app_user: 'No' } },
 ]
 
 /** A disclosure with what each workspace role can do, for invites and member lists. */

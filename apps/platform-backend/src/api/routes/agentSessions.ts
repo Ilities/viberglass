@@ -61,7 +61,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         : [...AGENT_SESSION_ACTIVE_STATUSES];
 
     const [sessions, visible] = await Promise.all([
-      sessionDAO.listByStatuses(rawStatuses),
+      queryService.listByStatuses(rawStatuses),
       spaceAccess.visibleProjectIds(spaceViewerOf(req)!),
     ]);
     const shown = visible ? sessions.filter((session) => visible.includes(session.projectId)) : sessions;

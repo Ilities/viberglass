@@ -23,7 +23,7 @@ export class ReleaseCallbackClient {
   }
 
   async complete(jobId: string, tenantId: string, request: ReleaseCompleteRequest): Promise<void> {
-    await this.post(jobId, tenantId, "complete", request);
+    await this.post(jobId, tenantId, "complete", this.target.redactor.redactValue(request));
   }
 
   /** Server errors and timeouts are retried; a refusal is final. */

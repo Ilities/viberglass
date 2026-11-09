@@ -33,7 +33,7 @@ function project(): Project {
     ticketSystem: 'custom',
     autoFixTags: [],
     autoFixEnabled: false,
-    credentials: { type: 'token' },
+   
     customFieldMappings: {},
     isPrivate: false,
     keyPrefix: 'WEB',

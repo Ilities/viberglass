@@ -7,12 +7,12 @@ import type { Clanker } from '@viberglass/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export function canStartClanker(clanker: Clanker): boolean {
+export function canStartClanker(clanker: Pick<Clanker, 'status'>): boolean {
   return clanker.status === 'inactive' || clanker.status === 'failed'
 }
 
 interface StartClankerButtonProps {
-  clanker: Clanker
+  clanker: Pick<Clanker, 'id'>
   /** The agents list shows it as a secondary action on a card; the agent's page as its primary one. */
   outline?: boolean
   /** Away from the agent's own page the button has to say what it starts. */

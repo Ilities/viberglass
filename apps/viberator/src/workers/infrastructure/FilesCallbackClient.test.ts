@@ -1,6 +1,7 @@
 import { FilesCallbackClient, FilesRequestRejected } from "./FilesCallbackClient";
+import { SecretRedactor } from "./SecretRedactor";
 
-const target = { apiUrl: "http://platform.test", maxRetries: 2, retryDelay: 1, callbackToken: "token-1" };
+const target = { apiUrl: "http://platform.test", maxRetries: 2, retryDelay: 1, callbackToken: "token-1", redactor: new SecretRedactor([]) };
 const saved = { id: "snapshot-2", parentId: null, fileCount: 0, totalBytes: 0, partial: false, changes: { added: 0, changed: 0, removed: 0 }, createdAt: "now" };
 
 let fetchSpy: jest.SpyInstance;

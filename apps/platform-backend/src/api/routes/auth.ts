@@ -11,6 +11,7 @@ import logger from "../../config/logger";
 import { ForgotPasswordService } from "../../services/people/ForgotPasswordService";
 import { requireAuth } from "../middleware/authentication";
 import { buildAuthResponse } from "../auth/authResponse";
+import { loginRateLimit } from "../middleware/loginRateLimit";
 import { isAuthEnabled } from "../auth/config";
 import {
   clearAuthCookie,
@@ -87,7 +88,7 @@ router.get("/setup-status", async (_req, res) => {
   }
 });
 
-router.post("/login", validateLogin, (req, res, next) => {
+router.post("/login", loginRateLimit(), validateLogin, (req, res, next) => {
   passport.authenticate(
     "local",
     { session: false },

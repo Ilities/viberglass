@@ -17,6 +17,7 @@ import type { AuthContext } from "../../../../api/auth/context";
 import {
   confineAppUsers,
   refuseViewerChanges,
+  requireRunReader,
   requireRunnerRole,
   runnerOnlyChanges,
 } from "../../../../api/middleware/workspaceRoleGuards";
@@ -52,8 +53,19 @@ describe("refuseViewerChanges", () => {
     await request(app).delete("/api/tasks/1").set("x-role", "viewer").expect(403);
   });
 
-  it("lets viewers sign out", async () => {
-    await request(appWithSignedInRole()).post("/api/auth/logout").set("x-role", "viewer").expect(200);
+  it("lets viewers sign out, change their own settings and open apps", async () => {
+    const app = appWithSignedInRole();
+    await request(app).post("/api/auth/logout").set("x-role", "viewer").expect(200);
+    await request(app).put("/api/me/notification-channels").set("x-role", "viewer").expect(200);
+    await request(app).post("/api/apps/laptops/handoff").set("x-role", "viewer").expect(200);
+    await request(app).post("/API/Apps/laptops/handoff").set("x-role", "viewer").expect(200);
+  });
+
+  it("refuses viewers every other change under those paths", async () => {
+    const app = appWithSignedInRole();
+    for (const path of ["/api/apps/laptops/handoff/x", "/api/apps/laptops", "/api/inbox/x", "/api/auth/logout-everywhere"]) {
+      await request(app).post(path).set("x-role", "viewer").expect(403);
+    }
   });
 
   it("leaves other roles and requests without a user alone", async () => {
@@ -100,6 +112,19 @@ describe("runnerOnlyChanges", () => {
     await request(app).get("/api/spaces").set("x-role", "guest").expect(200);
     await request(app).post("/api/spaces").set("x-role", "guest").expect(403);
     await request(app).post("/api/spaces").set("x-role", "member").expect(200);
+  });
+});
+
+describe("requireRunReader", () => {
+  it("lets admins, members and viewers through, not guests or app users", async () => {
+    const app = express();
+    app.use("/api/claw", requireRunReader, (_req, res) => res.json({ ok: true }));
+    for (const role of ["admin", "member", "viewer"]) {
+      await request(app).get("/api/claw/schedules").set("x-role", role).expect(200);
+    }
+    for (const role of ["guest", "app_user"]) {
+      await request(app).get("/api/claw/schedules").set("x-role", role).expect(403);
+    }
   });
 });
 

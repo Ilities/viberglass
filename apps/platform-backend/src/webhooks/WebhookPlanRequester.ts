@@ -15,7 +15,7 @@ export class WebhookPlanRequester {
    */
   async request(ticketId: string): Promise<string | undefined> {
     try {
-      const asked = await this.turns.ask(ticketId, null, { message: "", action: "plan", fromWebhook: true });
+      const asked = await this.turns.ask(ticketId, null, { message: "", action: "plan" });
       return asked.job.id ?? undefined;
     } catch (error) {
       logger.warn("Could not start the plan a webhook asked for", {

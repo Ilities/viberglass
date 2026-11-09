@@ -9,9 +9,9 @@ import {
   FetchRetryConfig,
   fetchWithRetry,
   getJson,
-  redactSensitiveInfo,
   isInternalLogMessage,
 } from "./callbackFetch";
+import { SecretRedactor } from "./SecretRedactor";
 
 export interface CallbackResult {
   success: boolean;
@@ -54,6 +54,7 @@ export class CallbackClient {
   private maxRetries: number;
   private retryDelay: number;
   private callbackToken?: string;
+  private readonly redactor: SecretRedactor;
 
   constructor(
     private logger: Logger,
@@ -62,6 +63,7 @@ export class CallbackClient {
       maxRetries?: number;
       retryDelay?: number;
       callbackToken?: string;
+      redactor?: SecretRedactor;
     } = {},
   ) {
     this.apiUrl =
@@ -71,11 +73,13 @@ export class CallbackClient {
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 1000;
     this.callbackToken = config.callbackToken;
+    this.redactor = config.redactor ?? new SecretRedactor([config.callbackToken]);
     const target = {
       apiUrl: this.apiUrl,
       maxRetries: this.maxRetries,
       retryDelay: this.retryDelay,
       callbackToken: this.callbackToken,
+      redactor: this.redactor,
     };
     this.turn = new TurnCallbackClient(logger, target);
     this.repository = new RepositoryCallbackClient(target);
@@ -88,12 +92,10 @@ export class CallbackClient {
     tenantId: string,
     result: CallbackResult,
   ): Promise<void> {
-    const body = {
+    const body = this.redactor.redactValue({
       ...result,
-      logs: result.logs
-        .filter((log) => !isInternalLogMessage(log))
-        .map((log) => redactSensitiveInfo(log)),
-    };
+      logs: result.logs.filter((log) => !isInternalLogMessage(log)),
+    });
 
     await this.post(
       `${this.apiUrl}/api/jobs/${jobId}/result`,
@@ -115,8 +117,8 @@ export class CallbackClient {
   ): Promise<void> {
     const body = {
       step: progress.step || null,
-      message: redactSensitiveInfo(progress.message),
-      details: progress.details || null,
+      message: this.redactor.redact(progress.message),
+      details: progress.details ? this.redactor.redactRecord(progress.details) : null,
     };
 
     await this.post(
@@ -164,7 +166,7 @@ export class CallbackClient {
     const body = {
       logs: externalLogs.map((log) => ({
         level: log.level,
-        message: redactSensitiveInfo(log.message),
+        message: this.redactor.redact(log.message),
         source: log.source || null,
       })),
     };

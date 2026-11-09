@@ -17,11 +17,11 @@ const COLOR: Record<RunnerReadinessState, 'green' | 'amber' | 'zinc' | 'red'> = 
   credential_rejected: 'red',
 }
 
-export function readinessLabel(readiness: RunnerReadiness | undefined): string {
+export function readinessLabel(readiness: RunnerReadiness | null | undefined): string {
   return readiness ? LABEL[readiness.state] : 'Unknown'
 }
 
 /** Whether a runner can take a task: configured, running, and not rejected by its provider. */
-export function RunnerReadinessBadge({ readiness }: { readiness: RunnerReadiness | undefined }) {
+export function RunnerReadinessBadge({ readiness }: { readiness: RunnerReadiness | null | undefined }) {
   return <Badge color={readiness ? COLOR[readiness.state] : 'zinc'}>{readinessLabel(readiness)}</Badge>
 }

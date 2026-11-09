@@ -4,7 +4,7 @@ import { SpaceRunAvailabilityService } from "../../../../services/spaces/SpaceRu
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 function space(backingKind: SpaceBackingKind): Project {
-  return { id: "space", name: "Space", slug: "space", backingKind, ticketSystem: "native", credentials: { type: "token" }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: "SPA", defaultReviewerIds: [], questionReminderHours: 4, createdAt: "", updatedAt: "" };
+  return { id: "space", name: "Space", slug: "space", backingKind, ticketSystem: "native", autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: "SPA", defaultReviewerIds: [], questionReminderHours: 4, createdAt: "", updatedAt: "" };
 }
 
 describe("SpaceRunAvailabilityService", () => {

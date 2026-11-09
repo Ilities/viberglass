@@ -146,7 +146,7 @@ describe('ApplicationLayout navigation', () => {
     mockedGetProjects.mockResolvedValue([
       {
         id: 'new-space', backingKind: 'git', name: 'New API space', slug: 'new-api-space', createdAt: '', updatedAt: '',
-        ticketSystem: 'custom', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {},
+        ticketSystem: 'custom', autoFixEnabled: false, autoFixTags: [], customFieldMappings: {},
         isPrivate: false, keyPrefix: 'NEW', defaultReviewerIds: [], questionReminderHours: 4,
       },
     ])
@@ -190,24 +190,24 @@ describe('ApplicationLayout navigation', () => {
     expect(outside.filter((name) => !inside.includes(name))).toEqual([])
   })
 
-  it('gives viewers Overview and no Home, since they have no threads of their own', async () => {
+  it('gives viewers Home and Overview, and Settings for the agents list', async () => {
     asRole('viewer')
     renderLayout('/')
     const drawer = await openDrawer()
 
     expect(within(drawer).getByRole('link', { name: /^Overview$/i })).toHaveAttribute('href', '/overview')
-    expect(within(drawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
+    expect(within(drawer).getByRole('link', { name: /^Home$/i })).toHaveAttribute('href', '/')
+    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings')
   })
 
-  it("shows guests and viewers no New space or Settings, which they can't use", async () => {
+  it("shows guests and viewers no New space, and guests no Settings, which they can't use", async () => {
     for (const role of ['guest', 'viewer'] as const) {
       asRole(role)
       renderLayout('/spaces/viberglass')
       const drawer = await openDrawer()
 
-      for (const label of ['New space', 'Settings']) {
-        expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
-      }
+      expect(within(drawer).queryByRole('link', { name: /^New space$/i })).not.toBeInTheDocument()
+      if (role === 'guest') expect(within(drawer).queryByRole('link', { name: /^Settings$/i })).not.toBeInTheDocument()
       cleanup()
     }
   })

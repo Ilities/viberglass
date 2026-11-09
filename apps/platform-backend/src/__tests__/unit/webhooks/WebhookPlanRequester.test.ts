@@ -12,7 +12,7 @@ describe("WebhookPlanRequester", () => {
     const turns = { ask: jest.fn().mockResolvedValue(asked("job-1")) };
 
     await expect(new WebhookPlanRequester(turns).request("t-1")).resolves.toBe("job-1");
-    expect(turns.ask).toHaveBeenCalledWith("t-1", null, { message: "", action: "plan", fromWebhook: true });
+    expect(turns.ask).toHaveBeenCalledWith("t-1", null, { message: "", action: "plan" });
   });
 
   it("has no job yet while the plan waits behind a running turn", async () => {

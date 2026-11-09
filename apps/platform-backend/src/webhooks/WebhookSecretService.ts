@@ -1,50 +1,25 @@
-import * as crypto from "node:crypto";
 import type { CredentialProvider } from "../credentials";
-
-/**
- * Webhook secret service
- *
- * Manages webhook secrets from multiple storage locations:
- * - database: Encrypted at rest in webhook_provider_configs table
- * - ssm: AWS Systems Manager Parameter Store via CredentialProvider
- * - env: Environment variables
- *
- * Provides AES-256-GCM encryption for database-stored secrets.
- */
-
-const IV_LENGTH = 12; // 96 bits for GCM
+import type { WebhookSecretCipher } from "./WebhookSecretCipher";
 
 /** Where a webhook's secret is kept. */
 export interface WebhookSecretSource {
   secretLocation?: "database" | "ssm" | "env";
   secretPath?: string;
-  /** The secret itself, for database storage. */
+  /** The encrypted secret, for database storage. */
   webhookSecret?: string;
 }
 
+/**
+ * Reads a webhook's secret from where it is kept: encrypted in the database,
+ * in SSM through the credential provider, or in an environment variable.
+ */
 export class WebhookSecretService {
-  private encryptionKey: Buffer;
+  constructor(
+    private credentialProvider: Pick<CredentialProvider, "get">,
+    private cipher: Pick<WebhookSecretCipher, "decrypt">,
+  ) {}
 
-  constructor(private credentialProvider: CredentialProvider) {
-    // Get encryption key from environment or generate
-    const key = process.env.WEBHOOK_SECRET_ENCRYPTION_KEY;
-
-    if (!key) {
-      throw new Error(
-        "WEBHOOK_SECRET_ENCRYPTION_KEY environment variable must be set",
-      );
-    }
-
-    // Derive a 32-byte key from the environment variable
-    this.encryptionKey = crypto.createHash("sha256").update(key).digest();
-  }
-
-  /**
-   * Get webhook secret from configured storage location
-   * @param config - Webhook provider configuration
-   * @param projectId - Optional project/tenant ID for SSM lookups
-   * @returns The plaintext webhook secret
-   */
+  /** The plaintext secret; projectId scopes SSM lookups. */
   async getSecret(
     config: WebhookSecretSource,
     projectId?: string,
@@ -58,7 +33,7 @@ export class WebhookSecretService {
             "Webhook secret not found in configuration (database storage requested)",
           );
         }
-        return config.webhookSecret;
+        return this.cipher.decrypt(config.webhookSecret);
       }
 
       case "ssm": {
@@ -102,87 +77,6 @@ export class WebhookSecretService {
         throw new Error(
           `Unsupported secret location: ${(location as string).toString()}`,
         );
-    }
-  }
-
-  /**
-   * Encrypt a secret for database storage
-   * Uses AES-256-GCM with authenticated encryption
-   * @param secret - Plaintext secret to encrypt
-   * @returns Encrypted secret in format: base64(iv):base64(ciphertext):base64(authTag)
-   */
-  async encryptSecret(secret: string): Promise<string> {
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv("aes-256-gcm", this.encryptionKey, iv);
-
-    let ciphertext = cipher.update(secret, "utf8", "binary");
-    ciphertext += cipher.final("binary");
-
-    const authTag = cipher.getAuthTag();
-
-    // Format: iv:ciphertext:authTag (all base64 encoded)
-    return [
-      iv.toString("base64"),
-      Buffer.from(ciphertext, "binary").toString("base64"),
-      authTag.toString("base64"),
-    ].join(":");
-  }
-
-  /**
-   * Decrypt a secret from database storage
-   * @param encrypted - Encrypted secret in format: base64(iv):base64(ciphertext):base64(authTag)
-   * @returns Decrypted plaintext secret
-   */
-  async decryptSecret(encrypted: string): Promise<string> {
-    const parts = encrypted.split(":");
-
-    if (parts.length !== 3) {
-      throw new Error(
-        "Invalid encrypted secret format. Expected: iv:ciphertext:authTag",
-      );
-    }
-
-    const [ivBase64, ciphertextBase64, authTagBase64] = parts;
-
-    const iv = Buffer.from(ivBase64, "base64");
-    const ciphertext = Buffer.from(ciphertextBase64, "base64");
-    const authTag = Buffer.from(authTagBase64, "base64");
-
-    const decipher = crypto.createDecipheriv(
-      "aes-256-gcm",
-      this.encryptionKey,
-      iv,
-    );
-
-    decipher.setAuthTag(authTag);
-
-    let plaintext = decipher.update(ciphertext);
-    plaintext = Buffer.concat([plaintext, decipher.final()]);
-
-    return plaintext.toString("utf8");
-  }
-
-  /**
-   * Generate a cryptographically secure random webhook secret
-   * @returns Random secret suitable for webhook signing
-   */
-  generateSecret(length = 32): string {
-    return crypto.randomBytes(length).toString("base64");
-  }
-
-  /**
-   * Verify if a secret matches an encrypted value
-   * Useful for validation before updating configuration
-   */
-  async verifySecret(plaintext: string, encrypted: string): Promise<boolean> {
-    try {
-      const decrypted = await this.decryptSecret(encrypted);
-      return crypto.timingSafeEqual(
-        Buffer.from(plaintext),
-        Buffer.from(decrypted),
-      );
-    } catch {
-      return false;
     }
   }
 }

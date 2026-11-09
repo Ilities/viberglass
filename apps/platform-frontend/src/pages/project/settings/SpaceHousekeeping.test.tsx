@@ -22,7 +22,6 @@ const APP_SPACE: Project = {
   name: 'laptops',
   slug: 'laptops',
   ticketSystem: 'custom',
-  credentials: { type: 'token' },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

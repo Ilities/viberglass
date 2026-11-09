@@ -121,7 +121,7 @@ describe('Custom webhook sections', () => {
     expect(onSelectInboundWebhook).toHaveBeenCalledWith('cfg-custom-2')
   })
 
-  it('supports active toggle and delivery refresh/retry actions', async () => {
+  it('supports active toggle and delivery refresh/retry actions, with no retry for a rejected request', async () => {
     const user = userEvent.setup()
     const onInboundActiveChange = jest.fn()
     const onRefreshDeliveries = jest.fn()
@@ -139,11 +139,25 @@ describe('Custom webhook sections', () => {
               eventType: 'ticket_created',
               status: 'failed',
               retryable: true,
-              errorMessage: 'Signature mismatch',
+              errorMessage: 'Task creation failed',
               ticketId: null,
               projectId: null,
               createdAt: '2026-02-10T00:00:00.000Z',
               processedAt: '2026-02-10T00:00:01.000Z',
+            },
+            {
+              id: 'delivery-2',
+              provider: 'custom',
+              webhookConfigId: 'cfg-custom-1',
+              deliveryId: 'rejected-1',
+              eventType: 'unverified',
+              status: 'rejected',
+              retryable: false,
+              errorMessage: 'Invalid signature',
+              ticketId: null,
+              projectId: null,
+              createdAt: '2026-02-10T00:01:00.000Z',
+              processedAt: null,
             },
           ],
           inboundWebhooks: [
@@ -194,6 +208,8 @@ describe('Custom webhook sections', () => {
     await user.click(screen.getByRole('button', { name: 'Refresh' }))
     expect(onRefreshDeliveries).toHaveBeenCalledTimes(1)
 
+    expect(screen.getByText('Invalid signature')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Retry' })).toHaveLength(1)
     await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onRetryDelivery).toHaveBeenCalledWith('delivery-1')
   })

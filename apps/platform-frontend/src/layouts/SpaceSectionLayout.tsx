@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/auth-context'
 import { useProject } from '@/context/project-context'
 import { Link } from '@/components/link'
-import { isRunner } from '@/lib/roles'
+import { seesRuns } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { LockClosedIcon } from '@radix-ui/react-icons'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
@@ -18,7 +18,7 @@ export function SpaceSectionLayout() {
     pathname,
     files: space?.backingKind === 'files',
     app: space?.backingKind === 'app',
-    runner: isRunner(user?.role),
+    seesRuns: seesRuns(user?.role),
     canMaintain: Boolean(space?.viewerAccess?.canMaintain),
   })
 

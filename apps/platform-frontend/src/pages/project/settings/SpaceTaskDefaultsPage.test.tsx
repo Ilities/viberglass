@@ -1,13 +1,13 @@
-import { getClankers } from '@/service/api/clanker-api'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import { getProjectBySlug, updateProject } from '@/service/api/project-api'
 import { getPeopleDirectory } from '@/service/api/user-api'
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { spaceCapabilities, type Clanker, type Project } from '@viberglass/types'
+import { spaceCapabilities, type AgentDirectoryEntry, type Project } from '@viberglass/types'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SpaceTaskDefaultsPage } from './SpaceTaskDefaultsPage'
 
-jest.mock('@/service/api/clanker-api', () => ({ getClankers: jest.fn() }))
+jest.mock('@/service/api/agent-directory-api', () => ({ getAgentDirectory: jest.fn() }))
 jest.mock('@/service/api/project-api', () => ({ getProjectBySlug: jest.fn(), updateProject: jest.fn() }))
 jest.mock('@/service/api/user-api', () => ({ getPeopleDirectory: jest.fn() }))
 
@@ -29,7 +29,6 @@ const SPACE: Project = {
   name: 'Web shop',
   slug: 'web',
   ticketSystem: 'custom',
-  credentials: { type: 'token' },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},
@@ -43,19 +42,8 @@ const SPACE: Project = {
   viewerAccess: spaceCapabilities('member', 'maintainer'),
 }
 
-function agent(id: string, name: string, slug: string): Clanker {
-  return {
-    id,
-    name,
-    slug,
-    configFiles: [],
-    secretBindings: [],
-    mcpServerIds: [],
-    skillIds: [],
-    status: 'active',
-    createdAt: '',
-    updatedAt: '',
-  }
+function agent(id: string, name: string, slug: string): AgentDirectoryEntry {
+  return { id, name, slug, agent: null, model: null, status: 'active', readiness: null, deployable: true }
 }
 
 function renderPage() {
@@ -76,7 +64,7 @@ describe('SpaceTaskDefaultsPage', () => {
     jest.mocked(getProjectBySlug).mockResolvedValue(SPACE)
     jest.mocked(getPeopleDirectory).mockResolvedValue([])
     jest
-      .mocked(getClankers)
+      .mocked(getAgentDirectory)
       .mockResolvedValue([
         agent('default-1', 'Default agent', 'default-agent'),
         agent(CODEX_AGENT_ID, 'Codex for the API', 'codex'),

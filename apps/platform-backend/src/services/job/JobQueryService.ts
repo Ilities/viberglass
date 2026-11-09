@@ -2,6 +2,14 @@ import { sql } from "kysely";
 import db from "../../persistence/config/database";
 import type { JobStatus, JobStatusResponse } from "../../types/Job";
 import { readJobFailure } from "./readJobFailure";
+import { isObjectRecord } from "@viberglass/types";
+
+/** A run's context as people see it: the app data copy's signed download link is for the worker alone. */
+function shownContext(context: unknown): unknown {
+  if (!isObjectRecord(context) || !("appDataCopy" in context)) return context;
+  const { appDataCopy: _workerLink, ...shown } = context;
+  return shown;
+}
 
 /** What the platform shows about runs: one run in full, the runs of a space or task, and the queue. */
 export class JobQueryService {
@@ -105,7 +113,7 @@ export class JobQueryService {
         task: job.task,
         branch: job.branch,
         baseBranch: job.base_branch,
-        context: job.context,
+        context: shownContext(job.context),
         settings: job.settings,
         timestamp: job.created_at?.getTime() || Date.now(),
       },

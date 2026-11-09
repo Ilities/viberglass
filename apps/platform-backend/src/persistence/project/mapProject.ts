@@ -11,10 +11,6 @@ export function mapProject(row: ProjectsRow): Project {
     name: row.name,
     slug: row.slug,
     ticketSystem: row.ticket_system,
-    credentials:
-      typeof row.credentials === "string"
-        ? JSON.parse(row.credentials)
-        : row.credentials,
     webhookUrl: row.webhook_url || undefined,
     autoFixEnabled: row.auto_fix_enabled,
     autoFixTags: row.auto_fix_tags || [],

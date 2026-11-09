@@ -10,19 +10,20 @@ import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDelivery
 import type { WebhookService } from '../../../webhooks/WebhookService';
 import { integrationRegistry } from '../../../integrations/registerIntegrationPlugins';
 import { webhookReceiversFrom } from '../../../webhooks/webhookReceivers';
+import { requireRole } from '../../middleware/authentication';
 
 /**
  * Create management routes
  */
-export function createManagementRoutes(getWebhookService: () => WebhookService) {
+export function createManagementRoutes(getWebhookService: () => Pick<WebhookService, 'getFailedDeliveries'>) {
   const router = express.Router();
 
   /**
    * GET /api/webhooks/status
    *
-   * Get webhook processing status and statistics
+   * Webhook processing status and statistics, for admins
    */
-  router.get('/status', async (req: Request, res: Response) => {
+  router.get('/status', requireRole('admin'), async (req: Request, res: Response) => {
     try {
       const service = getWebhookService();
       const configDAO = new WebhookConfigDAO();

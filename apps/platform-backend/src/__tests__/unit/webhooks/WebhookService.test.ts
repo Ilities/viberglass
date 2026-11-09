@@ -11,6 +11,7 @@ import { InboundWebhookDeliveryLifecycle } from "../../../webhooks/InboundWebhoo
 import { WebhookRetryService } from "../../../webhooks/WebhookRetryService";
 import { InboundEventHandler } from "../../../webhooks/InboundEventHandler";
 import { WebhookTaskCreator } from "../../../webhooks/WebhookTaskCreator";
+import { WebhookSignatureVerifier } from "../../../webhooks/WebhookSignatureVerifier";
 import type { WebhookConfig } from "../../../persistence/webhook/WebhookConfigDAO";
 import type { WebhookDeliveryAttempt } from "../../../persistence/webhook/WebhookDeliveryDAO";
 
@@ -74,6 +75,7 @@ function createHarness(params: { config?: WebhookConfig | null; action?: Inbound
   const configDAO = { getConfigById: jest.fn().mockResolvedValue(config) };
   const deliveryDAO = {
     updateDeliveryStatus: jest.fn().mockResolvedValue(undefined),
+    recordDeliveryAttempt: jest.fn().mockResolvedValue({ id: "rejected-row-1" }),
     getDeliveryById: jest.fn().mockResolvedValue(null),
     getDeliveryByIdForConfig: jest.fn().mockResolvedValue(null),
     getDeliveryByDeliveryId: jest.fn().mockResolvedValue(null),
@@ -104,7 +106,7 @@ function createHarness(params: { config?: WebhookConfig | null; action?: Inbound
   const service = new WebhookService(
     receivers,
     deduplication,
-    secretService,
+    new WebhookSignatureVerifier(secretService),
     handler,
     configResolver,
     lifecycle,
@@ -244,14 +246,24 @@ describe("WebhookService", () => {
     expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
   });
 
-  it("rejects an invalid signature and records the failed delivery", async () => {
+  it("rejects an invalid signature before reading the delivery, keeping only that it was refused", async () => {
     const harness = createHarness();
     harness.receiver.verifySignature.mockReturnValue(false);
     const result = await deliver(harness);
 
     expect(result).toEqual({ status: "rejected", reason: "Invalid signature" });
-    expect(harness.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
-    expect(harness.deduplication.recordDeliveryFailureById).toHaveBeenCalledWith("delivery-row-1", "Rejected: Invalid signature");
+    expect(harness.receiver.parseEvent).not.toHaveBeenCalled();
+    expect(harness.deduplication.shouldProcessDelivery).not.toHaveBeenCalled();
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
+    expect(harness.deliveryDAO.recordDeliveryAttempt).toHaveBeenCalledWith({
+      provider: PROVIDER,
+      webhookConfigId: "cfg-1",
+      deliveryId: expect.stringMatching(/^rejected-/),
+      eventType: "unverified",
+      payload: {},
+      status: "rejected",
+      errorMessage: "Invalid signature",
+    });
     expect(harness.issues.issue).not.toHaveBeenCalled();
   });
 
@@ -262,6 +274,19 @@ describe("WebhookService", () => {
 
     expect(await deliver(harness, { headers: {} })).toEqual({ status: "rejected", reason: "Missing signature header" });
     expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
+  });
+
+  it("checks the signature of a delivery to a switched-off webhook before recording it as ignored", async () => {
+    const harness = createHarness({ config: createConfig({ active: false }) });
+    harness.receiver.verifySignature.mockReturnValue(false);
+    expect(await deliver(harness)).toEqual({ status: "rejected", reason: "Invalid signature" });
+    expect(harness.deduplication.recordDeliveryStart).not.toHaveBeenCalled();
+
+    harness.receiver.verifySignature.mockReturnValue(true);
+    expect(await deliver(harness)).toEqual({ status: "ignored", reason: "Webhook configuration 'cfg-1' is inactive" });
+    expect(harness.deliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith("delivery-row-1", "ignored", "Webhook configuration 'cfg-1' is inactive");
+    expect(harness.issues.issue).not.toHaveBeenCalled();
   });
 
   it("ignores events the webhook isn't set to receive, with the event in the reason", async () => {
@@ -270,7 +295,7 @@ describe("WebhookService", () => {
 
     expect(result.status).toBe("ignored");
     expect(result.reason).toContain("issue.opened");
-    expect(harness.receiver.verifySignature).not.toHaveBeenCalled();
+    expect(harness.receiver.verifySignature).toHaveBeenCalled();
     expect(harness.deliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith("delivery-row-1", "ignored", expect.stringContaining("isn't set to receive"));
   });
 
@@ -321,6 +346,29 @@ describe("WebhookService", () => {
 
       expect(result).toEqual({ status: "failed", reason: "Webhook configuration not found" });
       expect(harness.configDAO.getConfigById).not.toHaveBeenCalled();
+    });
+
+    it("never replays a rejected delivery", async () => {
+      const harness = createHarness();
+      harness.deliveryDAO.getDeliveryById.mockResolvedValue(createDelivery({ status: "rejected", payload: {} }));
+      const result = await harness.service.retryDelivery("delivery-1", { deliveryAttemptId: "delivery-row-1" });
+
+      expect(result).toEqual({ status: "failed", reason: "Only failed or ignored deliveries can be retried" });
+      expect(harness.receiver.parseEvent).not.toHaveBeenCalled();
+      expect(harness.issues.issue).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["is switched off", createConfig({ active: false }), "Webhook configuration 'cfg-1' is inactive"],
+      ["isn't set to receive the event any more", createConfig({ allowedEvents: ["comment.created"] }), "The webhook isn't set to receive 'issue.opened, issue'"],
+    ])("leaves a delivery alone when its webhook %s", async (_case, config, reason) => {
+      const harness = createHarness({ config });
+      harness.deliveryDAO.getDeliveryById.mockResolvedValue(createDelivery());
+      const result = await harness.service.retryDelivery("delivery-1", { deliveryAttemptId: "delivery-row-1" });
+
+      expect(result).toEqual({ status: "ignored", reason });
+      expect(harness.issues.issue).not.toHaveBeenCalled();
+      expect(harness.deliveryDAO.updateDeliveryStatus).not.toHaveBeenCalled();
     });
 
     it("doesn't replay a delivery that already succeeded", async () => {

@@ -6,6 +6,7 @@ import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import GitService from "../../services/GitService";
 import type { Configuration } from "../../types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
+import type { SecretRedactor } from "../infrastructure/SecretRedactor";
 import { LogForwarder } from "../runtime/LogForwarder";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
@@ -28,6 +29,8 @@ export interface WorkerServicesInput {
   settings: WorkerSettings;
   callbackToken?: string;
   platformApiUrl?: string;
+  /** Takes the run's secrets out of what is sent to the platform. */
+  redactor: SecretRedactor;
   authFactory: AgentAuthLifecycleFactory;
   /** Reports progress on the job being run, whichever it is when called. */
   sendProgress: (client: CallbackClient, step: string, message: string, details?: Record<string, unknown>) => Promise<void>;
@@ -46,6 +49,7 @@ export async function createWorkerServices(input: WorkerServicesInput): Promise<
     maxRetries: 3,
     retryDelay: 1000,
     callbackToken: input.callbackToken,
+    redactor: input.redactor,
   });
   return {
     config,

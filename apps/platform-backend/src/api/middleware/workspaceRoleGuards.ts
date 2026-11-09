@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { RUNNER_ROLES, SPACE_MEMBER_ROLES } from "@viberglass/types";
+import { RUN_READER_ROLES, RUNNER_ROLES, SPACE_MEMBER_ROLES } from "@viberglass/types";
 import { requireRole } from "./authentication";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -9,8 +9,8 @@ function routedPath(req: Request): string {
   return req.path.toLowerCase();
 }
 
-// Changes a viewer may still make: to their own session, Inbox and notification settings.
-const VIEWER_WRITABLE_PREFIXES = ["/api/auth/logout", "/api/inbox/", "/api/me/"];
+// What a viewer may still post: signing out, their own settings, and opening an app (a sign-in code, not a change).
+const VIEWER_WRITABLE_PATHS = [/^\/api\/auth\/logout$/, /^\/api\/me\//, /^\/api\/apps\/[^/]+\/handoff$/];
 
 /**
  * Viewers are read-only on the server. Mounted once after the auth
@@ -19,7 +19,7 @@ const VIEWER_WRITABLE_PREFIXES = ["/api/auth/logout", "/api/inbox/", "/api/me/"]
  */
 export function refuseViewerChanges(req: Request, res: Response, next: NextFunction): void {
   const role = req.authContext?.user.role;
-  if (role !== "viewer" || READ_METHODS.has(req.method) || VIEWER_WRITABLE_PREFIXES.some((prefix) => routedPath(req).startsWith(prefix))) {
+  if (role !== "viewer" || READ_METHODS.has(req.method) || VIEWER_WRITABLE_PATHS.some((path) => path.test(routedPath(req)))) {
     next();
     return;
   }
@@ -51,6 +51,9 @@ const RUNNER_ONLY = "Only admins and members can do this.";
 
 /** Admins and members only: running agents and changing spaces (not guests or viewers). */
 export const requireRunnerRole = requireRole([...RUNNER_ROLES], { forbiddenMessage: RUNNER_ONLY });
+
+/** Admins, members and viewers: runs, schedules and the agents list. Viewers' changes are refused before this. */
+export const requireRunReader = requireRole([...RUN_READER_ROLES], { forbiddenMessage: "Only admins, members and viewers can see this." });
 
 /**
  * For routes authenticated some other way (API tokens): the role check

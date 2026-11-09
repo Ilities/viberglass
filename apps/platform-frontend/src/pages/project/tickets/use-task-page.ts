@@ -1,4 +1,5 @@
-import { getClankersList, getTicketDetails } from '@/data'
+import { getTicketDetails } from '@/data'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import { getTaskPlanParts } from '@/service/api/build-api'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
@@ -8,13 +9,13 @@ import {
   getTaskByKey,
   type PhaseDocumentResponse,
 } from '@/service/api/ticket-api'
-import { isTaskKey, type Clanker, type TaskCapabilities, type TaskPlanParts, type Ticket } from '@viberglass/types'
+import { isTaskKey, type AgentDirectoryEntry, type TaskCapabilities, type TaskPlanParts, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { countNewComments } from './task-suggestions'
 
 export interface TaskPageData {
   ticket: Ticket
-  clankers: Clanker[]
+  clankers: AgentDirectoryEntry[]
   /** Newest first. */
   runs: JobListItem[]
   plan: PhaseDocumentResponse
@@ -89,7 +90,7 @@ export function useTaskPage(routeId: string | undefined) {
     setIsLoading(true)
     async function load() {
       if (!id) return
-      const [task, clankers] = await Promise.all([loadTask(id), getClankersList()])
+      const [task, clankers] = await Promise.all([loadTask(id), getAgentDirectory()])
       if (!cancelled) setData(task ? { ...task, clankers } : null)
     }
     void load().finally(() => !cancelled && setIsLoading(false))

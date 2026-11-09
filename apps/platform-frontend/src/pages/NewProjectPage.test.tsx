@@ -37,7 +37,7 @@ describe('NewProjectPage', () => {
   it('creates a Files space without repository setup and keeps trackers optional', async () => {
     jest.mocked(getIntegrationManifests).mockResolvedValue([])
     jest.mocked(getIntegrations).mockResolvedValue([])
-    jest.mocked(createProject).mockResolvedValue({ id: 'files-1', name: 'Slides', slug: 'slides', backingKind: 'files', ticketSystem: 'native', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'SLI', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
+    jest.mocked(createProject).mockResolvedValue({ id: 'files-1', name: 'Slides', slug: 'slides', backingKind: 'files', ticketSystem: 'native', autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'SLI', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
     render(<Theme><MemoryRouter><NewProjectPage /></MemoryRouter></Theme>)
     fireEvent.click(screen.getByRole('combobox', { name: 'Space backing' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Files' }))
@@ -55,7 +55,7 @@ describe('NewProjectPage', () => {
       home: { integrationId: 'github-1', credentialId: null, owner: 'acme' },
       availability: { available: true, missing: [] },
     })
-    jest.mocked(createProject).mockResolvedValue({ id: 'app-1', name: 'Laptops', slug: 'laptops', backingKind: 'app', ticketSystem: 'native', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'LAP', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
+    jest.mocked(createProject).mockResolvedValue({ id: 'app-1', name: 'Laptops', slug: 'laptops', backingKind: 'app', ticketSystem: 'native', autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'LAP', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
     render(<Theme><MemoryRouter><NewProjectPage /></MemoryRouter></Theme>)
     fireEvent.click(screen.getByRole('combobox', { name: 'Space backing' }))
     fireEvent.click(await screen.findByRole('option', { name: 'App' }))
@@ -101,7 +101,7 @@ describe('NewProjectPage', () => {
     jest.mocked(getIntegrations).mockResolvedValue([
       { id: 'gh-1', name: 'GitHub', system: 'github', config: {}, isActive: true, createdAt: '', updatedAt: '' },
     ])
-    jest.mocked(createProject).mockResolvedValue({ id: 'web-1', name: 'Web', slug: 'web', backingKind: 'git', ticketSystem: 'native', credentials: { type: 'token' }, autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'WEB', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
+    jest.mocked(createProject).mockResolvedValue({ id: 'web-1', name: 'Web', slug: 'web', backingKind: 'git', ticketSystem: 'native', autoFixEnabled: false, autoFixTags: [], customFieldMappings: {}, isPrivate: false, keyPrefix: 'WEB', defaultReviewerIds: [], questionReminderHours: 4, createdAt: '', updatedAt: '' })
     jest.mocked(upsertProjectScmConfig).mockRejectedValueOnce(new Error("This token can't push to acme/web."))
     render(<Theme><MemoryRouter><NewProjectPage /></MemoryRouter></Theme>)
 

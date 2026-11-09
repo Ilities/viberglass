@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { ProjectIntegrationLinkDAO } from "../../../persistence/integrations";
 import { WebhookConfigDAO } from "../../../persistence/webhook/WebhookConfigDAO";
+import { WebhookSecretCipher } from "../../../webhooks/WebhookSecretCipher";
 import type { UpsertInboundWebhookConfigInput } from "./types";
 import { getDefaultInboundEvents, serializeInboundWebhookConfig } from "./shared";
 import { IntegrationWebhookContextResolver } from "./IntegrationWebhookContextResolver";
@@ -17,6 +18,7 @@ export class InboundWebhookConfigOrchestrator {
     private readonly contextResolver = new IntegrationWebhookContextResolver(),
     private readonly projectLinkDAO = new ProjectIntegrationLinkDAO(),
     private readonly webhookConfigDAO = new WebhookConfigDAO(),
+    private readonly cipher: Pick<WebhookSecretCipher, "encrypt"> = new WebhookSecretCipher(),
   ) {}
 
   async listInboundWebhookConfigs(integrationId: string) {
@@ -66,7 +68,7 @@ export class InboundWebhookConfigOrchestrator {
       allowedEvents: input.allowedEvents || getDefaultInboundEvents(provider),
       planNewIssues: providerPolicy.targetsOneSpace ? (input.planNewIssues ?? false) : false,
       botUsername: input.botUsername?.trim() || null,
-      webhookSecretEncrypted: webhookSecret || null,
+      webhookSecretEncrypted: webhookSecret ? this.cipher.encrypt(webhookSecret) : null,
       secretLocation: "database",
       active: input.active ?? true,
     });
@@ -104,7 +106,7 @@ export class InboundWebhookConfigOrchestrator {
       ...space,
       allowedEvents: input.allowedEvents,
       ...(input.botUsername !== undefined ? { botUsername: input.botUsername?.trim() || null } : {}),
-      webhookSecretEncrypted: webhookSecret,
+      webhookSecretEncrypted: webhookSecret ? this.cipher.encrypt(webhookSecret) : undefined,
       active: input.active,
     });
 

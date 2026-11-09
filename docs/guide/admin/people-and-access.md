@@ -6,10 +6,10 @@ Who can see and do what: workspace roles, spaces and their members, invites, and
 
 Everyone has one workspace role.
 
-- Admin: everything, including agents, connections, secrets and members. Admins see every space and maintain all of them.
-- Member: sees open spaces, creates spaces and tasks, comments and asks agents; asks for code on tasks they're on, or in spaces they maintain.
-- Guest: only the spaces they're invited to. Comments, and asks the agent, including to build, on tasks they're on. Can't create spaces or tasks.
-- Viewer: read-only. Sees every open space and task, but can't create, comment or ask the agent anything. Viewers land on Overview.
+- Admin: everything, including agents, connections, secrets and members. Admins see every space and maintain all of them. Only admins see how agents, connections, models, MCP servers, skills and prompt templates are set up.
+- Member: sees open spaces, creates spaces and tasks, comments and asks agents; asks for code on tasks they're on, or in spaces they maintain. Members see the agents list, and the connections and tokens they pick when they set up a space's repository and issues.
+- Guest: only the spaces they're invited to. Comments, and asks the agent, including to build, on tasks they're on. Can't create spaces or tasks, doesn't see runs or schedules, and sees people's names but not their email addresses.
+- Viewer: read-only. Sees every open space with its tasks, runs, schedules and track record, the agents list, and opens apps in spaces they see. Can't create, comment, ask the agent anything or change anything, and sees people's names but not their email addresses.
 - App user: only opens the apps they're given. Sees no spaces, tasks or settings, and lands on a list of their apps. App users can't join spaces.
 
 The full comparison is in [Getting started](../user/getting-started.md#what-your-role-lets-you-do), and under "What each role can do" on the Members page. The server enforces it as well as the screens.

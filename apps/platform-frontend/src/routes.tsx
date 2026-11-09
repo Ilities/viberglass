@@ -4,6 +4,7 @@ import { AppsLayout } from '@/layouts/AppsLayout'
 import { AppsPage } from '@/pages/apps/AppsPage'
 import { OpenAppPage } from '@/pages/apps/OpenAppPage'
 import { RunnersOnly } from '@/layouts/RunnersOnly'
+import { RunReadersOnly } from '@/layouts/RunReadersOnly'
 import { SettingsLayout } from '@/layouts/SettingsLayout'
 import { SettingsHome, WorkspaceSettingsLayout } from '@/layouts/WorkspaceSettingsLayout'
 import { Navigate, Route, Routes } from 'react-router-dom'
@@ -23,8 +24,8 @@ import { NewProjectPage } from '@/pages/NewProjectPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // Clanker pages
+import { AgentsPage } from '@/pages/clankers/AgentsPage'
 import { ClankerDetailPage } from '@/pages/clankers/ClankerDetailPage'
-import { ClankersPage } from '@/pages/clankers/ClankersPage'
 import { EditClankerPage } from '@/pages/clankers/EditClankerPage'
 import { NewClankerPage } from '@/pages/clankers/NewClankerPage'
 
@@ -103,7 +104,7 @@ export function AppRoutes() {
         {/* Workspace settings: General, and the plumbing under Advanced. */}
         <Route element={<WorkspaceSettingsLayout />}>
           <Route path="/settings" element={<SettingsHome />} />
-          <Route path="/settings/agents" element={<ClankersPage />} />
+          <Route path="/settings/agents" element={<AgentsPage />} />
           <Route path="/settings/agents/new" element={<NewClankerPage />} />
           <Route path="/settings/agents/:slug" element={<ClankerDetailPage />} />
           <Route path="/settings/agents/:slug/edit" element={<EditClankerPage />} />
@@ -130,7 +131,7 @@ export function AppRoutes() {
           <Route path="/spaces/:project/app" element={<AppPage />} />
           <Route path="/spaces/:project/files" element={<FilesPage />} />
           <Route path="/spaces/:project/artifacts" element={<ArtifactsPage />} />
-          <Route element={<RunnersOnly />}>
+          <Route element={<RunReadersOnly />}>
             <Route path="/spaces/:project/track-record" element={<TrackRecordPage />} />
             <Route path="/spaces/:project/runs" element={<JobsPage />} />
             <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
@@ -153,6 +154,8 @@ export function AppRoutes() {
         <Route path="/spaces/:project/artifacts/:artifactId" element={<ArtifactPage />} />
         <Route element={<RunnersOnly />}>
           <Route path="/spaces/:project/tasks/new" element={<CreateTicketPage />} />
+        </Route>
+        <Route element={<RunReadersOnly />}>
           <Route path="/spaces/:project/runs/:jobId" element={<JobDetailPage />} />
         </Route>
       </Route>

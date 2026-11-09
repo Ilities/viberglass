@@ -2,9 +2,15 @@ const adminRoleMiddleware = jest.fn();
 const requireRoleMock = jest.fn(() => adminRoleMiddleware);
 const requireAuthMock = jest.fn();
 
+const listUsers = jest.fn();
+
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: requireAuthMock,
   requireRole: requireRoleMock,
+}));
+
+jest.mock("../../../../persistence/user/UserDAO", () => ({
+  UserDAO: jest.fn().mockImplementation(() => ({ listUsers })),
 }));
 
 import usersRouter from "../../../../api/routes/users";
@@ -41,5 +47,18 @@ describe("users route auth boundaries", () => {
     const handlers = getRouteHandlers("/directory", "get");
     expect(handlers).toContain(requireAuthMock);
     expect(handlers).not.toContain(adminRoleMiddleware);
+  });
+
+  it.each([
+    ["admin", "quinn@example.com"],
+    ["member", "quinn@example.com"],
+    ["guest", null],
+    ["viewer", null],
+  ])("directory email for a %s caller is %s", async (role, email) => {
+    listUsers.mockResolvedValue([{ id: "u-1", email: "quinn@example.com", name: "Quinn", avatarUrl: null, role: "member" }]);
+    const handler = getRouteHandlers("/directory", "get").at(-1)!;
+    const res = { json: jest.fn(), status: jest.fn() };
+    await handler({ authContext: { user: { role } } }, res);
+    expect(res.json).toHaveBeenCalledWith({ people: [{ id: "u-1", email, name: "Quinn", avatarUrl: null }] });
   });
 });

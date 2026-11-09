@@ -89,9 +89,11 @@ interface Props {
   onCreateTemplate: () => void
   /** An App space's maintainers also schedule when its app is on. */
   appActions?: boolean
+  /** Viewers see the schedules without the buttons to change them. */
+  readOnly?: boolean
 }
 
-export function SchedulesTab({ projectId, onCreateTemplate, appActions = false }: Props) {
+export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, readOnly = false }: Props) {
   const [schedules, setSchedules] = useState<ClawScheduleSummary[]>([])
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -273,13 +275,13 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false }
     return templates.find((t) => t.id === s.taskTemplateId)?.name ?? s.taskTemplateId.slice(0, 8)
   }
   // Only maintainers may change when the app is on.
-  const canChange = (s: ClawScheduleSummary) => appActions || !isAppScheduleAction(s.action)
+  const canChange = (s: ClawScheduleSummary) => !readOnly && (appActions || !isAppScheduleAction(s.action))
 
   if (loading) return <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">Loading...</div>
 
   return (
     <>
-      {templates.length === 0 && !appActions ? (
+      {readOnly ? null : templates.length === 0 && !appActions ? (
         <EmptyState
           title="No task templates yet"
           description="A schedule runs a task template."
@@ -366,7 +368,7 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false }
             ))}
           </TableBody>
         </Table>
-      ) : templates.length > 0 || appActions ? (
+      ) : readOnly || templates.length > 0 || appActions ? (
         <div className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-zinc-500 dark:text-zinc-400">No schedules yet.</p>
         </div>

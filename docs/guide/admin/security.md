@@ -21,8 +21,11 @@ Viberglass is self-hosted: its database, files and secrets stay in infrastructur
 ## Credentials
 
 - Secrets are stored encrypted with AES-256-GCM in the database, or in AWS SSM. See [Secrets](secrets.md).
+- Sign-in allows 10 failed attempts per IP address in 15 minutes.
+- Workers replace the value of every secret bound to a run in what they send back: agent messages, tool calls and their output, logs, progress and results. A harness's refreshed login tokens and secrets shorter than 8 characters aren't covered.
 - A run only gets the secrets its runner names. Kubernetes workers fetch them at start with a token that works for that run alone, while it's active.
-- Webhook deliveries from GitHub, Shortcut, Jira and custom sources are checked against their signing secret.
+- Webhook deliveries from GitHub, Shortcut, Jira and custom sources are checked against their signing secret before Viberglass reads or stores them. Signing secrets are stored encrypted with `WEBHOOK_SECRET_ENCRYPTION_KEY`.
+- `GET /api/webhooks/status`, which lists configured webhook providers and recent failed deliveries, is for signed-in admins only.
 - Repository access comes from the token you give each space. Use fine-grained tokens limited to the repositories and permissions the agent needs.
 
 ## People

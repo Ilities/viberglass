@@ -2,7 +2,7 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { askAgent } from '@/service/api/discussion-api'
-import type { Clanker, Ticket } from '@viberglass/types'
+import type { AgentDirectoryEntry, Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -10,7 +10,7 @@ import { taskPath } from '@/lib/taskPath'
 
 interface RevisionModalProps {
   ticket: Ticket | null
-  clankers: Clanker[]
+  clankers: AgentDirectoryEntry[]
   project: string
   open: boolean
   onClose: () => void
@@ -19,8 +19,8 @@ interface RevisionModalProps {
 /** Asks the agent to revise the plan, with a note of what to change. */
 export function RevisionModal({ ticket, clankers, project, open, onClose }: RevisionModalProps) {
   const navigate = useNavigate()
-  const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
-  const configuredClankers = clankers.filter((c) => c.deploymentStrategyId)
+  const activeClankers = clankers.filter((c) => c.status === 'active' && c.deployable)
+  const configuredClankers = clankers.filter((c) => c.deployable)
   const firstConfiguredClanker = configuredClankers[0]
   const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)

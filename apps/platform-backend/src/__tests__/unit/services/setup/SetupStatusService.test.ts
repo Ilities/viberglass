@@ -33,7 +33,6 @@ const PROJECT: Project = {
   name: "Web",
   slug: "web",
   ticketSystem: "custom",
-  credentials: { type: "token" },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

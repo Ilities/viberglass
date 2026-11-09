@@ -36,7 +36,6 @@ export interface ProjectsTable {
   name: string;
   slug: string;
   ticket_system: string;
-  credentials: Json | null;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
   auto_fix_tags: Generated<string[]>;
@@ -568,7 +567,7 @@ export interface WebhookDeliveryAttemptsTable {
   webhook_config_id: string | null;
   delivery_id: string;
   event_type: string;
-  status: "pending" | "processing" | "succeeded" | "failed" | "ignored";
+  status: "pending" | "processing" | "succeeded" | "failed" | "ignored" | "rejected";
   error_message: string | null;
   payload: Json;
   project_id: string | null;

@@ -26,7 +26,7 @@ function space(role: WorkspaceRole, membership: 'maintainer' | 'member' | null =
     ticketSystem: 'custom',
     autoFixTags: [],
     autoFixEnabled: false,
-    credentials: { type: 'token' },
+   
     customFieldMappings: {},
     isPrivate: false,
     keyPrefix: 'WEB',

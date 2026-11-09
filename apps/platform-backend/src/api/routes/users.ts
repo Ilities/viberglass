@@ -1,4 +1,5 @@
 import express from "express";
+import { seesEmails } from "@viberglass/types";
 import { UserDAO, type PublicUser } from "../../persistence/user/UserDAO";
 import {
   validateCreateUser,
@@ -50,12 +51,13 @@ function buildUsersResponse(users: PublicUser[]) {
 }
 
 // Names for the people who appear on tasks, comments and sessions. Any
-// signed-in user may read it; roles and dates stay admin-only.
-router.get("/directory", requireAuth, async (_req, res) => {
+// signed-in user may read it; emails only those who see them, roles and dates only admins.
+router.get("/directory", requireAuth, async (req, res) => {
   try {
     const users = await userDao.listUsers();
+    const withEmails = seesEmails(req.authContext!.user.role);
     res.json({
-      people: users.map(({ id, email, name, avatarUrl }) => ({ id, email, name, avatarUrl })),
+      people: users.map(({ id, email, name, avatarUrl }) => ({ id, email: withEmails ? email : null, name, avatarUrl })),
     });
   } catch (error) {
     logger.error("Error listing the people directory", {

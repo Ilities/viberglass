@@ -27,7 +27,6 @@ const GIT_SPACE: Project = {
   name: 'Laptops',
   slug: 'laptops',
   ticketSystem: 'custom',
-  credentials: { type: 'token' },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

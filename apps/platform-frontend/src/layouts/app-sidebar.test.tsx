@@ -13,7 +13,7 @@ function space(slug: string, backingKind: Project['backingKind']): Project {
     name: slug,
     slug,
     ticketSystem: 'custom',
-    credentials: { type: 'token' },
+   
     autoFixEnabled: false,
     autoFixTags: [],
     customFieldMappings: {},

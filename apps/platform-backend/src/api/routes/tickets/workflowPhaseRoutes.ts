@@ -140,7 +140,7 @@ export function registerTicketWorkflowPhaseRoutes(
           req.params.id,
           TICKET_WORKFLOW_PHASE.PLANNING,
           content,
-          { actor: req.authContext?.user.email },
+          { actor: req.authContext?.user.id },
         );
 
         res.json({

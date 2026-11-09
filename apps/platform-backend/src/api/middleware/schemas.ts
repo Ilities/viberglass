@@ -115,7 +115,6 @@ export const projectSchema = Joi.object({
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds, NATIVE_TICKET_ORIGIN)
     .default(NATIVE_TICKET_ORIGIN),
-  credentials: Joi.object().optional(),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
@@ -129,7 +128,6 @@ export const updateProjectSchema = Joi.object({
     .valid(...ticketSystemIds)
     .optional()
     .allow(null),
-  credentials: Joi.object().optional().allow(null),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),

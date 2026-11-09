@@ -60,8 +60,6 @@ export class ProjectDAO {
     }
     if (updates.ticketSystem !== undefined)
       updateData.ticket_system = updates.ticketSystem;
-    if (updates.credentials !== undefined)
-      updateData.credentials = JSON.stringify(updates.credentials);
     if (updates.webhookUrl !== undefined)
       updateData.webhook_url = updates.webhookUrl;
     if (updates.autoFixEnabled !== undefined)

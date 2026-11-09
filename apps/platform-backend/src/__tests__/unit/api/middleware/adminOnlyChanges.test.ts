@@ -20,12 +20,12 @@ function appWith(middleware: express.RequestHandler): express.Express {
 }
 
 describe("adminOnlyChanges", () => {
-  it("lets admins, members and viewers read, not guests", async () => {
+  it("lets admins and members read, not guests or viewers", async () => {
     const app = appWith(adminOnlyChanges());
     await request(app).get("/api/things/1").set("x-role", "admin").expect(200);
     await request(app).get("/api/things/1").set("x-role", "member").expect(200);
     await request(app).get("/api/things/1").set("x-role", "guest").expect(403);
-    await request(app).get("/api/things/1").set("x-role", "viewer").expect(200);
+    await request(app).get("/api/things/1").set("x-role", "viewer").expect(403);
   });
 
   it("requires an admin for changes", async () => {

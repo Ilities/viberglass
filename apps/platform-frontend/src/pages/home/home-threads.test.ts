@@ -32,9 +32,8 @@ describe('Home threads', () => {
   })
 
   it('lands viewers on Overview, app users on their apps and everyone else on Home', () => {
-    expect(landingFor('viewer')).toBe('/overview')
     expect(landingFor('app_user')).toBe('/apps')
-    for (const role of ['admin', 'member', 'guest', undefined]) expect(landingFor(role)).toBe('/')
+    for (const role of ['admin', 'member', 'guest', 'viewer', undefined]) expect(landingFor(role)).toBe('/')
   })
 })
 

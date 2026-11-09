@@ -2,7 +2,7 @@
 
 A space's track record shows how each agent's tasks in a space went, so you can see which agent and model does the work well on that space's code, and at what cost. It reads what already happened on the space's tasks; nothing extra runs.
 
-Open a space and choose its Track record tab. Members and admins see it; guests and viewers don't.
+Open a space and choose its Track record tab. Members, viewers and admins see it; guests don't.
 
 ## The table
 

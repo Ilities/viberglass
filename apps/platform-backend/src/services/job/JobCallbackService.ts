@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "crypto";
 import db from "../../persistence/config/database";
 
 /**
@@ -24,14 +25,17 @@ export async function validateCallbackToken(
     .where("id", "=", jobId)
     .executeTakeFirst();
 
-  if (!job) {
-    return false;
-  }
+  return callbackTokensMatch(job?.callback_token ?? null, token);
+}
 
-  // Use timing-safe comparison to prevent timing attacks
-  // For simplicity, we use a basic comparison here since the token
-  // is already cryptographically random and 64 chars long
-  return job.callback_token === token;
+/** Compares in constant time; hashing first keeps tokens of different lengths comparable. */
+export function callbackTokensMatch(stored: string | null, given: string): boolean {
+  if (!stored || !given) return false;
+  return timingSafeEqual(digest(stored), digest(given));
+}
+
+function digest(value: string): Buffer {
+  return createHash("sha256").update(value).digest();
 }
 
 /**

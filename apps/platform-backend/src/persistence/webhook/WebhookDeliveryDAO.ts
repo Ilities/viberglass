@@ -11,7 +11,8 @@ import db from "../config/database";
 
 /** The webhook provider an integration's manifest names. */
 export type WebhookProvider = string;
-export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed" | "ignored";
+/** `rejected`: the signature didn't check out, so nothing of the request was kept. */
+export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed" | "ignored" | "rejected";
 
 /**
  * Webhook delivery attempt as stored in database
@@ -41,6 +42,7 @@ export interface CreateDeliveryAttemptDTO {
   eventType: string;
   payload: Record<string, unknown>;
   status?: DeliveryStatus;
+  errorMessage?: string;
 }
 
 export interface ListDeliveryAttemptsOptions {
@@ -93,7 +95,7 @@ export class WebhookDeliveryDAO {
           delivery_id: dto.deliveryId,
           event_type: dto.eventType,
           status: dto.status ?? "processing",
-          error_message: null,
+          error_message: dto.errorMessage ?? null,
           payload: JSON.stringify(dto.payload),
           project_id: null,
           ticket_id: null,
@@ -372,6 +374,7 @@ export class WebhookDeliveryDAO {
     succeeded: number;
     failed: number;
     ignored: number;
+    rejected: number;
   }> {
     const results = await db
       .selectFrom("webhook_delivery_attempts")
@@ -388,10 +391,11 @@ export class WebhookDeliveryDAO {
       succeeded: 0,
       failed: 0,
       ignored: 0,
+      rejected: 0,
     };
 
     for (const row of results) {
-      const status = row.status as DeliveryStatus;
+      const status = row.status;
       const count = typeof row.count === "bigint" ? Number(row.count) : Number(row.count);
       stats.total += count;
       stats[status] = count;

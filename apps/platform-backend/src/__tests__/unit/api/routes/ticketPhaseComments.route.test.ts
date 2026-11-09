@@ -173,7 +173,7 @@ describe("plan comment routes", () => {
       },
       authContext: {
         user: {
-          email: "reviewer@example.com",
+          id: "reviewer-1",
         },
       },
     };
@@ -189,7 +189,7 @@ describe("plan comment routes", () => {
     ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", {
       lineNumber: 4,
       content: "This needs a rollback plan.",
-      actor: "reviewer@example.com",
+      actor: "reviewer-1",
     });
     expect(res.status).toHaveBeenCalledWith(201);
   });
@@ -227,7 +227,7 @@ describe("plan comment routes", () => {
       },
       authContext: {
         user: {
-          email: "reviewer@example.com",
+          id: "reviewer-1",
         },
       },
     };
@@ -246,7 +246,7 @@ describe("plan comment routes", () => {
       {
         content: undefined,
         status: "resolved",
-        actor: "reviewer@example.com",
+        actor: "reviewer-1",
       },
     );
   });
@@ -271,7 +271,7 @@ describe("plan comment routes", () => {
           commentId: "22222222-2222-4222-8222-222222222222",
         },
         body: { content: "Words put in their mouth" },
-        authContext: { user: { email: "someone-else@example.com" } },
+        authContext: { user: { id: "someone-else" } },
       },
       res,
     );

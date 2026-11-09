@@ -104,7 +104,8 @@ export async function createResetLink(userId: string): Promise<string> {
   return data.path
 }
 
-export type Person = Pick<ManagedUser, 'id' | 'email' | 'name' | 'avatarUrl'>
+/** Guests and viewers get people's names without their emails. */
+export type Person = Pick<ManagedUser, 'id' | 'name' | 'avatarUrl'> & { email: string | null }
 
 export async function getPeopleDirectory(): Promise<Person[]> {
   const response = await apiFetch(`${API_BASE_URL}/api/users/directory`)

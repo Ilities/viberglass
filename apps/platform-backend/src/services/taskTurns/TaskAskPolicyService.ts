@@ -58,19 +58,13 @@ export class TaskAskPolicyService {
 
   /**
    * Refuses with a reason the UI and chat show as is. A null person is the
-   * system, or chat with no linked account: it may ask for anything but code,
-   * which has to be credited to someone. A webhook may ask for code too: the
-   * admin who set it to build on its own agreed to that.
+   * system, or someone in chat or a tracker with no matching account: they
+   * may ask for anything but code, which has to be credited to someone.
    */
-  async assertCanAsk(
-    userId: string | null,
-    ticketId: string,
-    action: TaskTurnAction,
-    options: { fromWebhook?: boolean } = {},
-  ): Promise<void> {
+  async assertCanAsk(userId: string | null, ticketId: string, action: TaskTurnAction): Promise<void> {
     const wantsCode = action === "code";
     if (!userId) {
-      if (!wantsCode || options.fromWebhook) return;
+      if (!wantsCode) return;
       throw new TaskAskPolicyError(
         TASK_ASK_POLICY_ERROR_CODE.NO_PERSON,
         "Asking the agent to build needs a signed-in person, so it can be credited to them.",

@@ -4,7 +4,7 @@ import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
 import type { JobListItem } from '@/service/api/job-api'
-import type { Clanker, SpaceBackingKind, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
+import type { AgentDirectoryEntry, SpaceBackingKind, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
@@ -53,7 +53,7 @@ interface TaskThreadProps {
   /** Agents that can run, any of which can be brought in when it isn't on the task yet. */
   runnableAgents: BringableAgent[]
   /** Every runner, to describe the one the next ask goes to. */
-  clankers?: Clanker[]
+  clankers?: AgentDirectoryEntry[]
   /** The page reloads after an ask, to show the agent working. */
   onAsked: () => void
   /** Run status and duration shown beneath the turn that started it. */

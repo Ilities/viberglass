@@ -96,7 +96,7 @@ export function SpaceMembersPage() {
                   <TableRow key={member.userId}>
                     <TableCell>
                       {member.name}
-                      <span className="block text-xs text-zinc-500">{member.email}</span>
+                      {member.email && <span className="block text-xs text-zinc-500">{member.email}</span>}
                     </TableCell>
                     <TableCell>{ROLE_LABEL[member.workspaceRole]}</TableCell>
                     <TableCell>

@@ -170,10 +170,20 @@ describe('HomePage', () => {
     expect(mockAttention).toHaveBeenCalledWith('4', { source: 'question|1', mode: 'acknowledged', reason: '', remindAt: undefined })
   })
 
-  it('sends viewers to Overview', async () => {
+  it('shows viewers what needs attention, without the buttons to act on it', async () => {
     mockRole.current = 'viewer'
+    const question = thread('4', {
+      situation: { state: 'question', label: 'Question for Maria', waitingOn: { kind: 'people', people: [{ id: 'me', name: 'Maria' }] }, since: 't', yourMove: true },
+      questionText: 'Which workspace should be connected?',
+      attention: { source: 'question|1', status: 'new', reason: null, remindAt: null, questionIds: ['q-1'] },
+    })
+    mockHome.mockResolvedValue({ needsYou: [question], threads: [], waiting: [], later: [], newCount: 1 })
     renderHome()
-    expect(await screen.findByText('Overview page')).toBeInTheDocument()
+    const row = await screen.findByRole('listitem', { name: 'Task 4' })
+    expect(within(row).getByText('Which workspace should be connected?')).toBeInTheDocument()
+    expect(within(row).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(row).queryByRole('link', { name: 'Answer' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Overview page')).not.toBeInTheDocument()
   })
 
   it('says what went wrong when the tasks cannot be loaded, and offers another try', async () => {

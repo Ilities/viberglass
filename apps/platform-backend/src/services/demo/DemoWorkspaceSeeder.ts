@@ -91,7 +91,6 @@ export class DemoWorkspaceSeeder {
     const project = await this.deps.projects.createProject({
       name: DEMO_SPACE_NAME,
       ticketSystem: NATIVE_TICKET_ORIGIN,
-      credentials: { type: "token" },
       autoFixEnabled: false,
       autoFixTags: [],
       customFieldMappings: {},

@@ -21,8 +21,6 @@ export interface AskInput {
   agentId?: string;
   /** The thread message this asks with, when it's posted already (an answer to the agent's question). */
   postedMessageId?: string;
-  /** Asked by a webhook set to build on its own, with nobody asking. */
-  fromWebhook?: boolean;
   /** For a build: the plan's parts to build in a new pull request. Without them it continues the open one, else builds what's left. */
   parts?: PartRange;
   /** For a build: the parts go into the open pull request rather than one of their own. */
@@ -91,7 +89,7 @@ export class TaskTurnService {
     }
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
-    await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
+    await this.deps.policy.assertCanAsk(actorId, ticket.id, action);
     // A Files space has no plan parts or pull requests: its build makes an artifact.
     const files = (await this.deps.execution.backingOf(ticket.projectId)) === "files";
     const adding = !files && action === "code" && Boolean(input.add);

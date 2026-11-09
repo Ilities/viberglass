@@ -24,7 +24,7 @@ export function ApplicationLayout() {
   const [spaces, setSpaces] = useState<Project[]>([])
   const spacesRevision = useApiRefresh('/api/spaces', '/api/setup/space', '/api/setup/demo')
   const appUser = user?.role === 'app_user'
-  const needsYou = useNeedsYouCount(status === 'authenticated' && user?.role !== 'viewer' && !appUser, pathname)
+  const needsYou = useNeedsYouCount(status === 'authenticated' && !appUser, pathname)
 
   useEffect(() => {
     if (status === 'unauthenticated') {

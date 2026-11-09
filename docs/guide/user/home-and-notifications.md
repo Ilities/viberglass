@@ -44,7 +44,7 @@ Overview shows the tasks in every space you can see, each counted once:
 - Waiting on people: someone's move, including longer discussions.
 - Not started: nothing asked for yet.
 
-It also shows recent outcomes with a completion event from the last seven days. Filter it to one space at the top. Secondary task groups start collapsed; select a summary count to open its group. Viewers land on Overview instead of Home.
+It also shows recent outcomes with a completion event from the last seven days. Filter it to one space at the top. Secondary task groups start collapsed; select a summary count to open its group. Viewers see Home too, without the buttons to answer or set requests aside.
 
 Each space opens on **Summary**, with its attention requests, agent activity, waiting work, and recent outcomes. **Tasks** retains the full task browser and filters; existing filtered space links open Tasks. The existing Files and Artifacts tabs remain available in Files spaces, alongside Schedules, Track record, Runs, and Settings or About where your access allows them.
 

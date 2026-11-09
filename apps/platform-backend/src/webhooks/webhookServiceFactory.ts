@@ -4,6 +4,8 @@ import { WebhookConfigDAO } from "../persistence/webhook/WebhookConfigDAO";
 import { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import { DeduplicationService } from "./DeduplicationService";
 import { WebhookSecretService } from "./WebhookSecretService";
+import { WebhookSecretCipher } from "./WebhookSecretCipher";
+import { WebhookSignatureVerifier } from "./WebhookSignatureVerifier";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { TaskIssueLinkDAO } from "../persistence/ticketing/TaskIssueLinkDAO";
@@ -36,7 +38,7 @@ export function getWebhookService(): WebhookService {
     const deliveryDAO = new WebhookDeliveryDAO();
     const deduplication = new DeduplicationService(deliveryDAO);
     const credentialProvider = getCredentialFactory();
-    const secretService = new WebhookSecretService(credentialProvider);
+    const signatures = new WebhookSignatureVerifier(new WebhookSecretService(credentialProvider, new WebhookSecretCipher()));
     const ticketDAO = new TicketDAO();
     const taskTurns = new TaskTurnService();
     const planner = new WebhookPlanRequester(taskTurns);
@@ -69,7 +71,7 @@ export function getWebhookService(): WebhookService {
     webhookService = new WebhookService(
       receivers,
       deduplication,
-      secretService,
+      signatures,
       handler,
       configResolver,
       deliveryLifecycle,

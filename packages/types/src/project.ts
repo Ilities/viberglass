@@ -59,10 +59,6 @@ export interface AuthCredentials {
   baseUrl?: string // For on-premise installations
 }
 
-// Legacy project credentials - will be removed after migration to top-level integrations
-/** @deprecated Project credentials are now stored in the integrations table */
-export interface ProjectCredentials extends AuthCredentials {}
-
 // Project configuration
 export interface Project {
   id: string
@@ -74,11 +70,6 @@ export interface Project {
    * The project's primary ticketing integration determines the ticket system.
    */
   ticketSystem: TicketOrigin
-  /**
-   * @deprecated Use linked integrations instead. This field will be removed.
-   * Credentials are now stored in the top-level integrations table.
-   */
-  credentials: AuthCredentials
   webhookUrl?: string | null
   autoFixEnabled: boolean
   autoFixTags: string[]
@@ -157,10 +148,6 @@ export interface CreateProjectRequest {
    * @deprecated Use linked integrations instead.
    */
   ticketSystem?: TicketOrigin | null
-  /**
-   * @deprecated Use linked integrations instead.
-   */
-  credentials?: AuthCredentials | null
   webhookUrl?: string | null
   autoFixEnabled?: boolean
   autoFixTags?: string[]
@@ -179,10 +166,6 @@ export interface UpdateProjectRequest {
    * @deprecated Use linked integrations instead.
    */
   ticketSystem?: TicketOrigin | null
-  /**
-   * @deprecated Use linked integrations instead.
-   */
-  credentials?: AuthCredentials | null
   webhookUrl?: string | null
   autoFixEnabled?: boolean
   autoFixTags?: string[]

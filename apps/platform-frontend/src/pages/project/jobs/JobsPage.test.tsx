@@ -4,12 +4,12 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { useProject } from '@/context/project-context'
 import { getProjectJobs } from '@/data'
 import type { JobListItem } from '@/data'
-import { getClankers } from '@/service/api/clanker-api'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import { JobsPage } from './JobsPage'
 
 jest.mock('@/context/project-context', () => ({ useProject: jest.fn() }))
 jest.mock('@/data', () => ({ ...jest.requireActual('@/data'), getProjectJobs: jest.fn() }))
-jest.mock('@/service/api/clanker-api', () => ({ getClankers: jest.fn(() => Promise.resolve([])) }))
+jest.mock('@/service/api/agent-directory-api', () => ({ getAgentDirectory: jest.fn(() => Promise.resolve([])) }))
 
 function job(overrides: Partial<JobListItem>): JobListItem {
   return {
@@ -56,7 +56,7 @@ beforeEach(() => {
     job({ jobId: 'run-1', task: 'Add the login page', status: 'completed' }),
     job({ jobId: 'run-2', task: 'Fix the checkout', status: 'failed' }),
   ])
-  jest.mocked(getClankers).mockResolvedValue([])
+  jest.mocked(getAgentDirectory).mockResolvedValue([])
 })
 
 describe('JobsPage filters', () => {

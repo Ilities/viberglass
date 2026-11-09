@@ -1,5 +1,6 @@
 import { Logger } from "winston";
 import { FetchRetryConfig, fetchWithRetry, postForJson } from "./callbackFetch";
+import type { SecretRedactor } from "./SecretRedactor";
 
 /** Where a worker's callbacks go, and how hard to try. */
 export interface CallbackTarget {
@@ -7,6 +8,8 @@ export interface CallbackTarget {
   maxRetries: number;
   retryDelay: number;
   callbackToken?: string;
+  /** Applied to everything sent that the agent could have written. */
+  redactor: SecretRedactor;
 }
 
 /**
@@ -30,7 +33,7 @@ export class TurnCallbackClient {
     await this.post(
       `${this.target.apiUrl}/api/jobs/${jobId}/session-events/batch`,
       tenantId,
-      { events },
+      { events: events.map((event) => ({ eventType: event.eventType, payload: this.target.redactor.redactRecord(event.payload) })) },
       { timeoutMs: 10000, label: "session event batch" },
       { jobId, count: events.length },
     );
@@ -71,7 +74,7 @@ export class TurnCallbackClient {
     partial: { documents: Partial<Record<"plan" | "summary", string>>; commitHash?: string; branch?: string },
   ): Promise<void> {
     // No retries: the worker is being stopped and has seconds left.
-    await postForJson(`${this.target.apiUrl}/api/jobs/${jobId}/partial-result`, tenantId, partial, 5000, this.target.callbackToken);
+    await postForJson(`${this.target.apiUrl}/api/jobs/${jobId}/partial-result`, tenantId, this.target.redactor.redactValue(partial), 5000, this.target.callbackToken);
   }
 
   /** Puts the agent's question to a person on the task; returns whom it reached. */
@@ -80,7 +83,7 @@ export class TurnCallbackClient {
     tenantId: string,
     question: { question: string; options: string[]; addressee: string | null; blocking: boolean },
   ): Promise<{ askedOf: string | null; blocking: boolean }> {
-    const body = await postForJson(`${this.target.apiUrl}/api/jobs/${jobId}/questions`, tenantId, question, 15000, this.target.callbackToken);
+    const body = await postForJson(`${this.target.apiUrl}/api/jobs/${jobId}/questions`, tenantId, this.target.redactor.redactValue(question), 15000, this.target.callbackToken);
     const data = typeof body === "object" && body !== null && "data" in body ? body.data : null;
     const askedOf = typeof data === "object" && data !== null && "askedOf" in data && typeof data.askedOf === "string" ? data.askedOf : null;
     return { askedOf, blocking: question.blocking };

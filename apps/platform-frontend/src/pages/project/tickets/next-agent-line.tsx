@@ -3,9 +3,8 @@ import { RunnerReadinessBadge } from '@/components/runner-readiness-badge'
 import { useAuth } from '@/context/auth-context'
 import { canStartClanker, StartClankerButton } from '@/pages/clankers/clanker-actions'
 import { getNextAgent, type NextAgent } from '@/service/api/discussion-api'
-import { getAgentLabel, type Clanker } from '@viberglass/types'
+import { getAgentLabel, type AgentDirectoryEntry } from '@viberglass/types'
 import { useEffect, useState } from 'react'
-import { summarizeRunner } from '@/pages/clankers/config/runnerSummary'
 
 const VIA: Record<NonNullable<NextAgent['via']>, string> = {
   named: 'asked for by name',
@@ -19,18 +18,17 @@ interface NextAgentLineProps {
   taskId: string
   /** Changes when the task's runs or sessions do, which can change who's next. */
   refreshKey: string
-  clankers: Clanker[]
+  clankers: AgentDirectoryEntry[]
   /** Agents that already have a conversation on this task. */
   agentsOnTask: ReadonlySet<string>
 }
 
 /** The harness and configured model; what the provider actually ran isn't known here. */
-function agentDetails(clanker: Clanker | undefined, continues: boolean): string {
+function agentDetails(clanker: AgentDirectoryEntry | undefined, continues: boolean): string {
   const resumes = continues ? 'Picks up its conversation here.' : 'Starts fresh from the task and its documents.'
   if (!clanker) return resumes
-  const model = summarizeRunner(clanker, []).model
   const harness = clanker.agent ? getAgentLabel(clanker.agent) : 'No agent'
-  return `${harness}, ${model ? `model ${model}` : 'default model'}. ${resumes}`
+  return `${harness}, ${clanker.model ? `model ${clanker.model}` : 'default model'}. ${resumes}`
 }
 
 /** Which agent an ask goes to before anyone asks, and what stops it when it can't run. */

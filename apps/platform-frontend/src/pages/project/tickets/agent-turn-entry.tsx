@@ -2,7 +2,7 @@ import { CancelRunButton } from '@/components/cancel-run-button'
 import { failureHeadline } from '@/components/failure-guidance'
 import { Link } from '@/components/link'
 import { useAuth } from '@/context/auth-context'
-import { isRunner } from '@/lib/roles'
+import { seesRuns } from '@/lib/roles'
 import { cancelJob, type JobListItem } from '@/service/api/job-api'
 import { formatJobStatus } from '@/data'
 import { formatRunDuration } from '../jobs/run-facts'
@@ -118,12 +118,12 @@ export function AgentTurnEntry({ entry, run, summaryVersion, retry, backing = 'g
   const stopped = entry.status === 'cancelled'
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
-  // Guests and viewers see the turn in the thread, without its technical details.
+  // Guests see the turn in the thread, without its technical details.
   const runParams = new URLSearchParams(searchParams)
   if (entry.jobId) runParams.set('run', entry.jobId)
   runParams.delete('runTab')
   const reported = entry.status === 'failed' ? failureHeadline(run?.failure).reported : undefined
-  const runLink = entry.jobId && isRunner(user?.role) ? `?${runParams}` : null
+  const runLink = entry.jobId && seesRuns(user?.role) ? `?${runParams}` : null
   // The intent is shown on its own, so the reply starts after it.
   const rest =
     outcome?.reply

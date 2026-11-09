@@ -426,7 +426,7 @@ export interface IntegrationWebhookDelivery {
   webhookConfigId: string | null
   deliveryId: string
   eventType: string
-  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'ignored'
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'ignored' | 'rejected'
   retryable: boolean
   errorMessage: string | null
   ticketId: string | null

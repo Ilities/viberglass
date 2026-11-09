@@ -1,8 +1,7 @@
-import { InvalidWebhookPayloadError, type InboundWebhookEvent, type WebhookReceiver } from "@viberglass/integration-core";
-import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
+import { InvalidWebhookPayloadError, type InboundWebhookEvent } from "@viberglass/integration-core";
 import type { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import type { DeduplicationService } from "./DeduplicationService";
-import type { WebhookSecretService } from "./WebhookSecretService";
+import type { WebhookSignatureVerifier } from "./WebhookSignatureVerifier";
 import type { InboundEventHandler } from "./InboundEventHandler";
 import type { WebhookConfigResolver } from "./WebhookConfigResolver";
 import type { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
@@ -13,7 +12,7 @@ import type {
   WebhookProcessingResult,
   WebhookServiceConfig,
 } from "./webhookServiceTypes";
-import { getAllowedEventCandidates, isEventAllowed } from "./WebhookEventFilter";
+import { eventRefusal } from "./WebhookEventFilter";
 import type { WebhookRetryService } from "./WebhookRetryService";
 
 export type {
@@ -27,7 +26,7 @@ export class WebhookService {
   constructor(
     private receivers: WebhookReceivers,
     private deduplication: Pick<DeduplicationService, "shouldProcessDelivery" | "getFailedDeliveries">,
-    private secretService: Pick<WebhookSecretService, "getSecret">,
+    private signatures: Pick<WebhookSignatureVerifier, "verify">,
     private handler: Pick<InboundEventHandler, "handle">,
     private configResolver: Pick<WebhookConfigResolver, "resolveInboundConfig">,
     private deliveryLifecycle: InboundWebhookDeliveryLifecycle,
@@ -50,6 +49,18 @@ export class WebhookService {
       return { status: "not_found", reason: "No webhook with this address" };
     }
 
+    const signature = await this.signatures.verify({
+      receiver,
+      config: dbConfig,
+      headers: normalizedHeaders,
+      rawBody,
+      tenantId,
+    });
+    if (!signature.valid) {
+      await this.deliveryLifecycle.recordRejected(dbConfig, signature.reason);
+      return { status: "rejected", reason: signature.reason };
+    }
+
     let event: InboundWebhookEvent;
     try {
       event = receiver.parseEvent(payload, normalizedHeaders);
@@ -60,40 +71,10 @@ export class WebhookService {
         : { status: "ignored", reason: `Event parsing failed: ${reason}` };
     }
 
-    if (!dbConfig.active) {
-      const reason = `Webhook configuration '${dbConfig.id}' is inactive`;
-      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
-      return {
-        status: "ignored",
-        reason,
-      };
-    }
-
-    if (!isEventAllowed(event, dbConfig)) {
-      const allowedCandidates = getAllowedEventCandidates(event).join(", ");
-      const reason = `The webhook isn't set to receive '${allowedCandidates}'`;
-      await this.deliveryLifecycle.recordIgnored(event, dbConfig, reason);
-      return {
-        status: "ignored",
-        reason,
-      };
-    }
-
-    const signatureResult = await verifySignature({
-      secretService: this.secretService,
-      receiver,
-      config: dbConfig,
-      signature: receiver.signatureOf(normalizedHeaders),
-      rawBody,
-      tenantId,
-    });
-    if (!signatureResult.valid) {
-      const reason = `Rejected: ${signatureResult.reason ?? "Invalid signature"}`;
-      await this.deliveryLifecycle.recordRejected(event, dbConfig, reason);
-      return {
-        status: "rejected",
-        reason: signatureResult.reason ?? "Invalid signature",
-      };
+    const refusal = eventRefusal(event, dbConfig);
+    if (refusal) {
+      await this.deliveryLifecycle.recordIgnored(event, dbConfig, refusal);
+      return { status: "ignored", reason: refusal };
     }
 
     const { shouldProcess, existingId } =
@@ -164,42 +145,6 @@ export class WebhookService {
   ): Promise<WebhookProcessingResult> {
     return this.retryService.retryDelivery(deliveryId, options);
   }
-}
-
-async function verifySignature(params: {
-  secretService: Pick<WebhookSecretService, "getSecret">;
-  receiver: WebhookReceiver;
-  config: WebhookConfig;
-  signature?: string;
-  rawBody: Buffer;
-  tenantId?: string;
-}): Promise<{ valid: boolean; reason?: string }> {
-  // Every webhook must have a secret. An unsigned delivery is an unauthenticated
-  // request that can create tickets, and ticket bodies reach the agent prompt verbatim.
-  let secret: string | undefined;
-  try {
-    secret = await params.secretService.getSecret(
-      {
-        secretLocation: params.config.secretLocation,
-        secretPath: params.config.secretPath || undefined,
-        webhookSecret: params.config.webhookSecretEncrypted || undefined,
-      },
-      params.tenantId,
-    );
-  } catch {
-    return { valid: false, reason: "Webhook secret is not configured" };
-  }
-
-  if (!secret) {
-    return { valid: false, reason: "Webhook secret is not configured" };
-  }
-  if (!params.signature) {
-    return { valid: false, reason: "Missing signature header" };
-  }
-  if (!params.receiver.verifySignature(params.rawBody, params.signature, secret)) {
-    return { valid: false, reason: "Invalid signature" };
-  }
-  return { valid: true };
 }
 
 function normalizeHeaders(

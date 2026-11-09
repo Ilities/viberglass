@@ -105,8 +105,8 @@ describe("TrackerIssueInbound", () => {
 
     const ask = await inbound.commented(CONTEXT, { issueKey: "WEB-12", author: { name: "Pat", email: null }, body: "write the plan", mentionsBot: true });
     expect(ask).toEqual({ ticketId: "task-web", projectId: "web", jobId: "job-ask" });
-    expect(deps.turns.ask).toHaveBeenCalledWith("task-web", null, { message: "write the plan", postedMessageId: "message-1", fromWebhook: true });
-    expect(deps.turns.ask).toHaveBeenCalledWith("task-api", null, { message: "write the plan", postedMessageId: "message-1", fromWebhook: true });
+    expect(deps.turns.ask).toHaveBeenCalledWith("task-web", null, { message: "write the plan", postedMessageId: "message-1" });
+    expect(deps.turns.ask).toHaveBeenCalledWith("task-api", null, { message: "write the plan", postedMessageId: "message-1" });
   });
 
   it("answers the agent's question in the task that asked the person who replies, and posts the reply in the others", async () => {

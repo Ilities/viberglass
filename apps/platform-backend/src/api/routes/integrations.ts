@@ -4,7 +4,7 @@ import type {
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
 import logger from "../../config/logger";
-import { requireAuth } from "../middleware/authentication";
+import { requireAuth, requireRole } from "../middleware/authentication";
 import {
   type CreateIntegrationInput,
   IntegrationManagementService,
@@ -32,6 +32,8 @@ const integrationCredentialDAO = new IntegrationCredentialDAO();
 const secretService = new SecretService();
 
 router.use(requireAuth);
+// Members read what creating and setting up a space needs; a connection's own settings, deliveries and credentials are admins'.
+const requireAdmin = requireRole("admin");
 // Space links: visible to read, maintainer to change.
 router.param("projectId", spaceParamGuard());
 
@@ -97,6 +99,7 @@ router.post(
 // Whether a chat integration's bot runs on its connection, and if the service turns the credentials down, why.
 router.get(
   "/:system/chat-status",
+  requireAdmin,
   withRouteErrorHandling("Error reading a chat service's status", async (req, res) => {
     res.json(await chatBotStatus.status(req.params.system));
   }),
@@ -104,6 +107,7 @@ router.get(
 
 router.get(
   "/:id",
+  requireAdmin,
   withRouteErrorHandling("Error fetching integration", async (req, res) => {
     const integration = await integrationManagementService.getIntegration(
       req.params.id,
@@ -340,6 +344,7 @@ router.delete(
 
 router.get(
   "/:id/webhooks/inbound/:configId/deliveries",
+  requireAdmin,
   withRouteErrorHandling(
     "Error listing webhook deliveries",
     async (req, res) => {
@@ -460,6 +465,7 @@ router.post(
 
 router.get(
   "/:id/credentials/:credentialId",
+  requireAdmin,
   withRouteErrorHandling(
     "Error fetching integration credential",
     async (req, res) => {

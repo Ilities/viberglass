@@ -40,6 +40,7 @@ export * from './agentSignIn'
 export * from './clankerConfig'
 export * from './fargateSizes'
 export * from './runnerReadiness'
+export * from './agentDirectory'
 export * from './job'
 
 // Run records: manifests and PR outcomes, for eval inspection

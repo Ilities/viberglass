@@ -13,7 +13,7 @@ import { AttentionControls } from './attention-controls'
  * A thread that needs you: who's asking, why, and what they said. A question
  * gets an Answer button; a mention you needn't answer can be acknowledged here.
  */
-export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChanged: () => void }) {
+export function NeedsYouRow({ thread, onChanged, readOnly = false }: { thread: HomeThread; onChanged: () => void; readOnly?: boolean }) {
   const href = taskPath(thread.task.spaceSlug, thread.task)
   const asked = thread.attention?.kind ? thread.attention.kind === 'question' : thread.situation.state === 'question'
   const fromAgent = agentNeedsYou(thread)
@@ -30,8 +30,8 @@ export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChang
       <p className="mt-1 text-xs text-[var(--gray-10)]">{thread.task.key} · {thread.task.spaceName}</p>
       <p className="mt-3 text-sm text-[var(--gray-11)]">{deferred && thread.attention?.reason ? thread.attention.reason : asked && thread.questionText ? thread.questionText : thread.mentionsYou && !fromAgent ? quotedLastMessage(thread.lastMessage) : thread.situation.label}</p>
       {deferred && thread.attention?.remindAt && <p className="mt-2 text-xs text-[var(--gray-10)]">Reminder: {new Date(thread.attention.remindAt).toLocaleString()}</p>}
-      {!deferred && (asked || review || failed || (thread.mentionsYou && !thread.attention)) && <div className="mt-4">{asked ? <Button href={href} color="brand">Answer</Button> : review ? <Button href={href} color="brand">Review</Button> : failed ? <Button href={href} color="brand">Inspect issue</Button> : <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />}</div>}
-      <AttentionControls thread={thread} onChanged={onChanged} review={review} />
+      {!readOnly && !deferred && (asked || review || failed || (thread.mentionsYou && !thread.attention)) && <div className="mt-4">{asked ? <Button href={href} color="brand">Answer</Button> : review ? <Button href={href} color="brand">Review</Button> : failed ? <Button href={href} color="brand">Inspect issue</Button> : <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />}</div>}
+      {!readOnly && <AttentionControls thread={thread} onChanged={onChanged} review={review} />}
     </li>
   )
 }

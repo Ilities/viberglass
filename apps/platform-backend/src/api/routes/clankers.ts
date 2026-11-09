@@ -7,6 +7,7 @@ import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { DeploymentStrategyDAO } from "../../persistence/clanker/DeploymentStrategyDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
 import { ClankerReadinessService } from "../../services/ClankerReadinessService";
+import { ClankerListing } from "../../services/ClankerListing";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import {
   validateCreateClanker,
@@ -18,7 +19,6 @@ import {
   ClankerServiceError,
   CLANKER_SERVICE_ERROR_CODE,
 } from "../../services/errors/ClankerServiceError";
-import { nextClankerStatus } from "../../services/clankerStatusTransition";
 import { ClankerStartService } from "../../services/ClankerStartService";
 import { AgentLoginJobService } from "../../services/agentLogin/AgentLoginJobService";
 import { McpServerDAO } from "../../persistence/mcpServer/McpServerDAO";
@@ -33,8 +33,8 @@ const router = express.Router();
 const clankerService = new ClankerDAO();
 const strategyDAO = new DeploymentStrategyDAO();
 const healthService = new ClankerHealthService();
-const readinessService = new ClankerReadinessService();
 const provisioningService = getClankerProvisioner();
+const listing = new ClankerListing(clankerService, provisioningService, new ClankerReadinessService());
 const startService = new ClankerStartService(clankerService, provisioningService);
 const agentLogins = new AgentLoginJobService();
 const mcpServerDAO = new McpServerDAO();
@@ -62,24 +62,6 @@ async function requireClanker(id: string): Promise<Clanker> {
     );
   }
   return clanker;
-}
-
-async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
-  if (clanker.status === "deploying") {
-    return clanker;
-  }
-
-  const availability =
-    await provisioningService.resolveAvailabilityStatus(clanker);
-  const next = nextClankerStatus(
-    { status: clanker.status, statusMessage: clanker.statusMessage ?? null },
-    { status: availability.status, statusMessage: availability.statusMessage ?? null },
-  );
-  if (!next) {
-    return clanker;
-  }
-
-  return clankerService.updateStatus(clanker.id, next.status, next.statusMessage);
 }
 
 async function validateSecretBindings(bindings?: SecretBinding[]): Promise<void> {
@@ -160,10 +142,7 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const clankers = await clankerService.listClankers(limit, offset);
-    const refreshed = await readinessService.withReadiness(
-      await Promise.all(clankers.map((clanker) => refreshClankerStatus(clanker))),
-    );
+    const refreshed = await listing.list(limit, offset);
 
     res.json({
       success: true,
@@ -184,8 +163,7 @@ router.get(
         "Clanker not found",
       );
     }
-    const refreshed = await refreshClankerStatus(clanker);
-    res.json({ success: true, data: await readinessService.one(refreshed) });
+    res.json({ success: true, data: await listing.current(clanker) });
   }),
 );
 
@@ -211,8 +189,7 @@ router.get(
   validateUuidParam("id"),
   asyncHandler(async (req, res) => {
     const clanker = await requireClanker(req.params.id);
-    const refreshed = await refreshClankerStatus(clanker);
-    res.json({ success: true, data: await readinessService.one(refreshed) });
+    res.json({ success: true, data: await listing.current(clanker) });
   }),
 );
 
@@ -239,8 +216,7 @@ router.put(
       req.params.id,
       req.body,
     );
-    const refreshed = await refreshClankerStatus(updatedClanker);
-    res.json({ success: true, data: await readinessService.one(refreshed) });
+    res.json({ success: true, data: await listing.current(updatedClanker) });
   }),
 );
 
@@ -318,7 +294,7 @@ router.get(
   validateUuidParam("id"),
   asyncHandler(async (req, res) => {
     const clanker = await requireClanker(req.params.id);
-    const refreshed = await refreshClankerStatus(clanker);
+    const refreshed = await listing.refreshStatus(clanker);
     const health = await healthService.checkClankerHealth(refreshed);
     res.json({ success: true, data: health });
   }),

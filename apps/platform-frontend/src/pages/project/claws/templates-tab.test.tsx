@@ -1,7 +1,7 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import type { Clanker, ClawTaskTemplateSummary, WorkspaceRole } from '@viberglass/types'
-import { getClankers } from '@/service/api/clanker-api'
+import type { AgentDirectoryEntry, ClawTaskTemplateSummary, WorkspaceRole } from '@viberglass/types'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import { createClawTaskTemplate, getClawTaskTemplates } from '@/service/api/claw-api'
 import { listAllSecrets } from '@/service/api/secret-api'
 import { TemplatesTab } from './templates-tab'
@@ -15,28 +15,11 @@ jest.mock('@/service/api/claw-api', () => ({
   updateClawTaskTemplate: jest.fn(async () => ({})),
   deleteClawTaskTemplate: jest.fn(),
 }))
-jest.mock('@/service/api/clanker-api', () => ({ getClankers: jest.fn() }))
+jest.mock('@/service/api/agent-directory-api', () => ({ getAgentDirectory: jest.fn() }))
 jest.mock('@/service/api/secret-api', () => ({ listAllSecrets: jest.fn(async () => []) }))
 
-function agent(id: string, name: string, deploymentStrategyId: string | null): Clanker {
-  return {
-    id,
-    name,
-    slug: id,
-    description: null,
-    deploymentStrategyId,
-    deploymentStrategy: null,
-    deploymentConfig: null,
-    configFiles: [],
-    agent: 'claude-code',
-    secretBindings: [],
-    mcpServerIds: [],
-    skillIds: [],
-    status: 'active',
-    statusMessage: null,
-    createdAt: '2026-10-01T00:00:00.000Z',
-    updatedAt: '2026-10-01T00:00:00.000Z',
-  }
+function agent(id: string, name: string, deploymentStrategyId: string | null): AgentDirectoryEntry {
+  return { id, name, slug: id, agent: 'claude-code', model: null, status: 'active', readiness: null, deployable: deploymentStrategyId !== null }
 }
 
 const TEMPLATE: ClawTaskTemplateSummary = {
@@ -60,7 +43,7 @@ function renderTab() {
 
 beforeEach(() => {
   jest.clearAllMocks()
-  jest.mocked(getClankers).mockResolvedValue([agent('a-1', 'Docker Claude', 'ds-1'), agent('a-2', 'Unplaced', null)])
+  jest.mocked(getAgentDirectory).mockResolvedValue([agent('a-1', 'Docker Claude', 'ds-1'), agent('a-2', 'Unplaced', null)])
   jest.mocked(getClawTaskTemplates).mockResolvedValue([TEMPLATE])
 })
 

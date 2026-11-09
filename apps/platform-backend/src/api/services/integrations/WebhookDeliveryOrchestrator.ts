@@ -3,6 +3,7 @@ import logger from "../../../config/logger";
 import { WebhookConfigDAO } from "../../../persistence/webhook/WebhookConfigDAO";
 import { WebhookDeliveryDAO } from "../../../persistence/webhook/WebhookDeliveryDAO";
 import { getWebhookService } from "../../../webhooks/webhookServiceFactory";
+import { isRetryableDelivery } from "../../../webhooks/retryableDelivery";
 import { IntegrationWebhookContextResolver } from "./IntegrationWebhookContextResolver";
 import { IntegrationRouteServiceError } from "./errors";
 import {
@@ -115,7 +116,7 @@ export class WebhookDeliveryOrchestrator {
       };
     }
 
-    if (delivery.status !== "failed" && delivery.status !== "ignored") {
+    if (!isRetryableDelivery(delivery.status)) {
       throw new IntegrationRouteServiceError(
         409,
         "Only failed or ignored deliveries can be retried",

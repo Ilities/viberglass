@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/context/auth-context'
 import { WorkspaceSettingsLayout } from './WorkspaceSettingsLayout'
@@ -8,7 +8,7 @@ jest.mock('@/context/auth-context', () => ({ useAuth: jest.fn() }))
 
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 
-function renderAs(role: 'admin' | 'member' | 'guest', path: string) {
+function renderAs(role: 'admin' | 'member' | 'guest' | 'viewer', path: string) {
   mockedUseAuth.mockReturnValue({
     user: { id: 'u1', email: 'a@example.com', name: 'A', role },
     status: 'authenticated',
@@ -57,10 +57,23 @@ describe('WorkspaceSettingsLayout', () => {
     expect(screen.getByText('Settings home')).toBeInTheDocument()
   })
 
+  it('gives members and viewers the agents list, and nothing past it', () => {
+    for (const role of ['member', 'viewer'] as const) {
+      renderAs(role, '/settings/agents')
+      expect(screen.getByRole('link', { name: 'Agents' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByText('Page')).toBeInTheDocument()
+      cleanup()
+      renderAs(role, '/settings/agents/default-agent')
+      expect(screen.getByText('Settings home')).toBeInTheDocument()
+      cleanup()
+    }
+  })
+
   it('gives guests notifications only', () => {
     renderAs('guest', '/settings/notifications')
 
     expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'API tokens' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Agents' })).not.toBeInTheDocument()
   })
 })

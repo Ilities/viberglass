@@ -9,8 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/textarea'
 import { Timestamp } from '@/components/timestamp'
 import { useAuth } from '@/context/auth-context'
-import type { Clanker } from '@/service/api/clanker-api'
-import { getClankers } from '@/service/api/clanker-api'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import {
   createClawTaskTemplate,
   deleteClawTaskTemplate,
@@ -21,7 +20,7 @@ import {
 import type { Secret } from '@/service/api/secret-api'
 import { listAllSecrets } from '@/service/api/secret-api'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
-import type { ClawTaskTemplateSummary, SecretBinding } from '@viberglass/types'
+import type { AgentDirectoryEntry, ClawTaskTemplateSummary, SecretBinding } from '@viberglass/types'
 import { describeBindingsProblem } from '@/pages/clankers/config/agentSecrets'
 import { taskAgents } from '@/pages/project/tickets/task-agents'
 import { useCallback, useEffect, useState } from 'react'
@@ -43,12 +42,14 @@ interface Props {
   /** Opens the create dialog once the tab has loaded, when another tab sent someone here to make a template. */
   startCreating: boolean
   onStartedCreating: () => void
+  /** Viewers see the templates without the buttons to change them. */
+  readOnly?: boolean
 }
 
-export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Props) {
+export function TemplatesTab({ projectId, startCreating, onStartedCreating, readOnly = false }: Props) {
   const isAdmin = useAuth().user?.role === 'admin'
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
-  const [clankers, setClankers] = useState<Clanker[]>([])
+  const [clankers, setClankers] = useState<AgentDirectoryEntry[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -64,7 +65,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
     try {
       const [t, c, s] = await Promise.all([
         getClawTaskTemplates(projectId),
-        getClankers(100),
+        getAgentDirectory(),
         isAdmin ? listAllSecrets() : Promise.resolve([]),
       ])
       setTemplates(t)
@@ -192,7 +193,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
 
   return (
     <>
-      {templates.length > 0 && (
+      {!readOnly && templates.length > 0 && (
         <div className="flex justify-end">
           <Button color="brand" onClick={openCreate}>
             <PlusIcon />
@@ -206,10 +207,12 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
           title="No task templates yet"
           description="A template is the task a schedule runs."
           action={
-            <Button color="brand" onClick={openCreate}>
-              <PlusIcon />
-              Create a template
-            </Button>
+            readOnly ? undefined : (
+              <Button color="brand" onClick={openCreate}>
+                <PlusIcon />
+                Create a template
+              </Button>
+            )
           }
         />
       ) : (
@@ -239,7 +242,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
                 </TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={t.updatedAt} /></TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-2">
+                  {!readOnly && <div className="flex items-center justify-end gap-2">
                     <Button plain aria-label={`Edit ${t.name}`} onClick={() => openEdit(t)}>
                       <Pencil1Icon className="h-4 w-4" />
                     </Button>
@@ -254,7 +257,7 @@ export function TemplatesTab({ projectId, startCreating, onStartedCreating }: Pr
                     >
                       <TrashIcon className="h-4 w-4" />
                     </Button>
-                  </div>
+                  </div>}
                 </TableCell>
               </TableRow>
             ))}

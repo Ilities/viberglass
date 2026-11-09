@@ -47,6 +47,11 @@ import {
 import mcpRouter from "./routes/mcp";
 import { createAppHomeRouter } from "./routes/appHome";
 import { createAppsRouter } from "./routes/apps";
+import { createAgentDirectoryRouter } from "./routes/agentDirectory";
+import { ClankerListing } from "../services/ClankerListing";
+import { ClankerReadinessService } from "../services/ClankerReadinessService";
+import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
+import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { appSignIn } from "../services/apps/createAppSignIn";
 import { createAppDirectory } from "../services/apps/createAppSpaceServices";
 import { tracingMiddleware } from "./middleware/tracing";
@@ -65,7 +70,7 @@ import {
   SKILL_AUDIT,
   SPACE_AUDIT,
 } from "./middleware/auditRules";
-import { confineAppUsers, refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
+import { confineAppUsers, refuseViewerChanges, requireRunReader, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
 
 function resolvePublicDirectory(): string {
   const cwd = process.cwd();
@@ -217,13 +222,19 @@ app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/apps", createAppsRouter(appSignIn().service, createAppDirectory()));
 app.use("/api/app-home", adminOnlyChanges(), auditRequests(APP_HOME_AUDIT), createAppHomeRouter());
-app.use("/api/clankers", adminOnlyChanges(), auditRequests(RUNNER_AUDIT), clankersRouter);
-app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);
-app.use("/api/model-endpoints", adminOnlyChanges(), modelEndpointsRouter);
-app.use("/api/model-host-accounts", adminOnlyChanges(), modelHostAccountsRouter);
-app.use("/api/model-deployments", adminOnlyChanges(), modelDeploymentsRouter);
-app.use("/api/mcp-servers", adminOnlyChanges(), auditRequests(MCP_SERVER_AUDIT), mcpServersRouter);
-app.use("/api/skills", adminOnlyChanges(), auditRequests(SKILL_AUDIT), skillsRouter);
+// Everyone who sees runs gets the agents list; the runners' configuration is admins' alone.
+app.use(
+  "/api/agents",
+  requireRunReader,
+  createAgentDirectoryRouter(new ClankerListing(new ClankerDAO(), getClankerProvisioner(), new ClankerReadinessService())),
+);
+app.use("/api/clankers", requireRole("admin"), auditRequests(RUNNER_AUDIT), clankersRouter);
+app.use("/api/deployment-strategies", requireRole("admin"), deploymentStrategiesRouter);
+app.use("/api/model-endpoints", requireRole("admin"), modelEndpointsRouter);
+app.use("/api/model-host-accounts", requireRole("admin"), modelHostAccountsRouter);
+app.use("/api/model-deployments", requireRole("admin"), modelDeploymentsRouter);
+app.use("/api/mcp-servers", requireRole("admin"), auditRequests(MCP_SERVER_AUDIT), mcpServersRouter);
+app.use("/api/skills", requireRole("admin"), auditRequests(SKILL_AUDIT), skillsRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/run-manifests", requireRole("admin"), runManifestsRouter);
 app.use("/api/secrets", requireRole("admin"), auditRequests(SECRET_AUDIT), secretsRouter);
@@ -235,9 +246,9 @@ app.use("/api/audit-log", requireRole("admin"), auditLogRouter);
 app.use("/api/account-links", accountLinksRouter);
 app.use("/api/me", meRouter);
 app.use("/api", homeRouter);
-app.use("/api/claw", requireRunnerRole, clawRouter);
+app.use("/api/claw", requireRunReader, clawRouter);
 app.use("/api/agent-sessions", agentSessionsRouter);
-app.use("/api/prompt-templates", adminOnlyChanges(), promptTemplatesRouter);
+app.use("/api/prompt-templates", requireRole("admin"), promptTemplatesRouter);
 app.use("/api/api-tokens", apiTokensRouter);
 app.use("/api/mcp", mcpRouter);
 

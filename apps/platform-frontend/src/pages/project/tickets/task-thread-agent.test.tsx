@@ -1,7 +1,7 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { Clanker, TaskTimelineEntry } from '@viberglass/types'
+import type { AgentDirectoryEntry, TaskTimelineEntry } from '@viberglass/types'
 import { TaskThread } from './task-thread'
 
 const CLAUDE = '33333333-3333-4333-8333-333333333333'
@@ -47,17 +47,15 @@ jest.mock('@/service/api/user-api', () => ({
   ]),
 }))
 
-const CLAUDE_RUNNER: Clanker = {
+const CLAUDE_RUNNER: AgentDirectoryEntry = {
   id: CLAUDE,
   name: 'Claude',
   slug: 'claude',
-  configFiles: [],
-  secretBindings: [],
-  mcpServerIds: [],
-  skillIds: [],
+  agent: null,
+  model: null,
   status: 'active',
-  createdAt: '',
-  updatedAt: '',
+  readiness: null,
+  deployable: false,
 }
 
 const SUGGESTION_INPUT = {

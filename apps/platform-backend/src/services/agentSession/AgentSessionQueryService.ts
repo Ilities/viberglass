@@ -17,8 +17,15 @@ import type {
 import type { AgentSessionMode, AgentSessionStatus } from "@viberglass/types";
 import db from "../../persistence/config/database";
 
+/** A session as people see it: its metadata holds the worker's resume state, a link to the agent's full transcript among it. */
+export type AgentSessionView = Omit<AgentSession, "metadataJson">;
+
+function toView({ metadataJson: _resumeState, ...session }: AgentSession): AgentSessionView {
+  return session;
+}
+
 export interface AgentSessionDetail {
-  session: AgentSession;
+  session: AgentSessionView;
   turns: AgentTurn[];
   latestEvents: AgentSessionEvent[];
   pendingRequest: AgentPendingRequest | null;
@@ -44,10 +51,10 @@ export interface SessionParticipant {
 
 export class AgentSessionQueryService {
   constructor(
-    private readonly agentSessionDAO: AgentSessionDAO,
-    private readonly agentTurnDAO: AgentTurnDAO,
-    private readonly agentSessionEventDAO: AgentSessionEventDAO,
-    private readonly agentPendingRequestDAO: AgentPendingRequestDAO,
+    private readonly agentSessionDAO: Pick<AgentSessionDAO, "getById" | "listByTicket" | "listByProject" | "listByStatuses">,
+    private readonly agentTurnDAO: Pick<AgentTurnDAO, "listBySession">,
+    private readonly agentSessionEventDAO: Pick<AgentSessionEventDAO, "listBySession">,
+    private readonly agentPendingRequestDAO: Pick<AgentPendingRequestDAO, "getOpenBySession">,
   ) {}
 
   async getDetail(sessionId: string): Promise<AgentSessionDetail | null> {
@@ -62,28 +69,34 @@ export class AgentSessionQueryService {
       this.agentPendingRequestDAO.getOpenBySession(sessionId),
     ]);
 
-    return { session, turns, latestEvents, pendingRequest };
+    return { session: toView(session), turns, latestEvents, pendingRequest };
   }
 
   async listForTicket(
     ticketId: string,
     options: ListSessionsOptions = {},
-  ): Promise<AgentSession[]> {
-    return this.agentSessionDAO.listByTicket(ticketId, {
+  ): Promise<AgentSessionView[]> {
+    const sessions = await this.agentSessionDAO.listByTicket(ticketId, {
       mode: options.mode,
       statuses: options.status ? [options.status] : undefined,
       limit: options.limit,
     });
+    return sessions.map(toView);
+  }
+
+  async listByStatuses(statuses: AgentSessionStatus[]): Promise<AgentSessionView[]> {
+    return (await this.agentSessionDAO.listByStatuses(statuses)).map(toView);
   }
 
   async listForProject(
     projectId: string,
     options: { statuses?: AgentSessionStatus[]; limit?: number } = {},
-  ): Promise<AgentSession[]> {
-    return this.agentSessionDAO.listByProject(projectId, {
+  ): Promise<AgentSessionView[]> {
+    const sessions = await this.agentSessionDAO.listByProject(projectId, {
       statuses: options.statuses,
       limit: options.limit,
     });
+    return sessions.map(toView);
   }
 
   async listEvents(

@@ -35,6 +35,11 @@ jest.mock("../../../../api/middleware/authentication", () => ({
     _res: express.Response,
     next: express.NextFunction,
   ) => next(),
+  requireRole: () => (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction,
+  ) => next(),
 }));
 
 jest.mock("../../../../persistence/integrations", () => ({
@@ -57,9 +62,22 @@ jest.mock("../../../../webhooks/webhookServiceFactory", () => ({
 }));
 
 import integrationsRouter from "../../../../api/routes/integrations";
+import { WebhookSecretCipher } from "../../../../webhooks/WebhookSecretCipher";
+
+const WEBHOOK_KEY = "routes-test-webhook-key";
 
 describe("integration webhook routes (instance/config-scoped)", () => {
   let app: express.Express;
+  const previousKey = process.env.WEBHOOK_SECRET_ENCRYPTION_KEY;
+
+  beforeAll(() => {
+    process.env.WEBHOOK_SECRET_ENCRYPTION_KEY = WEBHOOK_KEY;
+  });
+
+  afterAll(() => {
+    if (previousKey === undefined) delete process.env.WEBHOOK_SECRET_ENCRYPTION_KEY;
+    else process.env.WEBHOOK_SECRET_ENCRYPTION_KEY = previousKey;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -260,6 +278,29 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         }),
       }),
     );
+  });
+
+  it("doesn't retry a delivery whose signature was rejected", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({ id: "int-1", system: "github" });
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({ id: "cfg-1" });
+    mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockResolvedValue({
+      id: "delivery-row-1",
+      provider: "github",
+      webhookConfigId: "cfg-1",
+      deliveryId: "rejected-1",
+      eventType: "unverified",
+      status: "rejected",
+      errorMessage: "Invalid signature",
+      ticketId: null,
+      createdAt: new Date("2026-02-09T10:00:00.000Z"),
+      processedAt: null,
+    });
+
+    await request(app)
+      .post("/api/integrations/int-1/webhooks/inbound/cfg-1/deliveries/delivery-row-1/retry")
+      .expect(409);
+
+    expect(mockWebhookService.retryDelivery).not.toHaveBeenCalled();
   });
 
   it("returns duplicate retry result for successful delivery in targeted config", async () => {
@@ -496,6 +537,9 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       .expect(201);
 
     expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledTimes(2);
+    const stored = mockWebhookConfigDAO.createConfig.mock.calls.map(([dto]) => dto.webhookSecretEncrypted);
+    expect(stored).not.toContain("secret-1");
+    expect(stored.map((value) => new WebhookSecretCipher(WEBHOOK_KEY).decrypt(value))).toEqual(["secret-1", "secret-2"]);
     expect(mockWebhookConfigDAO.createConfig).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({

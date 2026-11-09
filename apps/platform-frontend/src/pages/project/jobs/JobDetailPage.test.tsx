@@ -24,7 +24,6 @@ const SPACE: Project = {
   name: 'Web shop',
   slug: 'web',
   ticketSystem: 'custom',
-  credentials: { type: 'token' },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

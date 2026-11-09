@@ -1,6 +1,6 @@
 # Agents and models
 
-A runner is a configured agent: which coding agent runs a task, with which model and key, on which compute. Setup creates a default runner; add more under Settings → Agents to offer other agents or models.
+A runner is a configured agent: which coding agent runs a task, with which model and key, on which compute. Setup creates a default runner; add more under Settings → Agents to offer other agents or models. Members and viewers see the same page as a list of each agent's name, coding agent, model and whether it can run, without its setup.
 
 ## Coding agents
 

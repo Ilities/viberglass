@@ -10,7 +10,7 @@ export function spaceTabs({
   pathname,
   files,
   app,
-  runner,
+  seesRuns,
   canMaintain,
 }: {
   slug: string
@@ -18,7 +18,7 @@ export function spaceTabs({
   /** A Files space, which has working files and artifacts. */
   files: boolean
   app: boolean
-  runner: boolean
+  seesRuns: boolean
   canMaintain: boolean
 }): SpaceTab[] {
   const base = `/spaces/${slug}`
@@ -32,7 +32,7 @@ export function spaceTabs({
           { label: 'Artifacts', href: `${base}/artifacts` },
         ]
       : []),
-    ...(runner
+    ...(seesRuns
       ? [
           { label: 'Schedules', href: `${base}/schedules` },
           { label: 'Track record', href: `${base}/track-record` },

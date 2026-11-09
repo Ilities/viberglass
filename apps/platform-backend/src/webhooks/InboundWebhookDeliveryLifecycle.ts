@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { isObjectRecord } from "@viberglass/types";
 import type { InboundWebhookEvent } from "@viberglass/integration-core";
 import type { EventProcessingResult } from "./InboundEventHandler";
@@ -22,7 +23,7 @@ export class InboundWebhookDeliveryLifecycle {
       DeduplicationService,
       "shouldProcessDelivery" | "recordDeliveryStart" | "recordDeliverySuccessById" | "recordDeliveryFailureById"
     >,
-    private deliveryDAO: Pick<WebhookDeliveryDAO, "updateDeliveryStatus">,
+    private deliveryDAO: Pick<WebhookDeliveryDAO, "updateDeliveryStatus" | "recordDeliveryAttempt">,
   ) {}
 
   async recordStart(
@@ -65,26 +66,31 @@ export class InboundWebhookDeliveryLifecycle {
     await this.deduplication.recordDeliveryFailureById(deliveryAttemptId, error);
   }
 
-  /** A delivery that was refused, such as one with a bad signature: failed, so it can be retried. */
-  async recordRejected(event: InboundWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
-    await this.recordUnprocessed(event, config, (id) => this.recordFailure(id, reason));
-  }
-
-  /** A delivery the webhook doesn't act on, such as an event it isn't set to receive. */
-  async recordIgnored(event: InboundWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
-    await this.recordUnprocessed(event, config, (id) => this.deliveryDAO.updateDeliveryStatus(id, "ignored", reason));
-  }
-
-  private async recordUnprocessed(
-    event: InboundWebhookEvent,
-    config: WebhookConfig,
-    finish: (deliveryAttemptId: string) => Promise<void>,
-  ): Promise<void> {
+  /**
+   * A request whose signature didn't check out. Nothing it carried is kept,
+   * not even its delivery id, so it can't hold back the real delivery and can't
+   * be retried; the row only tells the admin that requests are being refused.
+   */
+  async recordRejected(config: WebhookConfig, reason: string): Promise<void> {
     try {
-      const { shouldProcess } = await this.deduplication.shouldProcessDelivery(
-        event.deduplicationId,
-        config.id,
-      );
+      await this.deliveryDAO.recordDeliveryAttempt({
+        provider: config.provider,
+        webhookConfigId: config.id,
+        deliveryId: `rejected-${randomUUID()}`,
+        eventType: "unverified",
+        payload: {},
+        status: "rejected",
+        errorMessage: reason,
+      });
+    } catch {
+      // The route logs the rejection either way.
+    }
+  }
+
+  /** A verified delivery the webhook doesn't act on, such as an event it isn't set to receive. */
+  async recordIgnored(event: InboundWebhookEvent, config: WebhookConfig, reason: string): Promise<void> {
+    try {
+      const { shouldProcess } = await this.deduplication.shouldProcessDelivery(event.deduplicationId, config.id);
       if (!shouldProcess) {
         return;
       }
@@ -96,8 +102,7 @@ export class InboundWebhookDeliveryLifecycle {
         eventType: event.eventType,
         payload: event.payload,
       });
-
-      await finish(delivery.id);
+      await this.deliveryDAO.updateDeliveryStatus(delivery.id, "ignored", reason);
     } catch {
       // Ignore recording failures.
     }

@@ -77,7 +77,7 @@ export function registerDocumentCommentRoutes(
             quote,
             lineNumber: Number.isInteger(lineNumber) ? lineNumber : undefined,
             content,
-            actor: req.authContext?.user.email,
+            actor: req.authContext?.user.id,
           },
         );
 
@@ -145,7 +145,7 @@ export function registerDocumentCommentRoutes(
           {
             content,
             status,
-            actor: req.authContext?.user.email,
+            actor: req.authContext?.user.id,
           },
         );
 

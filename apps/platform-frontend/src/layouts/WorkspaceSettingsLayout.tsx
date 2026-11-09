@@ -1,6 +1,6 @@
 import { SettingsNav, type SettingsNavSection } from '@/components/settings-nav'
 import { useAuth } from '@/context/auth-context'
-import { isRunner } from '@/lib/roles'
+import { isRunner, seesRuns } from '@/lib/roles'
 import {
   BarChartIcon,
   BellIcon,
@@ -44,11 +44,13 @@ const ADVANCED = [
 ]
 
 const ADMIN_ONLY = [...WORKSPACE, ...ADVANCED].map((item) => item.href)
+const AGENTS_LIST = '/settings/agents'
 
 /**
  * Workspace settings. Everyone has their own (notifications, and API tokens
- * for those who run agents); admins also have the workspace's members, agents,
- * connections and secrets, and under Advanced the rest of the plumbing.
+ * for those who run agents); members and viewers see the agents list;
+ * admins also have the workspace's members, agents, connections and secrets,
+ * and under Advanced the rest of the plumbing.
  */
 export function WorkspaceSettingsLayout() {
   const pathname = useLocation().pathname
@@ -56,7 +58,8 @@ export function WorkspaceSettingsLayout() {
   const isAdmin = user?.role === 'admin'
 
   // The server refuses these too; the page shouldn't open only to fail.
-  if (!isAdmin && ADMIN_ONLY.some((href) => pathname.startsWith(href))) return <Navigate to="/settings" replace />
+  const allowedList = pathname === AGENTS_LIST && seesRuns(user?.role)
+  if (!isAdmin && !allowedList && ADMIN_ONLY.some((href) => pathname.startsWith(href))) return <Navigate to="/settings" replace />
 
   const sections: SettingsNavSection[] = [
     section(pathname, 'You', [
@@ -68,7 +71,9 @@ export function WorkspaceSettingsLayout() {
           section(pathname, 'Workspace', WORKSPACE),
           section(pathname, 'Advanced', ADVANCED),
         ]
-      : []),
+      : seesRuns(user?.role)
+        ? [section(pathname, 'Workspace', [{ name: 'Agents', href: AGENTS_LIST, icon: <RocketIcon /> }])]
+        : []),
   ]
 
   return (

@@ -119,7 +119,7 @@ export function HomePage() {
               <h2 id="home-needs-you" className="mb-3 flex items-center gap-2 text-base font-semibold">{attentionTab === 'now' ? 'Needs you' : attentionTab === 'waiting' ? 'Waiting on a discussion' : 'Reminders'} <span className="rounded bg-[var(--gray-3)] px-1.5 text-xs font-medium text-[var(--gray-11)]">{visibleAttention.length}</span></h2>
               <ul className="space-y-3">
                 {(showAllNeeds ? visibleAttention : visibleAttention.slice(0, 5)).map((thread) => (
-                  <NeedsYouRow key={thread.task.id} thread={thread} onChanged={reload} />
+                  <NeedsYouRow key={thread.task.id} thread={thread} onChanged={reload} readOnly={user?.role === 'viewer'} />
                 ))}
               </ul>
               {visibleAttention.length > 5 && <button type="button" className="mt-3 text-sm text-[var(--gray-11)] underline" onClick={() => setShowAllNeeds((value) => !value)}>{showAllNeeds ? 'Show less' : `View all ${visibleAttention.length} tasks`}</button>}

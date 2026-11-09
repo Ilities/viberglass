@@ -5,7 +5,7 @@ import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { useAuth } from '@/context/auth-context'
 import { useProject } from '@/context/project-context'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { isRunner } from '@/lib/roles'
+import { isRunner, seesRuns } from '@/lib/roles'
 import { archiveTickets, deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
@@ -56,7 +56,7 @@ export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const { project: space } = useProject()
   const { user } = useAuth()
-  const canInspectRuns = isRunner(user?.role)
+  const canInspectRuns = seesRuns(user?.role)
   const navigate = useNavigate()
   const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
   // The page's address may name the task by its key; people are looked up by its id.
@@ -157,7 +157,7 @@ export function TicketDetailPage() {
     filesSpace && data.capabilities ? { ...data, capabilities: { ...data.capabilities, canAskForCode: false } } : data
   const { ticket } = data
   // Forks run side by side on their own branches, which a Files space's shared files can't do.
-  const canCompare = canInspectRuns && !filesSpace && Boolean(capabilities?.canAsk)
+  const canCompare = isRunner(user?.role) && !filesSpace && Boolean(capabilities?.canAsk)
   const move = decideTaskNextMove({
     ticket,
     runs: data.runs,
@@ -258,7 +258,7 @@ export function TicketDetailPage() {
                 onSetDone={(done) => void setDone(done)}
                 onArchive={() => void archive()}
                 onDelete={() => setIsDeleteDialogOpen(true)}
-                onCopy={canInspectRuns ? () => setIsCopyDialogOpen(true) : undefined}
+                onCopy={isRunner(user?.role) ? () => setIsCopyDialogOpen(true) : undefined}
                 onCompare={canCompare ? () => setCompareFrom(null) : undefined}
               />
             </>

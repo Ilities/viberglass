@@ -12,7 +12,6 @@ const DEMO_PROJECT: Project = {
   name: "Demo: Acme storefront",
   slug: "demo-acme-storefront",
   ticketSystem: "custom",
-  credentials: { type: "token" },
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},

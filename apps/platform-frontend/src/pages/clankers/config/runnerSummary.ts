@@ -1,24 +1,17 @@
 import type { Secret } from '@/service/api/secret-api'
 import {
   getAgentEnvVarNames,
-  getAgentSettingFields,
   getModelProvider,
   getRunnerSignIn,
   isClankerConfigV1,
-  pickSettingValues,
+  providerDefaultSetting,
   runnerCredentialProblem,
+  runnerModel,
   type Clanker,
   type ModelEndpoint,
   type SecretBinding,
 } from '@viberglass/types'
 import { providerOptionsForAgent, splitRunnerBindings } from './modelKey'
-
-/** The runner's value for the setting that takes a provider's default model or endpoint. */
-function providerDefaultSetting(agent: string, agentConfig: unknown, kind: 'model' | 'endpoint'): string | null {
-  const fields = getAgentSettingFields(agent)
-  const field = fields.find((candidate) => candidate.providerDefault === kind)
-  return field ? (pickSettingValues(fields, agentConfig)[field.key] ?? null) : null
-}
 
 export interface RunnerSummary {
   providerLabel: string | null
@@ -57,7 +50,7 @@ export function summarizeRunner(
   const agent = clanker.agent ?? ''
   const config = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const agentConfig = config?.agent
-  const model = clanker.modelEndpoint?.model ?? providerDefaultSetting(agent, agentConfig, 'model')
+  const model = runnerModel(clanker)
   const runnerSignIn = getRunnerSignIn(clanker.deploymentConfig)
   const signIn = runnerSignIn ? { label: runnerSignIn.method.label, loginSecretId: runnerSignIn.signIn.loginSecretId ?? null } : null
 

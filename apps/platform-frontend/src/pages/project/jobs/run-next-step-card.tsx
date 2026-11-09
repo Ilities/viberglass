@@ -4,9 +4,10 @@ import { failureGuidance } from '@/components/failure-guidance'
 import { Link } from '@/components/link'
 import { RevisionModal } from '@/components/revision-modal'
 import { useAuth } from '@/context/auth-context'
+import { isRunner } from '@/lib/roles'
 import { formatJobKind } from '@/data'
 import type { JobStatus } from '@/service/api/job-api'
-import type { Clanker, Ticket } from '@viberglass/types'
+import type { AgentDirectoryEntry, Ticket } from '@viberglass/types'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { HandoffCard } from './handoff-card'
@@ -18,7 +19,7 @@ interface RunNextStepCardProps {
   job: JobStatus
   project: string
   ticket: Ticket | null
-  clankers: Clanker[]
+  clankers: AgentDirectoryEntry[]
   cancel: { isCancelling: boolean; onConfirm: () => void }
   onChanged: () => void
   /** On the task page the document sits just above the run, so the card points to it instead of previewing it. */
@@ -50,6 +51,8 @@ export function RunNextStepCard({
   documentShownAbove = false,
 }: RunNextStepCardProps) {
   const { user } = useAuth()
+  // Viewers follow a run without changing it.
+  const canAct = isRunner(user?.role)
   const [revising, setRevising] = useState(false)
   const actions = useRunNextStepActions({ project, ticketId: job.ticketId, clankerId: job.clankerId })
   const taskHref = job.ticketId ? `/spaces/${project}/tasks/${job.ticketId}` : null
@@ -69,7 +72,7 @@ export function RunNextStepCard({
             owner="agent"
             eyebrow="Agent's move"
             title={`Waiting for ${agentName} to start`}
-            actions={<CancelRunButton label="Cancel run" {...cancel} />}
+            actions={canAct ? <CancelRunButton label="Cancel run" {...cancel} /> : undefined}
           >
             The run starts as soon as the agent picks it up.
           </HandoffCard>
@@ -80,7 +83,7 @@ export function RunNextStepCard({
             owner="agent"
             eyebrow="Agent's move"
             title={`${agentName} is working`}
-            actions={<CancelRunButton label="Cancel run" startedAt={job.processedAt ?? job.createdAt} {...cancel} />}
+            actions={canAct ? <CancelRunButton label="Cancel run" startedAt={job.processedAt ?? job.createdAt} {...cancel} /> : undefined}
           >
             {typeof job.progress?.message === 'string' ? `${job.progress.message}. ` : ''}
             You can leave this page; the run carries on and the task shows the result.
@@ -88,7 +91,7 @@ export function RunNextStepCard({
         )
       case 'failed': {
         const guidance = failureGuidance(job.result?.failure, user?.role === 'admin', project)
-        const canRunAgain = guidance.canRetry && job.jobKind === 'planning' && ticket?.workflowPhase === job.jobKind
+        const canRunAgain = canAct && guidance.canRetry && job.jobKind === 'planning' && ticket?.workflowPhase === job.jobKind
         const technicalDetail =
           job.result?.failure?.technicalDetail || job.result?.errorMessage || job.failedReason || 'No technical details were reported.'
         return (
@@ -134,7 +137,7 @@ export function RunNextStepCard({
             title={job.cancelledBy ? `${job.cancelledBy.name} cancelled this run` : 'This run was cancelled'}
             actions={
               <>
-                {step.canRunAgain && (
+                {canAct && step.canRunAgain && (
                   <Button
                     color="brand"
                     disabled={actions.busy !== null}
@@ -185,9 +188,11 @@ export function RunNextStepCard({
             actions={
               <>
                 {openTask}
-                <Button outline disabled={actions.busy !== null} onClick={() => setRevising(true)}>
-                  Ask for changes
-                </Button>
+                {canAct && (
+                  <Button outline disabled={actions.busy !== null} onClick={() => setRevising(true)}>
+                    Ask for changes
+                  </Button>
+                )}
               </>
             }
           >

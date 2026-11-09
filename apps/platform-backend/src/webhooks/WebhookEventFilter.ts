@@ -1,7 +1,18 @@
 import type { InboundWebhookEvent } from "@viberglass/integration-core";
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 
-export function isEventAllowed(
+/** Why the webhook doesn't take the event: it's switched off, or isn't set to receive it. Null when it takes it. */
+export function eventRefusal(event: InboundWebhookEvent, config: WebhookConfig): string | null {
+  if (!config.active) {
+    return `Webhook configuration '${config.id}' is inactive`;
+  }
+  if (!isEventAllowed(event, config)) {
+    return `The webhook isn't set to receive '${getAllowedEventCandidates(event).join(", ")}'`;
+  }
+  return null;
+}
+
+function isEventAllowed(
   event: InboundWebhookEvent,
   config: WebhookConfig,
 ): boolean {
@@ -18,7 +29,7 @@ export function isEventAllowed(
   return candidates.some((candidate) => allowedEvents.has(candidate));
 }
 
-export function getAllowedEventCandidates(event: InboundWebhookEvent): string[] {
+function getAllowedEventCandidates(event: InboundWebhookEvent): string[] {
   const candidates = new Set<string>([event.eventType]);
   const dotIndex = event.eventType.indexOf(".");
 

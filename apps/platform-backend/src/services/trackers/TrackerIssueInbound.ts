@@ -122,8 +122,8 @@ export class TrackerIssueInbound {
     const messageId = await this.deps.discussion.createFromTracker(ticketId, { userId, name: comment.author.name, source: context.provider }, body);
     if (!comment.mentionsBot) return { ticketId };
     try {
-      // Someone without an account asks as the connection does; anyone who can comment can already open issues.
-      const asked = await this.deps.turns.ask(ticketId, userId, { message: body, postedMessageId: messageId, fromWebhook: !userId });
+      // Someone without an account may still get a reply or a plan, but not a build.
+      const asked = await this.deps.turns.ask(ticketId, userId, { message: body, postedMessageId: messageId });
       return { ticketId, jobId: asked.job.id ?? undefined };
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);

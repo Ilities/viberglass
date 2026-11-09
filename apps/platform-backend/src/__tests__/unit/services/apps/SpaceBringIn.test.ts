@@ -15,7 +15,6 @@ function project(overrides: Partial<Project> = {}): Project {
     name: "Laptops",
     slug: "laptops",
     ticketSystem: "custom",
-    credentials: { type: "token" },
     autoFixEnabled: false,
     autoFixTags: [],
     customFieldMappings: {},

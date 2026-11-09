@@ -38,7 +38,7 @@ export function usePersonName(): (actor: string | null | undefined) => string | 
     (actor) => {
       if (!actor) return null
       const key = actor.trim().toLowerCase()
-      const person = people.find((p) => p.id === actor || p.email.toLowerCase() === key)
+      const person = people.find((p) => p.id === actor || p.email?.toLowerCase() === key)
       return person?.name?.trim() || actor
     },
     [people]

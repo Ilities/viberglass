@@ -5,6 +5,7 @@ import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import { PresignedWorkerStorage } from "../infrastructure/PresignedWorkerStorage";
 import { S3WorkerStorage } from "../infrastructure/S3WorkerStorage";
+import { SecretRedactor } from "../infrastructure/SecretRedactor";
 import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
@@ -84,6 +85,7 @@ export class ViberatorWorker {
         settings: this.settings,
         callbackToken: payload?.callbackToken,
         platformApiUrl: payload?.platformApiUrl,
+        redactor: new SecretRedactor([...Object.values(this.fetchedCredentials ?? {}), payload?.callbackToken]),
         authFactory: this.agentAuthLifecycleFactory,
         sendProgress: (client, step, message, details) =>
           sendWorkerProgress(client, this.logger, this.currentJobId, this.currentTenantId, step, message, details),

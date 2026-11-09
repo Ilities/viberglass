@@ -19,7 +19,6 @@ describe("ProjectDAO archival", () => {
       name: "Shop",
       slug: "shop",
       ticket_system: "custom",
-      credentials: null,
       webhook_url: null,
       auto_fix_enabled: false,
       auto_fix_tags: [],

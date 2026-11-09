@@ -1,4 +1,4 @@
-import { OPEN_SPACE_ROLES, RUNNER_ROLES, SPACE_MEMBER_ROLES, type WorkspaceRole } from './workspaceRole'
+import { OPEN_SPACE_ROLES, RUN_READER_ROLES, RUNNER_ROLES, SPACE_MEMBER_ROLES, type WorkspaceRole } from './workspaceRole'
 
 /** Roles inside one space. Workspace admins are maintainers of every space. */
 export const SPACE_ROLES = ['maintainer', 'member'] as const
@@ -8,7 +8,8 @@ export type SpaceRole = (typeof SPACE_ROLES)[number]
 export interface SpaceMember {
   userId: string
   name: string
-  email: string
+  /** Null for callers who don't see email addresses. */
+  email: string | null
   workspaceRole: WorkspaceRole
   role: SpaceRole
   addedAt: string
@@ -40,11 +41,15 @@ export interface SpaceCapabilities {
   canMaintain: boolean
   /** Guests and viewers don't create tasks. */
   canCreateTasks: boolean
-  /** Runs and Schedules are engineers' views: admins and members only. */
+  /** Runs, Schedules and Track record: admins and members, and viewers to read. */
   canSeeRuns: boolean
 }
 
 export function spaceCapabilities(workspaceRole: WorkspaceRole, membership: SpaceRole | null): SpaceCapabilities {
-  const runs = RUNNER_ROLES.includes(workspaceRole)
-  return { membership, canMaintain: canMaintainSpace(workspaceRole, membership), canCreateTasks: runs, canSeeRuns: runs }
+  return {
+    membership,
+    canMaintain: canMaintainSpace(workspaceRole, membership),
+    canCreateTasks: RUNNER_ROLES.includes(workspaceRole),
+    canSeeRuns: RUN_READER_ROLES.includes(workspaceRole),
+  }
 }

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '@/components/page-meta'
 import { SegmentedControl } from '@/components/segmented-control'
+import { useAuth } from '@/context/auth-context'
 import { useProject } from '@/context/project-context'
+import { isRunner } from '@/lib/roles'
 import { SchedulesTab } from './schedules-tab'
 import { TemplatesTab } from './templates-tab'
 
@@ -19,6 +21,7 @@ export function ClawsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = resolveTab(searchParams.get('clawTab'))
   const [creatingTemplate, setCreatingTemplate] = useState(false)
+  const readOnly = !isRunner(useAuth().user?.role)
 
   // The view lives in the URL, so it can be linked to and reloaded.
   const showTab = (tab: Tab) => {
@@ -55,6 +58,7 @@ export function ClawsPage() {
           <SchedulesTab
             projectId={project.id}
             appActions={project.backingKind === 'app' && Boolean(project.viewerAccess?.canMaintain)}
+            readOnly={readOnly}
             onCreateTemplate={() => {
               setCreatingTemplate(true)
               showTab('templates')
@@ -62,7 +66,12 @@ export function ClawsPage() {
           />
         )}
         {activeTab === 'templates' && (
-          <TemplatesTab projectId={project.id} startCreating={creatingTemplate} onStartedCreating={() => setCreatingTemplate(false)} />
+          <TemplatesTab
+            projectId={project.id}
+            startCreating={creatingTemplate}
+            onStartedCreating={() => setCreatingTemplate(false)}
+            readOnly={readOnly}
+          />
         )}
       </div>
     </>

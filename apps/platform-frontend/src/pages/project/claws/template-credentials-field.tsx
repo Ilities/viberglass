@@ -1,8 +1,7 @@
 import { Description, Field, Label } from '@/components/fieldset'
 import { SecretBindingsField } from '@/pages/clankers/config/secret-bindings-field'
-import type { Clanker } from '@/service/api/clanker-api'
 import type { Secret } from '@/service/api/secret-api'
-import type { SecretBinding } from '@viberglass/types'
+import type { AgentDirectoryEntry, SecretBinding } from '@viberglass/types'
 
 interface Props {
   /** Only admins see the workspace's secrets, so only they pick a template's credentials. */
@@ -10,7 +9,7 @@ interface Props {
   secrets: Secret[]
   bindings: SecretBinding[]
   onChange: (bindings: SecretBinding[]) => void
-  agent: Clanker['agent'] | undefined
+  agent: AgentDirectoryEntry['agent'] | undefined
 }
 
 export function TemplateCredentialsField({ canChoose, secrets, bindings, onChange, agent }: Props) {

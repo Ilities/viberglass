@@ -82,6 +82,7 @@ A few things to know:
 - Closing the issue marks its tasks done, and reopening it reopens them. In Jira that's resolving the issue or moving it to a done status, and clearing the resolution; in Shortcut, completing or archiving the story and moving it out of a done state.
 - A comment on the issue appears in the task's thread, as the Viberglass person whose email matches the commenter, or otherwise under the commenter's name and where they wrote, such as "Pat · on Jira". Jira Cloud often hides people's email, so expect names there.
 - A comment that mentions the bot account asks the agent, like mentioning it in the thread. A reply from the person the agent asked answers its question.
+- A comment from someone whose tracker email doesn't match a Viberglass account can get a reply or a plan from the agent, but can't ask it to build.
 - Viberglass comments on the issue when the plan is ready, with a short summary and a link, when the agent asks a question, when it opens the pull request, and when the task is done. When the agent was asked from the issue, its reply is posted there too. Messages written in Viberglass stay in Viberglass, and Viberglass never reads its own comments back as new messages.
 
 ## Copy a task to another space
@@ -96,6 +97,9 @@ Every delivery from the tracker is listed under Deliveries on the connection's p
 
 - succeeded: the event created or updated a task. The task column says which.
 - ignored: Viberglass received the event and chose not to act on it. The reason is shown next to it, such as "No space takes issues labelled 'bug'" or "Posted by Viberglass" for its own comments. After changing what a space takes, choose Retry to run the event again.
-- failed: the event was refused or something went wrong, such as a signature that doesn't match. Regenerate the secret, paste it into the tracker again, and choose Retry.
+- failed: something went wrong while acting on the event. Choose Retry to run it again once the cause is fixed.
+- rejected: the request's signature didn't match the webhook's secret, so Viberglass refused it and kept nothing of it. Its event shows as unverified. Rejected requests can't be retried. Regenerate the secret, paste it into the tracker again, and have the tracker send the event again.
+
+Retry checks the webhook first: a delivery to a switched-off webhook, or for an event the webhook isn't set to receive, is left as it is.
 
 If nothing is listed at all, the tracker isn't reaching Viberglass. Check that the URL in the tracker is the one on the connection's page, that it uses your public address, and the tracker's own delivery log. GitHub shows recent deliveries under the webhook's settings; Jira and Shortcut keep fewer details.

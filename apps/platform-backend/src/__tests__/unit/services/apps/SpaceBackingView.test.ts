@@ -15,7 +15,6 @@ function project(backingKind: SpaceBackingKind, slug = "laptops"): Project {
     name: "Laptops",
     slug,
     ticketSystem: "custom",
-    credentials: { type: "token" },
     autoFixEnabled: false,
     autoFixTags: [],
     customFieldMappings: {},

@@ -2,6 +2,7 @@ import type { ParsedQs } from "qs";
 import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfigDAO";
 import type { DeliveryStatus } from "../../../persistence/webhook/WebhookDeliveryDAO";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
+import { isRetryableDelivery } from "../../../webhooks/retryableDelivery";
 
 export function mapSystemToWebhookProvider(
   system: string,
@@ -65,7 +66,7 @@ export function serializeWebhookDelivery(delivery: {
     deliveryId: delivery.deliveryId,
     eventType: delivery.eventType,
     status: delivery.status,
-    retryable: delivery.status === "failed" || delivery.status === "ignored",
+    retryable: isRetryableDelivery(delivery.status),
     errorMessage: delivery.errorMessage,
     ticketId: delivery.ticketId,
     projectId: delivery.projectId,
@@ -94,6 +95,7 @@ const VALID_DELIVERY_STATUSES: DeliveryStatus[] = [
   "succeeded",
   "failed",
   "ignored",
+  "rejected",
 ];
 
 function splitQueryValues(value: unknown): string[] {

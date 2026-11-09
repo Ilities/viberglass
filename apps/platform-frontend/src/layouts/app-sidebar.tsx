@@ -15,7 +15,7 @@ import {
 import type { AuthUser } from '@/service/api/auth-api'
 import type { Project } from '@/service/api/project-api'
 import { ActivityLogIcon, ChevronUpIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon } from '@radix-ui/react-icons'
-import { isRunner } from '@/lib/roles'
+import { isRunner, seesRuns } from '@/lib/roles'
 import clsx from 'clsx'
 import { useContext } from 'react'
 import { AccountMenu, UserAvatar } from './account-menu'
@@ -69,16 +69,13 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
       </SidebarHeader>
       <SidebarBody>
         <SidebarSection>
-          {/* Viewers have no threads of their own; their way in is Overview. */}
-          {user.role !== 'viewer' && (
-            <SidebarItem href="/" current={pathname === '/'}>
-              <NavIcon>
-                <HomeIcon />
-              </NavIcon>
-              <SidebarLabel>Home</SidebarLabel>
-              <NavBadge count={needsYou} />
-            </SidebarItem>
-          )}
+          <SidebarItem href="/" current={pathname === '/'}>
+            <NavIcon>
+              <HomeIcon />
+            </NavIcon>
+            <SidebarLabel>Home</SidebarLabel>
+            <NavBadge count={needsYou} />
+          </SidebarItem>
           <SidebarItem href="/overview" current={pathname.startsWith('/overview')}>
             <NavIcon>
               <ActivityLogIcon />
@@ -112,7 +109,8 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
           )}
         </SidebarSection>
 
-        {user.role === 'admin' && (
+        {/* Everyone but guests has the agents list there; admins the rest of the workspace's settings too. */}
+        {seesRuns(user.role) && (
           <SidebarSection>
             <SidebarItem href="/settings" current={pathname.startsWith('/settings')}>
               <NavIcon>

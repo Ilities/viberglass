@@ -1,14 +1,14 @@
-import { getClankersList } from '@/data'
+import { getAgentDirectory } from '@/service/api/agent-directory-api'
 import { getJobs, type JobListItem, type JobStatus } from '@/service/api/job-api'
 import { getPlan, getTicket, type PhaseDocumentResponse } from '@/service/api/ticket-api'
-import type { Clanker, Ticket } from '@viberglass/types'
+import type { AgentDirectoryEntry, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 
 export interface RunContext {
   ticket: Ticket | null
   taskRuns: JobListItem[]
   document: PhaseDocumentResponse | null
-  clankers: Clanker[]
+  clankers: AgentDirectoryEntry[]
 }
 
 const EMPTY: RunContext = { ticket: null, taskRuns: [], document: null, clankers: [] }
@@ -34,7 +34,7 @@ export function useRunContext(job: Pick<JobStatus, 'jobId' | 'jobKind' | 'status
       getTicket(ticketId),
       getJobs({ ticketId, limit: 50 }),
       loadDocument(ticketId, jobKind),
-      getClankersList(),
+      getAgentDirectory(),
     ])
     setContext({ ticket, taskRuns: runs.jobs, document, clankers })
   }, [ticketId, jobKind])

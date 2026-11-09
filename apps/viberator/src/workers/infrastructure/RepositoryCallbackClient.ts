@@ -21,7 +21,7 @@ export class RepositoryCallbackClient {
     const body = await postForJson(
       `${this.target.apiUrl}/api/jobs/${jobId}/pull-request`,
       tenantId,
-      pullRequest,
+      this.target.redactor.redactValue(pullRequest),
       60000,
       this.target.callbackToken,
     );

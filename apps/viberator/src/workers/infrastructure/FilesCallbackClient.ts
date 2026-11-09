@@ -36,7 +36,7 @@ export class FilesCallbackClient {
     let lastError: unknown;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
-        const data = await this.post(jobId, tenantId, "checkpoint", request, 120_000);
+        const data = await this.post(jobId, tenantId, "checkpoint", this.target.redactor.redactValue(request), 120_000);
         if (!isRecord(data) || typeof data.id !== "string") throw new Error("The platform answered the files save with something unexpected");
         return data as unknown as FilesCheckpointResult;
       } catch (error) {

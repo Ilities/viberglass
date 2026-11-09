@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { Clanker } from '@viberglass/types'
+import type { AgentDirectoryEntry } from '@viberglass/types'
 import { NextAgentLine } from './next-agent-line'
 
 const mockNextAgent = jest.fn()
@@ -8,27 +8,21 @@ let mockRole = 'member'
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', role: mockRole } }) }))
 jest.mock('@/service/api/discussion-api', () => ({ getNextAgent: (...args: unknown[]) => mockNextAgent(...args) }))
 
-function runner(overrides: Partial<Clanker> = {}): Clanker {
+function runner(overrides: Partial<AgentDirectoryEntry> = {}): AgentDirectoryEntry {
   return {
     id: 'c-1',
     name: 'Claude review',
     slug: 'claude',
-    deploymentStrategyId: 'docker',
-    deploymentConfig: { version: 1, strategy: { type: 'docker' }, agent: { type: 'opencode', model: 'zai/glm-4.7-flash' } },
-    configFiles: [],
     agent: 'opencode',
-    secretBindings: [],
-    mcpServerIds: [],
-    skillIds: [],
+    model: 'zai/glm-4.7-flash',
     status: 'active',
     readiness: { state: 'ready', problem: null, lastRun: null },
-    createdAt: '',
-    updatedAt: '',
+    deployable: true,
     ...overrides,
   }
 }
 
-function renderLine(clankers: Clanker[], onTask: string[] = []) {
+function renderLine(clankers: AgentDirectoryEntry[], onTask: string[] = []) {
   render(
     <MemoryRouter>
       <NextAgentLine taskId="t-1" refreshKey="1" clankers={clankers} agentsOnTask={new Set(onTask)} />
