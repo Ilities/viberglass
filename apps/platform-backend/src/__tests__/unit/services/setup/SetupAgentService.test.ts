@@ -107,6 +107,22 @@ describe("SetupAgentService", () => {
     expect(agent).toMatchObject({ slug: "default-agent", agentName: "OpenCode", compute: "docker", status: "deploying" });
   });
 
+  it("creates a DeepSeek Harness runner for a DeepSeek key", async () => {
+    const { service, createClanker } = build();
+
+    await service.prepareDefaultAgent({ provider: "deepseek" });
+
+    expect(createClanker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deploymentConfig: expect.objectContaining({
+          agent: { type: "deepseek-harness", model: "deepseek-v4-pro" },
+        }),
+        agent: "deepseek-harness",
+        secretBindings: [{ envVar: "DEEPSEEK_API_KEY", secretId: "secret-1" }],
+      }),
+    );
+  });
+
   it("runs on ECS when the instance has the stack's ECS settings", async () => {
     const { service, createClanker } = build({ ecsReady: true });
 
