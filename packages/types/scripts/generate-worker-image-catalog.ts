@@ -143,8 +143,21 @@ function checkedSignInMethods(packageName: string, raw: unknown): AgentSignInMet
 // Keys the agent config already uses for something else.
 const RESERVED_SETTING_KEYS = new Set(["type", "signIn"]);
 
-function checkedSettings(packageName: string, raw: unknown): AgentSettingField[] {
+export function checkedSettings(packageName: string, raw: unknown): AgentSettingField[] {
   if (raw === undefined) return [];
+  if (Array.isArray(raw)) {
+    for (const value of raw) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+      const field: Record<string, unknown> = value;
+      if (typeof field.key !== "string") continue;
+      if (field.type === "string" && ("options" in field || "allowCustom" in field)) {
+        throw new Error(`Plugin ${packageName} setting '${field.key}' has options or allowCustom, which only apply to select settings.`);
+      }
+      if (field.type === "select" && (!Array.isArray(field.options) || field.options.length === 0)) {
+        throw new Error(`Plugin ${packageName} setting '${field.key}' is a select and needs at least one option.`);
+      }
+    }
+  }
   const settings = readSettingFields(raw);
   if (!Array.isArray(raw) || settings.length !== raw.length) {
     throw new Error(`Plugin ${packageName} has a malformed setting: each needs a key, a label, a type of string or select, and env.`);
