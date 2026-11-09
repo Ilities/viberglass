@@ -39,6 +39,12 @@ describe("turnOffReason", () => {
     expect(turnOffReason(appPreview({ state: "running", startedAt: hoursAgo(1), lastOpenedAt: null }), NOW, ENV)).toBeNull();
   });
 
+  it("keeps every preview on when the instance is set to", () => {
+    const keepOn = { ...ENV, APPS_KEEP_PREVIEWS_ON: "true" };
+    expect(turnOffReason(appPreview({ state: "running", startedAt: new Date("2026-11-04T02:30:00Z"), lastOpenedAt: null }), NOW, keepOn)).toBeNull();
+    expect(turnOffReason(appPreview({ state: "running", startedAt: hoursAgo(30), lastOpenedAt: hoursAgo(30) }), NOW, keepOn)).toBeNull();
+  });
+
   it("leaves previews that aren't running to their own course", () => {
     expect(turnOffReason(appPreview({ state: "building", startedAt: hoursAgo(20) }), NOW, ENV)).toBeNull();
   });

@@ -89,6 +89,7 @@ These go on the backend. The install guides set the ones their target needs.
 | `APPS_MEMORY_MB`, `APPS_CPUS` | 512, 1 (0.25 on AWS) | Each app's and preview's memory and CPUs. |
 | `APPS_HEALTH_TIMEOUT_MS` | 120000 | How long a new release has to answer its health check. |
 | `APPS_PREVIEW_OFF_HOUR`, `APPS_PREVIEW_IDLE_HOURS` | 3, 4 | When previews turn off. |
+| `APPS_KEEP_PREVIEWS_ON` | false | `true` keeps previews running until their change ends, for an instance that shows previews to people who can't start them, such as a demo. Chart value `apps.keepPreviewsOn`. |
 | `APPS_KEEP_LIVE_RELEASES`, `APPS_KEEP_BACKUP_DAYS`, `APPS_UNUSED_BUILD_DAYS` | 5, 30, 7 | Retention. |
 | `APPS_DATA_ENDPOINT` | `S3_ENDPOINT` | The object storage address apps use, when it isn't the backend's. |
 | `APPS_DATA_ROLE_ARN`, `APPS_DATA_CREDENTIAL_SECONDS` | | On Docker and Kubernetes with AWS S3: the role apps' credentials come from, and how long they last. |

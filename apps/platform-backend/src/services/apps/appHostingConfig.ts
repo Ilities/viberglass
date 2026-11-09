@@ -136,6 +136,11 @@ function hourOfDay(value: string | undefined, fallback: number): number {
   return configured && Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : fallback;
 }
 
+/** Previews stay on until their change ends, skipping the nightly and idle turn-off. */
+export function keepPreviewsOn(env: Env): boolean {
+  return env.APPS_KEEP_PREVIEWS_ON?.trim().toLowerCase() === "true";
+}
+
 /** How long a preview runs without being opened before it's turned off. */
 export function previewIdleMs(env: Env): number {
   return positive(env.APPS_PREVIEW_IDLE_HOURS, 4) * 60 * 60 * 1000;

@@ -13,6 +13,9 @@ export interface AppRecord {
   currentReleaseId: string | null;
   busySince: Date | null;
   rollback: RollbackOrder | null;
+  dataRestore: DataRestoreOrder | null;
+  /** A maintainer asked for a copy of its data. */
+  backupDue: boolean;
   /** When the running instance's storage credentials expire; null when the host's role supplies them. */
   credentialsExpireAt: Date | null;
   /** The space was archived and a last copy of the data is owed once the app is off. */
@@ -27,6 +30,13 @@ export interface RollbackOrder {
   /** The data to restore; null keeps today's. */
   backupId: string | null;
   requestedBy: string;
+}
+
+/** A schedule's restore of the app's data to a backup, done on the next sweep. */
+export interface DataRestoreOrder {
+  backupId: string;
+  /** The scheduled run to tell how it went; null once that run was deleted. */
+  executionId: string | null;
 }
 
 export type AppChange = Partial<Pick<AppRecord, "power" | "state" | "statusMessage" | "currentReleaseId">>;
@@ -138,6 +148,8 @@ function toApp(row: AppRow): AppRecord {
     credentialsExpireAt: row.credentials_expire_at,
     archiveBackupDue: row.archive_backup_due,
     restartDue: row.restart_due,
+    dataRestore: row.restore_backup_id ? { backupId: row.restore_backup_id, executionId: row.restore_execution_id } : null,
+    backupDue: row.backup_due,
     rollback:
       row.rollback_release_id && row.rollback_by
         ? { releaseId: row.rollback_release_id, backupId: row.rollback_backup_id, requestedBy: row.rollback_by }

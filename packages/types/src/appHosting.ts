@@ -18,8 +18,25 @@ export interface AppView {
   dataPoints: Record<string, string>
   /** A rollback asked for that hasn't happened yet. */
   rollback: { releaseId: string; withData: boolean } | null
+  /** A maintainer asked for a backup that hasn't been taken yet. */
+  backupDue: boolean
+  /** A scheduled restore of the data that hasn't happened yet. */
+  dataRestoreDue: boolean
   /** Where people open the app; null when apps aren't served on this workspace. */
   url: string | null
+}
+
+/** Why a copy of an app's data was taken: before a release or rollback switched, on archive or eject, or by hand. */
+export type AppDataBackupReason = 'release' | 'rollback' | 'archive' | 'eject' | 'manual'
+
+/** A kept copy of an app's data, which a schedule can put back. */
+export interface AppDataBackup {
+  id: string
+  reason: AppDataBackupReason
+  takenAt: string
+  /** The release that was serving this data; null when none was. */
+  fromRelease: { id: string; commitSha: string } | null
+  bytes: number
 }
 
 /** Making an earlier release (or one set aside by a rollback) the live one again. */

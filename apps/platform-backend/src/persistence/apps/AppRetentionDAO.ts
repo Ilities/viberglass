@@ -78,15 +78,24 @@ export class AppRetentionDAO {
   }
 
   /**
-   * Backups taken before `takenBefore`, except a rollback's data asked for and
-   * the newest copy of each release that can still be rolled back to.
+   * Backups taken before `takenBefore`, except one a rollback, a restore or a
+   * schedule points at, and the newest copy of each release that can still be rolled back to.
    */
   async listBackupsToDelete(takenBefore: Date): Promise<StoredBackup[]> {
     return db
       .selectFrom("app_data_backups as b")
       .select(["b.id", "b.project_id as projectId"])
       .where("b.created_at", "<", takenBefore)
-      .where((eb) => eb.not(eb.exists(eb.selectFrom("apps").select("apps.project_id").whereRef("apps.rollback_backup_id", "=", "b.id"))))
+      .where((eb) =>
+        eb.not(
+          eb.exists(
+            eb.selectFrom("apps")
+              .select("apps.project_id")
+              .where((inner) => inner.or([inner("apps.rollback_backup_id", "=", inner.ref("b.id")), inner("apps.restore_backup_id", "=", inner.ref("b.id"))])),
+          ),
+        ),
+      )
+      .where((eb) => eb.not(eb.exists(eb.selectFrom("claw_schedules").select("claw_schedules.id").whereRef("claw_schedules.backup_id", "=", "b.id"))))
       .where((eb) =>
         eb.or([
           eb("b.from_release_id", "is", null),

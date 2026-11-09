@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   AppAccessAddition,
   AppAccessList,
+  AppDataBackup,
   AppDataGrant,
   AppHandoff,
   AppSettingsView,
@@ -43,6 +44,16 @@ export async function rollBackApp(projectId: string, releaseId: string, withData
     body: JSON.stringify({ withData }),
   })
   return readData(response, "Couldn't roll the app back")
+}
+
+/** Newest first. */
+export async function getAppBackups(projectId: string): Promise<AppDataBackup[]> {
+  return readData(await apiFetch(`${appUrl(projectId)}/backups`), "Couldn't load the app's backups")
+}
+
+/** The app stops for the copy and starts again in the background. */
+export async function backUpApp(projectId: string): Promise<AppView> {
+  return readData(await apiFetch(`${appUrl(projectId)}/backups`, { method: 'POST' }), "Couldn't back up the app's data")
 }
 
 export async function getAppLogs(projectId: string): Promise<string> {

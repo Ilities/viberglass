@@ -27,6 +27,7 @@ function setup() {
     logs: jest.fn().mockResolvedValue("listening\n"),
   };
   const rollbacks = { restore: jest.fn().mockResolvedValue(undefined) };
+  const backups = { list: jest.fn().mockResolvedValue([]), requestBackup: jest.fn().mockResolvedValue(undefined) };
 
   const app = express();
   app.use(express.json());
@@ -45,10 +46,10 @@ function setup() {
   });
   const spaces = express.Router();
   spaces.param("projectId", spaceParamGuard(access));
-  registerAppRoutes(spaces, apps, access, rollbacks);
+  registerAppRoutes(spaces, apps, access, rollbacks, backups);
   app.use("/api/spaces", spaces);
   app.use(applicationErrorHandler);
-  return { app, apps, rollbacks };
+  return { app, apps, rollbacks, backups };
 }
 
 describe("an App space's app", () => {
@@ -93,5 +94,23 @@ describe("an App space's app", () => {
 
     expect(response.body.data).toEqual(VIEW);
     expect(rollbacks.restore.mock.calls).toEqual([[SPACE_ID, RELEASE_ID, { withData: true }, "u-1"]]);
+  });
+});
+
+describe("an app's data backups", () => {
+  it("are listed to anyone who sees the space", async () => {
+    const { app, backups } = setup();
+
+    await request(app).get(`/api/spaces/${SPACE_ID}/app/backups`).set("x-role", "member").expect(200);
+    expect(backups.list).toHaveBeenCalledWith(SPACE_ID);
+  });
+
+  it("are taken on request by a maintainer only", async () => {
+    const { app, backups } = setup();
+
+    await request(app).post(`/api/spaces/${SPACE_ID}/app/backups`).set("x-role", "member").expect(403);
+    expect(backups.requestBackup).not.toHaveBeenCalled();
+    await request(app).post(`/api/spaces/${SPACE_ID}/app/backups`).set("x-role", "admin").expect(202);
+    expect(backups.requestBackup).toHaveBeenCalledWith(SPACE_ID);
   });
 });

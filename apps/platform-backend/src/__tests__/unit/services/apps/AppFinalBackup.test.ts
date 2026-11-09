@@ -3,7 +3,7 @@ import { AppFinalBackup } from "../../../../services/apps/AppFinalBackup";
 
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
-const APP: AppRecord = { projectId: "space-1", power: "off", state: "off", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: true, restartDue: false };
+const APP: AppRecord = { projectId: "space-1", power: "off", state: "off", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: true, restartDue: false, dataRestore: null, backupDue: false };
 
 describe("AppFinalBackup", () => {
   it("copies the replica as the current release's data, then clears what was owed", async () => {

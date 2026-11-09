@@ -498,6 +498,11 @@ export const clawScheduleSchema = Joi.object({
     then: Joi.string().uuid().required(),
     otherwise: Joi.valid(null).optional(),
   }),
+  backupId: Joi.when("action", {
+    is: "app_restore_data",
+    then: Joi.string().uuid().required(),
+    otherwise: Joi.valid(null).optional(),
+  }),
   name: Joi.string().min(1).max(255).required(),
   description: Joi.string().allow(null, "").optional(),
   scheduleType: Joi.string().valid("interval", "cron").required(),

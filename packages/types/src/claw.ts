@@ -14,8 +14,8 @@ export type ClawScheduleType = 'interval' | 'cron'
 // Active status of a schedule
 export type ClawScheduleActiveStatus = 'active' | 'paused'
 
-// What a schedule does when it fires: run a task template, or turn an App space's app on or off
-export const CLAW_SCHEDULE_ACTIONS = ['run_template', 'app_start', 'app_stop'] as const
+// What a schedule does when it fires: run a task template, or turn an App space's app on or off, or put its data back to a backup
+export const CLAW_SCHEDULE_ACTIONS = ['run_template', 'app_start', 'app_stop', 'app_restore_data'] as const
 export type ClawScheduleAction = (typeof CLAW_SCHEDULE_ACTIONS)[number]
 
 export function isAppScheduleAction(action: ClawScheduleAction): boolean {
@@ -75,6 +75,8 @@ export interface ClawSchedule {
   projectId: string
   action: ClawScheduleAction
   taskTemplateId: string | null
+  /** The App data backup an `app_restore_data` schedule puts back. */
+  backupId: string | null
   name: string
   description: string | null
   scheduleType: ClawScheduleType
@@ -108,6 +110,8 @@ export interface CreateClawScheduleRequest {
   action?: ClawScheduleAction
   /** Required when the action is `run_template`, and only then. */
   taskTemplateId?: string | null
+  /** Required when the action is `app_restore_data`, and only then. */
+  backupId?: string | null
   name: string
   description?: string | null
   scheduleType: ClawScheduleType
@@ -136,6 +140,7 @@ export interface ClawScheduleSummary {
   projectId: string
   action: ClawScheduleAction
   taskTemplateId: string | null
+  backupId: string | null
   name: string
   description: string | null
   scheduleType: ClawScheduleType

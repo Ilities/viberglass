@@ -1,8 +1,9 @@
 import { liveAppInstance, type AppHost, type AppRelease } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
-import type { AppChange, AppDAO, AppRecord, RollbackOrder } from "../../persistence/apps/AppDAO";
+import type { AppChange, AppDAO, AppRecord, DataRestoreOrder, RollbackOrder } from "../../persistence/apps/AppDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { APP_STOP_GRACE_SECONDS } from "./appHostingConfig";
+import type { AppDataMaintenance } from "./AppDataMaintenance";
 import type { AppInstanceRunner } from "./AppInstanceRunner";
 import type { AppFinalBackup } from "./AppFinalBackup";
 import type { AppReleaseSwitch } from "./AppReleaseSwitch";
@@ -19,6 +20,8 @@ export const NO_APP_HOST = "Apps can't run where this installation runs its agen
 type Action =
   | { kind: "stop" }
   | { kind: "final_backup" }
+  | { kind: "backup" }
+  | { kind: "restore_data"; order: DataRestoreOrder }
   | { kind: "start"; release: AppRelease }
   | { kind: "switch"; release: AppRelease }
   | { kind: "refresh"; release: AppRelease }
@@ -37,8 +40,8 @@ function message(error: unknown): string {
  * Brings an app to what its maintainers asked for: stopped when it's off, and
  * serving the release they rolled back to, or else its newest, when it's on.
  * A running app is restarted when its settings change and before its storage credentials expire, and an
- * archived space's app leaves a last copy of its data once it's stopped. One
- * app does one thing at a time.
+ * archived space's app leaves a last copy of its data once it's stopped. A
+ * backup or restore of the data asked for comes first. One app does one thing at a time.
  */
 export class AppReconciler {
   constructor(
@@ -49,6 +52,7 @@ export class AppReconciler {
     private readonly switcher: Pick<AppReleaseSwitch, "switchTo">,
     private readonly rollbacks: Pick<AppRollbackSettler, "settle">,
     private readonly finalBackup: Pick<AppFinalBackup, "take">,
+    private readonly dataWork: Pick<AppDataMaintenance, "backUp" | "restore">,
     private readonly rotation: () => RotationSchedule = () => rotationSchedule(),
   ) {}
 
@@ -83,6 +87,8 @@ export class AppReconciler {
     const order = app.rollback;
     // A rollback that went live but whose releases weren't set aside yet.
     if (order && current && order.releaseId === current.id) return { kind: "settle", release: current, order };
+    if (app.dataRestore) return { kind: "restore_data", order: app.dataRestore };
+    if (app.backupDue) return { kind: "backup" };
     if (app.power === "off") {
       if (app.state !== "off") return { kind: "stop" };
       return app.archiveBackupDue ? { kind: "final_backup" } : null;
@@ -134,6 +140,8 @@ export class AppReconciler {
       return {};
     }
     if (action.kind === "settle") return this.settle(action.release, action.order);
+    if (action.kind === "restore_data") return this.dataWork.restore(host, app, action.order);
+    if (action.kind === "backup") return this.dataWork.backUp(host, app);
     if (action.kind === "no_host" || !host) return { state: "failed", statusMessage: NO_APP_HOST };
     if (action.kind === "rollback") return this.rollBack(host, app, action.release, action.order);
     if (action.kind === "refresh") return this.refresh(host, action.release);

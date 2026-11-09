@@ -42,6 +42,8 @@ export class AppService {
       releases,
       dataPoints: Object.fromEntries(dataPoints.map((point) => [point.releaseId, point.takenAt.toISOString()])),
       rollback: app?.rollback ? { releaseId: app.rollback.releaseId, withData: app.rollback.backupId !== null } : null,
+      backupDue: app?.backupDue ?? false,
+      dataRestoreDue: Boolean(app?.dataRestore),
       url: this.origins.originFor(space.slug),
     };
   }

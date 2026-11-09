@@ -19,7 +19,7 @@ function build(app: AppRecord | null, isApp = true, archived = false) {
     },
     apps: {
       get: jest.fn(async () => app),
-      ensure: jest.fn(async () => app ?? { projectId: "space-1", power: "on" as const, state: "off" as const, statusMessage: null, currentReleaseId: null, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false }),
+      ensure: jest.fn(async () => app ?? { projectId: "space-1", power: "on" as const, state: "off" as const, statusMessage: null, currentReleaseId: null, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, dataRestore: null, backupDue: false }),
       update: jest.fn(async () => undefined),
       turnOffForArchive: jest.fn(async () => undefined),
     },
@@ -30,7 +30,7 @@ function build(app: AppRecord | null, isApp = true, archived = false) {
   return { service: new AppService(deps.spaces, deps.apps, deps.releases, deps.backups, deps.reconciler, () => host, origins), deps, host };
 }
 
-const failed: AppRecord = { projectId: "space-1", power: "on", state: "failed", statusMessage: "exit code 1", currentReleaseId: "live", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false };
+const failed: AppRecord = { projectId: "space-1", power: "on", state: "failed", statusMessage: "exit code 1", currentReleaseId: "live", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, dataRestore: null, backupDue: false };
 
 describe("AppService", () => {
   it("shows an app that has no release yet as on but not running", async () => {
@@ -44,6 +44,8 @@ describe("AppService", () => {
       releases: [NEWER, LIVE],
       dataPoints: { [LIVE.id]: "2026-11-03T13:00:00.000Z" },
       rollback: null,
+      backupDue: false,
+      dataRestoreDue: false,
       url: "https://laptops.apps.example.com",
     });
   });

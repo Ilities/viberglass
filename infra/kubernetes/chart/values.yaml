@@ -58,6 +58,7 @@ apps:
   publicUrl: ""
   namespace: ""
   storageClass: ""
+  keepPreviewsOn: false
   imagePullSecrets: []
   quota:
     pods: "20"

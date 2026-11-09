@@ -24,9 +24,11 @@ A template can be used by several schedules.
 
 Each schedule shows whether it's Active or Paused and when it last ran. Runs / fails counts the runs that have ended and how many of those failed; a run that was cancelled counts as a run but not as a failure. Pause stops it until you Resume it. The runs are listed under the space's Runs.
 
-## Turning an app on and off
+## App schedules
 
-In an App space, maintainers can also schedule the space's app. A schedule's What it does is Run a task template, Turn the app on or Turn the app off; the app actions need no template and can't be changed on an existing schedule. A common pair turns the app off at night and on in the morning, and the App page offers to add exactly that. Only maintainers create, change, pause or delete app schedules. See [Apps](apps.md#turning-the-app-off-at-night).
+In an App space, maintainers can also schedule the space's app. A schedule's What it does is Run a task template, Turn the app on, Turn the app off or Restore app data; the app actions need no template, and what a schedule does can't be changed on an existing one. A common pair turns the app off at night and on in the morning, and the App page offers to add exactly that. Only maintainers create, change, pause or delete app schedules; everyone who can see the space sees them. See [Apps](apps.md#turning-the-app-off-at-night).
+
+Restore app data puts the app's data back to a backup each time it runs, such as every hour for a demo or training app. Pick the backup under Backup; the list shows when each was taken, the release that was serving and why it was taken. To restore data you set up yourself, take a backup with Back up now on the App page first. Each run stops the app, replaces its data with the backup and starts it again on the same release; an app that's off stays off with the restored data. Everything changed since the backup is lost, and no copy of it is kept. The schedule shows the backup it restores, and that backup is kept for as long as the schedule exists. If a restore fails, the run fails and the schedule is paused. See [Apps](apps.md#resetting-the-data-on-a-schedule).
 
 ## What a scheduled run does
 

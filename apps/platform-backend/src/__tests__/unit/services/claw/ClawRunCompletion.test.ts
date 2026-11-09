@@ -19,6 +19,7 @@ const schedule: ClawSchedule = {
   projectId: "proj-1",
   action: "run_template",
   taskTemplateId: "tmpl-1",
+  backupId: null,
   name: "Nightly",
   description: null,
   scheduleType: "interval",

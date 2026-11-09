@@ -9,6 +9,7 @@ import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { Textarea } from '@/components/textarea'
 import { Timestamp } from '@/components/timestamp'
+import { getAppBackups } from '@/service/api/app-api'
 import {
   createClawSchedule,
   deleteClawSchedule,
@@ -23,6 +24,7 @@ import { PauseIcon, Pencil1Icon, PlayIcon, PlusIcon, TrashIcon } from '@radix-ui
 import {
   isAppScheduleAction,
   parseIntervalExpression,
+  type AppDataBackup,
   type ClawScheduleAction,
   type ClawScheduleSummary,
   type ClawTaskTemplateSummary,
@@ -31,6 +33,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CronScheduleField } from './cron-schedule-field'
 import { buildCron, defaultCronBuilder, describeCron, parseCronBuilder, type CronBuilder } from './cronSchedule'
+import { backupLabel, RestoreBackupField } from './restore-backup-field'
 
 type IntervalUnit = 'minutes' | 'hours' | 'days' | 'weeks'
 const UNIT_SUFFIX: Record<IntervalUnit, string> = { minutes: 'm', hours: 'h', days: 'd', weeks: 'w' }
@@ -41,6 +44,7 @@ type ScheduleForm = {
   action: ClawScheduleAction
   taskTemplateId: string
   taskInstructions: string
+  backupId: string
   scheduleType: 'interval' | 'cron'
   intervalValue: string
   intervalUnit: IntervalUnit
@@ -54,6 +58,7 @@ const emptyForm: ScheduleForm = {
   action: 'run_template',
   taskTemplateId: '',
   taskInstructions: '',
+  backupId: '',
   scheduleType: 'interval',
   intervalValue: '1',
   intervalUnit: 'hours',
@@ -81,6 +86,7 @@ const ACTION_LABELS: Record<ClawScheduleAction, string> = {
   run_template: 'Run a task template',
   app_start: 'Turn the app on',
   app_stop: 'Turn the app off',
+  app_restore_data: 'Restore app data',
 }
 
 interface Props {
@@ -96,6 +102,7 @@ interface Props {
 export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, readOnly = false }: Props) {
   const [schedules, setSchedules] = useState<ClawScheduleSummary[]>([])
   const [templates, setTemplates] = useState<ClawTaskTemplateSummary[]>([])
+  const [backups, setBackups] = useState<AppDataBackup[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
@@ -111,12 +118,15 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
       const [s, t] = await Promise.all([getClawSchedules(projectId), getClawTaskTemplates(projectId)])
       setSchedules(s)
       setTemplates(t)
+      if (appActions || s.some((schedule) => schedule.action === 'app_restore_data')) {
+        setBackups(await getAppBackups(projectId).catch(() => []))
+      }
     } catch (err) {
       toast.error('Failed to load schedules', { description: err instanceof Error ? err.message : undefined })
     } finally {
       setLoading(false)
     }
-  }, [projectId])
+  }, [projectId, appActions])
 
   useEffect(() => {
     void loadData()
@@ -136,7 +146,7 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
       }
     }
     const action = firstTemplateId || !appActions ? 'run_template' : 'app_stop'
-    setForm({ ...emptyForm, action, taskTemplateId: firstTemplateId, taskInstructions })
+    setForm({ ...emptyForm, action, taskTemplateId: firstTemplateId, taskInstructions, backupId: backups[0]?.id ?? '' })
     setDialogOpen(true)
   }
 
@@ -167,6 +177,7 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
       action: s.action,
       taskTemplateId: s.taskTemplateId ?? '',
       taskInstructions,
+      backupId: s.backupId ?? '',
       scheduleType: s.scheduleType,
       intervalValue,
       intervalUnit,
@@ -197,6 +208,11 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
       toast.error('Task template is required')
       return
     }
+    const restoresData = form.action === 'app_restore_data'
+    if (restoresData && !form.backupId) {
+      toast.error('Pick a backup to restore')
+      return
+    }
     const isInterval = form.scheduleType === 'interval'
     if (!isInterval && !describeCron(buildCron(form.cron))) {
       toast.error('Enter a valid cron expression')
@@ -212,6 +228,7 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
           projectId,
           action: form.action,
           ...(runsTemplate ? { taskTemplateId: form.taskTemplateId } : {}),
+          ...(restoresData ? { backupId: form.backupId } : {}),
           name: form.name.trim(),
           description: form.description.trim() || null,
           scheduleType: form.scheduleType,
@@ -271,6 +288,8 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
   }
 
   const whatItDoes = (s: ClawScheduleSummary) => {
+    const backup = s.backupId ? backups.find((b) => b.id === s.backupId) : undefined
+    if (backup) return `${ACTION_LABELS[s.action]} from ${backupLabel(backup)}`
     if (!s.taskTemplateId) return ACTION_LABELS[s.action]
     return templates.find((t) => t.id === s.taskTemplateId)?.name ?? s.taskTemplateId.slice(0, 8)
   }
@@ -320,7 +339,9 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
                 <TableCell className="min-w-40 font-medium whitespace-normal text-zinc-950 dark:text-white">
                   {s.name}
                 </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">{whatItDoes(s)}</TableCell>
+                <TableCell className="min-w-48 whitespace-normal text-zinc-500 dark:text-zinc-400">
+                  {whatItDoes(s)}
+                </TableCell>
                 <TableCell
                   className="min-w-48 whitespace-normal text-zinc-500 dark:text-zinc-400"
                   title={s.scheduleType === 'cron' ? (s.cronExpression ?? undefined) : undefined}
@@ -406,8 +427,8 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
                       disabled={dialogMode === 'edit'}
                     >
                       {(templates.length > 0 || form.action === 'run_template'
-                        ? (['run_template', 'app_start', 'app_stop'] as const)
-                        : (['app_start', 'app_stop'] as const)
+                        ? (['run_template', 'app_start', 'app_stop', 'app_restore_data'] as const)
+                        : (['app_start', 'app_stop', 'app_restore_data'] as const)
                       ).map((action) => (
                         <option key={action} value={action}>
                           {ACTION_LABELS[action]}
@@ -437,6 +458,14 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
                       <Textarea readOnly value={form.taskInstructions} rows={6} />
                     </Field>
                   </>
+                )}
+                {form.action === 'app_restore_data' && (
+                  <RestoreBackupField
+                    backups={backups}
+                    value={form.backupId}
+                    onChange={(backupId) => setForm((p) => ({ ...p, backupId }))}
+                    disabled={dialogMode === 'edit'}
+                  />
                 )}
                 <Field>
                   <Label>Schedule type</Label>

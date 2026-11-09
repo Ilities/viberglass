@@ -1,6 +1,5 @@
 import logger from "../../config/logger";
 import { ClawScheduleDAO } from "../../persistence/claw/ClawScheduleDAO";
-import { ClawTaskTemplateDAO } from "../../persistence/claw/ClawTaskTemplateDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import type {
   ClawScheduleSummary,
@@ -11,18 +10,18 @@ import type {
 import {
   ClawSchedule,
   intervalToMilliseconds,
-  isAppScheduleAction,
   isValidCronExpression,
 } from "@viberglass/types";
 import {
   ClawServiceError,
   CLAW_SERVICE_ERROR_CODE,
 } from "../errors/ClawServiceError";
+import { ClawScheduleActionCheck } from "./ClawScheduleActionCheck";
 
 export class ClawScheduleService {
   private scheduleDAO = new ClawScheduleDAO();
-  private templateDAO = new ClawTaskTemplateDAO();
   private projectDAO = new ProjectDAO();
+  private actionCheck = new ClawScheduleActionCheck();
 
   async createSchedule(
     request: CreateClawScheduleRequest,
@@ -36,24 +35,7 @@ export class ClawScheduleService {
       );
     }
 
-    const action = request.action ?? "run_template";
-    if (isAppScheduleAction(action)) {
-      if (project.backingKind !== "app") {
-        throw new ClawServiceError(
-          CLAW_SERVICE_ERROR_CODE.NOT_AN_APP_SPACE,
-          "Only App spaces have an app to turn on or off",
-        );
-      }
-    } else {
-      // A template from another space is treated as missing, so its existence isn't revealed.
-      const template = request.taskTemplateId ? await this.templateDAO.getTemplate(request.taskTemplateId) : null;
-      if (!template || template.projectId !== request.projectId) {
-        throw new ClawServiceError(
-          CLAW_SERVICE_ERROR_CODE.TEMPLATE_NOT_FOUND,
-          "Task template not found",
-        );
-      }
-    }
+    await this.actionCheck.assertFits(request, project);
 
     if (request.scheduleType === "interval") {
       if (!request.intervalExpression) {
@@ -143,6 +125,7 @@ export class ClawScheduleService {
         projectId: s.projectId,
         action: s.action,
         taskTemplateId: s.taskTemplateId,
+        backupId: s.backupId,
         name: s.name,
         description: s.description,
         scheduleType: s.scheduleType,

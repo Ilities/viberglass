@@ -1,6 +1,5 @@
 import { runnerModelEndpoints } from "../modelEndpoints";
 import { randomUUID } from "crypto";
-import type { ClawExecution, ClawSchedule } from "@viberglass/types";
 import logger from "../../config/logger";
 import { ClawTaskTemplateDAO } from "../../persistence/claw/ClawTaskTemplateDAO";
 import { ClawScheduleDAO } from "../../persistence/claw/ClawScheduleDAO";
@@ -29,15 +28,14 @@ import type { ClawJobData } from "../../types/Job";
 import { ClawWebhookService } from "./ClawWebhookService";
 import { PromptTemplateService } from "../PromptTemplateService";
 import { spaceFilesRuns } from "../spaceFiles/SpaceFilesRunService";
-import { appHosting } from "../apps/createAppHosting";
-import type { AppService } from "../apps/AppService";
+import { ClawAppActions } from "./ClawAppActions";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
 
 export class ClawOrchestrationService {
-  constructor(private readonly appPower: () => Pick<AppService, "setPower"> = () => appHosting().service) {}
+  constructor(private readonly appActions: Pick<ClawAppActions, "run"> = new ClawAppActions()) {}
 
   private projectDAO = new ProjectDAO();
   private projectScmConfigDAO = new ProjectScmConfigDAO();
@@ -81,7 +79,7 @@ export class ClawOrchestrationService {
       }
 
       if (schedule.action !== "run_template") {
-        await this.turnAppOnOrOff(schedule, execution);
+        await this.appActions.run(schedule, execution);
         return { executionId: execution.id };
       }
 
@@ -192,17 +190,5 @@ export class ClawOrchestrationService {
 
       throw error;
     }
-  }
-
-  /** No job: the app's power is recorded and the reconciler starts or stops it. */
-  private async turnAppOnOrOff(schedule: ClawSchedule, execution: ClawExecution): Promise<void> {
-    await this.webhookService.sendWebhook(schedule, execution, "started");
-    const power = schedule.action === "app_start" ? "on" : "off";
-    await this.appPower().setPower(schedule.projectId, power);
-    await this.clawScheduleDAO.updateLastRun(schedule.id, new Date());
-    const result = { power };
-    const finished = await this.clawExecutionService.recordExecutionResult(execution.id, { status: "completed", result });
-    if (finished) await this.webhookService.sendWebhook(schedule, finished, "completed", { result });
-    logger.info("Scheduled app power change recorded", { scheduleId: schedule.id, projectId: schedule.projectId, power });
   }
 }

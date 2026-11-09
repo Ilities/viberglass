@@ -1,6 +1,7 @@
 import type { AppHost } from "@viberglass/types";
 import { AppDAO } from "../../persistence/apps/AppDAO";
 import { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
+import { AppDataOrderDAO } from "../../persistence/apps/AppDataOrderDAO";
 import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { AppReleaseRollbackDAO } from "../../persistence/apps/AppReleaseRollbackDAO";
@@ -12,6 +13,9 @@ import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestD
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
 import { defaultDeploymentStrategyName } from "../../provisioning/shared/deploymentStrategies";
+import { ClawAppRestoreCompletion } from "../claw/ClawAppRestoreCompletion";
+import { AppBackupService } from "./AppBackupService";
+import { AppDataMaintenance } from "./AppDataMaintenance";
 import { AppDataStore } from "./AppDataStore";
 import { AppFinalBackup } from "./AppFinalBackup";
 import { AppHostRegistry } from "./AppHostRegistry";
@@ -43,6 +47,7 @@ import { SecretService } from "../SecretService";
 export interface AppHosting {
   service: AppService;
   rollbacks: AppRollbackService;
+  backups: AppBackupService;
   settings: AppSettingsService;
   sweep: AppSweep;
   previews: AppPreviewService;
@@ -74,13 +79,16 @@ export function appHosting(): AppHosting {
   const dataStore = new AppDataStore();
   const switcher = new AppReleaseSwitch(apps, releases, backups, dataStore, runner);
   const settler = new AppRollbackSettler(new AppReleaseRollbackDAO(), apps, new UserDAO(), new TaskActivityRecorder());
-  const reconciler = new AppReconciler(apps, releases, host, runner, switcher, settler, new AppFinalBackup(dataStore, backups, apps));
+  const orders = new AppDataOrderDAO();
+  const dataWork = new AppDataMaintenance(apps, orders, releases, backups, dataStore, runner, new ClawAppRestoreCompletion());
+  const reconciler = new AppReconciler(apps, releases, host, runner, switcher, settler, new AppFinalBackup(dataStore, backups, apps), dataWork);
   const previews = new AppPreviewDAO();
   const previewReconciler = new AppPreviewReconciler(previews, releases, host, runner);
   const origins = new AppOrigins();
   hosting = {
     service: new AppService(spaces, apps, releases, backups, reconciler, host, origins),
     rollbacks: new AppRollbackService(spaces, apps, releases, backups, reconciler),
+    backups: new AppBackupService(spaces, apps, backups, orders, reconciler),
     settings: new AppSettingsService(spaces, settings, secrets, releases, apps, reconciler, (projectId, name) =>
       appSettingSecretStorage(host()?.target ?? null, projectId, name),
     ),

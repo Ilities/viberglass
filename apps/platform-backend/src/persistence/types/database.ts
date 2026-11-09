@@ -235,6 +235,11 @@ export interface AppsTable {
   rollback_release_id: string | null;
   rollback_backup_id: string | null;
   rollback_by: string | null;
+  /** A scheduled restore of the data, done on the next sweep. */
+  restore_backup_id: string | null;
+  restore_execution_id: string | null;
+  /** A maintainer asked for a copy of the data. */
+  backup_due: Generated<boolean>;
   credentials_expire_at: Timestamp | null;
   archive_backup_due: Generated<boolean>;
   restart_due: Generated<boolean>;
@@ -286,7 +291,7 @@ export interface AppSettingsTable {
 export interface AppDataBackupsTable {
   id: Generated<string>;
   project_id: string;
-  reason: "release" | "rollback" | "archive" | "eject";
+  reason: "release" | "rollback" | "archive" | "eject" | "manual";
   release_id: string | null;
   /** The release whose data this is: the one serving when the copy was taken. */
   from_release_id: string | null;
@@ -817,8 +822,9 @@ export interface ClawTaskTemplatesTable {
 export interface ClawSchedulesTable {
   id: Generated<string>;
   project_id: string;
-  action: Generated<"run_template" | "app_start" | "app_stop">;
+  action: Generated<"run_template" | "app_start" | "app_stop" | "app_restore_data">;
   task_template_id: string | null;
+  backup_id: string | null;
   name: string;
   description: string | null;
   schedule_type: Generated<"interval" | "cron">;

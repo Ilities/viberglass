@@ -101,8 +101,8 @@ export class ClawExecutionDAO {
     return this.mapRowToExecution(result);
   }
 
-  /** Marks a pending execution running on its job; one that already finished keeps its outcome. */
-  async startExecution(id: string, jobId: string): Promise<void> {
+  /** Marks a pending execution running, on its job if it has one; one that already finished keeps its outcome. */
+  async startExecution(id: string, jobId: string | null): Promise<void> {
     await db
       .updateTable("claw_executions")
       .set({ status: "running", job_id: jobId, started_at: new Date() })

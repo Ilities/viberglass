@@ -85,6 +85,11 @@ export class ClawExecutionService {
     await this.executionDAO.startExecution(executionId, jobId);
   }
 
+  /** For a run without a job, such as a restore of an app's data. */
+  async markStarted(executionId: string): Promise<void> {
+    await this.executionDAO.startExecution(executionId, null);
+  }
+
   /**
    * Ends the execution and counts it on its schedule: every run counts as a
    * run, and failed ones also as failures. Null when it had already ended.

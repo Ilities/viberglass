@@ -1,6 +1,6 @@
 import { createChildLogger } from "../../config/logger";
 import type { AppPreviewDAO, AppPreviewRecord } from "../../persistence/apps/AppPreviewDAO";
-import { previewIdleMs, previewOffHour } from "./appHostingConfig";
+import { keepPreviewsOn, previewIdleMs, previewOffHour } from "./appHostingConfig";
 import type { AppPreviewReconciler } from "./AppPreviewReconciler";
 
 const logger = createChildLogger({ service: "AppPreviewSweep" });
@@ -16,7 +16,7 @@ export function lastNightlyOff(now: Date, hour: number): Date {
 
 /** Why a running preview should be turned off now, or null. */
 export function turnOffReason(preview: Pick<AppPreviewRecord, "state" | "startedAt" | "lastOpenedAt">, now: Date, env: Env): string | null {
-  if (preview.state !== "running" || !preview.startedAt) return null;
+  if (preview.state !== "running" || !preview.startedAt || keepPreviewsOn(env)) return null;
   if (preview.startedAt < lastNightlyOff(now, previewOffHour(env))) return "Turned off for the night. Try it to turn it on again.";
   const idleMs = previewIdleMs(env);
   const lastUsed = Math.max(preview.startedAt.getTime(), preview.lastOpenedAt?.getTime() ?? 0);

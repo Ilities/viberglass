@@ -8,7 +8,7 @@ import { fakeAppHost } from "../../../helpers/fakeAppHost";
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const NOW = new Date("2026-11-05T12:00:00Z");
-const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false };
+const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, dataRestore: null, backupDue: false };
 const SPACE: AppSpaceRef = { projectId: "space-1", slug: "laptops", name: "Laptops", isPrivate: false };
 const GRANT: AppDataGrantRecord = { id: "g-1", projectId: "space-1", ticketId: "t-1", grantedBy: "u-1", copiedAt: NOW, objectKey: "spaces/space-1/data-grants/g-1/app.db", bytes: 10, turnId: null, takenAt: null };
 

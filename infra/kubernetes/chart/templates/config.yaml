@@ -37,6 +37,9 @@ data:
   {{- with .Values.apps.storageClass }}
   KUBERNETES_APPS_STORAGE_CLASS: {{ . | quote }}
   {{- end }}
+  {{- if .Values.apps.keepPreviewsOn }}
+  APPS_KEEP_PREVIEWS_ON: "true"
+  {{- end }}
   {{- end }}
   KUBERNETES_WORKER_NAMESPACE: {{ include "viberglass.workersNamespace" . | quote }}
   {{- if .Values.workers.envSecret }}

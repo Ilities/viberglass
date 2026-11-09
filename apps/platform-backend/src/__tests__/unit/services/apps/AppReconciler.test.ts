@@ -14,7 +14,7 @@ const expiringIn = (hours: number, from = NOW) => new Date(from.getTime() + hour
 const BACK_TO_OLD = { releaseId: OLD.id, backupId: "backup-1", requestedBy: "user-1" };
 
 function record(overrides: Partial<AppRecord> = {}): AppRecord {
-  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, ...overrides };
+  return { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: OLD.id, busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, dataRestore: null, backupDue: false, ...overrides };
 }
 
 function build(app: AppRecord | null, options: { candidate?: AppRelease | null; host?: AppHost | null } = {}) {
@@ -37,9 +37,13 @@ function build(app: AppRecord | null, options: { candidate?: AppRelease | null; 
     switcher: { switchTo: jest.fn(async (): Promise<AppChange> => ({ state: "running", statusMessage: null, currentReleaseId: NEW.id })) },
     rollbacks: { settle: jest.fn(async () => undefined) },
     finalBackup: { take: jest.fn(async () => undefined) },
+    dataWork: {
+      backUp: jest.fn(async (): Promise<AppChange> => ({ state: "running", statusMessage: null })),
+      restore: jest.fn(async (): Promise<AppChange> => ({ state: "running", statusMessage: null })),
+    },
   };
   const resolved = options.host === undefined ? host : options.host;
-  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks, deps.finalBackup, () => WEEKLY);
+  const reconciler = new AppReconciler(deps.apps, deps.releases, () => resolved, deps.runner, deps.switcher, deps.rollbacks, deps.finalBackup, deps.dataWork, () => WEEKLY);
   return { reconciler, host, deps };
 }
 
@@ -306,5 +310,30 @@ describe("AppReconciler", () => {
     await reconciler.reconcile("space-1", NOW);
     expect(deps.switcher.switchTo).toHaveBeenCalled();
     expect(deps.runner.restart).not.toHaveBeenCalled();
+  });
+
+  it("restores the data a schedule asked for before switching to a newer release", async () => {
+    const order = { backupId: "backup-1", executionId: "execution-1" };
+    const { reconciler, host, deps } = build(record({ dataRestore: order }), { candidate: NEW });
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.dataWork.restore).toHaveBeenCalledWith(host, expect.objectContaining({ projectId: "space-1" }), order);
+    expect(deps.switcher.switchTo).not.toHaveBeenCalled();
+    expect(deps.apps.finish).toHaveBeenCalledWith("space-1", { state: "running", statusMessage: null });
+  });
+
+  it("restores the data of an app that's off, even where nothing hosts apps", async () => {
+    const order = { backupId: "backup-1", executionId: null };
+    const { reconciler, deps } = build(record({ power: "off", state: "off", dataRestore: order }), { host: null });
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.dataWork.restore).toHaveBeenCalledWith(null, expect.anything(), order);
+  });
+
+  it("takes a backup a maintainer asked for", async () => {
+    const { reconciler, host, deps } = build(record({ backupDue: true }));
+
+    await expect(reconciler.reconcile("space-1", NOW)).resolves.toBe(true);
+    expect(deps.dataWork.backUp).toHaveBeenCalledWith(host, expect.objectContaining({ backupDue: true }));
   });
 });

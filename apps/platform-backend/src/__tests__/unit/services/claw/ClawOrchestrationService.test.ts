@@ -28,26 +28,25 @@ describe("ClawOrchestrationService with an app schedule", () => {
     recordExecutionResult.mockResolvedValue({ id: "execution-1", status: "completed" });
   });
 
-  it("turns the app off without a job and completes the run at once", async () => {
-    getSchedule.mockResolvedValue({ id: "schedule-1", projectId: "space-1", action: "app_stop", taskTemplateId: null });
-    const setPower = jest.fn().mockResolvedValue({});
+  it("hands an app schedule to the app actions, without a job", async () => {
+    const schedule = { id: "schedule-1", projectId: "space-1", action: "app_restore_data", taskTemplateId: null, backupId: "backup-1" };
+    getSchedule.mockResolvedValue(schedule);
+    const run = jest.fn().mockResolvedValue(undefined);
 
-    const started = await new ClawOrchestrationService(() => ({ setPower })).executeScheduledTask("schedule-1");
+    const started = await new ClawOrchestrationService({ run }).executeScheduledTask("schedule-1");
 
     expect(started).toEqual({ executionId: "execution-1" });
-    expect(setPower).toHaveBeenCalledWith("space-1", "off");
+    expect(run).toHaveBeenCalledWith(schedule, { id: "execution-1", scheduleId: "schedule-1" });
     expect(getTemplate).not.toHaveBeenCalled();
-    expect(recordExecutionResult).toHaveBeenCalledWith("execution-1", { status: "completed", result: { power: "off" } });
-    expect(sendWebhook.mock.calls.map((call) => call[2])).toEqual(["started", "completed"]);
+    expect(recordExecutionResult).not.toHaveBeenCalled();
   });
 
-  it("fails the run when the app can't be turned on", async () => {
+  it("fails the run when the app action can't be done", async () => {
     getSchedule.mockResolvedValue({ id: "schedule-1", projectId: "space-1", action: "app_start", taskTemplateId: null });
-    const setPower = jest.fn().mockRejectedValue(new Error("This space is archived, so its app stays off."));
+    const run = jest.fn().mockRejectedValue(new Error("This space is archived, so its app stays off."));
 
-    await expect(new ClawOrchestrationService(() => ({ setPower })).executeScheduledTask("schedule-1")).rejects.toThrow("archived");
+    await expect(new ClawOrchestrationService({ run }).executeScheduledTask("schedule-1")).rejects.toThrow("archived");
 
-    expect(setPower).toHaveBeenCalledWith("space-1", "on");
     expect(recordExecutionResult).toHaveBeenCalledWith("execution-1", {
       status: "failed",
       errorMessage: "This space is archived, so its app stays off.",

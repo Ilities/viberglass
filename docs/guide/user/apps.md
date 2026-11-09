@@ -47,6 +47,7 @@ Maintainers also see:
 
 - Turn off and Turn on. While the app is off, people who open it see a page naming the space's maintainers.
 - Roll back and Make live on earlier releases.
+- Back up now, which copies the app's data. A running app stops for a moment while it's copied and starts again.
 - Settings and Who can open it, below.
 - Logs, the app's recent output.
 
@@ -61,7 +62,7 @@ The newer code stays in the repository, so the next change made live brings it b
 
 ![Rolling back to an earlier release, with the choice between code only and code and data](../images/app-rollback.png)
 
-Viberglass keeps the releases and data backups needed for this for a while: by default the last five releases that went live, and backups from the last 30 days. Older releases show as Removed.
+Viberglass keeps the releases and data backups needed for this for a while: by default the last five releases that went live, and backups from the last 30 days. A backup a schedule restores is kept as long as that schedule exists. Older releases show as Removed.
 
 ## Who can open an app
 
@@ -87,6 +88,10 @@ Names starting with `VIBERGLASS_`, `AWS_` or `LITESTREAM_`, and `PORT`, `HOME`, 
 
 An app that nobody uses at night can be off then. The App page offers to add two schedules, off at 22:00 and on at 07:00 in your time zone; Not now hides the offer. Under the space's Schedules tab, maintainers can change those or add their own with Turn the app on or Turn the app off as what the schedule does. See [Schedules](schedules.md).
 
+## Resetting the data on a schedule
+
+A demo or training app can go back to the same data every hour, or every night. Set up the data in the app, choose Back up now on the App page, then add a schedule under the space's Schedules tab with Restore app data as what it does and that backup under Backup. Backups taken when releases went live are listed too. Each run stops the app, puts the backup's data in place of the live data and starts the app again; the App page shows Restoring the app's data from a backup while it does. Whatever people changed since the backup is lost. See [Schedules](schedules.md#app-schedules).
+
 ## Giving the agent the app's data
 
 The agent doesn't see the app's data, only its code. When a change needs it, for example to find out why some records look wrong, a maintainer can choose Give the next turn the app's data in the task's thread. Viberglass copies the live data, and the agent's next turn on that task can read the copy. What it reads also goes to the agent's model provider. The copy is deleted once that turn ends, or after a day if no turn takes it, and Withdraw cancels it before then. The agent never changes the live data; fixing data is a change like any other.
@@ -103,7 +108,7 @@ A Git space's repository can become an app. The space's connection has to be abl
 
 When an app outgrows what Viberglass runs, such as needing Postgres or several servers, choose Stop hosting the app in the space's Settings, under General. The space carries on as a Git space on the same repository, with its tasks, members and history.
 
-The app stops for good. Its previews, access list, settings and secrets, and the schedules that turn it on and off are removed. People who could only open this app keep their accounts, with nothing to open. A last copy of its data is kept, for 30 days unless an admin changed that: Download the app's last data gives it as a SQLite file, and making the space an App space again can start from it.
+The app stops for good. Its previews, access list, settings and secrets, and its app schedules are removed. People who could only open this app keep their accounts, with nothing to open. A last copy of its data is kept, for 30 days unless an admin changed that: Download the app's last data gives it as a SQLite file, and making the space an App space again can start from it.
 
 ## Archiving and deleting
 

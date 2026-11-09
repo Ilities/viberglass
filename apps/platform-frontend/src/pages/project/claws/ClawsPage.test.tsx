@@ -37,7 +37,7 @@ const TEMPLATE: ClawTaskTemplateSummary = {
   id: 't-1', projectId: 'space-1', name: 'Weekly tidy', description: null, clankerId: 'a-1', secretBindings: [], createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:00:00Z',
 }
 const SCHEDULE: ClawScheduleSummary = {
-  id: 's-1', projectId: 'space-1', action: 'run_template', taskTemplateId: 't-1', name: 'Mondays', description: null,
+  id: 's-1', projectId: 'space-1', action: 'run_template', taskTemplateId: 't-1', backupId: null, name: 'Mondays', description: null,
   scheduleType: 'interval', intervalExpression: '1w', cronExpression: null, timezone: 'UTC', isActive: true,
   lastRunAt: null, nextRunAt: null, runCount: 2, failureCount: 0, createdAt: '', updatedAt: '',
 }

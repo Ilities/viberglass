@@ -91,6 +91,7 @@ export const SPACE_AUDIT: AuditRule[] = [
   { method: "POST", path: "/:projectId/backing/git", action: "space.ejected_app", targetType: "space", targetParam: "projectId" },
   { method: "POST", path: "/:projectId/app/on", action: "app.turned_on", targetType: "space", targetParam: "projectId" },
   { method: "POST", path: "/:projectId/app/off", action: "app.turned_off", targetType: "space", targetParam: "projectId" },
+  { method: "POST", path: "/:projectId/app/backups", action: "app.backed_up", targetType: "space", targetParam: "projectId" },
   {
     method: "POST",
     path: "/:projectId/app/releases/:releaseId/restore",

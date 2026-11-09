@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { AppAccess } from './app-access'
 import { AppLogs } from './app-logs'
 import { AppSettings } from './app-settings'
+import { BackUpButton } from './back-up-button'
 import { NightScheduleHint } from './night-schedule-hint'
 import { ReleasesTable, shortSha } from './releases-table'
 import { RollbackDialog } from './rollback-dialog'
@@ -115,6 +116,9 @@ export function AppPage() {
                   {app.power === 'on' ? 'Turn off' : 'Turn on'}
                 </Button>
               )}
+              {canMaintain && app.currentRelease && (
+                <BackUpButton projectId={project.id} app={app} onStarted={setApp} />
+              )}
             </>
           )
         }
@@ -180,13 +184,13 @@ export function AppPage() {
 
 /** A release is building, or the app was turned on or off and hasn't started doing so yet. */
 function awaitingChange(app: AppView): boolean {
-  if (app.rollback) return true
+  if (app.rollback || app.backupDue || app.dataRestoreDue) return true
   if (app.releases.some((release) => release.status === 'building')) return true
   if (app.power === 'off') return app.state !== 'off'
   return app.state === 'off' && app.releases.some((release) => release.status === 'ready' && !release.liveFailure)
 }
 
-/** A rollback under way, or the newer code a rollback took out, which the next change made live brings back. */
+/** A rollback, restore or backup under way, or the newer code a rollback took out, which the next change made live brings back. */
 function RollbackNotice({ app }: { app: AppView }) {
   const pending = app.rollback && app.releases.find((release) => release.id === app.rollback?.releaseId)
   const current = app.currentRelease
@@ -194,15 +198,22 @@ function RollbackNotice({ app }: { app: AppView }) {
     current && app.releases.some((release) => release.rolledBackAt && release.createdAt > current.createdAt)
   const message = pending
     ? `Switching to release ${shortSha(pending.commitSha)}${app.rollback?.withData ? ' with its data' : ''}…`
-    : setAside
-      ? 'Newer releases were rolled back. Their code is still in the repository, so the next change made live brings it back.'
-      : null
+    : (dataWorkUnderWay(app) ??
+      (setAside
+        ? 'Newer releases were rolled back. Their code is still in the repository, so the next change made live brings it back.'
+        : null))
   if (!message) return null
   return (
     <p role="status" className="mb-4 rounded-md bg-[var(--gray-3)] px-4 py-3 text-sm text-[var(--gray-11)]">
       {message}
     </p>
   )
+}
+
+function dataWorkUnderWay(app: AppView): string | null {
+  if (app.dataRestoreDue) return "Restoring the app's data from a backup…"
+  if (app.backupDue) return "Backing up the app's data…"
+  return null
 }
 
 function AppSummary({ app }: { app: AppView }) {

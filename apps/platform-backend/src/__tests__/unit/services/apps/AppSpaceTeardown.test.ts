@@ -8,7 +8,7 @@ import { appPreview, fakeAppHost } from "../../../helpers/fakeAppHost";
 jest.mock("../../../../persistence/config/database", () => ({ __esModule: true, default: {} }));
 
 const NOW = new Date("2026-11-05T12:00:00Z");
-const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false };
+const APP: AppRecord = { projectId: "space-1", power: "on", state: "running", statusMessage: null, currentReleaseId: "r1", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, dataRestore: null, backupDue: false };
 const REPOSITORY = { fullName: "acme/laptops", url: "https://github.com/acme/laptops" };
 
 function build(options: { app?: AppRecord | null; archive?: RepositoryHost["archiveRepository"]; unavailable?: string } = {}) {

@@ -1,10 +1,11 @@
+import type { AppDataBackup, AppDataBackupReason } from "@viberglass/types";
 import db from "../config/database";
 
 export interface NewAppDataBackup {
   id: string;
   projectId: string;
-  reason: "release" | "rollback" | "archive" | "eject";
-  /** The release being switched to; null for the copy kept when the space was archived or ejected. */
+  reason: AppDataBackupReason;
+  /** The release being switched to; null for a copy taken by hand or kept when the space was archived or ejected. */
   releaseId: string | null;
   /** The release whose data it is; null when nothing was serving. */
   fromReleaseId: string | null;
@@ -33,6 +34,30 @@ export class AppDataBackupDAO {
         bytes: backup.bytes,
       })
       .execute();
+  }
+
+  async getById(backupId: string): Promise<{ id: string; projectId: string } | null> {
+    const row = await db.selectFrom("app_data_backups").select(["id", "project_id"]).where("id", "=", backupId).executeTakeFirst();
+    return row ? { id: row.id, projectId: row.project_id } : null;
+  }
+
+  /** Newest first. */
+  async list(projectId: string, limit: number): Promise<AppDataBackup[]> {
+    const rows = await db
+      .selectFrom("app_data_backups as b")
+      .leftJoin("app_releases as r", "r.id", "b.from_release_id")
+      .select(["b.id", "b.reason", "b.created_at", "b.bytes", "r.id as release_id", "r.commit_sha"])
+      .where("b.project_id", "=", projectId)
+      .orderBy("b.created_at", "desc")
+      .limit(limit)
+      .execute();
+    return rows.map((row) => ({
+      id: row.id,
+      reason: row.reason,
+      takenAt: row.created_at.toISOString(),
+      fromRelease: row.release_id && row.commit_sha ? { id: row.release_id, commitSha: row.commit_sha } : null,
+      bytes: Number(row.bytes),
+    }));
   }
 
   async dataPoints(projectId: string): Promise<DataPoint[]> {

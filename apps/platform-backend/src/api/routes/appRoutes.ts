@@ -1,5 +1,6 @@
 import type { Router } from "express";
 import type { AppPower } from "@viberglass/types";
+import type { AppBackupService } from "../../services/apps/AppBackupService";
 import type { AppRollbackService } from "../../services/apps/AppRollbackService";
 import type { AppService } from "../../services/apps/AppService";
 import type { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
@@ -15,6 +16,7 @@ export function registerAppRoutes(
   apps: Pick<AppService, "view" | "setPower" | "logs">,
   access: Pick<SpaceAccessService, "assertCanMaintain">,
   rollbacks: Pick<AppRollbackService, "restore">,
+  backups: Pick<AppBackupService, "list" | "requestBackup">,
 ): void {
   router.get("/:projectId/app", validateUuidParam("projectId"), async (req, res, next) => {
     try {
@@ -50,6 +52,23 @@ export function registerAppRoutes(
       }
     },
   );
+
+  router.get("/:projectId/app/backups", validateUuidParam("projectId"), async (req, res, next) => {
+    try {
+      res.json({ success: true, data: await backups.list(req.params.projectId) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/:projectId/app/backups", validateUuidParam("projectId"), async (req, res, next) => {
+    try {
+      await backups.requestBackup(req.params.projectId);
+      res.status(202).json({ success: true, data: await apps.view(req.params.projectId) });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // What an app prints can include its data, so only maintainers read it.
   router.get("/:projectId/app/logs", validateUuidParam("projectId"), async (req, res, next) => {

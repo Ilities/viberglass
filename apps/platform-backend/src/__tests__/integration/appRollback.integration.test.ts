@@ -91,6 +91,9 @@ beforeAll(async () => {
   await releaseTasksUp(mockDb);
   await previewsUp(mockDb);
   await up(mockDb);
+  // Later migrations' columns that the retention query reads.
+  await sql`ALTER TABLE apps ADD COLUMN restore_backup_id uuid`.execute(mockDb);
+  await sql`CREATE TABLE claw_schedules (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), backup_id uuid)`.execute(mockDb);
 }, 60_000);
 
 afterAll(async () => {
