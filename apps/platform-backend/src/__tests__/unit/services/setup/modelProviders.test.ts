@@ -28,6 +28,14 @@ describe("model provider catalog", () => {
     });
   });
 
+  it("runs DeepSeek keys on DeepSeek Harness with a DeepSeek model", () => {
+    expect(getDefaultAgentBindingForProvider("deepseek")).toMatchObject({
+      agent: "deepseek-harness",
+      envVar: "DEEPSEEK_API_KEY",
+      model: "deepseek-v4-pro",
+    });
+  });
+
   it("offers Pi for Anthropic keys without making it the default", () => {
     expect(AGENT_PROVIDER_BINDINGS).toContainEqual(
       expect.objectContaining({ agent: "pi", provider: "anthropic", default: false }),
