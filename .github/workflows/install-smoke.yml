@@ -192,6 +192,10 @@ jobs:
           docker pull "$REGISTRY/viberglass-frontend:$VERSION"
           docker tag "$REGISTRY/viberglass-backend:$VERSION" viberglass-k8s-backend:local
           docker tag "$REGISTRY/viberglass-frontend:$VERSION" viberglass-k8s-frontend:local
+          for app in runtime builder; do
+            docker pull "$REGISTRY/viberglass-app-$app-node:$VERSION"
+            docker tag "$REGISTRY/viberglass-app-$app-node:$VERSION" "viberglass-app-$app-node:local"
+          done
           docker build -f infra/workers/docker/generated/fake.Dockerfile \
             --build-arg BASE_IMAGE="$REGISTRY/viberator-base-worker:$VERSION" \
             -t viberator-worker-fake:local .
