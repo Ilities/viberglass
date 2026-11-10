@@ -19,6 +19,14 @@ Viberglass runs these coding agents, each in its own worker image:
 
 The agents on offer are the harness plugins listed in `viberglass.plugins.json` at the repository root, built into the backend and worker images. Adding or removing one means building your own images; see the [agent plugins README](https://github.com/Ilities/viberglass/blob/main/packages/agents/README.md).
 
+### How agents run
+
+An agent runs its commands and tool calls in its worker without asking for permission. Claude Code runs with its permission checks off rather than in its auto mode, which asks an Anthropic model to review each call and so can't work on a custom endpoint. Claude Code adds no attribution lines of its own to commits or pull requests.
+
+Agents ask people their questions through Viberglass, which shows each one as a question card. The built-in question tools of Qwen CLI and Kimi Code are turned off, since nobody could answer them in a worker.
+
+When a model provider refuses requests for a usage limit, Kimi Code and OpenCode wait for the limit to reset without saying so. When the reset is more than five minutes away, Viberglass stops the run with the provider's error instead of letting it wait.
+
 ## Create a runner
 
 Open Settings → Agents and choose New agent.

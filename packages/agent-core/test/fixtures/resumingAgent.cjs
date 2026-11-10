@@ -10,6 +10,8 @@
 //   AGENT_MODEL=glm-5            the model its session replies name, as a model config option
 //   AGENT_RESPONSE_MODEL=x       the model its usage_update names in _meta, as the model its replies came from
 //   AGENT_PROMPT_USAGE=900/50/600 the usage each prompt's result reports (input/output/cache read)
+//   AGENT_TURN_FAILURE=error:x   each prompt ends with this failure (severity:title) in its result's _meta, as codex-acp
+//                                does for a client that asks for failures through the AIR extension
 //   AGENT_STATS=1000             answers /session with its totals, as pi-acp does: a continued session starts at 1000 input tokens; each prompt adds 100 in, 10 out, $0.001
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
@@ -25,6 +27,7 @@ let continued = false;
 let failedOnce = false;
 let mcpServers = [];
 let totals = { input: 0, output: 0, cost: 0 };
+let reportsFailures = false;
 
 const say = (sessionId, text) =>
   send({ method: "session/update", params: { sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } } } });
@@ -42,6 +45,8 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const msg = JSON.parse(line);
   calls.push(msg.method);
   if (msg.method === "initialize") {
+    const air = msg.params.clientCapabilities?._meta?.jetbrains?.air;
+    reportsFailures = air?.version >= 1 && Array.isArray(air.capabilities) && air.capabilities.includes("sessionFailure");
     return send({
       id: msg.id,
       result: {
@@ -87,6 +92,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const usage = process.env.AGENT_PROMPT_USAGE?.split("/").map(Number);
     const promptUsage = usage ? { usage: { inputTokens: usage[0], outputTokens: usage[1], cachedReadTokens: usage[2], totalTokens: usage[0] + usage[1] } } : {};
-    return send({ id: msg.id, result: { stopReason: "end_turn", ...promptUsage } });
+    const failure = process.env.AGENT_TURN_FAILURE && reportsFailures ? process.env.AGENT_TURN_FAILURE.split(":") : null;
+    const failureMeta = failure
+      ? { _meta: { jetbrains: { air: { version: 1, sessionFailure: { id: "turn-1:error", revision: 1, category: "limit", severity: failure[0], title: failure.slice(1).join(":"), actions: ["retry"] } } } } }
+      : {};
+    return send({ id: msg.id, result: { stopReason: "end_turn", ...promptUsage, ...failureMeta } });
   }
 });

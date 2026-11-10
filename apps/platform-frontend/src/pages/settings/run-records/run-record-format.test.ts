@@ -6,6 +6,7 @@ import {
   formatRanModel,
   formatRunCost,
   formatRunResult,
+  formatStopReason,
   formatTokenSummary,
   runRecordHref,
 } from './run-record-format'
@@ -76,6 +77,19 @@ describe('formatRunResult', () => {
   })
 })
 
+describe('formatStopReason', () => {
+  it('leaves out a reason that only repeats the result', () => {
+    expect(formatStopReason(record({ success: true, stopReason: 'completed' }))).toBeNull()
+    expect(formatStopReason(record({ success: false, stopReason: 'failed' }))).toBeNull()
+    expect(formatStopReason(record({ stopReason: null }))).toBeNull()
+  })
+
+  it('shows a reason that adds to the result', () => {
+    expect(formatStopReason(record({ success: false, stopReason: 'timeout' }))).toBe('timeout')
+    expect(formatStopReason(record({ success: false, stopReason: 'completed' }))).toBe('completed')
+  })
+})
+
 describe('formatPullRequestState', () => {
   it('is null without a pull request', () => {
     expect(formatPullRequestState(record())).toBeNull()
@@ -135,5 +149,9 @@ describe('formatRanModel', () => {
 
   it('is null when the run reported no model', () => {
     expect(formatRanModel(record())).toBeNull()
+  })
+
+  it("doesn't name the runner's model for a run that reached none", () => {
+    expect(formatRanModel(record({ requestedModel: 'gpt-5.5-codex', modelSnapshot: null, success: false }))).toBeNull()
   })
 })

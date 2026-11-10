@@ -5,6 +5,10 @@ import { Logger } from "winston";
 import * as path from "path";
 import type { ClaudeCodeConfig } from "./config";
 import { claudeModelEndpointEnvironment } from "./claudeModelEndpoint";
+import { claudeConfigDirectory, writeClaudeCodeSettings } from "./claudeCodeSettings";
+
+/** Claude Code refuses to skip permission checks as root unless told it runs in a sandbox, which a worker is. */
+const SANDBOXED = { IS_SANDBOX: "1" };
 
 export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
   constructor(config: ClaudeCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -20,6 +24,11 @@ export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
+    writeClaudeCodeSettings(claudeConfigDirectory(process.env, this.resolveHomeDirectory(process.env.HOME)));
+    return { ...this.modelEnvironment(), ...SANDBOXED };
+  }
+
+  private modelEnvironment(): NodeJS.ProcessEnv {
     const endpoint = currentModelEndpoint();
     if (endpoint) return claudeModelEndpointEnvironment(endpoint);
     return {

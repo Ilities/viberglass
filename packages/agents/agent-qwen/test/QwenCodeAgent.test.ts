@@ -142,6 +142,18 @@ describe("QwenCodeAgent CLI invocation", () => {
   });
 });
 
+describe("QwenCodeAgent over ACP", () => {
+  test("leaves out Qwen's own question tool, so questions go through the worker's MCP server", () => {
+    expect(new TestQwenCodeAgent(createQwenConfig()).getAcpServerCommand()).toEqual([
+      "qwen",
+      "--acp",
+      "--yolo",
+      "--exclude-tools",
+      "ask_user_question",
+    ]);
+  });
+});
+
 describe("QwenCodeAgent usage", () => {
   test("says its ACP input tokens include cached ones, so they're taken out", () => {
     expect(new TestQwenCodeAgent(createQwenConfig()).acpInputIncludesCache()).toBe(true);

@@ -10,6 +10,10 @@ describe("classifyAgentFailure", () => {
     ['{"type":"error","error":{"type":"insufficient_quota"}}'],
     ["Your credit balance is too low to access the Anthropic API"],
     ["429 Too Many Requests: rate_limit_error"],
+    ["exceeded retry limit, last status: 429 Too Many Requests"],
+    ["The model provider refused the agent's request (HTTP 429): Go usage limit exceeded. The agent would wait 2 hours 19 minutes to try again, so the run stopped."],
+    ["The model provider refused the agent's request: 5h usage limit reached. It will reset in 2 hours 14 minutes. The agent would wait 2 hours 14 minutes to try again, so the run stopped."],
+    ["Go usage limit exceeded (provider.rate_limit, HTTP 429)"],
   ])("recognises provider quota errors: %s", (message) => {
     expect(classifyAgentFailure(message)).toBe(JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED);
   });

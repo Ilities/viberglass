@@ -34,6 +34,14 @@ export function formatRunResult(record: RunRecord): { label: string; color: Badg
   return { label: 'No result', color: 'zinc' }
 }
 
+/** The stop reason when it says more than the result does: "timeout", never "failed" beside Failed. */
+export function formatStopReason(record: RunRecord): string | null {
+  const reason = record.stopReason
+  if (!reason) return null
+  if ((record.success === true && reason === 'completed') || (record.success === false && reason === 'failed')) return null
+  return reason
+}
+
 /** The PR's outcome; "Not checked" until the outcome sweeper has read it. */
 export function formatPullRequestState(record: RunRecord): { label: string; color: BadgeColor } | null {
   const pullRequest = record.pullRequest

@@ -42,4 +42,23 @@ describe("defaultAcpEventMapper tool calls", () => {
       { eventType: "tool_call_completed", payload: { toolName: "", toolCallId: "c1", error: "No such file", success: false } },
     ]);
   });
+
+  it("takes a failed call's error from its content, as claude-agent-acp sends it, without the code fence", () => {
+    const [failed] = update({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "c1",
+      status: "failed",
+      content: [{ type: "content", content: { type: "text", text: "```\nPermission check unavailable: the safety classifier could not be reached\n```" } }],
+    });
+    expect(failed.payload).toEqual({
+      toolName: "",
+      toolCallId: "c1",
+      error: "Permission check unavailable: the safety classifier could not be reached",
+      success: false,
+    });
+  });
+
+  it("takes a failed call's error from a string rawOutput", () => {
+    expect(update({ sessionUpdate: "tool_call_update", toolCallId: "c1", status: "failed", rawOutput: "exit code 2" })[0].payload.error).toBe("exit code 2");
+  });
 });

@@ -68,13 +68,14 @@ export class AcpExecutor {
         coldStartMessage: context.coldStartPrompt,
         compactInstructions: context.compactInstructions,
         mcpServers,
+        providerRetries: agent.getAcpProviderRetries(harnessConfigDir),
       });
 
       const turnError = await agent.acpTurnError(result.acpSessionId);
       if (turnError) throw new Error(turnError);
 
-      // What the harness says the session runs beats what the runner asked for.
-      const model = result.model ?? result.usage?.model ?? agent.configuredModel();
+      // Only a model the harness named; the runner's own setting is recorded apart, as the requested model.
+      const model = result.model ?? result.usage?.model;
       const usage = result.usage && agent.acpInputIncludesCache() ? withUncachedInput(result.usage) : result.usage;
 
       this.logger.info("AcpExecutor completed", {

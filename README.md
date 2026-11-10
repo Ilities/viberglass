@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
 
-An open-source, self-hosted AI workspace for small and medium-sized companies. Anyone on the team asks for what they need in a task, and agents do the work: an internal app that Viberglass builds and runs, a document or presentation, or a change to your product that arrives as a pull request. The people who know the work stay in the conversation: the agent asks them when it's unsure, they review its plan and its results, and they decide when it's done.
+Viberglass is an open-source internal tool builder that you host yourself, where coding agents write the apps. Anyone on the team describes the tool they need in a task, such as an equipment tracker or an approval list. The agent builds it and asks the requester when something is unclear. Each change runs in a preview with a copy of the live data before the requester or a maintainer makes it live. Viberglass keeps the code in a private repository, signs people in, backs up the data and can roll back any release. The same tasks can produce documents and presentations, or change your own product through a reviewed GitHub pull request.
 
 Viberglass runs on your own servers, with the coding agents and models you choose. Your tasks, files, app data and code stay there, and there's no Viberglass cloud or account to sign up for. Agents send a model only what the task in front of them needs, with your own key, and with a model you host yourself nothing leaves your network.
 

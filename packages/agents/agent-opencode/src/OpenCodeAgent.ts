@@ -1,13 +1,14 @@
 import { BaseAgent, type AgentOutputNormalizer } from "@viberglass/agent-core";
 import { parseOpenCodeRunJsonUsage } from "./openCodeUsage";
 import { OpenCodeOutputNormalizer } from "./OpenCodeOutputNormalizer";
-import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpProviderRetryReader, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 import type { OpenCodeConfig } from "./config";
 import { readOpenCodeSessionDetails } from "./readOpenCodeSessionDetails";
 import { withOpenCodeModel } from "./withOpenCodeModel";
+import { openCodeRetries, writeOpenCodeRetryRecorder } from "./openCodeRetries";
 
 export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
   protected override createOutputNormalizer(): AgentOutputNormalizer {
@@ -36,10 +37,6 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
     );
   }
 
-  override configuredModel(): string | undefined {
-    return this.resolveModel();
-  }
-
   protected requiresApiKey(): boolean {
     // OpenCode can resolve provider credentials from several env keys.
     return false;
@@ -66,10 +63,19 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
     if (model) {
       env.OPENCODE_CONFIG_CONTENT = withOpenCodeModel(process.env.OPENCODE_CONFIG_CONTENT, model);
     }
-    if (fs.existsSync(harnessConfigDir)) {
-      env.OPENCODE_CONFIG_DIR = harnessConfigDir;
-    }
+    env.OPENCODE_CONFIG_DIR = this.configDirectory(harnessConfigDir);
+    writeOpenCodeRetryRecorder(env.OPENCODE_CONFIG_DIR);
     return env;
+  }
+
+  public override getAcpProviderRetries(harnessConfigDir: string): AcpProviderRetryReader {
+    return openCodeRetries(this.configDirectory(harnessConfigDir));
+  }
+
+  /** The run's harness config when it has one, else the image's config directory. */
+  private configDirectory(harnessConfigDir: string): string {
+    if (fs.existsSync(harnessConfigDir)) return harnessConfigDir;
+    return this.getNonEmptyTrimmedString(process.env.OPENCODE_CONFIG_DIR) ?? harnessConfigDir;
   }
 
   protected async executeAgentCLI(

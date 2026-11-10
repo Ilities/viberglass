@@ -31,10 +31,10 @@ ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
 
 # Harnesses install here, before the app, so a code change doesn't reinstall them.
 # Lambda fragment: Claude Code agent (Amazon Linux, as root)
-RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
+RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp@0.104.1
 
 # Lambda fragment: Qwen Code CLI agent (Amazon Linux, as root)
-RUN npm install -g @qwen-code/qwen-code@latest
+RUN npm install -g @qwen-code/qwen-code@0.27.1
 
 # Lambda fragment: OpenCode agent (Amazon Linux, as root)
 RUN npm install -g opencode-ai@1.19.5

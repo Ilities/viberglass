@@ -9,7 +9,7 @@ ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viber
 
 # Fragment: Qwen Code CLI agent
 # Source: https://qwenlm.github.io/qwen-code-docs/
-RUN npm install -g @qwen-code/qwen-code@latest
+RUN npm install -g @qwen-code/qwen-code@0.27.1
 
 RUN which qwen || echo "Warning: qwen not found in PATH"
 

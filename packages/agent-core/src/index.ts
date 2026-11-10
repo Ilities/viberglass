@@ -45,6 +45,7 @@ export { StreamJsonNormalizer, normalizeStreamJsonLine } from "./StreamJsonNorma
 export type { AcpHttpMcpServer, AcpMcpServer, AcpStdioMcpServer, PlatformSessionEvent } from "./acp/types";
 export type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 export type { AcpSessionTotals, AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
+export type { AcpProviderRetry, AcpProviderRetryReader } from "./acp/providerRetry";
 export {
   defaultAcpEventMapper,
 } from "./acp/acpEventMapper";

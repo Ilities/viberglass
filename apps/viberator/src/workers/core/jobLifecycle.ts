@@ -21,6 +21,7 @@ import { JobFailureError } from "./JobFailureError";
 import type { JobRunnerParams, ManifestScratch } from "./jobPipeline";
 import { startWorkerHeartbeat } from "./workerHeartbeat";
 import { changedFileCount } from "./changedFileCount";
+import { runStopReason } from "./runStopReason";
 
 /**
  * Wraps a job runner function with shared error handling and result callbacks.
@@ -220,11 +221,7 @@ function buildExecutionManifest(
     usageAvailable: scratch?.usageAvailable ?? false,
     costUsd: scratch?.costUsd,
     costProvenance: scratch?.costProvenance ?? "unavailable",
-    // The agent's own stop reason when it got that far, otherwise the job
-    // outcome — a job can fail during clone or PR creation, never reaching
-    // the agent at all.
-    stopReason:
-      scratch?.stopReason ?? (outcome.success ? "completed" : "failed"),
+    stopReason: runStopReason(scratch?.stopReason, outcome.success),
     success: outcome.success,
     errorMessage: outcome.errorMessage,
     startedAt: scratch?.startedAt,

@@ -33,6 +33,26 @@ function outputOf(params: Record<string, unknown>): string {
   return "";
 }
 
+/** A whole text wrapped in one code fence, as some ACP servers send a tool's error. */
+const FENCED = /^```[^\n]*\n([\s\S]*?)\n?```$/;
+
+/** The text blocks of a tool call's ACP `content`, which is where most harnesses put a failed call's error. */
+function contentTextOf(params: Record<string, unknown>): string {
+  if (!Array.isArray(params.content)) return "";
+  const text = params.content
+    .flatMap((item) => (isRecord(item) && isRecord(item.content) && typeof item.content.text === "string" ? [item.content.text] : []))
+    .join("\n")
+    .trim();
+  return text.replace(FENCED, "$1").trim();
+}
+
+function errorOf(params: Record<string, unknown>): string {
+  if (typeof params.error === "string" && params.error) return truncated(params.error);
+  if (isRecord(params.rawOutput) && typeof params.rawOutput.error === "string" && params.rawOutput.error) return truncated(params.rawOutput.error);
+  if (typeof params.rawOutput === "string" && params.rawOutput) return truncated(params.rawOutput);
+  return truncated(contentTextOf(params));
+}
+
 /** The files a tool call touches, as ACP's `locations` name them. */
 function locationsOf(params: Record<string, unknown>): string[] {
   if (!Array.isArray(params.locations)) return [];
@@ -64,10 +84,7 @@ function mapToolCallUpdate(params: Record<string, unknown>): PlatformSessionEven
   }
 
   if (state === "failed" || state === "error") {
-    const error =
-      typeof params.error === "string" ? params.error :
-      isRecord(params.rawOutput) && typeof params.rawOutput.error === "string" ? params.rawOutput.error : "";
-    return [{ eventType: "tool_call_completed", payload: { toolName, toolCallId, error, success: false } }];
+    return [{ eventType: "tool_call_completed", payload: { toolName, toolCallId, error: errorOf(params), success: false } }];
   }
 
   return [];

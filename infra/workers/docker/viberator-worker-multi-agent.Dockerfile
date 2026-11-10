@@ -44,13 +44,13 @@ ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viber
 # Fragment: Claude Code agent
 # Source: https://github.com/anthropics/claude-code
 # The ACP adapter moved from @zed-industries (frozen at 0.23.1) to @agentclientprotocol.
-RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
+RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp@0.104.1
 
 RUN which claude || echo "Warning: claude not found in PATH"
 
 # Fragment: Qwen Code CLI agent
 # Source: https://qwenlm.github.io/qwen-code-docs/
-RUN npm install -g @qwen-code/qwen-code@latest
+RUN npm install -g @qwen-code/qwen-code@0.27.1
 
 RUN which qwen || echo "Warning: qwen not found in PATH"
 

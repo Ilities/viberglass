@@ -127,6 +127,25 @@ describe("AcpClient sessions", () => {
     expect(progress).toContain("This agent can't connect to MCP servers over HTTP, so it runs without: linear");
   });
 
+  describe("a turn the harness ended normally but reported as failed", () => {
+    it("fails with the harness's error, as codex-acp reports a model provider's 429", async () => {
+      await expect(runTurn({ AGENT_SUPPORTS: "", AGENT_TURN_FAILURE: "error:exceeded retry limit, last status: 429 Too Many Requests" })).rejects.toThrow(
+        "exceeded retry limit, last status: 429 Too Many Requests",
+      );
+    });
+
+    it("fails a continued session's turn without starting over cold", async () => {
+      await expect(
+        runTurn({ AGENT_SUPPORTS: "resume", AGENT_KNOWS: "sess_old", AGENT_TURN_FAILURE: "error:stream disconnected" }, "sess_old"),
+      ).rejects.toThrow("stream disconnected");
+    });
+
+    it("carries on after a retry warning the harness recovered from", async () => {
+      const { result } = await runTurn({ AGENT_SUPPORTS: "", AGENT_TURN_FAILURE: "warning:Reconnecting… 1/5" });
+      expect(result.acpSessionId).toBe("sess_new");
+    });
+  });
+
   describe("with a prompt for a cold start", () => {
     const COLD = "The task so far, then: Carry on";
 

@@ -28,6 +28,12 @@ test("records the model the harness reported when the run has no endpoint", () =
   expect(record({ model: "kimi-k3.1-pro" }).modelSnapshot).toBe("kimi-k3.1-pro");
 });
 
+test("a run whose harness reported neither usage nor a model ran no model, endpoint or not", () => {
+  expect(record({ cost: 0.5 }).modelSnapshot).toBeUndefined();
+  expect(record({ cost: 0.5 }, endpoint).modelSnapshot).toBeUndefined();
+  expect(record({ usage: { inputTokens: 10 } }, endpoint).modelSnapshot).toBe("glm-5.3");
+});
+
 test("a run that reported no usage has no cost, not the plugin's estimate", () => {
   const manifest = record({ cost: 0.5 });
   expect(manifest.costUsd).toBeUndefined();

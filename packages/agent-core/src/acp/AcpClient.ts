@@ -6,11 +6,10 @@
  * One instance per job execution; stateless across jobs.
  */
 
-import { spawn, ChildProcess } from "child_process";
+import type { ChildProcess } from "child_process";
 import { Logger } from "winston";
 import type { AcpMcpServer, PlatformSessionEvent } from "./types";
 import { defaultAcpEventMapper } from "./acpEventMapper";
-import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
 import { ToolCallStartFilter } from "./ToolCallStartFilter";
 import { AcpTurnUsage } from "./AcpTurnUsage";
@@ -21,7 +20,12 @@ import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessi
 import { compactCommandOf, contextUsageOf, promptUsageOf, responseModelOf, type AcpContextUsage } from "./acpSessionSignals";
 import { describeLeftOutMcpServers, mcpServersSupportedBy } from "./mcpServerSupport";
 import { signalProcessGroup, stopAcpProcess } from "./stopAcpProcess";
+import { spawnAcpProcess } from "./spawnAcpProcess";
 import { acpErrorMessage } from "./acpErrorMessage";
+import { TURN_FAILURE_CAPABILITY_META, turnFailureOf } from "./acpTurnFailure";
+import { AcpRunTimers } from "./AcpRunTimers";
+import { ProviderRetryWatch } from "./ProviderRetryWatch";
+import type { AcpProviderRetryReader } from "./providerRetry";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -41,6 +45,8 @@ export interface AcpRunOptions {
   compactInstructions?: string;
   /** MCP servers the harness offers the agent as tools for this turn. */
   mcpServers?: AcpMcpServer[];
+  /** Where the harness records the provider refusals it waits out, for one that says nothing over ACP meanwhile. */
+  providerRetries?: AcpProviderRetryReader;
 }
 
 export interface AcpRunResult {
@@ -61,40 +67,6 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function spawnAcpProcess(
-  command: string[],
-  workDir: string,
-  env: NodeJS.ProcessEnv,
-  onLine: (line: string) => void,
-  onStderr: (chunk: string) => void,
-): ChildProcess {
-  const [cmd, ...args] = command;
-  if (!cmd) throw new Error("ACP command is empty");
-
-  const child = spawn(cmd, args, {
-    cwd: workDir,
-    env: withWorkingDirectory(env, workDir),
-    stdio: ["pipe", "pipe", "pipe"],
-    // Its own group, so stopping it reaches the processes it starts (codex app-server).
-    detached: true,
-  });
-
-  let buf = "";
-  child.stdout?.on("data", (data: Buffer) => {
-    buf += data.toString();
-    const lines = buf.split("\n");
-    buf = lines.pop() ?? "";
-    for (const line of lines) {
-      const t = line.trim();
-      if (t) onLine(t);
-    }
-  });
-
-  child.stderr?.on("data", (data: Buffer) => onStderr(data.toString().trim()));
-
-  return child;
-}
-
 interface PendingRequest {
   resolve: (v: unknown) => void;
   reject: (e: Error) => void;
@@ -106,7 +78,12 @@ const NOTHING_YET: AcpSessionTotals = { inputTokens: 0, outputTokens: 0, cacheRe
 /** Long enough for a quiet tool call such as a test suite; a working harness streams updates while its model runs. */
 const STALL_AFTER_MS = 20 * 60_000;
 
-const minutes = (ms: number) => `${Math.round(ms / 60_000)} minutes`;
+export interface AcpClientLimits {
+  /** How long the harness may stay quiet before its turn fails as stalled. */
+  stallAfterMs?: number;
+  /** How often the harness's records of provider refusals are read. */
+  providerRetryPollMs?: number;
+}
 
 export class AcpClient {
   private child?: ChildProcess;
@@ -124,9 +101,8 @@ export class AcpClient {
   private compactCommand: string | null = null;
   /** Why the harness process went away, once it has; requests after that fail straight away. */
   private exitReason?: string;
-  private stallTimer?: NodeJS.Timeout;
-  /** Halfway to the stall, so people watching the run hear before it's stopped. */
-  private stallWarningTimer?: NodeJS.Timeout;
+  private timers?: AcpRunTimers;
+  private retryWatch?: ProviderRetryWatch;
 
   constructor(
     private readonly command: string[],
@@ -137,7 +113,7 @@ export class AcpClient {
     private readonly timeoutMs: number,
     mapper?: AcpEventMapper,
     usageProbe?: AcpUsageProbe,
-    private readonly stallAfterMs = STALL_AFTER_MS,
+    private readonly limits: AcpClientLimits = {},
   ) {
     this.mapper = mapper ?? defaultAcpEventMapper;
     if (usageProbe) this.totalsProbe = new AcpSessionTotalsProbe(usageProbe);
@@ -157,20 +133,18 @@ export class AcpClient {
 
     const child = this.child;
     // Failing the turn right away lets cleanup escalate to SIGKILL if the harness ignores SIGTERM.
-    const timer = setTimeout(() => {
-      this.failPending(`Agent timed out after ${minutes(this.timeoutMs)}`);
+    const stop = (reason: string) => {
+      this.stopWatching();
+      this.failPending(reason);
       signalProcessGroup(child, "SIGTERM");
-    }, this.timeoutMs);
-    this.stallTimer = setTimeout(() => {
-      this.stopStallTimer();
-      this.failPending(`Agent stalled: its harness sent nothing for ${minutes(this.stallAfterMs)}`);
-      signalProcessGroup(child, "SIGTERM");
-    }, this.stallAfterMs);
-    this.stallWarningTimer = setTimeout(() => {
-      const text = `The agent hasn't sent anything for ${minutes(this.stallAfterMs / 2)}. If it stays quiet, the run stops as stalled after ${minutes(this.stallAfterMs)}, keeping its changes.`;
-      this.logger.warn("AcpClient harness has gone quiet", { quietForMs: this.stallAfterMs / 2 });
+    };
+    const stallAfterMs = this.limits.stallAfterMs ?? STALL_AFTER_MS;
+    this.timers = new AcpRunTimers(this.timeoutMs, stallAfterMs, stop, (text) => {
+      this.logger.warn("AcpClient harness has gone quiet", { quietForMs: stallAfterMs / 2 });
       this.onEvent({ eventType: "progress", payload: { text } });
-    }, this.stallAfterMs / 2);
+    });
+    this.timers.start();
+    if (options.providerRetries) this.retryWatch = new ProviderRetryWatch(options.providerRetries, stop, this.limits.providerRetryPollMs);
 
     child.on("error", (err) => {
       this.logger.error("AcpClient process spawn error", {
@@ -181,8 +155,7 @@ export class AcpClient {
     });
 
     child.on("close", (code, signal) => {
-      clearTimeout(timer);
-      this.stopStallTimer();
+      this.stopWatching();
       this.logger.info("AcpClient process exited", { code, signal });
       this.failPending(`Agent process exited unexpectedly (${signal ?? `code ${code}`})`);
     });
@@ -190,7 +163,7 @@ export class AcpClient {
     try {
       const initialized = await this.sendRequest("initialize", {
         protocolVersion: 1,
-        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, _meta: TURN_FAILURE_CAPABILITY_META },
       });
       this.turnUsage.noteInitialized(initialized);
       const opener = new AcpSessionOpener(
@@ -201,24 +174,29 @@ export class AcpClient {
       );
       const opened = await opener.open(sessionSupportOf(initialized), options.acpSessionId);
       this.currentSessionId = opened.sessionId;
+      this.retryWatch?.start(this.currentSessionId);
       let sessionStart = opened.start;
       this.reportSessionStart(sessionStart);
 
       const coldMessage = options.coldStartMessage ?? options.userMessage;
       this.turnUsage.startTurn(!sessionStart.resumed);
       let totalsBefore = sessionStart.resumed ? await this.sessionTotals() : NOTHING_YET;
+      let turn: unknown;
       try {
-        await this.prompt(sessionStart.resumed ? options.userMessage : coldMessage);
+        turn = await this.prompt(sessionStart.resumed ? options.userMessage : coldMessage);
       } catch (error) {
         // A harness can accept a load and then fail every prompt (opencode from another directory).
         if (!sessionStart.resumed) throw error;
         sessionStart = { resumed: false, reason: "failed", detail: error instanceof Error ? error.message : String(error) };
         this.currentSessionId = await opener.create();
+        this.retryWatch?.start(this.currentSessionId);
         this.reportSessionStart(sessionStart);
         this.turnUsage.startTurn(true);
         totalsBefore = NOTHING_YET;
-        await this.prompt(coldMessage);
+        turn = await this.prompt(coldMessage);
       }
+      const failure = turnFailureOf(turn);
+      if (failure) throw new Error(failure);
       const compacted = await this.compact(options.compactInstructions);
       if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
       return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: this.responseModel ?? opener.model };
@@ -236,12 +214,13 @@ export class AcpClient {
     return offered;
   }
 
-  private async prompt(text: string): Promise<void> {
+  private async prompt(text: string): Promise<unknown> {
     this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
     const result = await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text }] });
     // The harness's own context report is the better measure; a turn's usage is the fallback.
     this.contextUsage = this.contextUsage ?? promptUsageOf(result) ?? undefined;
     this.turnUsage.notePromptResult(result);
+    return result;
   }
 
   /** The session's totals from the harness's own command, for a harness that sends no usage over ACP. */
@@ -274,8 +253,7 @@ export class AcpClient {
   }
 
   private processLine(line: string): void {
-    this.stallTimer?.refresh();
-    this.stallWarningTimer?.refresh();
+    this.timers?.heard();
     let msg: unknown;
     try { msg = JSON.parse(line); } catch { return; }
     if (!isRecord(msg)) return;
@@ -337,12 +315,9 @@ export class AcpClient {
     });
   }
 
-  /** Dropped rather than only cleared: refreshing a fired or cleared timer starts it again. */
-  private stopStallTimer(): void {
-    clearTimeout(this.stallTimer);
-    clearTimeout(this.stallWarningTimer);
-    this.stallTimer = undefined;
-    this.stallWarningTimer = undefined;
+  private stopWatching(): void {
+    this.timers?.stop();
+    this.retryWatch?.stop();
   }
 
   private failPending(reason: string): void {
@@ -352,6 +327,7 @@ export class AcpClient {
   }
 
   private async cleanup(): Promise<void> {
+    this.stopWatching();
     this.failPending("ACP client closed");
     const child = this.child;
     this.child = undefined;

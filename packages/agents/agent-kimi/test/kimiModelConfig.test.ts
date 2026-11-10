@@ -34,6 +34,9 @@ describe("Kimi model endpoint", () => {
         `model = "qwen"`,
         `max_context_size = 32768`,
         ``,
+        `[tools]`,
+        `disabled = ["AskUserQuestion"]`,
+        ``,
       ].join("\n"),
     );
   });

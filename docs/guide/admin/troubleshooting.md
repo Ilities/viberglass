@@ -11,7 +11,7 @@ Each failure has a title on the task and in the run's record.
 | Repository not reachable | The worker couldn't clone: the address is wrong, or the token can't read the repository. | Check the space's Repository settings and its token. |
 | Couldn't push changes | The branch couldn't be pushed or the pull request opened: the token can't write. | Give the token write access to Contents and Pull requests, or check branch protection. |
 | Model key rejected | The provider refused the runner's key or login. | Replace the key on the runner, or sign in again for a ChatGPT login. |
-| Model quota used up | The provider refused for quota, credit or rate limits. | Add credit or wait for the limit, then try again. |
+| Model quota used up | The provider refused for quota, credit or rate limits. A Kimi Code or OpenCode run that would wait more than five minutes for a limit to reset stops with the provider's error. | Add credit or wait for the limit, then try again. |
 | Model context exceeded | The request didn't fit the model's context window. | Use a model with a larger context, or split the task. |
 | Agent couldn't start | No worker could be started for the run. | Check the runner's compute: Docker, the cluster, or the AWS stack. |
 | Worker ran out of memory | The worker used more memory than its runner allows and was stopped. | Give the runner more memory, then try again. |

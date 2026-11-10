@@ -117,3 +117,12 @@ it("keeps nothing when the agent failed for another reason", async () => {
   await expect(runSessionTurnJob(params())).rejects.toThrow("the agent gave up");
   expect(mockKeepPartialCode).not.toHaveBeenCalled();
 });
+
+it("fails with the turn's own error and opens no pull request when the model provider refused the turn", async () => {
+  mockExecute.mockRejectedValue(new JobFailureError(JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED, "exceeded retry limit, last status: 429 Too Many Requests"));
+
+  const error = await runSessionTurnJob(params()).catch((e: unknown) => e);
+
+  expect(error).toMatchObject({ code: JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED, message: "exceeded retry limit, last status: 429 Too Many Requests" });
+  expect(mockDeliver).not.toHaveBeenCalled();
+});

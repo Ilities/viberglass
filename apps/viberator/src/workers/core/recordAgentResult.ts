@@ -26,7 +26,8 @@ export interface ExecutionResultLike {
  * the worker gave it in the harness's config, so the endpoint's model is the
  * one recorded. A harness prices tokens from its own provider's table, which
  * has no price for an endpoint's model, so a run on an endpoint has no cost.
- * A run that reported no usage never reached a model, and has no cost either.
+ * A run that reported no usage never reached a model, and has no cost either;
+ * without a model named either, it records none, not the endpoint's.
  *
  * Otherwise a CLI-reported cost is `actual` and the plugin's `costPerExecution`
  * constant is `estimated`, so a constant is never mistaken for a measurement.
@@ -46,7 +47,8 @@ export function recordAgentResult(
   const usage = result.usage;
   manifest.usageAvailable = Boolean(usage);
 
-  manifest.modelSnapshot = endpoint?.model ?? usage?.model ?? result.model;
+  const reachedModel = Boolean(usage || result.model);
+  manifest.modelSnapshot = reachedModel ? endpoint?.model ?? usage?.model ?? result.model : undefined;
   if (usage) {
     manifest.harnessVersion = usage.harnessVersion;
     manifest.usage = {

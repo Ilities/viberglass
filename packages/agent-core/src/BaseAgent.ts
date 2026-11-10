@@ -47,6 +47,7 @@ import type { BaseAgentConfig, ExecutionContext, ExecutionResult, AgentCLIResult
 import type { AgentUsageReport } from "./usage";
 import type { AcpMcpServer } from "./acp/types";
 import type { AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
+import type { AcpProviderRetryReader } from "./acp/providerRetry";
 
 export type { AgentCLIResult };
 
@@ -75,14 +76,17 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     return undefined;
   }
 
+  /**
+   * Where the harness records the model provider refusals it waits out, for
+   * one that sends nothing over ACP while it waits. Most fail the turn, so none by default.
+   */
+  getAcpProviderRetries(_harnessConfigDir: string): AcpProviderRetryReader | undefined {
+    return undefined;
+  }
+
   /** Whether the input tokens the harness reports over ACP include cached ones; most count them apart. */
   acpInputIncludesCache(): boolean {
     return false;
-  }
-
-  /** The model the agent was configured to run, for a record when the harness doesn't name the one it used. */
-  configuredModel(): string | undefined {
-    return typeof this.config.model === "string" && this.config.model ? this.config.model : undefined;
   }
 
   /**

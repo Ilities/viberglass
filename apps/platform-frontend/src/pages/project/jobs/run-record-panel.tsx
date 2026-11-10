@@ -11,6 +11,7 @@ import {
   formatPullRequestState,
   formatRunCost,
   formatRunResult,
+  formatStopReason,
 } from '../../settings/run-records/run-record-format'
 import { formatRunDuration } from './run-facts'
 import { addressPath } from '@/lib/repositoryAddress'
@@ -41,13 +42,14 @@ function RunRecordFacts({ record, compact }: { record: RunRecord; compact: boole
   const pullRequestState = formatPullRequestState(record)
   const cost = formatRunCost(record)
   const usage = record.usageAvailable ? record.usage : null
+  const stopReason = formatStopReason(record)
 
   return (
     <div className={clsx('grid gap-8', !compact && 'md:grid-cols-2')}>
       <FactList title="Outcome">
         <Fact label="Result">
           <Badge color={result.color}>{result.label}</Badge>
-          {record.stopReason && <span className="text-[var(--gray-9)]"> · {record.stopReason}</span>}
+          {stopReason && <span className="text-[var(--gray-9)]"> · {stopReason}</span>}
         </Fact>
         {record.errorMessage && <Fact label="Error">{record.errorMessage}</Fact>}
         {record.modelMismatch && (
@@ -107,7 +109,11 @@ function RunRecordFacts({ record, compact }: { record: RunRecord; compact: boole
           )}
         </Fact>
         <Fact label="Harness"><Value value={formatHarness(record)} /></Fact>
-        <Fact label="Model"><Value value={record.modelSnapshot} /></Fact>
+        <Fact label="Model">
+          {record.modelSnapshot ?? (
+            <Missing>Not reported{record.requestedModel && `, the runner is set to ${record.requestedModel}`}</Missing>
+          )}
+        </Fact>
         <Fact label="Runner"><Value value={record.workerType} /></Fact>
         <Fact label="Image"><Mono value={record.computeImage} /></Fact>
         <Fact label="Base commit"><Mono value={record.baseSha?.slice(0, 12) ?? null} /></Fact>

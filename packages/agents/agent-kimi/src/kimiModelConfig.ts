@@ -6,6 +6,7 @@ import {
   type ModelApiFormat,
   type WorkerModelEndpoint,
 } from "@viberglass/types";
+import { KIMI_TOOLS_SECTION } from "./kimiToolPolicy";
 
 const PROVIDER_TYPES: Record<ModelApiFormat, string> = {
   "openai-chat": "openai",
@@ -47,6 +48,7 @@ export function kimiModelConfig(
     `model = ${tomlString(endpoint.model)}`,
     `max_context_size = ${endpoint.contextWindow ?? DEFAULT_CONTEXT_SIZE}`,
     ``,
+    KIMI_TOOLS_SECTION,
   ].join("\n");
 }
 

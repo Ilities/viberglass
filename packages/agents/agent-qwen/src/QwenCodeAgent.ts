@@ -18,8 +18,13 @@ export class QwenCodeAgent extends BaseAgent<QwenCodeConfig> {
     return !currentModelEndpoint();
   }
 
+  /**
+   * Without its own question tool, Qwen asks people through the worker's MCP
+   * server; over ACP that tool's question comes as a permission request, which
+   * the worker approves with no answer.
+   */
   public getAcpServerCommand(): string[] {
-    return ["qwen", "--acp", "--yolo"];
+    return ["qwen", "--acp", "--yolo", "--exclude-tools", "ask_user_question"];
   }
 
   /** Qwen Code reports a model call's prompt tokens, cached ones included. */

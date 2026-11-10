@@ -66,6 +66,7 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
     "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
     "CLAUDE_CONFIG_DIR",
+    "IS_SANDBOX",
   ],
 
   stateDirs: [".claude"],

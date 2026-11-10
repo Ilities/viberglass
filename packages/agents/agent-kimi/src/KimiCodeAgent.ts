@@ -1,10 +1,13 @@
 import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
-import type { AcpUsageProbe, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpProviderRetryReader, AcpUsageProbe, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { KimiCodeConfig } from "./config";
 import { writeKimiModelConfig } from "./kimiModelConfig";
 import { kimiUsageProbe } from "./kimiSessionStats";
+import { writeKimiToolPolicy } from "./kimiToolPolicy";
+import { mainAgentRecords } from "./kimiWireFiles";
+import { kimiProviderRetry, kimiTurnError } from "./kimiProviderFailure";
 
 export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
   constructor(config: KimiCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -26,6 +29,15 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
     return kimiUsageProbe(this.kimiHome());
   }
 
+  /** Kimi Code sends nothing over ACP while it waits out a refusal, for as long as the provider's Retry-After says. */
+  public override getAcpProviderRetries(_harnessConfigDir: string): AcpProviderRetryReader {
+    return { latest: (sessionId) => kimiProviderRetry(mainAgentRecords(this.kimiHome(), sessionId)) };
+  }
+
+  public override async acpTurnError(acpSessionId: string): Promise<string | undefined> {
+    return kimiTurnError(mainAgentRecords(this.kimiHome(), acpSessionId));
+  }
+
   /** Where Kimi Code keeps its sessions; the worker's HOME is the one the ACP process gets. */
   private kimiHome(): string {
     return path.join(this.resolveHomeDirectory(process.env.HOME), ".kimi-code");
@@ -37,6 +49,7 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
       writeKimiModelConfig(endpoint, this.resolveHomeDirectory(process.env.HOME));
       return { KIMI_CODE_NO_AUTO_UPDATE: "1" };
     }
+    writeKimiToolPolicy(this.resolveHomeDirectory(process.env.HOME));
     return {
       ...(this.config.apiKey ? { KIMI_API_KEY: this.config.apiKey } : {}),
     };
