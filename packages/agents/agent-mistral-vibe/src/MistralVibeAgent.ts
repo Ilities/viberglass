@@ -23,6 +23,11 @@ export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
     return ["vibe-acp"];
   }
 
+  /** Vibe reports its prompt tokens, cached ones included. */
+  public override acpInputIncludesCache(): boolean {
+    return true;
+  }
+
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     const endpoint = currentModelEndpoint();
     if (endpoint) return vibeModelEndpointEnvironment(endpoint);

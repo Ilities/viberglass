@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Clanker } from "@viberglass/types";
 import { resolveClankerConfig } from "../../clanker-config";
+import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import { mergeProvisionedStrategyIntoConfig } from "../../clanker-config/mergeProvisionedConfig";
 import { buildKubernetesJob } from "../../workers/invokers/kubernetesJob";
 import type { KubernetesClientPort } from "../ports/kubernetesClientPort";
@@ -25,7 +26,7 @@ export class KubernetesProvisioningHandler implements ProvisioningStrategyHandle
   async provision(clanker: Clanker): Promise<ProvisioningResult> {
     const strategy = resolveClankerConfig(clanker).config.strategy;
     const deploymentConfig = mergeProvisionedStrategyIntoConfig(clanker, {
-      ...strategy, provisioningMode: "prebuilt", containerImage: getWorkerImageForClanker(clanker, "kubernetes"),
+      ...strategy, provisioningMode: "prebuilt",
       namespace: process.env.KUBERNETES_WORKER_NAMESPACE?.trim(),
     });
     return { deploymentConfig, ...await this.checkAvailability({ ...clanker, deploymentConfig }) };
@@ -37,8 +38,7 @@ export class KubernetesProvisioningHandler implements ProvisioningStrategyHandle
     const config = resolveClankerConfig(clanker).config.strategy;
     const namespace = process.env.KUBERNETES_WORKER_NAMESPACE?.trim();
     if (config.type !== "kubernetes" || !namespace) return { status: "inactive", statusMessage: "Worker configuration is incomplete" };
-    // Runs use the image saved on the runner, which starting it fills in with the agent's default.
-    const image = config.containerImage?.trim();
+    const image = resolveComputeImage(clanker);
     if (!image) return { status: "inactive", statusMessage: "Start the agent to set up its worker image" };
     try {
       await this.client.validateJob(namespace, buildKubernetesJob({

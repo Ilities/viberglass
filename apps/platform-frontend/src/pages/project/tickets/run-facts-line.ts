@@ -1,5 +1,5 @@
 import type { RunRecord } from '@viberglass/types'
-import { formatRunCost } from '../../settings/run-records/run-record-format'
+import { formatRanModel, formatRunCost } from '../../settings/run-records/run-record-format'
 
 function tokens(count: number): string {
   return count.toLocaleString('en-US')
@@ -24,7 +24,7 @@ export function runFactsLine(record: RunRecord): string[] {
   const usage = record.usageAvailable ? record.usage : null
   const cost = formatRunCost(record)
   return [
-    record.modelSnapshot,
+    formatRanModel(record),
     record.durationMs !== null ? duration(record.durationMs) : null,
     usage?.inputTokens != null ? `${tokens(usage.inputTokens)} input tokens` : null,
     usage?.outputTokens != null ? `${tokens(usage.outputTokens)} output tokens` : null,

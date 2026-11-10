@@ -20,24 +20,43 @@ describe("KubernetesProvisioningHandler", () => {
     expect(validateJob).toHaveBeenCalledWith("workers", expect.objectContaining({ spec: expect.objectContaining({ template: expect.objectContaining({ spec: expect.objectContaining({ automountServiceAccountToken: false }) }) }) }));
   });
 
-  it("gives a runner without an image the agent's default worker image when it starts", async () => {
-    process.env.VIBERATOR_WORKER_IMAGE_TAG = "local";
+  function validatedImage(validateJob: jest.Mock): string {
+    return validateJob.mock.calls[0][1].spec.template.spec.containers[0].image;
+  }
+
+  const withoutImage: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes", provisioningMode: "prebuilt" }, agent: { type: "opencode" } } };
+
+  it("runs the agent's published image at the installation's tag without saving it", async () => {
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.1";
     const validateJob = jest.fn().mockResolvedValue(undefined);
-    const withoutImage: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes", provisioningMode: "prebuilt" }, agent: { type: "opencode" } } };
 
     const result = await new KubernetesProvisioningHandler({ validateJob }).provision(withoutImage);
 
-    expect(result).toMatchObject({ status: "active", deploymentConfig: { strategy: { containerImage: "viberator-worker-opencode:local" } } });
+    expect(result.status).toBe("active");
+    expect(result.deploymentConfig).toMatchObject({ strategy: { type: "kubernetes" } });
+    expect(result.deploymentConfig?.strategy).toEqual(expect.not.objectContaining({ containerImage: expect.anything() }));
+    expect(validatedImage(validateJob)).toBe("viberator-worker-opencode:v1.2.1");
   });
 
-  it("isn't ready until the runner has an image of its own", async () => {
-    const validateJob = jest.fn();
-    const withoutImage: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes", provisioningMode: "prebuilt" }, agent: { type: "opencode" } } };
+  it("moves to a new tag after an upgrade", async () => {
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.1";
+    const { deploymentConfig } = await new KubernetesProvisioningHandler({ validateJob: jest.fn() }).provision(withoutImage);
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+    const validateJob = jest.fn().mockResolvedValue(undefined);
 
-    const result = await new KubernetesProvisioningHandler({ validateJob }).checkAvailability(withoutImage);
+    const result = await new KubernetesProvisioningHandler({ validateJob }).checkAvailability({ ...withoutImage, deploymentConfig });
 
-    expect(result).toEqual({ status: "inactive", statusMessage: "Start the agent to set up its worker image" });
-    expect(validateJob).not.toHaveBeenCalled();
+    expect(result).toEqual({ status: "active", statusMessage: "Kubernetes worker configured: viberator-worker-opencode:v1.2.2" });
+    expect(validatedImage(validateJob)).toBe("viberator-worker-opencode:v1.2.2");
+  });
+
+  it("keeps a custom image after an upgrade", async () => {
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+    const validateJob = jest.fn().mockResolvedValue(undefined);
+
+    await new KubernetesProvisioningHandler({ validateJob }).checkAvailability(clanker);
+
+    expect(validatedImage(validateJob)).toBe("worker:1");
   });
 
   it("rejects namespaces outside the configured boundary", async () => {

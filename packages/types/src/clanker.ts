@@ -56,6 +56,8 @@ export interface Clanker {
   statusMessage?: string | null
   /** Whether it can take a task; set by the API, which knows its secrets and runs. */
   readiness?: RunnerReadiness
+  /** The image its runs start from now; set by the API, which knows the installation's worker image tag. */
+  workerImage?: string | null
   createdAt: string
   updatedAt: string
 }

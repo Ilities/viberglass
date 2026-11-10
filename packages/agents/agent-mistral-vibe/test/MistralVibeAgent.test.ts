@@ -163,3 +163,9 @@ describe("MistralVibeAgent CLI invocation", () => {
     );
   });
 });
+
+describe("MistralVibeAgent usage", () => {
+  test("says its ACP input tokens include cached ones, so they're taken out", () => {
+    expect(new TestMistralVibeAgent(createMistralConfig()).acpInputIncludesCache()).toBe(true);
+  });
+});

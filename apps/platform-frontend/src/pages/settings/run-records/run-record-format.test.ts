@@ -3,6 +3,7 @@ import {
   formatAgentName,
   formatHarness,
   formatPullRequestState,
+  formatRanModel,
   formatRunCost,
   formatRunResult,
   formatTokenSummary,
@@ -12,7 +13,7 @@ import {
 function record(overrides: Partial<RunRecord> = {}): RunRecord {
   return {
     jobId: 'job-1', jobKind: 'execution', projectSlug: 'acme', ticketId: 'ticket-1', ticketTitle: 'Fix it', clankerName: 'OpenCode Local', clankerSlug: 'opencode-local',
-    requestedAgent: 'opencode', agent: 'opencode', modelSnapshot: null, harnessVersion: null,
+    requestedAgent: 'opencode', agent: 'opencode', requestedModel: null, modelSnapshot: null, modelMismatch: false, harnessVersion: null,
     repository: 'https://github.com/acme/app', baseBranch: 'main', branch: null, baseSha: null, commitSha: null,
     workerType: 'docker', computeImage: null, configHash: null, instructionsHash: null, promptHash: null,
     promptCharacters: null, changedFileCount: null, success: true, stopReason: null, errorMessage: null,
@@ -118,5 +119,21 @@ describe('formatTokenSummary', () => {
 
   it('is null when the CLI reported none', () => {
     expect(formatTokenSummary(record({ usageAvailable: false, usage: null }))).toBeNull()
+  })
+})
+
+describe('formatRanModel', () => {
+  it('is the model the run reported', () => {
+    expect(formatRanModel(record({ requestedModel: 'opencode-go/kimi-k3', modelSnapshot: 'opencode-go/kimi-k3' }))).toBe('opencode-go/kimi-k3')
+  })
+
+  it("adds the runner's model when the run used another", () => {
+    expect(formatRanModel(record({ requestedModel: 'opencode-go/kimi-k3.1-pro', modelSnapshot: 'opencode/big-pickle', modelMismatch: true }))).toBe(
+      'opencode/big-pickle instead of opencode-go/kimi-k3.1-pro',
+    )
+  })
+
+  it('is null when the run reported no model', () => {
+    expect(formatRanModel(record())).toBeNull()
   })
 })

@@ -1,5 +1,6 @@
 import type { Clanker, Project } from "@viberglass/types";
 import { resolveClankerConfig } from "../../clanker-config";
+import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import type { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import type { JobDispatchStateDAO } from "../../persistence/job/JobDispatchStateDAO";
 import type { JobBootstrapService } from "../../services/job/JobBootstrapService";
@@ -37,7 +38,7 @@ export class KubernetesInvoker implements WorkerInvoker {
 
     const namespace = process.env.KUBERNETES_WORKER_NAMESPACE?.trim();
     const platformApiUrl = process.env.PLATFORM_API_URL?.trim();
-    const image = strategy.containerImage?.trim();
+    const image = resolveComputeImage(clanker);
     if (!namespace || !platformApiUrl || !image || !job.callbackToken) {
       throw new WorkerError(
         "Kubernetes workers require KUBERNETES_WORKER_NAMESPACE, PLATFORM_API_URL, a container image, and a callback token",

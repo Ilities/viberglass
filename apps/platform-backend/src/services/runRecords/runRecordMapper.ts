@@ -1,6 +1,7 @@
 import { isObjectRecord } from "@viberglass/types";
 import type { RunPullRequestOutcome, RunRecord, RunTokenUsage } from "@viberglass/types";
 import type { RunRecordRow } from "../../persistence/job/RunRecordDAO";
+import { ranOtherModel } from "./ranOtherModel";
 
 export function toRunRecord(row: RunRecordRow): RunRecord {
   return {
@@ -13,7 +14,9 @@ export function toRunRecord(row: RunRecordRow): RunRecord {
     clankerSlug: row.clanker_slug,
     requestedAgent: row.requested_agent,
     agent: row.agent,
+    requestedModel: row.requested_model,
     modelSnapshot: row.model_snapshot,
+    modelMismatch: ranOtherModel(row.requested_model, row.model_snapshot),
     harnessVersion: row.harness_version,
     repository: row.repository,
     baseBranch: row.base_branch,

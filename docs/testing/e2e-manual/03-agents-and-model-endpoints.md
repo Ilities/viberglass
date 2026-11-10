@@ -18,8 +18,8 @@ For each row, run the **harness script** below on a fresh task and record each s
 3. **Question:** ask it to use ask_human (blocking); answer; it carries on.
 4. **Code:** **Build it** on a writable repo (or expect "Couldn't push changes" on the L-REV fixture).
 5. **Cancel:** start a turn and cancel it. The container stops and partial work is kept.
-6. **Records:** Run records shows harness, requested model, and reported model or "model not reported".
-7. **Usage:** the turn's footer shows the session and context (TASK-15); Run details shows input and output tokens, or leaves them out where the harness doesn't report them.
+6. **Records:** Run records shows harness, requested model, and reported model or "model not reported". A reported model other than the runner's shows as "<reported> instead of <runner's model>", and Run details shows a warning.
+7. **Usage:** the turn's footer shows the session and context (TASK-15); Run details shows uncached input, output and cache tokens, or leaves them out where the harness doesn't report them. Uncached input stays small next to cache read on a long session.
 
 | Row | Harness | Credentials and configuration | Notes |
 |---|---|---|---|

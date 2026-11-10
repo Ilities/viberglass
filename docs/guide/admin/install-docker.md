@@ -128,7 +128,7 @@ Fill in `.env`:
 - `VIBERGLASS_URL`: the HTTPS address people open, such as `https://viberglass.example.com`.
 - `VIBERGLASS_DOMAIN`: the same domain without `https://`, for the certificate.
 - `DB_PASSWORD`, `SECRETS_ENCRYPTION_KEY` and `WEBHOOK_SECRET_ENCRYPTION_KEY`: generate each with `openssl rand -hex 32`. Keep a copy of the two keys somewhere safe. Without them, the credentials Viberglass stores can't be read.
-- `VIBERGLASS_VERSION`: the same release tag, so the images match. `latest` follows the main branch.
+- `VIBERGLASS_VERSION`: the same release tag, so the images match, the agents' worker images included. `latest` follows the main branch.
 - `VIBERGLASS_PREVIEW_URL` and `VIBERGLASS_PREVIEW_DOMAIN`: the preview host's HTTPS address and its domain. Leave both empty to turn previews off.
 
 The backend refuses to start until the required variables are set, listing every one that is missing; `.env.production.example` marks them.
@@ -159,4 +159,4 @@ What else to know:
 - `VIBERGLASS_DATA_DIR` has to be the same absolute path on the host and inside the backend container. The backend starts agent containers through the Docker daemon, which mounts that path from the host, so a bind mount to a different container path — `/data`, say — leaves the backend writing task media, saved sessions and skills into its own filesystem: they never reach the host, and agents never see them. The compose file mounts the same path at both ends; a hand-written one has to as well.
 - Optional email and trace settings are in `.env.production.example`.
 
-To upgrade, set `VIBERGLASS_VERSION` to the new release in `.env`, then run `docker compose -f docker-compose.prod.yml --profile https pull` and `docker compose -f docker-compose.prod.yml --profile https up -d`. Back up the database first; see [Upgrades and backups](upgrades-and-backups.md).
+To upgrade, set `VIBERGLASS_VERSION` to the new release in `.env`, then run `docker compose -f docker-compose.prod.yml --profile https pull` and `docker compose -f docker-compose.prod.yml --profile https up -d`. Then start each agent again, which pulls its worker image for the new release. Back up the database first; see [Upgrades and backups](upgrades-and-backups.md).

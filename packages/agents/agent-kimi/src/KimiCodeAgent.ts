@@ -22,9 +22,13 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
     return ["kimi", "acp"];
   }
 
-  /** Kimi sends no token usage over ACP; its `/usage` command has the session's totals. */
   public override getAcpUsageProbe(): AcpUsageProbe {
-    return kimiUsageProbe;
+    return kimiUsageProbe(this.kimiHome());
+  }
+
+  /** Where Kimi Code keeps its sessions; the worker's HOME is the one the ACP process gets. */
+  private kimiHome(): string {
+    return path.join(this.resolveHomeDirectory(process.env.HOME), ".kimi-code");
   }
 
   public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {

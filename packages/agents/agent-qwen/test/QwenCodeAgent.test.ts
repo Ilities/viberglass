@@ -141,3 +141,9 @@ describe("QwenCodeAgent CLI invocation", () => {
     expect(agent.capturedCommands[0].command).toBe("qwen");
   });
 });
+
+describe("QwenCodeAgent usage", () => {
+  test("says its ACP input tokens include cached ones, so they're taken out", () => {
+    expect(new TestQwenCodeAgent(createQwenConfig()).acpInputIncludesCache()).toBe(true);
+  });
+});

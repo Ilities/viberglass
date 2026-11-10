@@ -57,4 +57,21 @@ describe("ClankerListing", () => {
     expect(await subject.current(runner())).toMatchObject({ status: "active", readiness: READY });
     expect(clankers.updateStatus).not.toHaveBeenCalled();
   });
+
+  it("names the image the runner's runs start from now", async () => {
+    const originalTag = process.env.VIBERATOR_WORKER_IMAGE_TAG;
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+    const { subject } = listing([], { status: "active" });
+    const published = runner({
+      agent: "opencode",
+      deploymentConfig: { version: 1, strategy: { type: "kubernetes" }, agent: { type: "opencode" } },
+    });
+
+    try {
+      expect((await subject.current(published)).workerImage).toMatch(/viberator-worker-opencode:v1\.2\.2$/);
+    } finally {
+      if (originalTag === undefined) delete process.env.VIBERATOR_WORKER_IMAGE_TAG;
+      else process.env.VIBERATOR_WORKER_IMAGE_TAG = originalTag;
+    }
+  });
 });

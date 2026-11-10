@@ -1,5 +1,6 @@
 /** A session's running totals, as a harness reports them: tokens so far, and what they cost. */
 export interface AcpSessionTotals {
+  /** Without cache reads and writes, which are counted apart. */
   inputTokens?: number;
   outputTokens?: number;
   cacheReadInputTokens?: number;
@@ -10,11 +11,12 @@ export interface AcpSessionTotals {
 /**
  * How to ask a harness for its session's totals when it doesn't send usage
  * over ACP: a slash command it answers itself, without the model, and how to
- * read the totals out of its answer.
+ * read the totals out of its answer, or out of the session's own files once
+ * it has answered.
  */
 export interface AcpUsageProbe {
   command: string;
-  parse(text: string): AcpSessionTotals | null;
+  parse(text: string, sessionId: string): AcpSessionTotals | null;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -50,9 +52,9 @@ export class AcpSessionTotalsProbe {
     return true;
   }
 
-  end(): AcpSessionTotals | null {
+  end(sessionId: string): AcpSessionTotals | null {
     const answer = this.answer;
     this.answer = null;
-    return answer ? this.probe.parse(answer) : null;
+    return answer ? this.probe.parse(answer, sessionId) : null;
   }
 }

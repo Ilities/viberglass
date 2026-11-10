@@ -29,11 +29,35 @@ class LayerProgress {
   }
 }
 
-/** Makes sure a pre-built image is present locally, pulling it only when missing. */
+/**
+ * Makes sure a pre-built image is present locally, pulling it only when
+ * missing. Pulls run one at a time, so starting many runners doesn't download
+ * every image at once and fill the disk.
+ */
 export class DockerImagePuller {
+  private queue: Promise<void> = Promise.resolve();
+  private pending = 0;
+
   constructor(private readonly dockerClient: DockerClientPort) {}
 
   async ensurePresent(
+    image: string,
+    progress?: ProvisioningProgressReporter,
+  ): Promise<void> {
+    if (this.pending > 0) {
+      await progress?.(`Waiting for another Docker image pull to finish before ${image}`);
+    }
+    this.pending += 1;
+    const turn = this.queue.then(() => this.pullIfMissing(image, progress));
+    this.queue = turn.catch(() => undefined);
+    try {
+      await turn;
+    } finally {
+      this.pending -= 1;
+    }
+  }
+
+  private async pullIfMissing(
     image: string,
     progress?: ProvisioningProgressReporter,
   ): Promise<void> {

@@ -8,6 +8,7 @@ import {
   getDockerStrategyConfig,
 } from "../shared/configHelpers";
 import { getWorkerImageForClanker } from "../shared/workerImage";
+import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import { getErrorMessage, isMissingDockerImageError } from "../shared/errorUtils";
 import type {
   AvailabilityResult,
@@ -55,10 +56,7 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
     const config = getDockerStrategyConfig(clanker);
-    const containerImage =
-      config.containerImage ||
-      getWorkerImageForClanker(clanker, "docker") ||
-      DEFAULT_LOCAL_DOCKER_IMAGE;
+    const containerImage = getWorkerImageForClanker(clanker, "docker") || DEFAULT_LOCAL_DOCKER_IMAGE;
 
     const strategy = await this.prepareImage(config, containerImage, progress);
     const deploymentConfig = mergeProvisionedStrategyIntoConfig(clanker, {
@@ -79,11 +77,9 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
   }
 
   async checkAvailability(clanker: Clanker): Promise<AvailabilityResult> {
-    const config = getDockerStrategyConfig(clanker);
+    const prebuilt = getDockerStrategyConfig(clanker).provisioningMode === "prebuilt";
     // A published image is known before the runner starts; a built one only once it's built.
-    const image =
-      config.containerImage ||
-      (config.provisioningMode === "prebuilt" ? getWorkerImageForClanker(clanker, "docker") : undefined);
+    const image = resolveComputeImage(clanker);
     if (!image) {
       return {
         status: "inactive",
@@ -102,7 +98,9 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
       if (isMissingDockerImageError(error)) {
         return {
           status: "inactive",
-          statusMessage: "Docker image not found",
+          statusMessage: prebuilt
+            ? `Docker image ${image} isn't on this host yet. Start the agent to pull it.`
+            : "Docker image not found",
         };
       }
 
@@ -127,7 +125,8 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
   ): Promise<Record<string, unknown>> {
     if (config.provisioningMode === "prebuilt") {
       await this.imagePuller.ensurePresent(containerImage, progress);
-      return { ...config, containerImage, dockerBuild: undefined };
+      // Only an image someone chose is saved; the published one is worked out again each time.
+      return { ...config, dockerBuild: undefined };
     }
 
     await progress?.(`Docker build started for image ${containerImage}`);
@@ -140,6 +139,7 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
   ): Promise<DockerImageMetadata> {
     const image = await this.dockerClient.inspectImage(imageTag);
     return {
+      image: imageTag,
       imageId: image.Id,
       createdAt: image.Created,
       sizeBytes: image.Size,

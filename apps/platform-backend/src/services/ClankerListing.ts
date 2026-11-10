@@ -3,8 +3,13 @@ import type { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
 import type { ClankerReadinessService } from "./ClankerReadinessService";
 import { nextClankerStatus } from "./clankerStatusTransition";
+import { resolveComputeImage } from "../clanker-config/resolveComputeImage";
 
-/** Runners as they are now: their status checked against their compute, and whether they can take a task. */
+function withWorkerImage(clanker: Clanker): Clanker {
+  return { ...clanker, workerImage: resolveComputeImage(clanker) };
+}
+
+/** Runners as they are now: their status checked against their compute, the image they run, and whether they can take a task. */
 export class ClankerListing {
   constructor(
     private readonly clankers: Pick<ClankerDAO, "listClankers" | "updateStatus">,
@@ -14,11 +19,12 @@ export class ClankerListing {
 
   async list(limit: number, offset: number): Promise<Clanker[]> {
     const clankers = await this.clankers.listClankers(limit, offset);
-    return this.readiness.withReadiness(await Promise.all(clankers.map((clanker) => this.refreshStatus(clanker))));
+    const refreshed = await Promise.all(clankers.map((clanker) => this.refreshStatus(clanker)));
+    return this.readiness.withReadiness(refreshed.map(withWorkerImage));
   }
 
   async current(clanker: Clanker): Promise<Clanker> {
-    return this.readiness.one(await this.refreshStatus(clanker));
+    return this.readiness.one(withWorkerImage(await this.refreshStatus(clanker)));
   }
 
   /** A deploying runner is left alone until provisioning finishes. */

@@ -8,6 +8,11 @@
 export type RunCostProvenance = 'actual' | 'estimated' | 'unavailable'
 export type RunPullRequestState = 'open' | 'closed' | 'merged'
 
+/**
+ * Tokens a run used. `inputTokens` is the input the model read fresh: cache
+ * reads and cache writes are counted apart from it, so the whole input is the
+ * three added together.
+ */
 export interface RunTokenUsage {
   inputTokens: number | null
   outputTokens: number | null
@@ -41,7 +46,12 @@ export interface RunRecord {
   requestedAgent: string | null
   /** The harness the clanker ran, e.g. `opencode`. */
   agent: string | null
+  /** The model the runner was set to use when the run was dispatched. */
+  requestedModel: string | null
+  /** The model the harness reported using. */
   modelSnapshot: string | null
+  /** True when the harness reported a different model than the runner was set to use. */
+  modelMismatch: boolean
   harnessVersion: string | null
   repository: string
   baseBranch: string | null

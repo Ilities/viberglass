@@ -6,6 +6,8 @@ export interface DockerBuildResult {
 }
 
 export interface DockerImageMetadata {
+  /** The image reference these details describe. */
+  image?: string;
   imageId?: string;
   createdAt?: string;
   sizeBytes?: number;

@@ -11,8 +11,8 @@ describe("AcpSessionTotalsProbe", () => {
     probe.begin();
     expect(probe.capture(chunk("Tokens: "))).toBe(true);
     expect(probe.capture(chunk("in 5"))).toBe(true);
-    expect(probe.end()).toEqual({ inputTokens: 12 });
-    expect(parse).toHaveBeenCalledWith("Tokens: in 5");
+    expect(probe.end("sess_1")).toEqual({ inputTokens: 12 });
+    expect(parse).toHaveBeenCalledWith("Tokens: in 5", "sess_1");
     expect(probe.capture(chunk("after"))).toBe(false);
   });
 
@@ -26,6 +26,6 @@ describe("AcpSessionTotalsProbe", () => {
   it("reads nothing when the harness didn't answer", () => {
     const probe = new AcpSessionTotalsProbe({ command: "/session", parse: () => ({ inputTokens: 1 }) });
     probe.begin();
-    expect(probe.end()).toBeNull();
+    expect(probe.end("sess_1")).toBeNull();
   });
 });

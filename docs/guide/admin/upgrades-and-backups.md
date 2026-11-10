@@ -47,6 +47,8 @@ docker compose -f docker-compose.prod.yml --profile https pull
 docker compose -f docker-compose.prod.yml --profile https up -d
 ```
 
+The worker images take the same tag unless `VIBERATOR_WORKER_IMAGE_TAG` is set. Start each agent again to pull its new image; see [Worker images](#worker-images).
+
 ## Kubernetes
 
 Set the new release tag on the backend, frontend and worker images in your values file, and run the same `helm upgrade --install` command with `--wait --wait-for-jobs`. The migration Job runs before the new backend starts. Runs already in progress keep their image and finish.
@@ -82,4 +84,11 @@ Worker images come from `ghcr.io/ilities` on Docker, Kubernetes and ECS unless y
 - Docker: set `VIBERATOR_WORKER_IMAGE_TAG` in the `.env` file next to the compose file and restart the backend.
 - Kubernetes: set `workers.imageTag` in your values file and run `helm upgrade`.
 
-A changed tag reaches runners created afterwards. Existing ECS runners pick it up the next time they're saved, which registers a new task definition. Docker and Kubernetes runners keep the image stored when they were set up; change the image on the runner to move it to the new tag.
+Agents on the published images follow the installation's registry and tag. An agent stays on an image only when someone set one on it: Container Image on Docker and Kubernetes, or `containerImage` and `imageUri` in its deployment config. With `latest`, an agent on Docker keeps the copy it pulled, so pin a tag. After the tag changes:
+
+- Kubernetes: the next run starts from the new tag.
+- Docker: the agent shows as Not running, and its page says the new image isn't on the host yet. Start it again to pull it. Agents started together pull one image at a time. Images of the previous release stay on the host; list them with `docker image ls 'ghcr.io/ilities/viberator-*'` and remove the old tags with `docker image rm`.
+- ECS: the agent shows as Not running while its task definition runs another image. Starting it registers a new task definition with the new image.
+- Lambda: the agent shows as Not running while its function runs another image than `VIBERATOR_LAMBDA_IMAGE_URI`. Starting it updates the function. A Lambda image pushed again under the same tag, such as `latest`, isn't noticed, so start Lambda agents again after pushing one.
+
+The agent's page shows the image its runs start from.

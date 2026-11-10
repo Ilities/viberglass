@@ -71,6 +71,23 @@ describe("KubernetesInvoker", () => {
     delete process.env.PLATFORM_API_URL;
   });
 
+  it("starts a runner on the published image at the installation's current tag", async () => {
+    process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+    process.env.VIBERATOR_WORKER_REGISTRY = "ghcr.io/ilities";
+    const { client, invoker } = setup();
+    const published: Clanker = { ...clanker, deploymentConfig: { version: 1, strategy: { type: "kubernetes" }, agent: { type: "opencode" } } };
+
+    try {
+      await invoker.invoke(job, published);
+    } finally {
+      delete process.env.VIBERATOR_WORKER_IMAGE_TAG;
+      delete process.env.VIBERATOR_WORKER_REGISTRY;
+    }
+
+    const manifest = client.createNamespacedJob.mock.calls[0][0].body;
+    expect(manifest.spec.template.spec.containers[0].image).toBe("ghcr.io/ilities/viberator-worker-opencode:v1.2.2");
+  });
+
   it("persists the payload and starts one bounded Job using a reference", async () => {
     const { client, saveBootstrapPayload, invoker, secrets } = setup();
 

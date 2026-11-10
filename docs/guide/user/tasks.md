@@ -58,6 +58,8 @@ Under the turn, a small line says whether the agent picked up its earlier conver
 
 Members and admins also see Live log and Cancel run while the agent works, and Run details afterwards. Run details opens the record of the run: what the agent did step by step, its tool calls, the prompt it got, the worker's log, and the model, time and cost where the agent reports them.
 
+Token counts in the record keep cached input apart: uncached input is what the model read fresh, cache read is input served from the provider's prompt cache, and cache write is input stored in it. The whole input is the three added together. If the agent reports a different model than the one its runner is set to, the record warns about it, for example "opencode/big-pickle instead of opencode-go/kimi-k3.1-pro". That usually means the harness doesn't know the runner's model and fell back to its own default.
+
 ## Comparing agents
 
 To see how different agents or models handle the same work, choose Compare agents in the Actions menu, or Compare agents from here under one of the agent's finished turns. Pick two to four agents, what to ask each of them (Plan, Build or Reply), and optionally a message, then choose Compare.

@@ -12,6 +12,7 @@ import type {
   ProvisioningResult,
 } from "../types";
 import { EcsTaskDefinitionProvisioner } from "./EcsTaskDefinitionProvisioner";
+import { taskDefinitionImage } from "./ecsTaskDefinitionUtils";
 import type { EcsProvisioningConfig } from "./ecsTypes";
 
 function cloneTaskDefinitionInput(value: unknown): Record<string, unknown> | null {
@@ -103,16 +104,12 @@ export class EcsProvisioningHandler implements ProvisioningStrategyHandler {
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
     const config = toEcsProvisioningConfig(clanker);
-    if (!config.containerImage) {
-      const selectedImage = getWorkerImageForClanker(clanker, "ecs");
-      if (selectedImage) {
-        config.containerImage = selectedImage;
-      }
-    }
+    // Only an image someone chose is saved; the published one is worked out again each time.
+    const containerImage = getWorkerImageForClanker(clanker, "ecs") ?? config.containerImage;
 
     await progress?.("Registering ECS task definition...");
     const { taskDefinitionArn, taskDefinitionDetails } =
-      await this.taskDefinitionProvisioner.ensureTaskDefinition(clanker, config);
+      await this.taskDefinitionProvisioner.ensureTaskDefinition(clanker, { ...config, containerImage });
 
     const deploymentConfig = mergeProvisionedStrategyIntoConfig(clanker, {
       ...config,
@@ -143,7 +140,15 @@ export class EcsProvisioningHandler implements ProvisioningStrategyHandler {
     }
 
     try {
-      await this.ecsClient.describeTaskDefinition(config.taskDefinitionArn);
+      const taskDefinition = await this.ecsClient.describeTaskDefinition(config.taskDefinitionArn);
+      const deployed = taskDefinitionImage(taskDefinition, config.containerName);
+      const wanted = getWorkerImageForClanker(clanker, "ecs");
+      if (deployed && wanted && deployed !== wanted) {
+        return {
+          status: "inactive",
+          statusMessage: `The task definition runs ${deployed}, not this installation's worker image ${wanted}. Start the agent to update it.`,
+        };
+      }
       return {
         status: "active",
         statusMessage: `ECS task definition ready: ${config.taskDefinitionArn}`,

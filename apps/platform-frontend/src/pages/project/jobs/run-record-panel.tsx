@@ -50,6 +50,13 @@ function RunRecordFacts({ record, compact }: { record: RunRecord; compact: boole
           {record.stopReason && <span className="text-[var(--gray-9)]"> · {record.stopReason}</span>}
         </Fact>
         {record.errorMessage && <Fact label="Error">{record.errorMessage}</Fact>}
+        {record.modelMismatch && (
+          <Fact label="Warning">
+            <span className="text-amber-800 dark:text-amber-300">
+              The agent ran {record.modelSnapshot} instead of {record.requestedModel}, the model its runner is set to. Check that the harness knows the runner's model.
+            </span>
+          </Fact>
+        )}
         <Fact label="Pull request">
           {record.pullRequest && pullRequestState ? (
             <>
@@ -78,7 +85,7 @@ function RunRecordFacts({ record, compact }: { record: RunRecord; compact: boole
         </Fact>
         {usage ? (
           <>
-            <Fact label="Input"><Tokens value={usage.inputTokens} /></Fact>
+            <Fact label="Uncached input"><Tokens value={usage.inputTokens} /></Fact>
             <Fact label="Output"><Tokens value={usage.outputTokens} /></Fact>
             <Fact label="Reasoning"><Tokens value={usage.reasoningOutputTokens} /></Fact>
             <Fact label="Cache read"><Tokens value={usage.cacheReadInputTokens} /></Fact>

@@ -45,4 +45,16 @@ describe("toRunRecord", () => {
     expect(record.costUsd).toBeNull();
     expect(record.startedAt).toBeNull();
   });
+
+  it("flags a run whose harness reported another model than the runner's", () => {
+    const record = toRunRecord(runRecordRow({ requested_model: "opencode-go/kimi-k3.1-pro", model_snapshot: "opencode/big-pickle" }));
+
+    expect(record).toMatchObject({ requestedModel: "opencode-go/kimi-k3.1-pro", modelSnapshot: "opencode/big-pickle", modelMismatch: true });
+  });
+
+  it("doesn't flag the runner's model under a provider prefix", () => {
+    const record = toRunRecord(runRecordRow({ requested_model: "kimi-k3", model_snapshot: "opencode-go/kimi-k3" }));
+
+    expect(record.modelMismatch).toBe(false);
+  });
 });

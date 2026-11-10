@@ -269,8 +269,72 @@ describe("DockerProvisioningHandler", () => {
       const result = await handler.provision(prebuiltClanker());
 
       const strategy = provisionedStrategy(result.deploymentConfig);
-      expect(strategy.containerImage).toMatch(/opencode|multi-agent/);
-      expect(inspectImage).toHaveBeenCalledWith(strategy.containerImage);
+      expect(isObjectRecord(strategy.imageMetadata) && strategy.imageMetadata.image).toMatch(/opencode|multi-agent/);
+      expect(inspectImage).toHaveBeenCalledWith(expect.stringMatching(/opencode|multi-agent/));
+    });
+
+    describe("after the installation's worker image tag changes", () => {
+      const originalTag = process.env.VIBERATOR_WORKER_IMAGE_TAG;
+      afterEach(() => {
+        if (originalTag === undefined) delete process.env.VIBERATOR_WORKER_IMAGE_TAG;
+        else process.env.VIBERATOR_WORKER_IMAGE_TAG = originalTag;
+      });
+
+      async function provisionedOn(tag: string, containerImage?: string) {
+        process.env.VIBERATOR_WORKER_IMAGE_TAG = tag;
+        const { client } = buildDockerClient();
+        const handler = new DockerProvisioningHandler(client, { repoRoot: "/tmp" });
+        const clanker = prebuiltClanker(containerImage);
+        const { deploymentConfig } = await handler.provision(clanker);
+        return { ...clanker, deploymentConfig };
+      }
+
+      it("saves only the image someone chose, not the published one", async () => {
+        const clanker = await provisionedOn("v1.2.1");
+
+        const strategy = provisionedStrategy(clanker.deploymentConfig);
+        expect(strategy.containerImage).toBeUndefined();
+        expect(isObjectRecord(strategy.imageMetadata) && strategy.imageMetadata.image).toMatch(/:v1\.2\.1$/);
+      });
+
+      it("asks for a restart until the new tag is pulled", async () => {
+        const clanker = await provisionedOn("v1.2.1");
+        process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+        const { client, inspectImage } = buildDockerClient();
+        inspectImage.mockRejectedValue(missingImage);
+        const handler = new DockerProvisioningHandler(client, { repoRoot: "/tmp" });
+
+        const result = await handler.checkAvailability(clanker);
+
+        expect(inspectImage).toHaveBeenCalledWith(expect.stringMatching(/:v1\.2\.2$/));
+        expect(result.status).toBe("inactive");
+        expect(result.statusMessage).toMatch(/:v1\.2\.2 isn't on this host yet\. Start the agent to pull it\.$/);
+      });
+
+      it("pulls the new tag when the runner starts again", async () => {
+        const clanker = await provisionedOn("v1.2.1");
+        process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+        const { client, inspectImage, pullImage } = buildDockerClient();
+        inspectImage.mockRejectedValueOnce(missingImage);
+        const handler = new DockerProvisioningHandler(client, { repoRoot: "/tmp" });
+
+        const result = await handler.provision(clanker);
+
+        expect(pullImage).toHaveBeenCalledWith(expect.objectContaining({ image: expect.stringMatching(/:v1\.2\.2$/) }));
+        expect(result.status).toBe("active");
+      });
+
+      it("keeps a custom image", async () => {
+        const clanker = await provisionedOn("v1.2.1", "registry.example/worker:pinned");
+        process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+        const { client, inspectImage } = buildDockerClient();
+        const handler = new DockerProvisioningHandler(client, { repoRoot: "/tmp" });
+
+        await handler.checkAvailability(clanker);
+
+        expect(provisionedStrategy(clanker.deploymentConfig).containerImage).toBe("registry.example/worker:pinned");
+        expect(inspectImage).toHaveBeenCalledWith("registry.example/worker:pinned");
+      });
     });
   });
 });

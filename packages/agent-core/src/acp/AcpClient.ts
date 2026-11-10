@@ -253,7 +253,7 @@ export class AcpClient {
     } catch (error) {
       this.logger.warn("AcpClient couldn't read the session's totals", { error: error instanceof Error ? error.message : String(error) });
     }
-    return this.totalsProbe.end();
+    return this.totalsProbe.end(this.currentSessionId);
   }
 
   /** A failed compaction leaves the session as it was; the next cold start reads the summary instead. */

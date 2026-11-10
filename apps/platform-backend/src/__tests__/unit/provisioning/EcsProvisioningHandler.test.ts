@@ -188,6 +188,70 @@ describe("EcsProvisioningHandler", () => {
     }));
   });
 
+  describe("after the installation's worker image tag changes", () => {
+    const PUBLISHED = "ghcr.io/ilities/viberator-worker-pi";
+
+    function piClanker(strategy: Record<string, unknown> = {}) {
+      const clanker = buildClanker("ecs", {
+        version: 1,
+        strategy: { type: "ecs", executionRoleArn: "arn:exec", taskRoleArn: "arn:task", clusterArn: "arn:cluster", ...strategy },
+        agent: { type: "pi" },
+      });
+      clanker.agent = "pi";
+      return clanker;
+    }
+
+    function runningTaskDefinition(image: string) {
+      return { taskDefinitionArn: "arn:td:1", family: "viberator-worker-test", containerDefinitions: [{ name: "worker", image }] };
+    }
+
+    it("saves only the image someone chose, not the published one", async () => {
+      process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.1";
+      const { client } = buildEcsClient();
+
+      const result = await new EcsProvisioningHandler(client).provision(piClanker());
+
+      expect(result.deploymentConfig?.strategy).toEqual(expect.not.objectContaining({ containerImage: expect.anything() }));
+    });
+
+    it("asks for a restart while the task definition runs the old tag", async () => {
+      process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+      const { client, describeTaskDefinition } = buildEcsClient();
+      describeTaskDefinition.mockResolvedValue(runningTaskDefinition(`${PUBLISHED}:v1.2.1`));
+
+      const result = await new EcsProvisioningHandler(client).checkAvailability(piClanker({ taskDefinitionArn: "arn:td:1" }));
+
+      expect(result).toEqual({
+        status: "inactive",
+        statusMessage: `The task definition runs ${PUBLISHED}:v1.2.1, not this installation's worker image ${PUBLISHED}:v1.2.2. Start the agent to update it.`,
+      });
+    });
+
+    it("registers the new tag when the runner starts again", async () => {
+      process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+      const { client, describeTaskDefinition, registerTaskDefinition } = buildEcsClient();
+      describeTaskDefinition.mockResolvedValue(runningTaskDefinition(`${PUBLISHED}:v1.2.1`));
+
+      await new EcsProvisioningHandler(client).provision(piClanker({ taskDefinitionArn: "arn:td:1" }));
+
+      expect(registerTaskDefinition).toHaveBeenCalledWith(expect.objectContaining({
+        containerDefinitions: [expect.objectContaining({ image: `${PUBLISHED}:v1.2.2` })],
+      }));
+    });
+
+    it("keeps a custom image", async () => {
+      process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+      const { client, describeTaskDefinition } = buildEcsClient();
+      describeTaskDefinition.mockResolvedValue(runningTaskDefinition("registry.example/worker:pinned"));
+
+      const result = await new EcsProvisioningHandler(client).checkAvailability(
+        piClanker({ taskDefinitionArn: "arn:td:1", containerImage: "registry.example/worker:pinned" }),
+      );
+
+      expect(result.status).toBe("active");
+    });
+  });
+
   it("returns inactive when task definition is missing", async () => {
     const { client } = buildEcsClient();
     const handler = new EcsProvisioningHandler(client);

@@ -75,6 +75,11 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     return undefined;
   }
 
+  /** Whether the input tokens the harness reports over ACP include cached ones; most count them apart. */
+  acpInputIncludesCache(): boolean {
+    return false;
+  }
+
   /** The model the agent was configured to run, for a record when the harness doesn't name the one it used. */
   configuredModel(): string | undefined {
     return typeof this.config.model === "string" && this.config.model ? this.config.model : undefined;

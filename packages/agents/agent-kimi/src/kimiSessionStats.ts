@@ -1,4 +1,5 @@
 import type { AcpSessionTotals, AcpUsageProbe } from "@viberglass/agent-core";
+import { readKimiWireTotals } from "./kimiWireUsage";
 
 const tokenCount = (text: string | undefined): number | undefined => {
   if (text === undefined) return undefined;
@@ -7,16 +8,24 @@ const tokenCount = (text: string | undefined): number | undefined => {
 };
 
 /**
- * Reads Kimi Code's `/usage` answer: "Session total: 32529 input, 205 output",
- * the session's totals. Kimi answers it itself, without the model, and sends
- * no token usage over ACP otherwise.
+ * Reads the output tokens from Kimi Code's `/usage` answer: "Session total:
+ * 32529 input, 205 output", the session's totals. Its input count has cached
+ * tokens in it, which the record keeps apart, so it isn't read.
  */
 export function parseKimiSessionStats(text: string): AcpSessionTotals | null {
   const totals = /Session total:\s*(.+)$/m.exec(text)?.[1];
-  if (!totals) return null;
-  const part = (label: string) => tokenCount(new RegExp(`([\\d,]+) ${label}`).exec(totals)?.[1]);
-  const read: AcpSessionTotals = { inputTokens: part("input"), outputTokens: part("output") };
-  return read.inputTokens !== undefined || read.outputTokens !== undefined ? read : null;
+  const outputTokens = totals ? tokenCount(/([\d,]+) output/.exec(totals)?.[1]) : undefined;
+  return outputTokens === undefined ? null : { outputTokens };
 }
 
-export const kimiUsageProbe: AcpUsageProbe = { command: "/usage", parse: parseKimiSessionStats };
+/**
+ * Kimi sends no token usage over ACP. Its `/usage` command, which it answers
+ * itself, comes after the turn's model calls are in the session's logs, so
+ * the totals are read from those, and from the answer when there are none.
+ */
+export function kimiUsageProbe(kimiHome: string): AcpUsageProbe {
+  return {
+    command: "/usage",
+    parse: (text, sessionId) => readKimiWireTotals(kimiHome, sessionId) ?? parseKimiSessionStats(text),
+  };
+}

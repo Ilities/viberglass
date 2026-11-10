@@ -22,6 +22,12 @@ export function formatHarness(record: RunRecord): string | null {
   return record.harnessVersion ? `${harness} ${record.harnessVersion}` : harness
 }
 
+/** The model the run reported, and the runner's when the run used another: "opencode/big-pickle instead of opencode-go/kimi-k3". */
+export function formatRanModel(record: RunRecord): string | null {
+  if (record.modelMismatch && record.modelSnapshot && record.requestedModel) return `${record.modelSnapshot} instead of ${record.requestedModel}`
+  return record.modelSnapshot
+}
+
 export function formatRunResult(record: RunRecord): { label: string; color: BadgeColor } {
   if (record.success === true) return { label: 'Succeeded', color: 'green' }
   if (record.success === false) return { label: 'Failed', color: 'red' }

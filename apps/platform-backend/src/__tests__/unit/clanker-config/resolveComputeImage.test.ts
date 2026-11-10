@@ -23,21 +23,60 @@ function clanker(strategy: Record<string, unknown>): Clanker {
 }
 
 describe("resolveComputeImage", () => {
-  it("reads the container image a Docker runner starts", () => {
-    expect(resolveComputeImage(clanker({ type: "docker", containerImage: "viberator-worker-opencode:latest" }))).toBe(
-      "viberator-worker-opencode:latest",
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = { ...originalEnv, VIBERATOR_WORKER_IMAGE_TAG: "v1.2.2" };
+    delete process.env.VIBERATOR_WORKER_REGISTRY;
+    delete process.env.VIBERATOR_WORKER_IMAGE_PREFIX;
+  });
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it("gives a Docker runner on the published image the installation's tag", () => {
+    expect(resolveComputeImage(clanker({ type: "docker", provisioningMode: "prebuilt" }))).toBe(
+      "viberator-worker-opencode:v1.2.2",
     );
   });
 
-  it("reads the container image of an ECS runner", () => {
-    expect(resolveComputeImage(clanker({ type: "ecs", containerImage: "123.dkr.ecr/worker:1" }))).toBe("123.dkr.ecr/worker:1");
+  it("keeps a Docker runner's custom image", () => {
+    expect(resolveComputeImage(clanker({ type: "docker", provisioningMode: "prebuilt", containerImage: "registry.example/worker:1" }))).toBe(
+      "registry.example/worker:1",
+    );
   });
 
-  it("reads the container image of a Kubernetes runner", () => {
+  it("reads the image a Docker runner built from source", () => {
+    expect(resolveComputeImage(clanker({ type: "docker", provisioningMode: "managed", containerImage: "viberator-worker-opencode:latest" }))).toBe(
+      "viberator-worker-opencode:latest",
+    );
+    expect(resolveComputeImage(clanker({ type: "docker", provisioningMode: "managed" }))).toBeNull();
+  });
+
+  it("gives a Kubernetes runner on the published image the installation's tag", () => {
+    expect(resolveComputeImage(clanker({ type: "kubernetes" }))).toBe("viberator-worker-opencode:v1.2.2");
+  });
+
+  it("keeps a Kubernetes runner's custom image", () => {
     expect(resolveComputeImage(clanker({ type: "kubernetes", containerImage: "registry.example/worker:1" }))).toBe("registry.example/worker:1");
   });
 
-  it("reads the image URI of a Lambda runner", () => {
+  it("reads the image of an ECS runner's task definition", () => {
+    const taskDefinitionDetails = {
+      containerImages: [
+        { name: "sidecar", image: "sidecar:1" },
+        { name: "worker", image: "ghcr.io/ilities/viberator-worker-opencode:v1.2.1" },
+      ],
+    };
+    expect(resolveComputeImage(clanker({ type: "ecs", containerName: "worker", taskDefinitionDetails }))).toBe(
+      "ghcr.io/ilities/viberator-worker-opencode:v1.2.1",
+    );
+    expect(resolveComputeImage(clanker({ type: "ecs", containerImage: "123.dkr.ecr/worker:1" }))).toBe("123.dkr.ecr/worker:1");
+  });
+
+  it("reads the image a Lambda runner's function runs", () => {
+    expect(resolveComputeImage(clanker({ type: "lambda", functionDetails: { imageUri: "123.dkr.ecr/lambda:2" }, imageUri: "123.dkr.ecr/lambda:1" }))).toBe(
+      "123.dkr.ecr/lambda:2",
+    );
     expect(resolveComputeImage(clanker({ type: "lambda", imageUri: "123.dkr.ecr/lambda:1" }))).toBe("123.dkr.ecr/lambda:1");
   });
 

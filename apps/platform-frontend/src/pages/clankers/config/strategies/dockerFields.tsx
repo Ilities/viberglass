@@ -64,7 +64,7 @@ export function DockerStrategyFields({
       {provisioningMode === 'prebuilt' ? (
         <Field>
           <Label>Container Image</Label>
-          <Description>Leave empty to use the published image for this agent. It's pulled the first time the runner starts.</Description>
+          <Description>Leave empty to use the published image for this agent, which follows this installation's version. It's pulled when the runner starts.</Description>
           <Input name="containerImage" defaultValue={defaults.containerImage} placeholder="ghcr.io/myorg/clanker:latest" />
         </Field>
       ) : (

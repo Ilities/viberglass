@@ -29,11 +29,12 @@ function formatAgent(agent?: Clanker['agent'] | null): string {
 
 /**
  * The one line on what stops the agent. Compute progress and failures carry their own message;
- * an admin, who has the Start button, isn't told that an admin can start it.
+ * an admin, who has the Start button, isn't told that an admin can start it, only what the
+ * compute reported, such as a worker image still to be pulled.
  */
 function statusLine(clanker: Clanker, fallback: string | null, isAdmin: boolean): string | null {
   if ((clanker.status === 'deploying' || clanker.status === 'failed') && clanker.statusMessage) return clanker.statusMessage
-  if (isAdmin && clanker.status === 'inactive' && clanker.readiness?.state === 'not_running') return null
+  if (isAdmin && clanker.status === 'inactive' && clanker.readiness?.state === 'not_running') return clanker.statusMessage ?? null
   return clanker.readiness?.problem ?? fallback
 }
 
@@ -188,13 +189,17 @@ export function ClankerDetailPage() {
   const strategyName = readStrategyName(strategyConfig, clanker.deploymentStrategy?.name)
 
   if (strategyName === 'docker' && strategyConfig) {
-    const imageMetadata = isObjectRecord(strategyConfig.imageMetadata) ? strategyConfig.imageMetadata : {}
+    // Details of an image the runner no longer runs, such as after an upgrade, are left out.
+    const imageMetadata =
+      isObjectRecord(strategyConfig.imageMetadata) && strategyConfig.imageMetadata.image === clanker.workerImage
+        ? strategyConfig.imageMetadata
+        : {}
     const dockerBuild = isObjectRecord(strategyConfig.dockerBuild) ? strategyConfig.dockerBuild : {}
     const rawLogs = dockerBuild.logs
 
     deploymentDetails.push({
       label: 'Container Image',
-      value: formatConfigValue(strategyConfig.containerImage),
+      value: formatConfigValue(clanker.workerImage),
     })
     deploymentDetails.push({
       label: 'Image ID',

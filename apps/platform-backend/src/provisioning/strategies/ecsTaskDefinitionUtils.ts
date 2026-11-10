@@ -33,6 +33,18 @@ export function mapTaskDefinitionDetails(
   };
 }
 
+/** The image of the worker container: the named one, or the first. */
+export function taskDefinitionImage(
+  taskDefinition: TaskDefinition | null,
+  containerName: string | undefined,
+): string | undefined {
+  const containers = taskDefinition?.containerDefinitions ?? [];
+  const worker = containerName
+    ? containers.find((container) => container.name === containerName)
+    : containers[0];
+  return worker?.image;
+}
+
 /** Seconds ECS waits after SIGTERM, so a stopped worker can save its work; Fargate allows up to 120. */
 const WORKER_STOP_TIMEOUT_SECONDS = 60;
 

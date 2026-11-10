@@ -186,6 +186,60 @@ describe("LambdaProvisioningHandler", () => {
     });
   });
 
+  describe("after the installation's Lambda worker image changes", () => {
+    const OLD = "123.dkr.ecr.eu-west-1.amazonaws.com/viberator-lambda-worker:v1.2.1";
+    const NEW = "123.dkr.ecr.eu-west-1.amazonaws.com/viberator-lambda-worker:v1.2.2";
+
+    function running(imageUri: string) {
+      return { Configuration: { FunctionName: "worker-fn", FunctionArn: "arn:worker-fn" }, Code: { ImageUri: imageUri } };
+    }
+
+    it("asks for a restart while a managed function runs the old image", async () => {
+      process.env.VIBERATOR_LAMBDA_IMAGE_URI = NEW;
+      const { client, getFunction } = buildLambdaClient();
+      getFunction.mockResolvedValue(running(OLD));
+
+      const result = await new LambdaProvisioningHandler(client).checkAvailability(
+        buildClanker("lambda", { version: 1, strategy: { type: "lambda", functionName: "worker-fn" }, agent: { type: "claude-code" } }),
+      );
+
+      expect(result).toEqual({
+        status: "inactive",
+        statusMessage: `The Lambda function runs ${OLD}, not this installation's worker image ${NEW}. Start the agent to update it.`,
+      });
+    });
+
+    it("deploys the new image without saving it on the runner", async () => {
+      process.env.VIBERATOR_LAMBDA_IMAGE_URI = NEW;
+      const { client, getFunction, updateFunctionCode } = buildLambdaClient();
+      getFunction.mockResolvedValueOnce(running(OLD)).mockResolvedValue(running(NEW));
+
+      const result = await new LambdaProvisioningHandler(client).provision(
+        buildClanker("lambda", { version: 1, strategy: { type: "lambda", functionName: "worker-fn" }, agent: { type: "claude-code" } }),
+      );
+
+      expect(updateFunctionCode).toHaveBeenCalledWith({ FunctionName: "viberator-test-clanker", ImageUri: NEW });
+      expect(result.status).toBe("active");
+      expect(result.deploymentConfig?.strategy).toEqual(expect.not.objectContaining({ imageUri: expect.anything() }));
+    });
+
+    it("keeps a pre-built function's own image", async () => {
+      process.env.VIBERATOR_LAMBDA_IMAGE_URI = NEW;
+      const { client, getFunction } = buildLambdaClient();
+      getFunction.mockResolvedValue(running("registry.example/lambda:pinned"));
+
+      const result = await new LambdaProvisioningHandler(client).checkAvailability(
+        buildClanker("lambda", {
+          version: 1,
+          strategy: { type: "lambda", provisioningMode: "prebuilt", functionName: "worker-fn", imageUri: "registry.example/lambda:pinned" },
+          agent: { type: "claude-code" },
+        }),
+      );
+
+      expect(result.status).toBe("active");
+    });
+  });
+
   it("creates lambda function when it does not exist", async () => {
     const { client, getFunction, createFunction } = buildLambdaClient();
     process.env.VIBERATOR_LAMBDA_ROLE_ARN = "arn:env-role";
@@ -283,6 +337,7 @@ describe("LambdaProvisioningHandler", () => {
   });
 
   it("turns off Lambda's own retries for the functions it manages, and goes on when that's refused", async () => {
+    process.env.VIBERATOR_LAMBDA_IMAGE_URI = "image";
     const { client, getFunction, putFunctionEventInvokeConfig } = buildLambdaClient();
     getFunction.mockResolvedValue({ Configuration: { FunctionName: "fn", FunctionArn: "arn:fn" }, Code: { ImageUri: "image" } });
     const handler = new LambdaProvisioningHandler(client);

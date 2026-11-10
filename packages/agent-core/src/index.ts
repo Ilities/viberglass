@@ -14,7 +14,7 @@ export { BaseAgent } from "./BaseAgent";
 
 // Usage / cost reporting
 export type { AgentUsageReport } from "./usage";
-export { parseJsonLines } from "./usage";
+export { parseJsonLines, withUncachedInput } from "./usage";
 
 // Runner model endpoints
 export {

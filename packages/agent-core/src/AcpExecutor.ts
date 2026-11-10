@@ -5,6 +5,7 @@ import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import type { BaseAgent } from "./BaseAgent";
 import { sanitizeAgentEnvironment } from "./agentEnvironment";
 import type { ExecutionContext, ExecutionResult } from "./types";
+import { withUncachedInput } from "./usage";
 
 export class AcpExecutor {
   constructor(
@@ -74,6 +75,7 @@ export class AcpExecutor {
 
       // What the harness says the session runs beats what the runner asked for.
       const model = result.model ?? result.usage?.model ?? agent.configuredModel();
+      const usage = result.usage && agent.acpInputIncludesCache() ? withUncachedInput(result.usage) : result.usage;
 
       this.logger.info("AcpExecutor completed", {
         acpSessionId: result.acpSessionId,
@@ -89,7 +91,7 @@ export class AcpExecutor {
         acpSessionStart: result.sessionStart,
         acpContextUsage: result.contextUsage,
         acpCompacted: result.compacted,
-        usage: result.usage && { ...result.usage, model: model ?? result.usage.model },
+        usage: usage && { ...usage, model: model ?? usage.model },
         model,
       };
     } catch (error) {

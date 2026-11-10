@@ -50,6 +50,7 @@ export interface DispatchManifest {
 
 /** Token usage. Absent fields mean the CLI did not report them. */
 export interface TokenUsage {
+  /** Input the model read fresh; cache reads and writes are counted apart from it. */
   inputTokens?: number;
   outputTokens?: number;
   reasoningOutputTokens?: number;

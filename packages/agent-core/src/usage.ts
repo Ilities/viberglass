@@ -11,6 +11,7 @@
  * span carries `vg.usage.available=false`.
  */
 export interface AgentUsageReport {
+  /** Input the model read fresh, without cache reads and writes, which are counted below. */
   inputTokens?: number;
   outputTokens?: number;
   reasoningOutputTokens?: number;
@@ -26,6 +27,13 @@ export interface AgentUsageReport {
   stopReason?: string;
   /** Number of agent turns, when the CLI reports it. */
   turns?: number;
+}
+
+/** The usage with cache reads and writes taken out of its input, for a harness whose input count includes them. */
+export function withUncachedInput(usage: AgentUsageReport): AgentUsageReport {
+  if (usage.inputTokens === undefined) return usage;
+  const cached = (usage.cacheReadInputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0);
+  return { ...usage, inputTokens: Math.max(0, usage.inputTokens - cached) };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

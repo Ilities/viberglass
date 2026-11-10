@@ -425,6 +425,27 @@ describe("DockerInvoker", () => {
         );
       });
 
+      it("starts a runner on the published image at the installation's current tag", async () => {
+        const originalTag = process.env.VIBERATOR_WORKER_IMAGE_TAG;
+        const originalRegistry = process.env.VIBERATOR_WORKER_REGISTRY;
+        process.env.VIBERATOR_WORKER_IMAGE_TAG = "v1.2.2";
+        process.env.VIBERATOR_WORKER_REGISTRY = "ghcr.io/ilities";
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+        try {
+          await invoker.invoke(mockJob, { ...mockClanker, agent: "opencode", deploymentConfig: dockerConfig({ provisioningMode: "prebuilt" }) });
+        } finally {
+          if (originalTag === undefined) delete process.env.VIBERATOR_WORKER_IMAGE_TAG;
+          else process.env.VIBERATOR_WORKER_IMAGE_TAG = originalTag;
+          if (originalRegistry === undefined) delete process.env.VIBERATOR_WORKER_REGISTRY;
+          else process.env.VIBERATOR_WORKER_REGISTRY = originalRegistry;
+        }
+
+        expect(mockCreateContainer).toHaveBeenCalledWith(
+          expect.objectContaining({ Image: expect.stringMatching(/^ghcr\.io\/ilities\/viberator-worker-[a-z-]+:v1\.2\.2$/) }),
+        );
+      });
+
       it("should default to bridge networking rather than host", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 

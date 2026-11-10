@@ -37,7 +37,7 @@ RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-a
 RUN npm install -g @qwen-code/qwen-code@latest
 
 # Lambda fragment: OpenCode agent (Amazon Linux, as root)
-RUN npm install -g opencode-ai@1.18.34
+RUN npm install -g opencode-ai@1.19.5
 
 # Lambda fragment: Kimi Code agent (Amazon Linux, as root)
 ENV PATH="/root/.kimi-code/bin:${PATH}"

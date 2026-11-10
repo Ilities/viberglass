@@ -34,6 +34,13 @@ function toLambdaProvisioningConfig(clanker: Clanker): LambdaProvisioningConfig 
   };
 }
 
+/** A managed function always runs the published image; a pre-built one runs the image it names, if any. */
+function wantedLambdaImage(clanker: Clanker, config: LambdaProvisioningConfig): string | undefined {
+  return getWorkerImageForClanker(clanker, "lambda", {
+    ignoreStrategyImage: config.provisioningMode !== "prebuilt",
+  });
+}
+
 export class LambdaProvisioningHandler implements ProvisioningStrategyHandler {
   private readonly lambdaFunctionProvisioner: LambdaFunctionProvisioner;
 
@@ -50,26 +57,13 @@ export class LambdaProvisioningHandler implements ProvisioningStrategyHandler {
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
     const config = toLambdaProvisioningConfig(clanker);
-    const provisioningMode =
-      config.provisioningMode === "prebuilt" ? "prebuilt" : "managed";
-    if (provisioningMode === "managed") {
-      const selectedImage = getWorkerImageForClanker(clanker, "lambda", {
-        ignoreStrategyImage: true,
-      });
-      if (selectedImage) {
-        config.imageUri = selectedImage;
-      }
-    } else if (!config.imageUri) {
-      const selectedImage = getWorkerImageForClanker(clanker, "lambda");
-      if (selectedImage) {
-        config.imageUri = selectedImage;
-      }
-    }
+    // Only an image someone chose is saved; the published one is worked out again each time.
+    const imageUri = wantedLambdaImage(clanker, config) ?? config.imageUri;
 
     await progress?.("Deploying Lambda function...");
     const functionInfo = await this.lambdaFunctionProvisioner.ensureFunction(
       clanker,
-      config,
+      { ...config, imageUri },
       progress,
     );
 
@@ -141,7 +135,14 @@ export class LambdaProvisioningHandler implements ProvisioningStrategyHandler {
     }
 
     try {
-      await this.lambdaClient.getFunction(functionName);
+      const deployed = (await this.lambdaClient.getFunction(functionName)).Code?.ImageUri;
+      const wanted = wantedLambdaImage(clanker, config);
+      if (deployed && wanted && deployed !== wanted) {
+        return {
+          status: "inactive",
+          statusMessage: `The Lambda function runs ${deployed}, not this installation's worker image ${wanted}. Start the agent to update it.`,
+        };
+      }
       return {
         status: "active",
         statusMessage: `Lambda function ready: ${functionName}`,

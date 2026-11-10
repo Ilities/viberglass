@@ -4,7 +4,7 @@ import { runFactsLine } from './run-facts-line'
 function record(overrides: Partial<RunRecord> = {}): RunRecord {
   return {
     jobId: 'job-1', jobKind: 'planning', projectSlug: 'web', ticketId: 't', ticketTitle: 'Task', clankerName: 'Default agent', clankerSlug: 'default',
-    requestedAgent: 'opencode', agent: 'opencode', modelSnapshot: 'zai/glm-4.7-flash', harnessVersion: '1.18.34', repository: 'r', baseBranch: 'main',
+    requestedAgent: 'opencode', agent: 'opencode', requestedModel: 'zai/glm-4.7-flash', modelSnapshot: 'zai/glm-4.7-flash', modelMismatch: false, harnessVersion: '1.18.34', repository: 'r', baseBranch: 'main',
     branch: null, baseSha: null, commitSha: null, workerType: 'docker', computeImage: null, configHash: null, instructionsHash: null, promptHash: null,
     promptCharacters: null, changedFileCount: null, success: true, stopReason: 'completed', errorMessage: null, usageAvailable: true,
     usage: { inputTokens: 24100, outputTokens: 3100, reasoningOutputTokens: null, cacheReadInputTokens: 12000, cacheCreationInputTokens: null },
@@ -23,5 +23,10 @@ describe('runFactsLine', () => {
       '12s',
       'cost not reported',
     ])
+  })
+
+  it('names the model the runner is set to when the run used another', () => {
+    const facts = runFactsLine(record({ requestedModel: 'opencode-go/kimi-k3.1-pro', modelSnapshot: 'opencode/big-pickle', modelMismatch: true }))
+    expect(facts[0]).toBe('opencode/big-pickle instead of opencode-go/kimi-k3.1-pro')
   })
 })

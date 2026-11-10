@@ -22,6 +22,11 @@ export class QwenCodeAgent extends BaseAgent<QwenCodeConfig> {
     return ["qwen", "--acp", "--yolo"];
   }
 
+  /** Qwen Code reports a model call's prompt tokens, cached ones included. */
+  public override acpInputIncludesCache(): boolean {
+    return true;
+  }
+
   public override getAcpEnvironment(harnessConfigDir: string): NodeJS.ProcessEnv {
     const modelEndpoint = currentModelEndpoint();
     if (modelEndpoint) {

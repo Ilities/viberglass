@@ -17,6 +17,7 @@ import {
   formatRunResult,
   formatTokenSummary,
   runRecordHref,
+  formatRanModel,
 } from './run-record-format'
 
 /**
@@ -120,7 +121,7 @@ function RunRecordRow({ record }: { record: RunRecord }) {
       <TableCell className="text-sm text-[var(--gray-11)]">
         {formatAgentName(record) ?? '—'}
         <div className="text-xs text-[var(--gray-9)]">
-          {[formatHarness(record), record.modelSnapshot ?? 'model not reported'].filter(Boolean).join(' · ')}
+          {[formatHarness(record), formatRanModel(record) ?? 'model not reported'].filter(Boolean).join(' · ')}
         </div>
       </TableCell>
       <TableCell>

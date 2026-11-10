@@ -11,6 +11,7 @@ import { JobDispatchStateDAO } from "../../persistence/job/JobDispatchStateDAO";
 import { AgentLoginService } from "../../services/agentLogin/AgentLoginService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
+import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import { dockerJobContainerName } from "./dockerJobContainerName";
 import { dockerStatusCode } from "./dockerStatusCode";
 
@@ -85,7 +86,7 @@ export class DockerInvoker implements WorkerInvoker {
     }
 
     const dockerConfig: DockerDeploymentConfig = {
-      containerImage: resolvedConfig.strategy.containerImage,
+      containerImage: resolveComputeImage(clanker) ?? undefined,
       environmentVariables: resolvedConfig.strategy.environmentVariables,
       // A runner's own network wins; VIBERATOR_WORKER_NETWORK lets a compose file put
       // every agent on a network it shares with the backend.

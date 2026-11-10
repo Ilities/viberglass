@@ -4,7 +4,7 @@ import type { ClankerConfigFormState } from '../types'
 
 export function KubernetesStrategyFields({ defaults }: { defaults: ClankerConfigFormState }) {
   return <>
-    <Field><Label>Container Image</Label><Description>Use a prebuilt worker image. Leave empty to use this agent's default image.</Description>
+    <Field><Label>Container Image</Label><Description>Use a prebuilt worker image. Leave empty to use this agent's published image, which follows this installation's version.</Description>
       <Input name="containerImage" defaultValue={defaults.containerImage} placeholder="ghcr.io/myorg/worker:1" />
     </Field>
     <Field><Label>CPU</Label><Description>CPU requested and limited per worker, for example 500m or 2. Defaults to 1.</Description>
