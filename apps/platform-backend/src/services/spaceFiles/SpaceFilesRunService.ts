@@ -10,6 +10,7 @@ import {
   type TurnArtifact,
 } from "@viberglass/types";
 import { ArtifactDAO, type NewArtifactVersion } from "../../persistence/artifacts/ArtifactDAO";
+import { AgentQuestionDAO } from "../../persistence/agentSession/AgentQuestionDAO";
 import { ArtifactRegistrar } from "../artifacts/ArtifactRegistrar";
 import { createChildLogger } from "../../config/logger";
 import { SpaceFilesDAO, type SpaceFileRun, type SpaceFileSnapshot } from "../../persistence/spaceFiles/SpaceFilesDAO";
@@ -58,7 +59,12 @@ export class SpaceFilesRunService {
     private bootstrapsOverride?: Pick<JobBootstrapService, "getBootstrapPayload">,
     private artifactsOverride?: Pick<ArtifactDAO, "listForJob">,
     private registrarOverride?: Pick<ArtifactRegistrar, "fromDeclaration" | "storeFiles">,
+    private questionsOverride?: Pick<AgentQuestionDAO, "hasOpenBlockingForJob">,
   ) {}
+
+  private get questions(): Pick<AgentQuestionDAO, "hasOpenBlockingForJob"> {
+    return (this.questionsOverride ??= new AgentQuestionDAO());
+  }
 
   private get artifacts(): Pick<ArtifactDAO, "listForJob"> {
     return (this.artifactsOverride ??= new ArtifactDAO());
@@ -157,7 +163,7 @@ export class SpaceFilesRunService {
     // Only a run that makes artifacts keeps one; its files are saved either way.
     let versions: NewArtifactVersion[] = [];
     let artifactError: string | null = null;
-    if (!partial && makesArtifacts(payload, request)) {
+    if (!partial && (await this.makesArtifacts(jobId, payload, request))) {
       if (request.artifactManifestError) {
         artifactError = request.artifactManifestError;
       } else {
@@ -288,6 +294,16 @@ export class SpaceFilesRunService {
     }
   }
 
+  /**
+   * A build turn was asked for an artifact and must declare one, unless it
+   * stopped on a question it needs answered first; any other run keeps one
+   * only when it declares it.
+   */
+  private async makesArtifacts(jobId: string, payload: Record<string, unknown>, request: FilesCheckpointRequest): Promise<boolean> {
+    if (request.artifactManifest != null || request.artifactManifestError) return true;
+    return payload.turnAction === "code" && !(await this.questions.hasOpenBlockingForJob(jobId));
+  }
+
   /** The run, while it holds its space; a cancelled one only when `orStopped` and it still holds it. */
   private async activeRun(
     jobId: string,
@@ -305,12 +321,6 @@ export class SpaceFilesRunService {
     }
     return { run, payload: bootstrap.payload ?? {}, stopped };
   }
-}
-
-/** A build turn was asked for an artifact and must declare one; any other run keeps one only when it declares it. */
-function makesArtifacts(payload: Record<string, unknown>, request: FilesCheckpointRequest): boolean {
-  if (payload.turnAction === "code") return true;
-  return request.artifactManifest != null || Boolean(request.artifactManifestError);
 }
 
 function ticketIdOf(payload: Record<string, unknown>): string | null {

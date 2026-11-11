@@ -321,6 +321,23 @@ export function isValidCronExpression(expression: string): boolean {
   const secondsField = parts[0]
   if (!/^\d+$/.test(secondsField) || parseInt(secondsField, 10) > 59) return false
 
-  const restPattern = /^(\*|([0-9]|[1-5][0-9])|\*\/[0-9]+) (\*|([0-9]|1[0-9]|2[0-3])|\*\/[0-9]+) (\*|([1-9]|[12][0-9]|3[01])|\*\/[0-9]+) (\*|([1-9]|1[0-2])|\*\/[0-9]+) (\*|([0-6])|\*\/[0-9]+)$/
-  return restPattern.test(parts.slice(1).join(' '))
+  return CRON_FIELD_RANGES.every(([min, max], index) => isValidCronField(parts[index + 1], min, max))
+}
+
+// minute, hour, day of month, month, day of week
+const CRON_FIELD_RANGES: Array<[number, number]> = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 6]]
+
+/** A field is `*`, `*\/N`, a value, a range `a-b` or `a-b/N`, or a comma-separated list of those. */
+function isValidCronField(field: string, min: number, max: number): boolean {
+  return field.split(',').every((item) => {
+    const match = /^(\*|(\d+)(?:-(\d+))?)(?:\/(\d+))?$/.exec(item)
+    if (!match) return false
+    const [, , start, end, step] = match
+    if (step !== undefined && Number(step) < 1) return false
+    if (start === undefined) return true
+    const from = Number(start)
+    const to = end === undefined ? from : Number(end)
+    if (step !== undefined && end === undefined) return false
+    return from >= min && to <= max && from <= to
+  })
 }

@@ -45,12 +45,16 @@ function setupFixFor(code: string, project: string, runner?: FailedRunner): { la
 
 const REPORTED_MAX_LENGTH = 200
 
+/** Failures whose own error says what the summary can't: the cause, or when a provider's limit lifts. */
+const REPORTED_CODES: ReadonlySet<string> = new Set([JOB_FAILURE_CODE.AGENT_FAILED, JOB_FAILURE_CODE.AGENT_RATE_LIMITED])
+
 /**
- * A generic agent failure says nothing about the cause, so the agent's own
- * error leads instead of hiding in the technical details.
+ * A generic agent failure says nothing about the cause, and a rate limit's
+ * error may say when it lifts, so the agent's own error leads instead of
+ * hiding in the technical details.
  */
 function reportedError(failure: JobFailure | null | undefined): string | undefined {
-  if (failure?.code !== JOB_FAILURE_CODE.AGENT_FAILED) return undefined
+  if (!failure || !REPORTED_CODES.has(failure.code)) return undefined
   const line = failure.technicalDetail
     ?.split('\n')
     .map((text) => text.trim())
@@ -100,7 +104,10 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
         title,
         summary,
         reported,
-        nextStep: 'Try again from the task. Adding detail to the task description often helps.',
+        nextStep:
+          failure.code === JOB_FAILURE_CODE.AGENT_RATE_LIMITED
+            ? 'Try again from the task once the limit has lifted, or send your next message then.'
+            : 'Try again from the task. Adding detail to the task description often helps.',
         canRetry: true,
       }
     case 'platform':

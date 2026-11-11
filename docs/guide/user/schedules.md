@@ -19,7 +19,7 @@ A template can be used by several schedules.
 
 1. Under Schedules, choose New schedule.
 2. Give it a name and pick the task template. The template's instructions are filled in, and you can adjust them for this schedule.
-3. Choose the schedule type. Interval runs every so many minutes, hours, days or weeks. At set times runs hourly, daily, weekly or monthly at the time you pick. Its Custom option takes a six-field cron expression (second, minute, hour, day of month, month, day of week), such as `0 0 9 * * 1` for 09:00 every Monday. The form says in words when it will run.
+3. Choose the schedule type. Interval runs every so many minutes, hours, days or weeks. At set times runs hourly, daily, on weekdays, weekly or monthly at the time you pick. Its Custom option takes a six-field cron expression (second, minute, hour, day of month, month, day of week), such as `0 0 9 * * 1` for 09:00 every Monday. Fields take ranges and lists, such as `1-5` for Monday to Friday or `1,3,5`. The form says in words when it will run.
 4. Pick the timezone and choose Create schedule.
 
 Each schedule shows whether it's Active or Paused and when it last ran. Runs / fails counts the runs that have ended and how many of those failed; a run that was cancelled counts as a run but not as a failure. Pause stops it until you Resume it. The runs are listed under the space's Runs.

@@ -12,6 +12,7 @@ import { RowSelection } from "./RowSelection";
 import type { Finding, ForbiddenValue } from "./SecretScanner";
 import { SecretScanner } from "./SecretScanner";
 import { selectionContext, viewerUserId } from "./selectionContext";
+import { TaskFolderRepair } from "./TaskFolderRepair";
 import { ACTIVITY_COLUMNS, EXCLUDED_OBJECT_PREFIXES, EXCLUDED_TABLES, EXPORTED_TABLES, STRIPPED_JSON_KEYS } from "./tablePolicies";
 
 export interface ExportSource {
@@ -55,11 +56,12 @@ export class DemoExporter {
       this.config.emailDomain,
     );
     const sanitizer = new RowSanitizer(EXPORTED_TABLES, STRIPPED_JSON_KEYS, emails, exportedAt);
+    const taskFolders = TaskFolderRepair.from(selected);
 
     const tables = new Map<string, Row[]>();
     const manifestTables: BundleTable[] = [];
     for (const [table, rows] of selected) {
-      const sanitized = sanitizer.sanitize(table, rows, schema.columns.get(table) ?? []);
+      const sanitized = sanitizer.sanitize(table, taskFolders.repair(table, rows), schema.columns.get(table) ?? []);
       tables.set(table, sanitized.rows);
       manifestTables.push({ name: table, rows: sanitized.rows.length, timestampColumns: sanitized.timestampColumns });
     }

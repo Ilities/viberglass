@@ -18,6 +18,8 @@ function source(rows: Record<string, Row[]>): ExportSource {
       ["users", [text("id"), text("email"), text("name"), text("password_hash")]],
       ["task_activity", [text("id"), text("kind"), time("created_at")]],
       ["pull_request_outcomes", [text("pull_request_url"), time("checked_at")]],
+      ["agent_sessions", [text("id"), text("ticket_id")]],
+      ["agent_session_events", [text("id"), text("session_id"), { name: "payload_json", type: "jsonb", nullable: false }]],
       ["secrets", [text("id")]],
       ["shiny_new_table", [text("id")]],
     ]),
@@ -52,6 +54,23 @@ describe("DemoExporter", () => {
     await expect(run).rejects.toBeInstanceOf(SecretsFoundError);
     await expect(fs.access(directory)).rejects.toThrow();
     await expect(fs.access(`${directory}.partial`)).rejects.toThrow();
+  });
+
+  it("restores task folders the worker redacted by mistake and still stops on a real key beside them", async () => {
+    const ticket = "0b4c6f1e-9d2a-4c3b-8e7f-123456789abc";
+    const rows = (text: string) => ({
+      users: [{ id: "u1", email: "maria@real.com", name: "Maria", password_hash: "x" }],
+      agent_sessions: [{ id: "s1", ticket_id: ticket }],
+      agent_session_events: [{ id: "e1", session_id: "s1", payload_json: { cwd: text } }],
+    });
+
+    await exporter(rows("/tmp/viberator-work/ta[REDACTED]/repo")).export(exportedAt);
+    const events = JSON.parse(await fs.readFile(path.join(directory, "tables", "agent_session_events.json"), "utf8"));
+    expect(events[0].payload_json).toEqual({ cwd: `/tmp/viberator-work/task-${ticket}/repo` });
+
+    await fs.rm(directory, { recursive: true, force: true });
+    const leaking = exporter(rows("/tmp/viberator-work/ta[REDACTED]/repo OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz")).export(exportedAt);
+    await expect(leaking).rejects.toBeInstanceOf(SecretsFoundError);
   });
 
   it("anchors the newest activity on what people did, not on poller times, and reports tables without a policy", async () => {

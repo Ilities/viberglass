@@ -39,6 +39,8 @@ The config file is optional:
 
 Only tables listed in `export/tablePolicies.ts` are read. A table without a policy, a new one included, is left out and reported. Secrets, credentials, webhook configs and deliveries, sessions, API tokens, invites, password resets, the audit log, runner config files, MCP servers and skills are never exported. Runners keep their name, harness and model; model endpoints keep their name, base URL, format and model list; integrations keep their name and kind. Password hashes, callback tokens, bootstrap payloads, conversation-state archives and signed links are removed.
 
+Runs captured with older workers show `ta[REDACTED]` where the task's workspace folder `task-<ticket id>` was, because their redactor took the `sk-` in it for an API key. The exporter writes the folder name back into any row it can tie to a task through its session or job; for other rows it writes `task-` and the first 8 characters of the job or row id.
+
 Before anything is written the exporter scans every row and object, gzipped ones unpacked, for credential shapes (provider API keys, GitHub and GitLab tokens, bearer tokens, keys in URLs, signed storage links, private keys) and for values the capture database keeps secret: password and token hashes, stored secret ciphertexts, callback tokens and the real addresses of everyone. Any finding stops the export and nothing is written. Litestream replica files are compressed with LZ4 and pass the scan unread.
 
 ## Seed

@@ -3,7 +3,7 @@ import {
   ExecutionContext,
   ExecutionResult,
 } from "../types";
-import type { BaseAgentConfig } from "@viberglass/agent-core";
+import { AcpTurnFailedError, type BaseAgentConfig } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import GitService from "../services/GitService";
 import { ConfigManager } from "../config/ConfigManager";
@@ -145,6 +145,8 @@ export class AgentOrchestrator {
         errorMessage,
         executionTime: Date.now() - execution.startTime.getTime(),
         cost: effectiveAgentConfig.costPerExecution,
+        // What the model calls before the failure used is still spent.
+        ...(error instanceof AcpTurnFailedError ? { usage: error.usage, model: error.model } : {}),
       };
     } finally {
       this.activeExecutions.delete(executionId);

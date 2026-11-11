@@ -16,7 +16,7 @@ A task counts toward the agent and model that ran its latest build. A task that 
 - Questions: questions the agent asked per task.
 - Taken over: tasks where an engineer took over the branch.
 - Review comments: review comments per pull request.
-- Cost per merge: what all the row's runs cost, divided by its merged pull requests. "est." means some of it is the harness's flat estimate, not a reported cost; runs that report no cost add nothing. A run that failed before reaching the model has no cost, and neither does a run on a workspace model: harnesses price tokens from their own provider's list, which doesn't cover the endpoint's model.
+- Cost per merge: what all the row's runs cost, divided by its merged pull requests. "est." means some of it is the harness's flat estimate, not a reported cost; runs that report no cost add nothing. A run that failed before reaching the model has no cost; one that failed later counts what its model calls had used. A run on a workspace model has no cost either: harnesses price tokens from their own provider's list, which doesn't cover the endpoint's model.
 
 A row with fewer than five tasks says "Too few tasks to say" instead of showing rates.
 

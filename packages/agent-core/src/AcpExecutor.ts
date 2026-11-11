@@ -5,7 +5,8 @@ import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import type { BaseAgent } from "./BaseAgent";
 import { sanitizeAgentEnvironment } from "./agentEnvironment";
 import type { ExecutionContext, ExecutionResult } from "./types";
-import { withUncachedInput } from "./usage";
+import { withUncachedInput, type AgentUsageReport } from "./usage";
+import { AcpTurnFailedError } from "./acp/AcpTurnFailedError";
 
 export class AcpExecutor {
   constructor(
@@ -69,14 +70,14 @@ export class AcpExecutor {
         compactInstructions: context.compactInstructions,
         mcpServers,
         providerRetries: agent.getAcpProviderRetries(harnessConfigDir),
+        turnTokens: agent.getAcpTurnTokens(harnessConfigDir),
       });
 
       const turnError = await agent.acpTurnError(result.acpSessionId);
-      if (turnError) throw new Error(turnError);
+      if (turnError) throw new AcpTurnFailedError(turnError, result.usage, result.model);
 
       // Only a model the harness named; the runner's own setting is recorded apart, as the requested model.
       const model = result.model ?? result.usage?.model;
-      const usage = result.usage && agent.acpInputIncludesCache() ? withUncachedInput(result.usage) : result.usage;
 
       this.logger.info("AcpExecutor completed", {
         acpSessionId: result.acpSessionId,
@@ -92,7 +93,7 @@ export class AcpExecutor {
         acpSessionStart: result.sessionStart,
         acpContextUsage: result.contextUsage,
         acpCompacted: result.compacted,
-        usage: usage && { ...usage, model: model ?? usage.model },
+        usage: countedUsage(agent, result.usage, model),
         model,
       };
     } catch (error) {
@@ -102,7 +103,16 @@ export class AcpExecutor {
         error: message,
         agentSessionId: context.agentSessionId,
       });
-      throw error;
+      if (!(error instanceof AcpTurnFailedError)) throw error;
+      const model = error.model ?? error.usage?.model;
+      throw new AcpTurnFailedError(message, countedUsage(agent, error.usage, model), model);
     }
   }
+}
+
+/** The usage as the platform counts it: input without cached tokens, and the model the turn ran on. */
+function countedUsage(agent: BaseAgent, usage: AgentUsageReport | undefined, model: string | undefined): AgentUsageReport | undefined {
+  if (!usage) return undefined;
+  const counted = agent.acpInputIncludesCache() ? withUncachedInput(usage) : usage;
+  return { ...counted, model: model ?? counted.model };
 }

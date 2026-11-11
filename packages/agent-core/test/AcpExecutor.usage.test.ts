@@ -3,6 +3,8 @@ import { createLogger, transports } from "winston";
 import { AcpExecutor } from "../src/AcpExecutor";
 import { AGENT_ENV_PASSTHROUGH_VAR } from "../src/agentEnvironment";
 import { BaseAgent } from "../src/BaseAgent";
+import { AcpTurnFailedError } from "../src/acp/AcpTurnFailedError";
+import type { AcpTurnTokenReader } from "../src/acp/AcpTurnTokenReader";
 import type { AgentCLIResult, BaseAgentConfig, ExecutionContext } from "../src/types";
 
 const AGENT_SCRIPT = path.join(process.cwd(), "test", "fixtures", "resumingAgent.cjs");
@@ -10,11 +12,22 @@ const logger = createLogger({ silent: true, transports: [new transports.Console(
 
 /** Runs the scripted ACP agent, whose prompts report 900 input tokens, 600 of them read from the cache. */
 class ScriptedAgent extends BaseAgent {
-  constructor(private readonly inputIncludesCache: boolean) {
+  constructor(
+    private readonly inputIncludesCache: boolean,
+    private readonly options: { turnFailure?: string; recordedError?: string; turnTokens?: AcpTurnTokenReader } = {},
+  ) {
     super(
       { name: "scripted", capabilities: [], costPerExecution: 0, averageSuccessRate: 1, executionTimeLimit: 60, resourceLimits: { maxMemoryMB: 0, maxCpuPercent: 0, maxDiskSpaceMB: 0, maxNetworkRequests: 0 } } satisfies BaseAgentConfig,
       logger,
     );
+  }
+
+  override getAcpTurnTokens(): AcpTurnTokenReader | undefined {
+    return this.options.turnTokens;
+  }
+
+  override async acpTurnError(): Promise<string | undefined> {
+    return this.options.recordedError;
   }
 
   getAcpServerCommand(): string[] {
@@ -22,7 +35,8 @@ class ScriptedAgent extends BaseAgent {
   }
 
   override getAcpEnvironment(): NodeJS.ProcessEnv {
-    return { AGENT_PROMPT_USAGE: "900/50/600", [AGENT_ENV_PASSTHROUGH_VAR]: "AGENT_PROMPT_USAGE" };
+    const failure = this.options.turnFailure ? { AGENT_TURN_FAILURE: this.options.turnFailure } : {};
+    return { AGENT_PROMPT_USAGE: "900/50/600", ...failure, [AGENT_ENV_PASSTHROUGH_VAR]: "AGENT_PROMPT_USAGE,AGENT_TURN_FAILURE" };
   }
 
   override acpInputIncludesCache(): boolean {
@@ -64,5 +78,35 @@ describe("AcpExecutor usage", () => {
   it("takes cached tokens out of the input of a harness that counts them in it", async () => {
     const result = await new AcpExecutor(logger).execute(new ScriptedAgent(true), "Write the plan", context());
     expect(result.usage).toMatchObject({ inputTokens: 300, outputTokens: 50, cacheReadInputTokens: 600 });
+  });
+
+  it("keeps what a failed turn's model calls used", async () => {
+    const agent = new ScriptedAgent(true, { turnFailure: "error:exceeded retry limit, last status: 429 Too Many Requests" });
+
+    const error: unknown = await new AcpExecutor(logger).execute(agent, "Write the plan", context()).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(AcpTurnFailedError);
+    expect(error).toMatchObject({ message: expect.stringContaining("429 Too Many Requests"), usage: { inputTokens: 300, outputTokens: 50, cacheReadInputTokens: 600 } });
+  });
+
+  it("keeps the usage of a turn the harness ended normally but recorded as failed", async () => {
+    const agent = new ScriptedAgent(false, { recordedError: "401: Incorrect API key provided." });
+
+    await expect(new AcpExecutor(logger).execute(agent, "Write the plan", context())).rejects.toMatchObject({
+      message: "401: Incorrect API key provided.",
+      usage: { inputTokens: 900, outputTokens: 50 },
+    });
+  });
+
+  it("counts every model call the harness recorded, not just what ACP reported for the last one", async () => {
+    const since = jest.fn().mockReturnValue({ inputTokens: 5400, outputTokens: 2100, cacheReadInputTokens: 410_000 });
+    const agent = new ScriptedAgent(false, { turnTokens: { since } });
+    const startedAt = Date.now();
+
+    const result = await new AcpExecutor(logger).execute(agent, "Write the plan", context());
+
+    expect(result.usage).toMatchObject({ inputTokens: 5400, outputTokens: 2100, cacheReadInputTokens: 410_000 });
+    expect(since).toHaveBeenCalledWith(expect.any(String), expect.any(Number));
+    expect(since.mock.calls[0][1]).toBeGreaterThanOrEqual(startedAt);
   });
 });

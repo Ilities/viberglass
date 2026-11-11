@@ -9,13 +9,22 @@ describe("classifyAgentFailure", () => {
   it.each([
     ['{"type":"error","error":{"type":"insufficient_quota"}}'],
     ["Your credit balance is too low to access the Anthropic API"],
+    ["You exceeded your current quota, please check your plan and billing details."],
+    ["Quota exceeded. Check your plan and billing details. (429)"],
+  ])("recognises an account with nothing left: %s", (message) => {
+    expect(classifyAgentFailure(message)).toBe(JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED);
+  });
+
+  it.each([
     ["429 Too Many Requests: rate_limit_error"],
     ["exceeded retry limit, last status: 429 Too Many Requests"],
+    ["Token rate limit exceeded, please try again later."],
     ["The model provider refused the agent's request (HTTP 429): Go usage limit exceeded. The agent would wait 2 hours 19 minutes to try again, so the run stopped."],
     ["The model provider refused the agent's request: 5h usage limit reached. It will reset in 2 hours 14 minutes. The agent would wait 2 hours 14 minutes to try again, so the run stopped."],
     ["Go usage limit exceeded (provider.rate_limit, HTTP 429)"],
-  ])("recognises provider quota errors: %s", (message) => {
-    expect(classifyAgentFailure(message)).toBe(JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED);
+    ["RESOURCE_EXHAUSTED: Quota exceeded for metric generate_content_requests per minute"],
+  ])("recognises limits that lift by themselves: %s", (message) => {
+    expect(classifyAgentFailure(message)).toBe(JOB_FAILURE_CODE.AGENT_RATE_LIMITED);
   });
 
   it.each([

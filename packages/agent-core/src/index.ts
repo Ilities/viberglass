@@ -46,6 +46,8 @@ export type { AcpHttpMcpServer, AcpMcpServer, AcpStdioMcpServer, PlatformSession
 export type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 export type { AcpSessionTotals, AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
 export type { AcpProviderRetry, AcpProviderRetryReader } from "./acp/providerRetry";
+export type { AcpTurnTokenReader, AcpTurnTokens } from "./acp/AcpTurnTokenReader";
+export { AcpTurnFailedError } from "./acp/AcpTurnFailedError";
 export {
   defaultAcpEventMapper,
 } from "./acp/acpEventMapper";

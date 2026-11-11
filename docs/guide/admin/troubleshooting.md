@@ -11,7 +11,8 @@ Each failure has a title on the task and in the run's record.
 | Repository not reachable | The worker couldn't clone: the address is wrong, or the token can't read the repository. | Check the space's Repository settings and its token. |
 | Couldn't push changes | The branch couldn't be pushed or the pull request opened: the token can't write. | Give the token write access to Contents and Pull requests, or check branch protection. |
 | Model key rejected | The provider refused the runner's key or login. | Replace the key on the runner, or sign in again for a ChatGPT login. |
-| Model quota used up | The provider refused for quota, credit or rate limits. A Kimi Code or OpenCode run that would wait more than five minutes for a limit to reset stops with the provider's error. | Add credit or wait for the limit, then try again. |
+| Model quota used up | The provider refused because the account has no quota or credit left. | Add credit or change the plan, then try again. |
+| Model rate limited | The provider is limiting requests for now: a rate limit, or a usage window such as a 5-hour limit. The card shows the provider's message, with how long the agent would have had to wait when the harness said. A Kimi Code or OpenCode run waits out a limit of up to five minutes and stops on a longer one. | Try again, or send the next message, once the limit has lifted. The task isn't paused. |
 | Model context exceeded | The request didn't fit the model's context window. | Use a model with a larger context, or split the task. |
 | Agent couldn't start | No worker could be started for the run. | Check the runner's compute: Docker, the cluster, or the AWS stack. |
 | Worker ran out of memory | The worker used more memory than its runner allows and was stopped. | Give the runner more memory, then try again. |
@@ -27,7 +28,7 @@ Each failure has a title on the task and in the run's record.
 
 ### Setup failures pause the task
 
-When the setup is the problem (repository access, a rejected key, a worker that can't start or runs out of memory), trying again would fail the same way. The task's agent is paused until someone fixes the setup, and people's requests wait. Admins are told, and the failure card links them to the runner or the space's settings.
+When the setup is the problem (repository access, a rejected key, an account out of credit, a worker that can't start or runs out of memory), trying again would fail the same way. The task's agent is paused until someone fixes the setup, and people's requests wait. Admins are told, and the failure card links them to the runner or the space's settings.
 
 After the fix, use Try again on the task to check it. Retry all paused runs then resumes every task the same problem paused.
 

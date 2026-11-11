@@ -1,7 +1,7 @@
 import { BaseAgent, type AgentOutputNormalizer } from "@viberglass/agent-core";
 import { parseOpenCodeRunJsonUsage } from "./openCodeUsage";
 import { OpenCodeOutputNormalizer } from "./OpenCodeOutputNormalizer";
-import type { AcpProviderRetryReader, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpProviderRetryReader, AcpTurnTokenReader, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
@@ -9,6 +9,7 @@ import type { OpenCodeConfig } from "./config";
 import { readOpenCodeSessionDetails } from "./readOpenCodeSessionDetails";
 import { withOpenCodeModel } from "./withOpenCodeModel";
 import { openCodeRetries, writeOpenCodeRetryRecorder } from "./openCodeRetries";
+import { openCodeTokens, writeOpenCodeTokenRecorder } from "./openCodeTokens";
 
 export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
   protected override createOutputNormalizer(): AgentOutputNormalizer {
@@ -65,11 +66,16 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
     }
     env.OPENCODE_CONFIG_DIR = this.configDirectory(harnessConfigDir);
     writeOpenCodeRetryRecorder(env.OPENCODE_CONFIG_DIR);
+    writeOpenCodeTokenRecorder(env.OPENCODE_CONFIG_DIR);
     return env;
   }
 
   public override getAcpProviderRetries(harnessConfigDir: string): AcpProviderRetryReader {
     return openCodeRetries(this.configDirectory(harnessConfigDir));
+  }
+
+  public override getAcpTurnTokens(harnessConfigDir: string): AcpTurnTokenReader {
+    return openCodeTokens(this.configDirectory(harnessConfigDir));
   }
 
   /** The run's harness config when it has one, else the image's config directory. */

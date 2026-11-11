@@ -32,8 +32,10 @@ export const JOB_FAILURE_CODE = {
   REPOSITORY_WRITE_FAILED: 'REPOSITORY_WRITE_FAILED',
   /** The model provider rejected the agent's API key or login. */
   AGENT_CREDENTIAL_INVALID: 'AGENT_CREDENTIAL_INVALID',
-  /** The model provider refused for quota, credit or rate limits. */
+  /** The model provider refused because the account has no quota or credit left. */
   AGENT_QUOTA_EXHAUSTED: 'AGENT_QUOTA_EXHAUSTED',
+  /** The model provider limited requests for a while: a rate limit or a usage window that resets. */
+  AGENT_RATE_LIMITED: 'AGENT_RATE_LIMITED',
   /** The model refused a request that didn't fit its context window. */
   AGENT_CONTEXT_EXCEEDED: 'AGENT_CONTEXT_EXCEEDED',
   /** The agent itself failed or gave up. */

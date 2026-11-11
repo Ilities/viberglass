@@ -1,6 +1,6 @@
 import { isValidCronExpression } from '@viberglass/types'
 
-export type CronFrequency = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom'
+export type CronFrequency = 'hourly' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
 
 export type CronBuilder = {
   frequency: CronFrequency
@@ -42,6 +42,8 @@ export function buildCron(b: CronBuilder): string {
       return `0 ${b.minute} * * * *`
     case 'daily':
       return `0 ${b.minute} ${b.hour} * * *`
+    case 'weekdays':
+      return `0 ${b.minute} ${b.hour} * * 1-5`
     case 'weekly':
       return `0 ${b.minute} ${b.hour} * * ${b.weekday}`
     case 'monthly':
@@ -73,6 +75,11 @@ export function parseCronBuilder(expression: string): CronBuilder {
     const [minute, hour] = toInts(daily)
     return { ...base, frequency: 'daily', minute, hour }
   }
+  const weekdays = match(`${NUM} ${NUM} \\* \\* 1-5`)
+  if (weekdays) {
+    const [minute, hour] = toInts(weekdays)
+    return { ...base, frequency: 'weekdays', minute, hour }
+  }
   const weekly = match(`${NUM} ${NUM} \\* \\* ${NUM}`)
   if (weekly) {
     const [minute, hour, weekday] = toInts(weekly)
@@ -86,7 +93,12 @@ export function parseCronBuilder(expression: string): CronBuilder {
   return { ...base, frequency: 'custom' }
 }
 
-type CronField = { kind: 'any' } | { kind: 'value'; value: number } | { kind: 'step'; step: number }
+type SimpleField = { kind: 'any' } | { kind: 'value'; value: number } | { kind: 'step'; step: number }
+type CronField = SimpleField | { kind: 'range'; from: number; to: number } | { kind: 'list'; values: number[] }
+
+function isSimple(field: CronField): field is SimpleField {
+  return field.kind !== 'range' && field.kind !== 'list'
+}
 
 function parseField(field: string): CronField | null {
   if (field === '*') return { kind: 'any' }
@@ -95,7 +107,25 @@ function parseField(field: string): CronField | null {
     const value = parseInt(step[1], 10)
     return value > 0 ? { kind: 'step', step: value } : null
   }
+  const range = field.match(/^(\d+)-(\d+)$/)
+  if (range) return { kind: 'range', from: parseInt(range[1], 10), to: parseInt(range[2], 10) }
+  if (/^\d+(,\d+)+$/.test(field)) return { kind: 'list', values: field.split(',').map((v) => parseInt(v, 10)) }
   return /^\d+$/.test(field) ? { kind: 'value', value: parseInt(field, 10) } : null
+}
+
+function joinWords(words: string[]): string {
+  return words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
+}
+
+function describeWeekdays(weekday: CronField): string | null {
+  if (weekday.kind === 'value') return `on ${WEEKDAYS[weekday.value]}s`
+  if (weekday.kind === 'step') return `on every ${ordinal(weekday.step)} day of the week from Sunday`
+  if (weekday.kind === 'range') {
+    if (weekday.from === 1 && weekday.to === 5) return 'on weekdays'
+    return `from ${WEEKDAYS[weekday.from]} to ${WEEKDAYS[weekday.to]}`
+  }
+  if (weekday.kind === 'list') return `on ${joinWords(weekday.values.map((v) => `${WEEKDAYS[v]}s`))}`
+  return null
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -114,7 +144,7 @@ function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
 }
 
-function describeTime(minute: CronField, hour: CronField): string {
+function describeTime(minute: SimpleField, hour: SimpleField): string {
   if (hour.kind === 'value') {
     if (minute.kind === 'value') return `at ${formatTime(hour.value, minute.value)}`
     const during = `between ${formatTime(hour.value, 0)} and ${formatTime(hour.value, 59)}`
@@ -128,10 +158,10 @@ function describeTime(minute: CronField, hour: CronField): string {
   return hour.kind === 'any' ? everyMinutes : `${everyMinutes}, ${everyHours}`
 }
 
-function describeDays(monthDay: CronField, month: CronField, weekday: CronField): string[] {
+function describeDays(monthDay: SimpleField, month: SimpleField, weekday: CronField): string[] {
   const parts: string[] = []
-  if (weekday.kind === 'value') parts.push(`on ${WEEKDAYS[weekday.value]}s`)
-  if (weekday.kind === 'step') parts.push(`on every ${ordinal(weekday.step)} day of the week from Sunday`)
+  const weekdays = describeWeekdays(weekday)
+  if (weekdays) parts.push(weekdays)
   if (monthDay.kind === 'value') parts.push(`on the ${ordinal(monthDay.value)} of the month`)
   if (monthDay.kind === 'step') parts.push(`every ${plural(monthDay.step, 'day')} from the 1st`)
   if (month.kind === 'value') parts.push(`in ${MONTHS[month.value - 1]}`)
@@ -149,6 +179,9 @@ export function describeCron(expression: string): string | null {
     .filter((f): f is CronField => f !== null)
   if (fields.length !== 6) return null
   const [second, minute, hour, monthDay, month, weekday] = fields
+  if (!isSimple(second) || !isSimple(minute) || !isSimple(hour) || !isSimple(monthDay) || !isSimple(month)) {
+    return 'Custom schedule'
+  }
 
   const time = describeTime(minute, hour)
   const days = describeDays(monthDay, month, weekday)

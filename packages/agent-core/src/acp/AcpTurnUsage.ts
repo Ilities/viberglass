@@ -1,5 +1,6 @@
 import type { AgentUsageReport } from "../usage";
 import type { AcpSessionTotals } from "./AcpSessionTotalsProbe";
+import type { AcpTurnTokens } from "./AcpTurnTokenReader";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -10,10 +11,8 @@ const count = (value: unknown): number | undefined => (typeof value === "number"
 const add = (total: number | undefined, more: number | undefined): number | undefined =>
   more === undefined ? total : (total ?? 0) + more;
 
-type TurnTokens = Omit<AgentUsageReport, "costUsd" | "model" | "harnessVersion" | "stopReason" | "turns">;
-
 /** ACP's usage fields, added to what was counted so far. */
-function addUsage(tokens: TurnTokens, usage: Record<string, unknown>): TurnTokens {
+function addUsage(tokens: AcpTurnTokens, usage: Record<string, unknown>): AcpTurnTokens {
   return {
     inputTokens: add(tokens.inputTokens, count(usage.inputTokens)),
     outputTokens: add(tokens.outputTokens, count(usage.outputTokens)),
@@ -32,9 +31,9 @@ function addUsage(tokens: TurnTokens, usage: Record<string, unknown>): TurnToken
  * told and is left out rather than guessed.
  */
 export class AcpTurnUsage {
-  private tokens: TurnTokens = {};
+  private tokens: AcpTurnTokens = {};
   private reported = false;
-  private messageTokens: TurnTokens = {};
+  private messageTokens: AcpTurnTokens = {};
   private messagesReported = false;
   private harnessVersion?: string;
   private sessionCost?: number;
@@ -99,6 +98,13 @@ export class AcpTurnUsage {
       };
     }
     if (this.totalsCost === undefined) this.totalsCost = grew("costUsd");
+  }
+
+  /** The harness's own record of every model call in the turn, which outranks what ACP said. */
+  noteRecordedTokens(tokens: AcpTurnTokens | null): void {
+    if (!tokens) return;
+    this.reported = true;
+    this.tokens = tokens;
   }
 
   /** The turn's usage, or undefined when the harness reported none. */

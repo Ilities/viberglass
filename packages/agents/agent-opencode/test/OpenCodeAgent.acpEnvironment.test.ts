@@ -75,7 +75,7 @@ describe("OpenCodeAgent ACP environment", () => {
     expect(agent().getAcpEnvironment(harnessConfigDir).OPENCODE_CONFIG_CONTENT).toBeUndefined();
   });
 
-  it("loads the retry recorder from the run's harness config when it has one", () => {
+  it("loads the retry and token recorders from the run's harness config when it has one", () => {
     fs.mkdirSync(harnessConfigDir);
     process.env.OPENCODE_CONFIG_DIR = path.join(workDir, "image-config");
 
@@ -83,6 +83,7 @@ describe("OpenCodeAgent ACP environment", () => {
 
     expect(env.OPENCODE_CONFIG_DIR).toBe(harnessConfigDir);
     expect(fs.existsSync(path.join(harnessConfigDir, "plugin", "viberglass-retries.js"))).toBe(true);
+    expect(fs.existsSync(path.join(harnessConfigDir, "plugin", "viberglass-tokens.js"))).toBe(true);
   });
 
   it("loads the retry recorder from the image's config directory otherwise", () => {

@@ -1,7 +1,10 @@
 import { JOB_FAILURE_CODE, type JobFailureCode } from "@viberglass/types";
 
+/** The account itself has nothing left; someone has to add credit or change the plan. */
 const QUOTA =
-  /insufficient[_ ]quota|quota|credit balance|out of credits|billing|rate[_ ]limit|too many requests|\b429\b|usage limit/i;
+  /insufficient[_ ]quota|exceeded your current quota|credit balance|out of credits|no credits? left|billing|payment required|\b402\b/i;
+/** Limits that lift by themselves: per-minute rate limits and usage windows that reset. */
+const RATE_LIMIT = /rate[_ ]limit|too many requests|\b429\b|usage limit|quota|resource[_ ]exhausted|try again later/i;
 const CREDENTIAL =
   /invalid[_ ]api[_ ]key|invalid x-api-key|incorrect api key|authentication[_ ]error|authentication required|auth[_ ]required|unauthori[sz]ed|\b401\b|not logged in|please (run )?log ?in|api key (is )?(missing|not set|required)/i;
 
@@ -24,6 +27,7 @@ export function classifyAgentFailure(errorMessage: string | undefined): JobFailu
   if (STALLED.test(message)) return JOB_FAILURE_CODE.AGENT_STALLED;
   if (CONTEXT.test(message)) return JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED;
   if (QUOTA.test(message)) return JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED;
+  if (RATE_LIMIT.test(message)) return JOB_FAILURE_CODE.AGENT_RATE_LIMITED;
   if (CREDENTIAL.test(message)) return JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID;
   return JOB_FAILURE_CODE.AGENT_FAILED;
 }

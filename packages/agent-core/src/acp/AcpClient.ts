@@ -26,6 +26,8 @@ import { TURN_FAILURE_CAPABILITY_META, turnFailureOf } from "./acpTurnFailure";
 import { AcpRunTimers } from "./AcpRunTimers";
 import { ProviderRetryWatch } from "./ProviderRetryWatch";
 import type { AcpProviderRetryReader } from "./providerRetry";
+import type { AcpTurnTokenReader } from "./AcpTurnTokenReader";
+import { AcpTurnFailedError } from "./AcpTurnFailedError";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -47,6 +49,8 @@ export interface AcpRunOptions {
   mcpServers?: AcpMcpServer[];
   /** Where the harness records the provider refusals it waits out, for one that says nothing over ACP meanwhile. */
   providerRetries?: AcpProviderRetryReader;
+  /** Where the harness records each model call's tokens, for one whose ACP usage leaves some out. */
+  turnTokens?: AcpTurnTokenReader;
 }
 
 export interface AcpRunResult {
@@ -160,6 +164,8 @@ export class AcpClient {
       this.failPending(`Agent process exited unexpectedly (${signal ?? `code ${code}`})`);
     });
 
+    const turnStartedAt = Date.now();
+    const noteRecordedTokens = () => this.turnUsage.noteRecordedTokens(options.turnTokens?.since(this.currentSessionId, turnStartedAt) ?? null);
     try {
       const initialized = await this.sendRequest("initialize", {
         protocolVersion: 1,
@@ -199,7 +205,11 @@ export class AcpClient {
       if (failure) throw new Error(failure);
       const compacted = await this.compact(options.compactInstructions);
       if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
+      noteRecordedTokens();
       return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: this.responseModel ?? opener.model };
+    } catch (error) {
+      if (this.currentSessionId) noteRecordedTokens();
+      throw new AcpTurnFailedError(error instanceof Error ? error.message : String(error), this.turnUsage.report(), this.responseModel);
     } finally {
       await this.cleanup();
     }

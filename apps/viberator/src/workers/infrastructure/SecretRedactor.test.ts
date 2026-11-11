@@ -62,6 +62,44 @@ describe("SecretRedactor", () => {
     expect(output).not.toContain("c".repeat(24));
   });
 
+  it("leaves workspace paths, task slugs, ids and ordinary prose alone", () => {
+    const redactor = new SecretRedactor([]);
+    const text = [
+      "/tmp/viberator-work/task-3f2a9c1e-7b4d-4e8a-9c2f-1a2b3c4d5e6f/repo/PLAN.md",
+      "/tmp/viberator-work/job_1794323683397_36c8fb96/repo",
+      "viberator/task-1794327824241-show-finnish-time-in-the-list",
+      "git checkout -b ask-the-team-whether-the-greeting-is-formal",
+      "desk-sanna-standing-desk-martela-two-pieces",
+      "Ask the user for their password before signing in, then refresh the token afterwards.",
+      "const tokenStore = createTokenStoreForTenant(tenantId);",
+      "usage: { inputTokens: 270, outputTokens: 40 }",
+      "github_pat_ is the prefix, ghp_ too, and glpat- for GitLab.",
+    ].join("\n");
+
+    expect(redactor.redact(text)).toBe(text);
+  });
+
+  it("still finds credentials next to those paths and in assignments", () => {
+    const redactor = new SecretRedactor([]);
+    const openAi = `sk-proj-${"a1".repeat(15)}`;
+    const gitlab = `glpat-${"x9".repeat(10)}`;
+
+    const output = redactor.redact(
+      [
+        `OPENAI_API_KEY=${openAi} /tmp/viberator-work/task-1/repo`,
+        `"access_token": "abc123def456ghi789jkl012"`,
+        `DB_PASSWORD=hunter2-but-longer`,
+        `remote ${gitlab}`,
+      ].join("\n"),
+    );
+
+    expect(output).not.toContain(openAi);
+    expect(output).not.toContain("abc123def456ghi789jkl012");
+    expect(output).not.toContain("hunter2-but-longer");
+    expect(output).not.toContain(gitlab);
+    expect(output).toContain("/tmp/viberator-work/task-1/repo");
+  });
+
   it("redacts every string in a nested value and leaves the rest as it was", () => {
     const redactor = new SecretRedactor(["model-key-value-123"]);
     const when = new Date(0);

@@ -138,6 +138,16 @@ export class AgentQuestionDAO {
     return row !== undefined;
   }
 
+  /** Whether the run stopped on a question it can't go on without, still unanswered. */
+  async hasOpenBlockingForJob(jobId: string): Promise<boolean> {
+    const row = await selectQuestions()
+      .where("r.job_id", "=", jobId)
+      .where("r.status", "=", "open")
+      .where("r.blocking", "=", true)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
   /** Each task's open questions, oldest first. */
   async listOpenForTasks(ticketIds: string[]): Promise<Map<string, AgentQuestionRecord[]>> {
     const open = new Map<string, AgentQuestionRecord[]>();

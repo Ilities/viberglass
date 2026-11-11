@@ -8,6 +8,7 @@ import { buildCron, describeCron, formatTime, WEEKDAYS, type CronBuilder, type C
 const FREQUENCIES: { value: CronFrequency; label: string }[] = [
   { value: 'hourly', label: 'Hourly' },
   { value: 'daily', label: 'Daily' },
+  { value: 'weekdays', label: 'Weekdays' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'custom', label: 'Custom' },
@@ -72,7 +73,7 @@ export function CronScheduleField({ value, onChange, timezone }: Props) {
             <span>past the hour</span>
           </div>
         )}
-        {value.frequency === 'daily' && timeInput}
+        {(value.frequency === 'daily' || value.frequency === 'weekdays') && timeInput}
         {value.frequency === 'weekly' && (
           <div className="flex items-center gap-2">
             <Select

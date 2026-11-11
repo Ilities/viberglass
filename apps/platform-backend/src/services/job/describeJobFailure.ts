@@ -36,9 +36,14 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
   },
   [JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED]: {
     title: "Model quota used up",
-    summary:
-      "The model provider refused the request because of quota, credit or rate limits.",
+    summary: "The model provider refused the request because the account has no quota or credit left.",
     category: "setup",
+    retryable: true,
+  },
+  [JOB_FAILURE_CODE.AGENT_RATE_LIMITED]: {
+    title: "Model rate limited",
+    summary: "The model provider is limiting requests for now, so the agent stopped. The limit lifts by itself.",
+    category: "agent",
     retryable: true,
   },
   [JOB_FAILURE_CODE.AGENT_CONTEXT_EXCEEDED]: {

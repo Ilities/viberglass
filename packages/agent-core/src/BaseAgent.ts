@@ -48,6 +48,7 @@ import type { AgentUsageReport } from "./usage";
 import type { AcpMcpServer } from "./acp/types";
 import type { AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
 import type { AcpProviderRetryReader } from "./acp/providerRetry";
+import type { AcpTurnTokenReader } from "./acp/AcpTurnTokenReader";
 
 export type { AgentCLIResult };
 
@@ -81,6 +82,14 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
    * one that sends nothing over ACP while it waits. Most fail the turn, so none by default.
    */
   getAcpProviderRetries(_harnessConfigDir: string): AcpProviderRetryReader | undefined {
+    return undefined;
+  }
+
+  /**
+   * Where the harness records each model call's tokens, for one whose ACP
+   * usage covers only part of a turn. Most report the whole turn, so none by default.
+   */
+  getAcpTurnTokens(_harnessConfigDir: string): AcpTurnTokenReader | undefined {
     return undefined;
   }
 

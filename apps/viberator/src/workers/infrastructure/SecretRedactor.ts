@@ -8,13 +8,13 @@ const MIN_NESTED_SECRET_LENGTH = 16;
 const SECRET_PATTERNS: ReadonlyArray<{ pattern: RegExp; replacement: string }> = [
   { pattern: /\b([a-z][a-z0-9+.-]*:\/\/[^\s/@:]*):[^\s/@]+@/gi, replacement: `$1:${REDACTED}@` },
   { pattern: /\b([a-z][a-z0-9+.-]*:\/\/)[A-Za-z0-9_\-.]{20,}@/gi, replacement: `$1${REDACTED}@` },
-  { pattern: /token[a-z]*["\s:=]+[a-zA-Z0-9_\-]{20,}/gi, replacement: REDACTED },
-  { pattern: /password["\s:=]+[^\s]+/gi, replacement: REDACTED },
-  { pattern: /sk-[a-zA-Z0-9_\-]{20,}/g, replacement: REDACTED },
-  { pattern: /gh[pousr]_[a-zA-Z0-9]{36}/g, replacement: REDACTED },
-  { pattern: /github_pat_[a-zA-Z0-9_]{22,}/g, replacement: REDACTED },
-  { pattern: /glpat-[a-zA-Z0-9_\-]{20,}/g, replacement: REDACTED },
-  { pattern: /Bearer\s+[a-zA-Z0-9_\-.]{20,}/gi, replacement: REDACTED },
+  { pattern: /token[a-z_]*"?\s*[:=]\s*"?(?=[A-Za-z_\-.]*\d)[A-Za-z0-9_\-.]{20,}/gi, replacement: REDACTED },
+  { pattern: /password"?\s*[:=]\s*"?[^\s"]+/gi, replacement: REDACTED },
+  { pattern: /(?<![\w-])sk-[a-zA-Z0-9_\-]{20,}/g, replacement: REDACTED },
+  { pattern: /\bgh[pousr]_[a-zA-Z0-9]{36}\b/g, replacement: REDACTED },
+  { pattern: /\bgithub_pat_[a-zA-Z0-9_]{22,}/g, replacement: REDACTED },
+  { pattern: /(?<![\w-])glpat-[a-zA-Z0-9_\-]{20,}/g, replacement: REDACTED },
+  { pattern: /\bBearer\s+[a-zA-Z0-9_\-.]{20,}/gi, replacement: REDACTED },
 ];
 
 /**

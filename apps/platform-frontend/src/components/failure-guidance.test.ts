@@ -4,7 +4,7 @@ import { failureGuidance, failureHeadline } from './failure-guidance'
 const quota: JobFailure = {
   code: JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED,
   title: 'Model quota used up',
-  summary: 'The model provider refused the request because of quota, credit or rate limits.',
+  summary: 'The model provider refused the request because the account has no quota or credit left.',
   category: 'setup',
   retryable: true,
 }
@@ -43,6 +43,22 @@ describe('failureGuidance', () => {
 
   it("keeps the agent's error in the technical details when the failure has a name", () => {
     expect(failureHeadline({ ...quota, technicalDetail: '429 Too Many Requests' }).reported).toBeUndefined()
+  })
+
+  it("offers anyone a later retry for a rate limit, leading with the provider's message", () => {
+    const failure: JobFailure = {
+      code: JOB_FAILURE_CODE.AGENT_RATE_LIMITED,
+      title: 'Model rate limited',
+      summary: 'The model provider is limiting requests for now, so the agent stopped. The limit lifts by itself.',
+      category: 'agent',
+      retryable: true,
+      technicalDetail: "The model provider refused the agent's request (HTTP 429): Go usage limit exceeded. The agent would wait 2 hours 19 minutes to try again, so the run stopped.",
+    }
+    const guidance = failureGuidance(failure, false, 'shop')
+    expect(guidance.canRetry).toBe(true)
+    expect(guidance.fix).toBeUndefined()
+    expect(guidance.reported).toMatch(/would wait 2 hours 19 minutes/)
+    expect(guidance.nextStep).toMatch(/once the limit has lifted/)
   })
 
   it('tells members that an admin is needed, without a fix link', () => {

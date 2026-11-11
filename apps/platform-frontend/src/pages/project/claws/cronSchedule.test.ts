@@ -13,6 +13,10 @@ describe('describeCron', () => {
     ['0 0 12 22 3 *', 'At 12:00 on the 22nd of the month in March'],
     ['0 0 0 */3 * *', 'At 00:00 every 3 days from the 1st'],
     ['30 0 9 * * *', 'Every day at 09:00, 30 seconds past the minute'],
+    ['0 0 19 * * 1-5', 'At 19:00 on weekdays'],
+    ['0 0 7 * * 2-4', 'At 07:00 from Tuesday to Thursday'],
+    ['0 0 7 * * 1,3,5', 'At 07:00 on Mondays, Wednesdays and Fridays'],
+    ['0 0 9-17 * * *', 'Custom schedule'],
   ])('reads %s as "%s"', (expression, expected) => {
     expect(describeCron(expression)).toBe(expected)
   })
@@ -20,7 +24,9 @@ describe('describeCron', () => {
   it('returns null for expressions the scheduler rejects', () => {
     expect(describeCron('* * * * *')).toBeNull()
     expect(describeCron('*/5 * * * * *')).toBeNull()
-    expect(describeCron('0 0 9 * * 1-5')).toBeNull()
+    expect(describeCron('0 0 9 * * 5-1')).toBeNull()
+    expect(describeCron('0 0 9 * * 1-7')).toBeNull()
+    expect(describeCron('0 0 9 * * 1,')).toBeNull()
     expect(describeCron('0 */0 * * * *')).toBeNull()
     expect(describeCron('')).toBeNull()
   })
@@ -31,6 +37,7 @@ describe('cron builder', () => {
     const builders = [
       { ...defaultCronBuilder, frequency: 'hourly' as const, minute: 20 },
       { ...defaultCronBuilder, frequency: 'daily' as const, hour: 7, minute: 45 },
+      { ...defaultCronBuilder, frequency: 'weekdays' as const, hour: 19, minute: 0 },
       { ...defaultCronBuilder, frequency: 'weekly' as const, weekday: 5, hour: 17, minute: 0 },
       { ...defaultCronBuilder, frequency: 'monthly' as const, monthDay: 15, hour: 3, minute: 10 },
     ]

@@ -57,10 +57,11 @@ function setup() {
     fromDeclaration: jest.fn().mockResolvedValue({ versions: [] }),
     storeFiles: jest.fn().mockResolvedValue(undefined),
   };
-  const service = new SpaceFilesRunService(dao as never, store, bootstraps, artifacts, registrar);
+  const questions = { hasOpenBlockingForJob: jest.fn().mockResolvedValue(false) };
+  const service = new SpaceFilesRunService(dao as never, store, bootstraps, artifacts, registrar, questions);
   const launcher = jest.fn().mockResolvedValue(undefined);
   service.setLauncher(launcher);
-  return { dao, store, bootstraps, service, launcher, registrar, artifacts };
+  return { dao, store, bootstraps, service, launcher, registrar, artifacts, questions };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -143,6 +144,30 @@ describe("SpaceFilesRunService", () => {
 
     expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.anything(), []);
     expect(saved).toMatchObject({ artifacts: [], artifactError: "The agent didn't declare an artifact" });
+  });
+
+  it("doesn't ask for an artifact from a build turn that stopped on a question it needs answered", async () => {
+    const { dao, service, registrar, bootstraps, questions } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "code" } });
+    questions.hasOpenBlockingForJob.mockResolvedValue(true);
+
+    const saved = await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: null });
+
+    expect(questions.hasOpenBlockingForJob).toHaveBeenCalledWith("job-1");
+    expect(registrar.fromDeclaration).not.toHaveBeenCalled();
+    expect(dao.commitCheckpoint).toHaveBeenCalledWith(expect.anything(), []);
+    expect(saved).toMatchObject({ artifactError: null });
+  });
+
+  it("still keeps an artifact a build turn declared before stopping on a question", async () => {
+    const { service, registrar, bootstraps, questions } = setup();
+    bootstraps.getBootstrapPayload.mockResolvedValue({ tenantId: "api-server", status: "active", payload: { turnAction: "code" } });
+    questions.hasOpenBlockingForJob.mockResolvedValue(true);
+    const manifest = { artifacts: [{ title: "Notes", entrypoint: "notes.md" }] };
+
+    await service.checkpoint("job-1", "api-server", { sha256: EMPTY_SHA, archiveBytes: EMPTY.length, partial: false, artifactManifest: manifest });
+
+    expect(registrar.fromDeclaration).toHaveBeenCalledWith(manifest, [], expect.objectContaining({ jobId: "job-1" }));
   });
 
   it("keeps the artifacts a reply declared, and saves a reply without a declaration as files only", async () => {

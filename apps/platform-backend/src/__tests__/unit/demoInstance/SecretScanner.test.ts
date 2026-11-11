@@ -30,6 +30,10 @@ describe("SecretScanner", () => {
     expect(scanner.scanText("A customer can't reset their password on mobile; the run used 48000 tokens.", "here")).toEqual([]);
   });
 
+  it("doesn't take a task's workspace folder for an sk- key", () => {
+    expect(scanner.scanText("cd /tmp/viberator-work/task-0b4c6f1e-9d2a-4c3b-8e7f-123456789abc/repo", "here")).toEqual([]);
+  });
+
   it("looks inside gzipped objects", () => {
     expect(scanner.scanObject(gzipSync(Buffer.from("const key = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'")), "object a.tar.gz")).toHaveLength(1);
   });
