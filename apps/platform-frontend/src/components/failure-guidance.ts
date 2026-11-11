@@ -73,6 +73,12 @@ export function failureHeadline(failure: JobFailure | null | undefined): { title
   }
 }
 
+function agentNextStep(code: string): string {
+  if (code === JOB_FAILURE_CODE.AGENT_RATE_LIMITED) return 'Try again from the task once the limit has lifted, or send your next message then.'
+  if (code === JOB_FAILURE_CODE.REPOSITORY_NETWORK_FAILED) return 'Try again from the task in a moment.'
+  return 'Try again from the task. Adding detail to the task description often helps.'
+}
+
 /**
  * Failure copy by audience: setup problems send admins to the fix and tell
  * everyone else an admin is needed; agent problems invite a retry; problems
@@ -104,10 +110,7 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
         title,
         summary,
         reported,
-        nextStep:
-          failure.code === JOB_FAILURE_CODE.AGENT_RATE_LIMITED
-            ? 'Try again from the task once the limit has lifted, or send your next message then.'
-            : 'Try again from the task. Adding detail to the task description often helps.',
+        nextStep: agentNextStep(failure.code),
         canRetry: true,
       }
     case 'platform':

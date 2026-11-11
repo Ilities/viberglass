@@ -14,7 +14,7 @@ export function registerTaskQuestionRoutes(router: Router, deps: { answers: Pick
       const asked = await deps.answers.answer(req.params.id, req.params.questionId, req.authContext!.user.id, answer);
       res.status(201).json({
         success: true,
-        turn: { sessionId: asked.session.id, turnId: asked.currentTurn.id, jobId: asked.job.id, status: asked.job.status },
+        turn: asked && { sessionId: asked.session.id, turnId: asked.currentTurn.id, jobId: asked.job.id, status: asked.job.status },
       });
     } catch (error) {
       next(error);

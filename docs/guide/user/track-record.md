@@ -12,11 +12,11 @@ A task counts toward the agent and model that ran its latest build. A task that 
 
 - Tasks: how many tasks the row covers.
 - Merged: tasks whose pull request was merged, out of those whose pull request was merged or closed. Pull requests still open aren't counted until they're decided.
-- Built from first plan: tasks built from the agent's first plan, out of the tasks built from a plan.
+- Built from first plan: tasks built from the agent's first plan, out of the tasks built from a plan. Plans count by version, as in the plan's history: a turn that only asks or answers a question doesn't make a new plan, and neither does your own edit.
 - Questions: questions the agent asked per task.
 - Taken over: tasks where an engineer took over the branch.
 - Review comments: review comments per pull request.
-- Cost per merge: what all the row's runs cost, divided by its merged pull requests. "est." means some of it is the harness's flat estimate, not a reported cost. Runs whose harness reports no cost, such as Codex, Kimi Code and Qwen Code, add nothing, and a row where no run reported a cost shows —. A run that failed before reaching the model has no cost; one that failed later counts what its model calls had used. A run on a workspace model has no cost either: harnesses price tokens from their own provider's list, which doesn't cover the endpoint's model.
+- Cost per merge: what the row's agent and model spent on the row's tasks, divided by its merged pull requests. Runs another agent or model made on one of these tasks, such as an earlier build with a different runner, don't count here or in any other row. "est." means some of it is the harness's flat estimate, not a reported cost. Runs whose harness reports no cost, such as Codex, Kimi Code and Qwen Code, add nothing, and a row where no run reported a cost shows —. A run that failed before reaching the model has no cost; one that failed later counts what its model calls had used. A run on a workspace model has no cost either: harnesses price tokens from their own provider's list, which doesn't cover the endpoint's model.
 
 A row with fewer than five tasks says "Too few tasks to say" instead of showing rates.
 
@@ -26,4 +26,4 @@ People choose which agent takes each task, and they may give the hardest tasks t
 
 ## One agent's tasks
 
-Choose a row to list its tasks, newest first, each with how it went: the pull request's outcome, how many plans came before the build, the agent's questions, a takeover, failed runs, review comments and the cost.
+Choose a row to list its tasks, newest first, each with how it went: the pull request's outcome, how many plans came before the build, the agent's questions, a takeover, failed runs, review comments and what the row's agent and model spent on it.

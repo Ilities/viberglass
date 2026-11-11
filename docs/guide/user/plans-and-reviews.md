@@ -18,6 +18,8 @@ If the agent needs a decision it can't make from the code, it asks in the thread
 
 Type an answer and choose Answer, or pick one of the options the agent offered. Give a decision rather than "looks good" when wording, scope or what counts as done is still open.
 
+When the agent stops on several questions at once, it waits until all of them are answered, then carries on with every answer in one turn.
+
 Anyone on the task can answer, even if the question was for someone else. The thread records who answered for whom, such as "Quinn answered for Maria". If answers conflict, say which one stands.
 
 The space can remind people about unanswered questions after a while; ask your space's maintainer.

@@ -48,6 +48,16 @@ async function run(id: string, ticketId: string, kind: string, status: string, c
       ${manifest.requestedModel ?? null}, ${manifest.modelSnapshot ?? null}, ${manifest.cost ?? null}, ${manifest.provenance ?? null})`.execute(mockDb);
 }
 
+async function planVersions(ticketId: string, versions: { source: "agent" | "manual"; at: string }[]) {
+  const document = await one(
+    sql<{ id: string }>`INSERT INTO ticket_phase_documents (ticket_id, phase, content) VALUES (${ticketId}, 'planning', '') RETURNING id`.execute(mockDb),
+  );
+  for (const [index, { source, at }] of versions.entries()) {
+    await sql`INSERT INTO ticket_phase_document_revisions (document_id, ticket_id, phase, content, source, version, created_at)
+      VALUES (${document.id}, ${ticketId}, 'planning', ${`plan ${index}`}, ${source}, ${index + 1}, ${at})`.execute(mockDb);
+  }
+}
+
 describe("agent track record against Postgres", () => {
   let ids: Awaited<ReturnType<typeof seed>>;
 
@@ -68,7 +78,7 @@ describe("agent track record against Postgres", () => {
     await container?.stop();
   });
 
-  it("credits each task to its latest build, else its latest plan, and reads how it went", async () => {
+  it("credits each task to its latest build, else its latest plan, counting plan versions and only the credited agent's cost", async () => {
     await run("plan_1", ids.built, "planning", "completed", "2026-10-01T01:00:00Z", { requestedAgent: "harness-a", requestedModel: "model-old", cost: 0.25, provenance: "actual" });
     await run("plan_2", ids.built, "planning", "completed", "2026-10-01T02:00:00Z", { requestedAgent: "harness-a", requestedModel: "model-old", cost: 0.25, provenance: "actual" });
     await run("build_1", ids.built, "execution", "failed", "2026-10-01T03:00:00Z", { requestedAgent: "harness-b", requestedModel: "model-x" });
@@ -83,6 +93,14 @@ describe("agent track record against Postgres", () => {
     await run("plan_after", ids.built, "planning", "completed", "2026-10-01T05:00:00Z", { requestedAgent: "harness-a" });
     await run("plan_3", ids.planned, "planning", "completed", "2026-10-02T01:00:00Z", { requestedAgent: "harness-a" });
     await run("plan_4", ids.elsewhere, "planning", "completed", "2026-10-04T01:00:00Z", { requestedAgent: "harness-a" });
+    await run("plan_5", ids.planned, "planning", "completed", "2026-10-02T02:00:00Z", { requestedAgent: "harness-a" });
+    await planVersions(ids.built, [
+      { source: "agent", at: "2026-10-01T02:30:00Z" },
+      { source: "manual", at: "2026-10-01T02:40:00Z" },
+      { source: "agent", at: "2026-10-01T02:50:00Z" },
+      { source: "agent", at: "2026-10-01T05:30:00Z" },
+    ]);
+    await planVersions(ids.planned, [{ source: "agent", at: "2026-10-02T02:30:00Z" }]);
 
     const runner = await one(sql<{ id: string }>`INSERT INTO clankers (name, slug) VALUES ('Runner', 'runner') RETURNING id`.execute(mockDb));
     const session = await one(
@@ -125,7 +143,7 @@ describe("agent track record against Postgres", () => {
         runs: 5,
         failedRuns: 1,
         reviewComments: 3,
-        costUsd: 2,
+        costUsd: 1.5,
         costEstimated: true,
       },
     ]);

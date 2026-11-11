@@ -28,6 +28,13 @@ const FAILURES: Record<JobFailureCode, FailureDescription> = {
     category: "setup",
     retryable: false,
   },
+  [JOB_FAILURE_CODE.REPOSITORY_NETWORK_FAILED]: {
+    title: "Network problem",
+    summary:
+      "The agent's worker lost its network connection while reaching the repository. This is usually brief, so try again.",
+    category: "agent",
+    retryable: true,
+  },
   [JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID]: {
     title: "Model key rejected",
     summary: "The model provider rejected the agent's API key or login.",

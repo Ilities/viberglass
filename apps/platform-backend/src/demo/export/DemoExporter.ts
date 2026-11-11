@@ -15,7 +15,7 @@ import type { Finding, ForbiddenValue } from "./SecretScanner";
 import { SecretScanner } from "./SecretScanner";
 import { selectionContext, viewerUserId } from "./selectionContext";
 import { TaskFolderRepair } from "./TaskFolderRepair";
-import { ACTIVITY_COLUMNS, EXCLUDED_OBJECT_PREFIXES, EXCLUDED_TABLES, EXPORTED_TABLES, STRIPPED_JSON_KEYS } from "./tablePolicies";
+import { ACTIVITY_COLUMNS, EXCLUDED_OBJECT_PREFIXES, EXCLUDED_TABLES, EXPORTED_TABLES, LOOSE_REFERENCES, STRIPPED_JSON_KEYS } from "./tablePolicies";
 
 export interface ExportSource {
   schema(): Promise<SchemaSnapshot>;
@@ -49,7 +49,7 @@ export class DemoExporter {
     for (const table of Object.keys(EXPORTED_TABLES)) if (schema.columns.has(table)) raw.set(table, await this.source.rows(table));
 
     const rowsOf = (table: string) => raw.get(table) ?? [];
-    const selected = new RowSelection(EXPORTED_TABLES, schema.foreignKeys).select(raw, selectionContext(rowsOf, this.config));
+    const selected = new RowSelection(EXPORTED_TABLES, [...schema.foreignKeys, ...LOOSE_REFERENCES]).select(raw, selectionContext(rowsOf, this.config));
     const users = selected.get("users") ?? [];
     const viewerId = viewerUserId(users, this.config.viewer.sourceEmail);
     const emails = new EmailMapping(

@@ -20,7 +20,7 @@ const fk = (table: string, columnName: string, references: string, nullable = tr
   referencedColumn: "id",
   nullable,
 });
-const everything: SelectionContext = { spaceIds: null, excludedUserIds: new Set(), jobProjects: new Map() };
+const everything: SelectionContext = { spaceIds: null, excludedUserIds: new Set(), excludedTaskIds: new Set(), excludedJobIds: new Set(), jobProjects: new Map() };
 const exportedAt = new Date("2026-11-01T12:00:00Z");
 
 describe("the export's table allowlist", () => {

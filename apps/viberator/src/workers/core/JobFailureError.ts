@@ -17,9 +17,9 @@ export class JobFailureError extends Error {
   }
 }
 
-/** Runs a step and reports any error it throws with the given failure code. */
+/** Runs a step and reports any error it throws with the given failure code, or the one it picks for that error. */
 export async function failingWith<T>(
-  code: JobFailureCode,
+  code: JobFailureCode | ((error: unknown) => JobFailureCode),
   step: () => Promise<T>,
 ): Promise<T> {
   try {
@@ -27,7 +27,7 @@ export async function failingWith<T>(
   } catch (error) {
     if (error instanceof JobFailureError) throw error;
     throw new JobFailureError(
-      code,
+      typeof code === "function" ? code(error) : code,
       error instanceof Error ? error.message : String(error),
     );
   }

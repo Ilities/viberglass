@@ -1,5 +1,6 @@
 import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { failingWith } from "./JobFailureError";
+import { repositoryFailure } from "./repositoryFailure";
 import type { JobRunnerParams } from "./jobPipeline";
 
 /** The branch a task's turns commit to. */
@@ -15,7 +16,7 @@ export interface TaskBranch {
  * request instead of starting again from the base branch.
  */
 export async function prepareTaskBranch(params: JobRunnerParams, name: string, repoDir: string): Promise<TaskBranch> {
-  const continued = await failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
+  const continued = await failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED), () =>
     params.gitService.checkoutRemoteBranch(repoDir, name, params.gitAuth),
   );
   return { name, continued };

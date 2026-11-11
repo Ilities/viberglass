@@ -5,6 +5,7 @@ import type GitService from "../../services/GitService";
 import type { GitAuth } from "../../services/gitAuth";
 import type { ReleaseCallbackClient } from "../infrastructure/ReleaseCallbackClient";
 import { failingWith, JobFailureError } from "../core/JobFailureError";
+import { repositoryFailure } from "../core/repositoryFailure";
 import { buildHomeDir, runAppBuild } from "./runAppBuild";
 import { packBundle, uploadBundle } from "./releaseBundle";
 
@@ -28,7 +29,7 @@ export async function buildRelease(deps: BuildReleaseDeps): Promise<void> {
   fs.mkdirSync(workDir, { recursive: true });
 
   await deps.sendProgress("clone", `Fetching ${release.commitSha.slice(0, 7)}`);
-  const repoDir = await failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
+  const repoDir = await failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED), () =>
     deps.git.fetchCommit(deps.repository, release.commitSha, workDir, deps.gitAuth),
   );
 

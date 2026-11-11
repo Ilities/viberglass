@@ -17,6 +17,8 @@ describe("describeJobFailure", () => {
     expect(describeJobFailure(JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED).category).toBe("setup");
     // A limit that lifts by itself mustn't pause the task until an admin steps in.
     expect(describeJobFailure(JOB_FAILURE_CODE.AGENT_RATE_LIMITED)).toMatchObject({ category: "agent", retryable: true });
+    expect(describeJobFailure(JOB_FAILURE_CODE.REPOSITORY_NETWORK_FAILED)).toMatchObject({ category: "agent", retryable: true });
+    expect(describeJobFailure(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED)).toMatchObject({ category: "setup", retryable: false });
     expect(describeJobFailure(JOB_FAILURE_CODE.AGENT_NO_DOCUMENT)).toMatchObject({
       category: "agent",
       retryable: true,

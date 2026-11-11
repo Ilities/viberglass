@@ -25,7 +25,10 @@ interface Row {
   review_comments: string | null;
 }
 
-/** How each of a space's tasks went, credited to the harness and model of its latest build, else of its latest plan or reply. */
+/**
+ * How each of a space's tasks went, credited to the harness and model of its latest build, else of its latest plan or reply.
+ * Its cost counts only the runs that harness and model made.
+ */
 export class AgentTrackRecordDAO {
   async tasksOf(spaceId: string): Promise<CreditedTask[]> {
     const { rows } = await sql<Row>`
@@ -46,21 +49,23 @@ export class AgentTrackRecordDAO {
         ORDER BY ticket_id, CASE job_kind WHEN 'execution' THEN 0 WHEN 'planning' THEN 1 ELSE 2 END, created_at DESC
       ),
       run_totals AS (
-        SELECT ticket_id,
+        SELECT r.ticket_id,
                count(*) AS runs,
-               count(*) FILTER (WHERE status = 'failed') AS failed_runs,
-               sum(cost_usd) AS cost_usd,
-               bool_or(cost_provenance = 'estimated') AS cost_estimated,
-               min(created_at) FILTER (WHERE job_kind = 'execution') AS first_build
-        FROM space_runs
-        GROUP BY ticket_id
+               count(*) FILTER (WHERE r.status = 'failed') AS failed_runs,
+               sum(r.cost_usd) FILTER (WHERE credited_run) AS cost_usd,
+               bool_or(r.cost_provenance = 'estimated') FILTER (WHERE credited_run) AS cost_estimated,
+               min(r.created_at) FILTER (WHERE r.job_kind = 'execution') AS first_build
+        FROM space_runs r
+        JOIN credited c ON c.ticket_id = r.ticket_id
+        CROSS JOIN LATERAL (SELECT r.agent IS NOT DISTINCT FROM c.agent AND r.model IS NOT DISTINCT FROM c.model AS credited_run) cr
+        GROUP BY r.ticket_id
       ),
       plan_rounds AS (
-        SELECT r.ticket_id, count(*) AS plan_rounds
-        FROM space_runs r
-        JOIN run_totals rt ON rt.ticket_id = r.ticket_id
-        WHERE r.job_kind = 'planning' AND r.status = 'completed' AND (rt.first_build IS NULL OR r.created_at < rt.first_build)
-        GROUP BY r.ticket_id
+        SELECT v.ticket_id, count(*) AS plan_rounds
+        FROM ticket_phase_document_revisions v
+        JOIN run_totals rt ON rt.ticket_id = v.ticket_id
+        WHERE v.phase = 'planning' AND v.source = 'agent' AND (rt.first_build IS NULL OR v.created_at < rt.first_build)
+        GROUP BY v.ticket_id
       ),
       questions AS (
         SELECT s.ticket_id, count(*) AS questions

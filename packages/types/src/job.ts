@@ -30,6 +30,8 @@ export const JOB_FAILURE_CODE = {
   REPOSITORY_ACCESS_FAILED: 'REPOSITORY_ACCESS_FAILED',
   /** The branch could not be pushed or the pull request opened: the credential can't write. */
   REPOSITORY_WRITE_FAILED: 'REPOSITORY_WRITE_FAILED',
+  /** The worker lost the network while reaching the repository: a name lookup, timeout or dropped connection. */
+  REPOSITORY_NETWORK_FAILED: 'REPOSITORY_NETWORK_FAILED',
   /** The model provider rejected the agent's API key or login. */
   AGENT_CREDENTIAL_INVALID: 'AGENT_CREDENTIAL_INVALID',
   /** The model provider refused because the account has no quota or credit left. */

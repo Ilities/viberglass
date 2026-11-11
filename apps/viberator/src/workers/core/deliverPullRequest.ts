@@ -12,6 +12,7 @@ import {
 } from "@viberglass/telemetry";
 import type { JobResult } from "./types";
 import { failingWith } from "./JobFailureError";
+import { repositoryFailure } from "./repositoryFailure";
 import type { JobRunnerParams } from "./jobPipeline";
 import { pullRequestBody, resolvePullRequestDescription, resolvePullRequestTitle } from "./pullRequestContent";
 import type { TaskBranch } from "./taskBranch";
@@ -67,7 +68,7 @@ export async function deliverPullRequest(
     "git.push",
     { attributes: definedAttributes({ [ATTR_VG_BRANCH]: branch.name, [ATTR_VG_COMMIT_SHA]: commitHash }) },
     async () =>
-      failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () => gitService.pushBranch(repoDir, branch.name, params.gitAuth)),
+      failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED), () => gitService.pushBranch(repoDir, branch.name, params.gitAuth)),
   );
 
   await sendProgress("pr", "Creating pull request");
@@ -82,7 +83,7 @@ export async function deliverPullRequest(
       }),
     },
     async (span) => {
-      const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+      const url = await failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED), () =>
         params.callbackClient.repository.openPullRequest(params.data.id, params.data.tenantId, {
             sourceRepository: scm?.sourceRepository || repository,
             destinationRepository: pullRequestRepository,

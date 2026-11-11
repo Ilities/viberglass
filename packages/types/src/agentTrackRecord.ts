@@ -6,7 +6,7 @@ export interface AgentTrackRecordTask {
   /** Merged when any of the task's pull requests was. Null when it has none, or none with a known outcome. */
   pullRequest: 'merged' | 'open' | 'closed' | null
   built: boolean
-  /** Plans the agent wrote before the first build, or so far when nothing was built. */
+  /** Plan versions the agent wrote before the first build, or so far when nothing was built. */
   planRounds: number
   questions: number
   takenOver: boolean
@@ -14,7 +14,7 @@ export interface AgentTrackRecordTask {
   failedRuns: number
   /** Null when no pull request's review was read. */
   reviewComments: number | null
-  /** Null when no run reported a cost. */
+  /** What the credited harness and model's runs cost; null when none of them reported a cost. */
   costUsd: number | null
   /** Some of the cost is the harness's flat estimate, not what the run reported. */
   costEstimated: boolean

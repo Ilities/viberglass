@@ -18,7 +18,7 @@ export interface TrackRecordSummary {
   takenOver: Ratio
   /** Per pull request whose review was read; null when none was. */
   reviewComments: number | null
-  /** Everything the entry's tasks cost, per merged pull request; null with no merge or no reported cost. */
+  /** What the entry's agent and model spent on its tasks, per merged pull request; null with no merge or no reported cost. */
   costPerMerge: number | null
   costEstimated: boolean
 }

@@ -138,6 +138,16 @@ export class AgentQuestionDAO {
     return row !== undefined;
   }
 
+  /** Whether the turn asked a question it can't go on without that nobody has answered yet. */
+  async hasOpenBlockingForTurn(turnId: string): Promise<boolean> {
+    const row = await selectQuestions()
+      .where("r.turn_id", "=", turnId)
+      .where("r.status", "=", "open")
+      .where("r.blocking", "=", true)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
   /** Whether the run stopped on a question it can't go on without, still unanswered. */
   async hasOpenBlockingForJob(jobId: string): Promise<boolean> {
     const row = await selectQuestions()

@@ -9,6 +9,7 @@ Each failure has a title on the task and in the run's record.
 | Failure | What it means | What to do |
 |---|---|---|
 | Repository not reachable | The worker couldn't clone: the address is wrong, or the token can't read the repository. | Check the space's Repository settings and its token. |
+| Network problem | The worker lost its network connection while cloning, fetching or pushing: it couldn't look up the repository's host, or the connection timed out or dropped. The task isn't paused. | Try again in a moment. If it keeps happening, check the worker's DNS and outbound network. |
 | Couldn't push changes | The branch couldn't be pushed or the pull request opened: the token can't write. | Give the token write access to Contents and Pull requests, or check branch protection. |
 | Model key rejected | The provider refused the runner's key or login. | Replace the key on the runner, or sign in again for a ChatGPT login. |
 | Model quota used up | The provider refused because the account has no quota or credit left. | Add credit or change the plan, then try again. |

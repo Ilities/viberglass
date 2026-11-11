@@ -2,6 +2,7 @@ import { ExecutionContext } from "../../types";
 import { buildFeatureBranchName, JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
 import { failingWith, JobFailureError } from "./JobFailureError";
+import { repositoryFailure } from "./repositoryFailure";
 import {
   pullRequestBody,
   resolvePullRequestDescription,
@@ -133,7 +134,7 @@ export async function runClawJob(
         }),
       },
       async () =>
-        failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+        failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED), () =>
           gitService.pushBranch(repoDir, featureBranch, params.gitAuth),
         ),
     );
@@ -150,7 +151,7 @@ export async function runClawJob(
         }),
       },
       async (span) => {
-        const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+        const url = await failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED), () =>
           params.callbackClient.repository.openPullRequest(params.data.id, params.data.tenantId, {
             sourceRepository: scm?.sourceRepository || repository,
             destinationRepository: pullRequestRepository,

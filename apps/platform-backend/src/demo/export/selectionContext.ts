@@ -17,7 +17,21 @@ function idsByColumn(rows: readonly Row[], column: string, wanted: ReadonlySet<s
   return ids;
 }
 
-/** Resolves the config's spaces and people against the source rows. */
+function excludedJobIds(rowsOf: RowsOf, ids: readonly string[]): Set<string> {
+  const found = idsByColumn(rowsOf("jobs"), "id", new Set(ids));
+  const unknown = ids.filter((id) => !found.has(id));
+  if (unknown.length > 0) throw new Error(`No job with the id ${unknown.join(", ")}`);
+  return new Set(found.values());
+}
+
+function excludedTaskIds(rowsOf: RowsOf, keys: readonly string[]): Set<string> {
+  const found = idsByColumn(rowsOf("tickets"), "task_key", new Set(keys));
+  const unknown = keys.filter((key) => !found.has(key));
+  if (unknown.length > 0) throw new Error(`No task with the key ${unknown.join(", ")}`);
+  return new Set(found.values());
+}
+
+/** Resolves the config's spaces, people, tasks and jobs against the source rows. */
 export function selectionContext(rowsOf: RowsOf, config: ExportConfig): SelectionContext {
   const excluded = idsByColumn(rowsOf("users"), "email", lower(config.excludeUsers), (email) => email.toLowerCase());
   let spaceIds: Set<string> | null = null;
@@ -28,7 +42,13 @@ export function selectionContext(rowsOf: RowsOf, config: ExportConfig): Selectio
     if (unknown.length > 0) throw new Error(`No space with the slug ${unknown.join(", ")}`);
     spaceIds = new Set(found.values());
   }
-  return { spaceIds, excludedUserIds: new Set(excluded.values()), jobProjects: jobProjects(rowsOf) };
+  return {
+    spaceIds,
+    excludedUserIds: new Set(excluded.values()),
+    excludedTaskIds: excludedTaskIds(rowsOf, config.excludeTasks),
+    excludedJobIds: excludedJobIds(rowsOf, config.excludeJobs),
+    jobProjects: jobProjects(rowsOf),
+  };
 }
 
 /** The exported user who stands in for the shared viewer, if the config names one. */

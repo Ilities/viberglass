@@ -86,6 +86,16 @@ describe('failureGuidance', () => {
     expect(guidance.canRetry).toBe(true)
   })
 
+  it('asks for a retry in a moment after a network problem, without blaming the task description', () => {
+    const guidance = failureGuidance(
+      { code: JOB_FAILURE_CODE.REPOSITORY_NETWORK_FAILED, summary: 'Network.', category: 'agent', retryable: true },
+      false,
+      'shop'
+    )
+    expect(guidance.canRetry).toBe(true)
+    expect(guidance.nextStep).toBe('Try again from the task in a moment.')
+  })
+
   it('does not blame setup for a Viberglass problem', () => {
     const guidance = failureGuidance(
       { code: JOB_FAILURE_CODE.RUN_FAILED, summary: 'Unrecognised.', category: 'platform', retryable: true },

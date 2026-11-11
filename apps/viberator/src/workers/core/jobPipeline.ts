@@ -23,6 +23,7 @@ import { LogForwarder } from "../runtime/LogForwarder";
 import type { WorkerObjectStorage } from "../infrastructure/workerObjectStorage";
 import { mergeWorkerSettings } from "../runtime/workerSettings";
 import { failingWith } from "./JobFailureError";
+import { repositoryFailure } from "./repositoryFailure";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { SessionEventForwarder } from "../../acp/SessionEventForwarder";
 import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
@@ -225,7 +226,7 @@ async function prepareGitWorkspace(
       }),
     },
     async () =>
-      failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
+      failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED), () =>
         params.cloneRepositoryToWorkspace(repository, checkoutBaseBranch, jobWorkDir),
       ),
   );
@@ -236,7 +237,7 @@ async function prepareGitWorkspace(
   const taskBranch = params.taskBranch ? await prepareTaskBranch(params, params.taskBranch, repoDir) : undefined;
   if (params.forkBase && !taskBranch?.continued) {
     const forkBase = params.forkBase;
-    await failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () => params.gitService.checkoutForkBase(repoDir, forkBase, params.gitAuth));
+    await failingWith(repositoryFailure(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED), () => params.gitService.checkoutForkBase(repoDir, forkBase, params.gitAuth));
   }
 
   // The exact commit the run starts from, captured before instruction files

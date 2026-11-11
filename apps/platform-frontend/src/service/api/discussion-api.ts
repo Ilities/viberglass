@@ -86,15 +86,18 @@ export async function askAgent(
   return turn
 }
 
-/** Answers the agent's question; the answer is your message in the thread, and the agent's next turn reads it. */
-export async function answerQuestion(taskId: string, questionId: string, answer: string): Promise<AskedTurn> {
+/**
+ * Answers the agent's question; the answer is your message in the thread, and the agent's next turn reads it.
+ * No turn starts while another question that stopped the same step is still open.
+ */
+export async function answerQuestion(taskId: string, questionId: string, answer: string): Promise<AskedTurn | null> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/questions/${questionId}/answer`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ answer }),
   })
   if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to answer the question')
-  const data: { turn: AskedTurn } = await response.json()
+  const data: { turn: AskedTurn | null } = await response.json()
   return data.turn
 }
 

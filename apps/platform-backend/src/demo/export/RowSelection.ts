@@ -72,8 +72,8 @@ export class RowSelection {
     const kept = keptRows(tables);
     const pruned: Tables = new Map();
     for (const [table, rows] of tables) {
-      const keepReferenced = this.policies[table]?.keepReferenced;
-      const next = keepReferenced ? rows.filter((row) => keepReferenced(row, kept)) : rows;
+      const keepWhile = this.policies[table]?.keepWhile;
+      const next = keepWhile ? rows.filter((row) => keepWhile(row, kept)) : rows;
       if (next.length !== rows.length) changed = true;
       pruned.set(table, next);
     }

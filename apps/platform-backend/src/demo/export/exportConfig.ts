@@ -12,6 +12,10 @@ export interface ExportConfig {
   emails: Record<string, string>;
   /** Source addresses of people left out, such as the admin who ran the capture. */
   excludeUsers: string[];
+  /** Task keys left out with everything that belongs to them. */
+  excludeTasks: string[];
+  /** Job ids left out with what they produced; their tasks stay. */
+  excludeJobs: string[];
   /** Space slugs to export; null exports every space. */
   spaces: string[] | null;
   viewer: {
@@ -29,6 +33,8 @@ export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
   emailDomain: "acme.invalid",
   emails: {},
   excludeUsers: [],
+  excludeTasks: [],
+  excludeJobs: [],
   spaces: null,
   viewer: { sourceEmail: null, watchTaskKeys: [] },
   githubAccounts: {},
@@ -78,12 +84,18 @@ export function parseExportConfig(value: unknown): ExportConfig {
   const viewer = isObjectRecord(value.viewer) ? value.viewer : {};
   if (value.emailDomain !== undefined && typeof value.emailDomain !== "string") throw new Error("emailDomain must be a string");
   if (viewer.sourceEmail !== undefined && typeof viewer.sourceEmail !== "string") throw new Error("viewer.sourceEmail must be a string");
+  const excludeTasks = strings(value.excludeTasks, "excludeTasks");
+  const watchTaskKeys = strings(viewer.watchTaskKeys, "viewer.watchTaskKeys");
+  const watchedButExcluded = watchTaskKeys.filter((key) => excludeTasks.includes(key));
+  if (watchedButExcluded.length > 0) throw new Error(`viewer.watchTaskKeys names excluded tasks: ${watchedButExcluded.join(", ")}`);
   return {
     emailDomain: value.emailDomain ?? DEFAULT_EXPORT_CONFIG.emailDomain,
     emails: emails(value.emails),
     excludeUsers: strings(value.excludeUsers, "excludeUsers"),
+    excludeTasks,
+    excludeJobs: strings(value.excludeJobs, "excludeJobs"),
     spaces: value.spaces === undefined ? null : strings(value.spaces, "spaces"),
-    viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys: strings(viewer.watchTaskKeys, "viewer.watchTaskKeys") },
+    viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys },
     githubAccounts: githubAccounts(value.githubAccounts),
     allowedFindings: strings(value.allowedFindings, "allowedFindings"),
   };

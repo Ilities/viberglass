@@ -23,7 +23,11 @@ function question(overrides: Record<string, unknown> = {}) {
 
 function setup(asked = question()) {
   const deps = {
-    questions: { getById: jest.fn().mockResolvedValue(asked), answer: jest.fn().mockResolvedValue(true) },
+    questions: {
+      getById: jest.fn().mockResolvedValue(asked),
+      answer: jest.fn().mockResolvedValue(true),
+      hasOpenBlockingForTurn: jest.fn().mockResolvedValue(false),
+    },
     sessions: {
       getById: jest.fn().mockResolvedValue({ id: "s-1", latestPendingRequestId: "q-1" }),
       update: jest.fn().mockResolvedValue(undefined),
@@ -57,6 +61,37 @@ describe("AgentQuestionAnswerService", () => {
     expect(deps.asker.ask).toHaveBeenCalledWith("t-1", "u-maria", { message: "North", action: "plan", agentId: "claude", postedMessageId: "m-1" });
     expect(deps.sessions.update).toHaveBeenCalledWith("s-1", { latestPendingRequestId: null });
     expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "u-maria" }, "question_answered", { questionId: "q-1" });
+  });
+
+  it("waits for the answers to the step's other blocking questions, then asks for the step once", async () => {
+    const { deps, service } = setup();
+    deps.questions.hasOpenBlockingForTurn.mockResolvedValueOnce(true);
+
+    await expect(service.answer("t-1", "q-1", "u-maria", "Date, customer, price")).resolves.toBeNull();
+    expect(deps.questions.answer).toHaveBeenCalledWith("q-1", { by: "u-maria", text: "Date, customer, price", messageId: "m-1" });
+    expect(deps.questions.hasOpenBlockingForTurn).toHaveBeenCalledWith("turn-1");
+    expect(deps.asker.ask).not.toHaveBeenCalled();
+    expect(deps.activity.record).toHaveBeenCalledWith("t-1", { type: "human", userId: "u-maria" }, "question_answered", { questionId: "q-1" });
+
+    deps.questions.getById.mockResolvedValue(question({ id: "q-2" }));
+    await expect(service.answer("t-1", "q-2", "u-maria", "This month")).resolves.toMatchObject({ job: { id: "job-2" } });
+    expect(deps.asker.ask).toHaveBeenCalledTimes(1);
+    expect(deps.asker.ask).toHaveBeenCalledWith("t-1", "u-maria", { message: "This month", action: "plan", agentId: "claude", postedMessageId: "m-1" });
+  });
+
+  it("starts one turn when the step's two blocking questions are answered at once", async () => {
+    const open = new Set(["q-1", "q-2"]);
+    const { deps, service } = setup();
+    deps.questions.getById.mockImplementation(async (id: string) => question({ id, status: open.has(id) ? "open" : "answered" }));
+    deps.questions.answer.mockImplementation(async (id: string) => {
+      await Promise.resolve();
+      open.delete(id);
+      return true;
+    });
+    deps.questions.hasOpenBlockingForTurn.mockImplementation(async () => open.size > 0);
+
+    await Promise.all([service.answer("t-1", "q-1", "u-a", "Columns"), service.answer("t-1", "q-2", "u-b", "Range")]);
+    expect(deps.asker.ask).toHaveBeenCalledTimes(1);
   });
 
   it("sends the answer to a question that didn't block as a reply", async () => {
