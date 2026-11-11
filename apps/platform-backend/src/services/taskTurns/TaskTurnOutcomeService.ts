@@ -10,6 +10,7 @@ import { AGENT_SESSION_EVENT_TYPE } from "../../types/agentSession";
 import type { AgentSessionWorkerEventService } from "../agentSession/AgentSessionWorkerEventService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { documentsAskedFor } from "./documentsAskedFor";
+import type { TurnDeliverable } from "./TurnDeliverableCheck";
 
 /** What the worker reports a turn produced. */
 import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
@@ -22,8 +23,8 @@ export interface TurnResult {
   commitHash?: string;
   contextUsage?: { used: number; size: number | null };
   compacted?: boolean;
-  /** The document the turn was asked for and didn't write; it keeps what it did write, but ends as failed. */
-  missing?: "plan";
+  /** What the turn was asked for and came back without; it keeps what it did write, but ends as failed. */
+  missing?: TurnDeliverable;
 }
 
 /** What a recorded turn means for the run's Activity: the step it produced, and whom it mentioned. */

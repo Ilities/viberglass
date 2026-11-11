@@ -6,6 +6,8 @@ When the plan is agreed, the agent builds it and opens a GitHub pull request for
 
 Choose Build it under the thread. The agent works on the task's branch, pushes its commits, and opens a pull request against the space's repository. The Code tab shows the pull request and its state, and the thread links to it.
 
+If the agent finishes without changing any code, and isn't waiting on an answer to a question, the turn shows as failed with "No code changes" rather than as a finished build. Read its reply to see where it stopped, then try again or ask with more detail. The task stays open for the next request.
+
 Who can ask for code depends on the workspace role and the task: members on tasks they're on, guests on tasks they're on, space maintainers and admins. See [Getting started](getting-started.md#what-your-role-lets-you-do). Build it is a request for work, not an approval.
 
 Engineers review the pull request on GitHub like any other. The Code tab shows the pull request's open review comments. To have the agent address them, ask it in the thread: the open review comments go with your request, and its next build adds commits to the same pull request.

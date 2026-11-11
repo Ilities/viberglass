@@ -115,6 +115,15 @@ export class RunManifestDAO {
       .execute();
   }
 
+  /** Marks a run its worker recorded as a success failed, for what it came back without. */
+  async recordFailedOutcome(jobId: string, errorMessage: string | null): Promise<void> {
+    await db
+      .updateTable("job_run_manifests")
+      .set({ success: false, stop_reason: "failed", error_message: errorMessage, updated_at: new Date() })
+      .where("job_id", "=", jobId)
+      .execute();
+  }
+
   async getByJobId(jobId: string) {
     return db
       .selectFrom("job_run_manifests")

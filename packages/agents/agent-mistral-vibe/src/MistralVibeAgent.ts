@@ -1,10 +1,11 @@
 import { BaseAgent, currentModelEndpoint } from "@viberglass/agent-core";
-import type { AgentCLIResult, AgentOutputNormalizer, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpSessionUsageReader, AgentCLIResult, AgentOutputNormalizer, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
 import type { MistralVibeConfig } from "./config";
 import { vibeModelEndpointEnvironment } from "./vibeModelConfig";
 import { MistralOutputNormalizer } from "./MistralOutputNormalizer";
+import { vibeSessionUsage } from "./vibeSessionUsage";
 
 export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
   constructor(config: MistralVibeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -21,6 +22,10 @@ export class MistralVibeAgent extends BaseAgent<MistralVibeConfig> {
 
   public getAcpServerCommand(): string[] {
     return ["vibe-acp"];
+  }
+
+  public override getAcpSessionUsage(): AcpSessionUsageReader {
+    return vibeSessionUsage;
   }
 
   /** Vibe reports its prompt tokens, cached ones included. */

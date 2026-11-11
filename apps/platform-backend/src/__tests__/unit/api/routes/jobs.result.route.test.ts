@@ -9,7 +9,8 @@ const mockTurnOutcomes = {
   record: jest.fn(),
 };
 const mockAutoSummariser = { afterTurn: jest.fn() };
-const mockDocumentCheck = { missing: jest.fn() };
+const mockDeliverableCheck = { missing: jest.fn() };
+const mockRunManifests = { recordExecution: jest.fn(), recordFailedOutcome: jest.fn() };
 
 const mockSecretService = {
   resolveBindings: jest.fn(),
@@ -94,8 +95,13 @@ jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
   TaskTurnService: jest.fn(() => ({})),
 }));
 
-jest.mock("../../../../services/taskTurns/TurnDocumentCheck", () => ({
-  TurnDocumentCheck: jest.fn(() => mockDocumentCheck),
+jest.mock("../../../../services/taskTurns/TurnDeliverableCheck", () => ({
+  ...jest.requireActual("../../../../services/taskTurns/TurnDeliverableCheck"),
+  TurnDeliverableCheck: jest.fn(() => mockDeliverableCheck),
+}));
+
+jest.mock("../../../../persistence/job/RunManifestDAO", () => ({
+  RunManifestDAO: jest.fn(() => mockRunManifests),
 }));
 
 jest.mock("../../../../services/taskTurns/TaskTurnOutcomeService", () => ({
@@ -167,7 +173,7 @@ describe("job result callbacks", () => {
     mockJobService.getBootstrapPayload.mockResolvedValue(null);
     mockAgentTurnDAO.getByJobId.mockResolvedValue(null);
     mockAgentSessionDAO.listByLastJobId.mockResolvedValue([]);
-    mockDocumentCheck.missing.mockResolvedValue(null);
+    mockDeliverableCheck.missing.mockResolvedValue(null);
   });
 
   function resultHandler(): (req: unknown, res: unknown) => Promise<void> {
@@ -327,12 +333,12 @@ describe("job result callbacks", () => {
     const session = { id: "session-1", ticketId: "ticket-1" };
     mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
     mockAgentSessionDAO.getById.mockResolvedValue(session);
-    mockDocumentCheck.missing.mockResolvedValue("plan");
+    mockDeliverableCheck.missing.mockResolvedValue("plan");
     const res = response();
 
     await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, documents: { summary: "# Notes" } }, tenantId: "tenant-1" }, res);
 
-    expect(mockDocumentCheck.missing).toHaveBeenCalledWith(turn, { summary: "# Notes" });
+    expect(mockDeliverableCheck.missing).toHaveBeenCalledWith(turn, { jobKind: "reply", documents: { summary: "# Notes" }, commitHash: undefined });
     expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "plan", documents: { summary: "# Notes" } }));
     expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
       "job-1",
@@ -341,6 +347,28 @@ describe("job result callbacks", () => {
     );
     expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "failed" });
     expect(mockAutoSummariser.afterTurn).not.toHaveBeenCalled();
+  });
+
+  it("fails a build that changed nothing, so it doesn't read as a finished build", async () => {
+    const turn = { id: "turn-1", sessionId: "session-1", action: "code" };
+    const session = { id: "session-1", ticketId: "ticket-1" };
+    mockJobService.getJobStatus.mockResolvedValue({ status: "active", jobKind: "execution", ticketId: "ticket-1", data: { tenantId: "tenant-1" } });
+    mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
+    mockAgentSessionDAO.getById.mockResolvedValue(session);
+    mockDeliverableCheck.missing.mockResolvedValue("change");
+    const res = response();
+
+    await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, changedFiles: [], documents: {} }, tenantId: "tenant-1" }, res);
+
+    expect(mockDeliverableCheck.missing).toHaveBeenCalledWith(turn, { jobKind: "execution", documents: {}, commitHash: undefined });
+    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "change" }));
+    expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
+      "job-1",
+      "failed",
+      expect.objectContaining({ failureCode: "AGENT_NO_CHANGES", errorMessage: "The agent finished without changing any code." }),
+    );
+    expect(mockRunManifests.recordFailedOutcome).toHaveBeenCalledWith("job-1", "The agent finished without changing any code.");
+    expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "failed" });
   });
 
   it("only records the status of a run that isn't a task turn", async () => {

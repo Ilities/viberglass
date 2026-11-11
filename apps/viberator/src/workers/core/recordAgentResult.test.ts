@@ -52,3 +52,17 @@ test("a harness's own cost on its own provider is actual, and the plugin's const
   expect(record({ cost: 0.5, usage: { inputTokens: 10, costUsd: 0.02 } })).toMatchObject({ costUsd: 0.02, costProvenance: "actual" });
   expect(record({ cost: 0.5, usage: { inputTokens: 10 } })).toMatchObject({ costUsd: 0.5, costProvenance: "estimated" });
 });
+
+test("a harness that prices its calls but couldn't tell this run's share has no cost, not the plugin's constant", () => {
+  const manifest = record({ cost: 0, usage: { inputTokens: 10, costUnknown: true } });
+  expect(manifest.costUsd).toBeUndefined();
+  expect(manifest.costProvenance).toBe("unavailable");
+  expect(manifest.usageAvailable).toBe(true);
+});
+
+test("a turn whose harness reports tokens but never a cost has no cost, not $0", () => {
+  const manifest = record({ usage: { inputTokens: 10, outputTokens: 5 } });
+  expect(manifest.costUsd).toBeUndefined();
+  expect(manifest.costProvenance).toBe("unavailable");
+  expect(manifest.usageAvailable).toBe(true);
+});

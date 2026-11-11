@@ -19,6 +19,11 @@ export interface AgentUsageReport {
   cacheCreationInputTokens?: number;
   /** Cost the CLI itself reported. Never a local estimate. */
   costUsd?: number;
+  /**
+   * The CLI prices its model calls, but this run's share couldn't be told, so
+   * the run has no cost rather than the plugin's constant passed off as one.
+   */
+  costUnknown?: boolean;
   /** Model the CLI reported using, when it says. */
   model?: string;
   /** Version of the agent CLI, when it says. */

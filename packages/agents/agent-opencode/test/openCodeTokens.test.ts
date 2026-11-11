@@ -16,13 +16,18 @@ function emit(configDir: string, events: unknown[]): void {
   execFileSync(process.execPath, ["--input-type=module", "-e", script]);
 }
 
-const stepFinish = (sessionID: string, id: string, input: number, output: number, cacheRead: number, type = "message.part.updated") => ({
+const stepFinish = (sessionID: string, id: string, input: number, output: number, cacheRead: number, type = "message.part.updated", cost = 0.0003) => ({
   type,
   properties: {
     sessionID,
     time: 0,
-    part: { id, sessionID, messageID: `msg_${id}`, type: "step-finish", reason: "tool-calls", cost: 0.0003, tokens: { input, output, reasoning: 0, cache: { read: cacheRead, write: 0 } } },
+    part: { id, sessionID, messageID: `msg_${id}`, type: "step-finish", reason: "tool-calls", cost, tokens: { input, output, reasoning: 0, cache: { read: cacheRead, write: 0 } } },
   },
+});
+
+const sessionCreated = (id: string, parentID?: string) => ({
+  type: "session.created",
+  properties: { sessionID: id, info: { id, ...(parentID ? { parentID } : {}), title: "t", time: { created: 0, updated: 0 } } },
 });
 
 describe("OpenCode token recorder", () => {
@@ -45,12 +50,13 @@ describe("OpenCode token recorder", () => {
       stepFinish("ses_2", "prt_4", 9999, 9999, 0),
     ]);
 
-    expect(openCodeTokens(configDir).since("ses_1", before)).toEqual({
+    expect(openCodeTokens(configDir).since(["ses_1"], before)).toEqual({
       inputTokens: 1880,
       outputTokens: 240,
       reasoningOutputTokens: 0,
       cacheReadInputTokens: 60_744,
       cacheCreationInputTokens: 0,
+      costUsd: expect.closeTo(0.0009),
     });
   });
 
@@ -60,11 +66,50 @@ describe("OpenCode token recorder", () => {
     const turnStart = Date.now();
     emit(configDir, [stepFinish("ses_1", "prt_1", 100, 10, 0), stepFinish("ses_1", "prt_1", 100, 10, 0)]);
 
-    expect(openCodeTokens(configDir).since("ses_1", turnStart)).toMatchObject({ inputTokens: 100, outputTokens: 10 });
+    expect(openCodeTokens(configDir).since(["ses_1"], turnStart)).toMatchObject({ inputTokens: 100, outputTokens: 10 });
   });
 
   it("has nothing for a session with no finished steps", () => {
     emit(configDir, [{ type: "session.status", properties: { sessionID: "ses_1", status: { type: "idle" } } }]);
-    expect(openCodeTokens(configDir).since("ses_1", 0)).toBeNull();
+    expect(openCodeTokens(configDir).since(["ses_1"], 0)).toBeNull();
+  });
+
+  it("adds up the cost OpenCode put on each of the turn's model calls", async () => {
+    emit(configDir, [stepFinish("ses_1", "prt_old", 5000, 500, 0, "message.part.updated", 0.25)]);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const turnStart = Date.now();
+    emit(configDir, [
+      stepFinish("ses_1", "prt_1", 100, 10, 0, "message.part.updated", 0.012),
+      stepFinish("ses_1", "prt_2", 100, 10, 0, "message.part.updated", 0.031),
+    ]);
+
+    expect(openCodeTokens(configDir).since(["ses_1"], turnStart)?.costUsd).toBeCloseTo(0.043);
+  });
+
+  it("counts every session the turn used, and the subagent sessions they started", () => {
+    const before = Date.now();
+    emit(configDir, [
+      sessionCreated("ses_1"),
+      stepFinish("ses_1", "prt_1", 100, 10, 0),
+      sessionCreated("ses_sub", "ses_1"),
+      stepFinish("ses_sub", "prt_2", 200, 20, 0),
+      sessionCreated("ses_subsub", "ses_sub"),
+      stepFinish("ses_subsub", "prt_3", 300, 30, 0),
+      stepFinish("ses_2", "prt_4", 400, 40, 0),
+      stepFinish("ses_other", "prt_5", 9999, 9999, 0),
+    ]);
+
+    expect(openCodeTokens(configDir).since(["ses_1", "ses_2"], before)).toMatchObject({
+      inputTokens: 1000,
+      outputTokens: 100,
+      costUsd: expect.closeTo(0.0012),
+    });
+  });
+
+  it("leaves the cost out when OpenCode priced no step", () => {
+    const step = stepFinish("ses_1", "prt_1", 100, 10, 0);
+    const { cost: _cost, ...unpriced } = step.properties.part;
+    emit(configDir, [{ ...step, properties: { ...step.properties, part: unpriced } }]);
+    expect(openCodeTokens(configDir).since(["ses_1"], 0)).not.toHaveProperty("costUsd");
   });
 });

@@ -55,6 +55,26 @@ describe("AgentOrchestrator", () => {
     expect(result).toMatchObject({ success: false, errorMessage: "exceeded retry limit, last status: 429 Too Many Requests", usage, model: "gpt-6-luna" });
   });
 
+  it("gives a turn whose harness reported no cost none, not the plugin's constant", async () => {
+    const acp = new AcpExecutor(logger);
+    jest.spyOn(acp, "execute").mockResolvedValue({ success: true, changedFiles: [], executionTime: 0, usage: { inputTokens: 12, outputTokens: 5 } });
+    const priced = { ...config, costPerExecution: 0.75 };
+
+    const result = await new AgentOrchestrator([priced], logger, new ConfigManager(logger), acp).executeAgent(priced, context);
+
+    expect(result.cost).toBeUndefined();
+  });
+
+  it("gives a failed turn no cost but what its harness reported", async () => {
+    const acp = new AcpExecutor(logger);
+    jest.spyOn(acp, "execute").mockRejectedValue(new AcpTurnFailedError("stopped", { inputTokens: 12 }));
+    const priced = { ...config, costPerExecution: 0.75 };
+
+    const result = await new AgentOrchestrator([priced], logger, new ConfigManager(logger), acp).executeAgent(priced, context);
+
+    expect(result.cost).toBeUndefined();
+  });
+
   it("reports no usage for a failure before any model call", async () => {
     const result = await orchestrator(new Error("Agent process failed to start: ENOENT")).executeAgent(config, context);
 

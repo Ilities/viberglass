@@ -2,6 +2,7 @@ import { PiModelEndpointEnvironment } from "./PiModelEndpointEnvironment";
 import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import type { PiConfig } from "./config";
 import { PiCodingAgent } from "./PiCodingAgent";
+import { piEventMapper } from "./piEventMapper";
 
 const piPlugin: AgentPlugin<PiConfig> = {
   id: "pi",
@@ -40,6 +41,8 @@ const piPlugin: AgentPlugin<PiConfig> = {
   },
 
   agentEnv: ["PI_CODING_AGENT_DIR", "PI_CODING_AGENT_SESSION_DIR", "ZAI_API_KEY"],
+
+  acpEventMapper: piEventMapper,
 
   customEndpoints: { apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"], environment: (endpoint) => new PiModelEndpointEnvironment(endpoint), rank: 1 },
 

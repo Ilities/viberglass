@@ -71,6 +71,7 @@ export class AcpExecutor {
         mcpServers,
         providerRetries: agent.getAcpProviderRetries(harnessConfigDir),
         turnTokens: agent.getAcpTurnTokens(harnessConfigDir),
+        sessionUsage: agent.getAcpSessionUsage(),
       });
 
       const turnError = await agent.acpTurnError(result.acpSessionId);
@@ -88,7 +89,6 @@ export class AcpExecutor {
         success: true,
         changedFiles: [],
         executionTime: 0,
-        cost: 0,
         newAcpSessionId: result.acpSessionId,
         acpSessionStart: result.sessionStart,
         acpContextUsage: result.contextUsage,

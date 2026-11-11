@@ -113,14 +113,7 @@ export class AgentOrchestrator {
 
       execution.status = "completed";
       execution.endTime = new Date();
-      execution.result = {
-        ...result,
-        executionTime,
-        // Prefer whatever the agent reported. Unconditionally overwriting
-        // with the plugin's costPerExecution constant would discard a real
-        // measured cost in favour of a hardcoded one.
-        cost: result.cost ?? effectiveAgentConfig.costPerExecution,
-      };
+      execution.result = { ...result, executionTime };
 
       this.logger.info("Agent execution completed", {
         executionId,
@@ -144,7 +137,6 @@ export class AgentOrchestrator {
         changedFiles: [],
         errorMessage,
         executionTime: Date.now() - execution.startTime.getTime(),
-        cost: effectiveAgentConfig.costPerExecution,
         // What the model calls before the failure used is still spent.
         ...(error instanceof AcpTurnFailedError ? { usage: error.usage, model: error.model } : {}),
       };

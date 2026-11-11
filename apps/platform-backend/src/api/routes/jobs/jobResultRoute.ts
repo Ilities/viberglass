@@ -13,8 +13,8 @@ import { JobQueryService } from "../../../services/job/JobQueryService";
 import { TaskTurnOutcomeService, type RecordedTurn } from "../../../services/taskTurns/TaskTurnOutcomeService";
 import { TaskAutoSummariser } from "../../../services/taskTurns/TaskAutoSummariser";
 import { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
-import { TurnDocumentCheck } from "../../../services/taskTurns/TurnDocumentCheck";
-import { isObjectRecord, JOB_FAILURE_CODE } from "@viberglass/types";
+import { MISSING_DELIVERABLE, TurnDeliverableCheck } from "../../../services/taskTurns/TurnDeliverableCheck";
+import { isObjectRecord } from "@viberglass/types";
 import { RUN_MANIFEST_VERSION, type ExecutionManifest } from "@viberglass/telemetry";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
@@ -37,7 +37,7 @@ const turnOutcomeService = new TaskTurnOutcomeService({
 });
 
 const autoSummariser = new TaskAutoSummariser(new TaskTurnService());
-const documentCheck = new TurnDocumentCheck();
+const deliverableCheck = new TurnDeliverableCheck();
 
 function contextUsageOf(value: unknown): { used: number; size: number | null } | undefined {
   if (!isObjectRecord(value) || typeof value.used !== "number") return undefined;
@@ -100,6 +100,15 @@ async function persistExecutionManifest(
   }
 }
 
+/** The worker recorded the run as a success before the platform saw what it was missing. Never throws, like the manifest it corrects. */
+async function recordMissingDeliverable(jobId: string, errorMessage: string | undefined): Promise<void> {
+  try {
+    await runManifestDAO.recordFailedOutcome(jobId, errorMessage ?? null);
+  } catch (error) {
+    logger.warn("Failed to record the run's missing deliverable on its manifest", { jobId, error });
+  }
+}
+
 /** A worker's result for its run: the run manifest, what a task turn produced, then the run's status. */
 export function registerJobResultRoute(router: Router): void {
   router.post(
@@ -153,14 +162,18 @@ export function registerJobResultRoute(router: Router): void {
           agentTurn = session?.lastTurnId ? await agentTurnDAO.getById(session.lastTurnId) : null;
         }
         const session = agentTurn ? await agentSessionDAO.getById(agentTurn.sessionId) : null;
-        // A turn asked for a plan that ends without it, and without a question, didn't succeed.
-        const missing = agentTurn && result.success ? await documentCheck.missing(agentTurn, result.documents) : null;
+        const commitHash = typeof result.commitHash === "string" && result.commitHash ? result.commitHash : undefined;
+        // A plan turn without its plan, or a build without a change, that isn't waiting on a question didn't succeed.
+        const missing = agentTurn && result.success
+          ? await deliverableCheck.missing(agentTurn, { jobKind: job.jobKind, documents: result.documents, commitHash })
+          : null;
         const success = Boolean(result.success) && !missing;
         const status = success ? "completed" : "failed";
-        const errorMessage = missing ? `The agent finished without writing the ${missing}.` : result.errorMessage;
+        const errorMessage = missing ? MISSING_DELIVERABLE[missing].errorMessage : result.errorMessage;
         const failureCode = missing
-          ? JOB_FAILURE_CODE.AGENT_NO_DOCUMENT
+          ? MISSING_DELIVERABLE[missing].failureCode
           : typeof result.failureCode === "string" ? result.failureCode : undefined;
+        if (missing) await recordMissingDeliverable(jobId, errorMessage);
 
         let recordedTurn: RecordedTurn | null = null;
         if (agentTurn && session) {
@@ -170,7 +183,7 @@ export function registerJobResultRoute(router: Router): void {
             documents: result.documents,
             codeDiscarded: result.codeDiscarded === true,
             resumed: typeof result.sessionStart?.resumed === "boolean" ? result.sessionStart.resumed : undefined,
-            commitHash: typeof result.commitHash === "string" && result.commitHash ? result.commitHash : undefined,
+            commitHash,
             contextUsage: contextUsageOf(result.contextUsage),
             compacted: result.compacted === true,
           });

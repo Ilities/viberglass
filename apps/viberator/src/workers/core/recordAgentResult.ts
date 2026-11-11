@@ -13,6 +13,7 @@ export interface ExecutionResultLike {
     cacheReadInputTokens?: number;
     cacheCreationInputTokens?: number;
     costUsd?: number;
+    costUnknown?: boolean;
     model?: string;
     harnessVersion?: string;
   };
@@ -30,7 +31,11 @@ export interface ExecutionResultLike {
  * without a model named either, it records none, not the endpoint's.
  *
  * Otherwise a CLI-reported cost is `actual` and the plugin's `costPerExecution`
- * constant is `estimated`, so a constant is never mistaken for a measurement.
+ * constant, which only one-shot runs carry, is `estimated`, so a constant is
+ * never mistaken for a measurement. A turn whose harness doesn't price its
+ * calls has neither.
+ * A CLI that prices its calls but couldn't tell this run's share gets no
+ * estimate either: the constant would stand in for a real cost.
  */
 export function recordAgentResult(
   manifest: ManifestScratch,
@@ -60,7 +65,7 @@ export function recordAgentResult(
     };
   }
 
-  if (!usage || endpoint) {
+  if (!usage || endpoint || usage.costUnknown) {
     manifest.costProvenance = "unavailable";
   } else if (usage.costUsd !== undefined) {
     manifest.costUsd = usage.costUsd;

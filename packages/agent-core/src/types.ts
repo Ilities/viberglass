@@ -102,7 +102,12 @@ export interface ExecutionResult {
   testResults?: TestResult[];
   errorMessage?: string;
   executionTime: number;
-  cost: number;
+  /**
+   * The plugin's `costPerExecution` constant, for a one-shot run whose CLI
+   * reports no cost. Absent on ACP turns: a harness that doesn't price its
+   * calls has no cost, not a stand-in.
+   */
+  cost?: number;
   newAcpSessionId?: string;
   /** Whether the turn continued the harness's earlier session, or started cold and why. */
   acpSessionStart?: AcpSessionStart;
@@ -113,8 +118,7 @@ export interface ExecutionResult {
   /**
    * Token usage and cost as reported by the CLI itself.
    *
-   * Distinct from `cost`, which falls back to the plugin's
-   * `costPerExecution` constant. Undefined means the CLI reported nothing —
+   * Distinct from `cost`, the plugin's constant. Undefined means the CLI reported nothing —
    * recorded as such rather than estimated. See {@link AgentUsageReport}.
    */
   usage?: AgentUsageReport;
@@ -134,7 +138,6 @@ export interface ExecutionResult {
 // Intermediate type for CLI results that may include optional cost.
 // changedFiles is optional — BaseAgent.execute collects it via gitService after
 // executeAgentCLI returns, so individual agents don't need to call getChangedFiles.
-export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost" | "changedFiles"> & {
-  cost?: number;
+export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "changedFiles"> & {
   changedFiles?: string[];
 };

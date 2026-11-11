@@ -14,7 +14,7 @@ const logger = createLogger({ silent: true, transports: [new transports.Console(
 class ScriptedAgent extends BaseAgent {
   constructor(
     private readonly inputIncludesCache: boolean,
-    private readonly options: { turnFailure?: string; recordedError?: string; turnTokens?: AcpTurnTokenReader } = {},
+    private readonly options: { turnFailure?: string; recordedError?: string; turnTokens?: AcpTurnTokenReader; env?: Record<string, string> } = {},
   ) {
     super(
       { name: "scripted", capabilities: [], costPerExecution: 0, averageSuccessRate: 1, executionTimeLimit: 60, resourceLimits: { maxMemoryMB: 0, maxCpuPercent: 0, maxDiskSpaceMB: 0, maxNetworkRequests: 0 } } satisfies BaseAgentConfig,
@@ -36,7 +36,8 @@ class ScriptedAgent extends BaseAgent {
 
   override getAcpEnvironment(): NodeJS.ProcessEnv {
     const failure = this.options.turnFailure ? { AGENT_TURN_FAILURE: this.options.turnFailure } : {};
-    return { AGENT_PROMPT_USAGE: "900/50/600", ...failure, [AGENT_ENV_PASSTHROUGH_VAR]: "AGENT_PROMPT_USAGE,AGENT_TURN_FAILURE" };
+    const env = { AGENT_PROMPT_USAGE: "900/50/600", ...failure, ...this.options.env };
+    return { ...env, [AGENT_ENV_PASSTHROUGH_VAR]: Object.keys(env).join(",") };
   }
 
   override acpInputIncludesCache(): boolean {
@@ -52,7 +53,7 @@ class ScriptedAgent extends BaseAgent {
   }
 }
 
-function context(): ExecutionContext {
+function context(acpSessionId?: string): ExecutionContext {
   return {
     repoUrl: "",
     branch: "main",
@@ -66,6 +67,7 @@ function context(): ExecutionContext {
     testRequired: false,
     runTests: false,
     maxExecutionTime: 30,
+    acpSessionId,
   };
 }
 
@@ -73,6 +75,8 @@ describe("AcpExecutor usage", () => {
   it("records the input a harness reports when it counts cached tokens apart", async () => {
     const result = await new AcpExecutor(logger).execute(new ScriptedAgent(false), "Write the plan", context());
     expect(result.usage).toMatchObject({ inputTokens: 900, outputTokens: 50, cacheReadInputTokens: 600 });
+    expect(result.usage).not.toHaveProperty("costUsd");
+    expect(result.cost).toBeUndefined();
   });
 
   it("takes cached tokens out of the input of a harness that counts them in it", async () => {
@@ -106,7 +110,19 @@ describe("AcpExecutor usage", () => {
     const result = await new AcpExecutor(logger).execute(agent, "Write the plan", context());
 
     expect(result.usage).toMatchObject({ inputTokens: 5400, outputTokens: 2100, cacheReadInputTokens: 410_000 });
-    expect(since).toHaveBeenCalledWith(expect.any(String), expect.any(Number));
+    expect(since).toHaveBeenCalledWith(["sess_new"], expect.any(Number));
     expect(since.mock.calls[0][1]).toBeGreaterThanOrEqual(startedAt);
+  });
+
+  it("counts what the continued session used before it failed, as well as the fresh session the turn started over in", async () => {
+    const since = jest.fn().mockReturnValue({ inputTokens: 52_000, outputTokens: 7_400, costUsd: 0.4 });
+    const env = { AGENT_SUPPORTS: "resume", AGENT_KNOWS: "sess_old", AGENT_FAIL_FIRST_PROMPT: "1" };
+    const agent = new ScriptedAgent(false, { turnTokens: { since }, env });
+
+    const result = await new AcpExecutor(logger).execute(agent, "Write the plan", context("sess_old"));
+
+    expect(result.newAcpSessionId).toBe("sess_new");
+    expect(since).toHaveBeenCalledWith(["sess_old", "sess_new"], expect.any(Number));
+    expect(result.usage).toMatchObject({ inputTokens: 52_000, outputTokens: 7_400, costUsd: 0.4 });
   });
 });

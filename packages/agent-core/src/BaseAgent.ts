@@ -49,6 +49,7 @@ import type { AcpMcpServer } from "./acp/types";
 import type { AcpUsageProbe } from "./acp/AcpSessionTotalsProbe";
 import type { AcpProviderRetryReader } from "./acp/providerRetry";
 import type { AcpTurnTokenReader } from "./acp/AcpTurnTokenReader";
+import type { AcpSessionUsageReader } from "./acp/AcpSessionUsage";
 
 export type { AgentCLIResult };
 
@@ -90,6 +91,14 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
    * usage covers only part of a turn. Most report the whole turn, so none by default.
    */
   getAcpTurnTokens(_harnessConfigDir: string): AcpTurnTokenReader | undefined {
+    return undefined;
+  }
+
+  /**
+   * Where the harness says its session's running totals, for one whose prompt
+   * results report those instead of the prompt's own. Most report the prompt's.
+   */
+  getAcpSessionUsage(): AcpSessionUsageReader | undefined {
     return undefined;
   }
 
@@ -257,7 +266,7 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
 
     const configuredCost = fallbackCost ?? this.config.costPerExecution;
     // A run that reported no usage never reached a model, so there's nothing to estimate.
-    if (usage && typeof configuredCost === "number" && Number.isFinite(configuredCost)) {
+    if (usage && !usage.costUnknown && typeof configuredCost === "number" && Number.isFinite(configuredCost)) {
       // A per-plugin constant, not a measurement. Labelled so nothing
       // downstream mistakes it for one.
       span.setAttribute(ATTR_VG_COST_USD, configuredCost);

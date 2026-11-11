@@ -13,8 +13,9 @@ import { defaultAcpEventMapper } from "./acpEventMapper";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
 import { ToolCallStartFilter } from "./ToolCallStartFilter";
 import { AcpTurnUsage } from "./AcpTurnUsage";
+import { AcpSessionUsage } from "./AcpSessionUsage";
+import type { AcpRunOptions, AcpRunResult } from "./acpRunTypes";
 import { AcpSessionTotalsProbe, type AcpSessionTotals, type AcpUsageProbe } from "./AcpSessionTotalsProbe";
-import type { AgentUsageReport } from "../usage";
 import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
 import { compactCommandOf, contextUsageOf, promptUsageOf, responseModelOf, type AcpContextUsage } from "./acpSessionSignals";
@@ -25,47 +26,10 @@ import { acpErrorMessage } from "./acpErrorMessage";
 import { TURN_FAILURE_CAPABILITY_META, turnFailureOf } from "./acpTurnFailure";
 import { AcpRunTimers } from "./AcpRunTimers";
 import { ProviderRetryWatch } from "./ProviderRetryWatch";
-import type { AcpProviderRetryReader } from "./providerRetry";
-import type { AcpTurnTokenReader } from "./AcpTurnTokenReader";
 import { AcpTurnFailedError } from "./AcpTurnFailedError";
 
+export type { AcpRunOptions, AcpRunResult } from "./acpRunTypes";
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
-
-export interface AcpRunOptions {
-  userMessage: string;
-  /** CLI's own session ID (sess_abc123) — present on turns after the first. */
-  acpSessionId?: string;
-  /**
-   * Sent instead of `userMessage` when the turn starts cold: a continued
-   * session already has the context this carries, a fresh one doesn't.
-   */
-  coldStartMessage?: string;
-  /**
-   * After the turn, ask the harness to compact its context with these
-   * instructions, when it has a compact command.
-   */
-  compactInstructions?: string;
-  /** MCP servers the harness offers the agent as tools for this turn. */
-  mcpServers?: AcpMcpServer[];
-  /** Where the harness records the provider refusals it waits out, for one that says nothing over ACP meanwhile. */
-  providerRetries?: AcpProviderRetryReader;
-  /** Where the harness records each model call's tokens, for one whose ACP usage leaves some out. */
-  turnTokens?: AcpTurnTokenReader;
-}
-
-export interface AcpRunResult {
-  acpSessionId: string;
-  /** Whether the turn continued the harness's earlier session, or started cold and why. */
-  sessionStart: AcpSessionStart;
-  /** How full the harness's context was at the end of the turn, when it said. */
-  contextUsage?: AcpContextUsage;
-  /** Whether the harness compacted its context after the turn. */
-  compacted: boolean;
-  /** The turn's tokens and cost, when the harness reported them. */
-  usage?: AgentUsageReport;
-  /** The model the turn's responses came from, else the one the harness said the session runs, when it said. */
-  model?: string;
-}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -94,11 +58,12 @@ export class AcpClient {
   private nextId = 1;
   private readonly pending = new Map<number, PendingRequest>();
   private currentSessionId = "";
+  private readonly turnSessionIds: string[] = [];
   /** While `session/load` replays history the platform already has, its updates are dropped. */
   private replaying = false;
   private readonly mapper: AcpEventMapper;
   private readonly toolCallStarts = new ToolCallStartFilter();
-  private readonly turnUsage = new AcpTurnUsage();
+  private turnUsage = new AcpTurnUsage();
   private readonly totalsProbe?: AcpSessionTotalsProbe;
   private contextUsage?: AcpContextUsage;
   private responseModel?: string;
@@ -151,10 +116,7 @@ export class AcpClient {
     if (options.providerRetries) this.retryWatch = new ProviderRetryWatch(options.providerRetries, stop, this.limits.providerRetryPollMs);
 
     child.on("error", (err) => {
-      this.logger.error("AcpClient process spawn error", {
-        command: this.command.join(" "),
-        error: err.message,
-      });
+      this.logger.error("AcpClient process spawn error", { command: this.command.join(" "), error: err.message });
       this.failPending(`Agent process failed to start: ${err.message}`);
     });
 
@@ -164,8 +126,9 @@ export class AcpClient {
       this.failPending(`Agent process exited unexpectedly (${signal ?? `code ${code}`})`);
     });
 
+    if (options.sessionUsage) this.turnUsage = new AcpTurnUsage(new AcpSessionUsage(options.sessionUsage));
     const turnStartedAt = Date.now();
-    const noteRecordedTokens = () => this.turnUsage.noteRecordedTokens(options.turnTokens?.since(this.currentSessionId, turnStartedAt) ?? null);
+    const noteRecordedUsage = () => this.turnUsage.noteRecordedUsage(options.turnTokens?.since(this.turnSessionIds, turnStartedAt) ?? null);
     try {
       const initialized = await this.sendRequest("initialize", {
         protocolVersion: 1,
@@ -179,8 +142,7 @@ export class AcpClient {
         this.supportedMcpServers(initialized, options.mcpServers ?? []),
       );
       const opened = await opener.open(sessionSupportOf(initialized), options.acpSessionId);
-      this.currentSessionId = opened.sessionId;
-      this.retryWatch?.start(this.currentSessionId);
+      this.useSession(opened.sessionId);
       let sessionStart = opened.start;
       this.reportSessionStart(sessionStart);
 
@@ -194,8 +156,7 @@ export class AcpClient {
         // A harness can accept a load and then fail every prompt (opencode from another directory).
         if (!sessionStart.resumed) throw error;
         sessionStart = { resumed: false, reason: "failed", detail: error instanceof Error ? error.message : String(error) };
-        this.currentSessionId = await opener.create();
-        this.retryWatch?.start(this.currentSessionId);
+        this.useSession(await opener.create());
         this.reportSessionStart(sessionStart);
         this.turnUsage.startTurn(true);
         totalsBefore = NOTHING_YET;
@@ -205,14 +166,20 @@ export class AcpClient {
       if (failure) throw new Error(failure);
       const compacted = await this.compact(options.compactInstructions);
       if (this.totalsProbe) this.turnUsage.noteTotals(totalsBefore, await this.sessionTotals());
-      noteRecordedTokens();
+      noteRecordedUsage();
       return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted, usage: this.turnUsage.report(), model: this.responseModel ?? opener.model };
     } catch (error) {
-      if (this.currentSessionId) noteRecordedTokens();
+      if (this.currentSessionId) noteRecordedUsage();
       throw new AcpTurnFailedError(error instanceof Error ? error.message : String(error), this.turnUsage.report(), this.responseModel);
     } finally {
       await this.cleanup();
     }
+  }
+
+  private useSession(sessionId: string): void {
+    this.currentSessionId = sessionId;
+    this.turnSessionIds.push(sessionId);
+    this.retryWatch?.start(sessionId);
   }
 
   private supportedMcpServers(initialized: unknown, servers: AcpMcpServer[]): AcpMcpServer[] {
