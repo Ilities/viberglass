@@ -40,7 +40,8 @@ export interface OverviewTask {
   task: { id: string; key: string; title: string; spaceSlug: string; spaceName: string }
   situation: TaskSituation
   pullRequestUrl: string | null
-  completionKind?: 'merged' | 'closed' | null
+  /** Merged, its pull request closed without merging, or finished by hand. */
+  completionKind?: 'merged' | 'unmerged' | 'closed' | null
 }
 
 /** Overview's groups. Each task is in exactly one, so the counts add up to the tasks shown. */

@@ -76,6 +76,7 @@ describe("taskSituation", () => {
     ],
     ["a done task", { status: "resolved" as const, latestArtifact: PLAN_V2 }, "done", "Done"],
     ["a task its merge closed", { status: "resolved" as const, mergedBy: "dev-koskinen" }, "done", "Done · merged by dev-koskinen"],
+    ["a task whose pull request was closed without merging", { status: "resolved" as const, closedUnmerged: true }, "done", "Done · closed without merging"],
     ["an App space's change", { backing: "app" as const, latestArtifact: { kind: "code" as const, version: 1, at: "2026-10-01T12:00:00Z" } }, "pr_open", "Change ready · Olli"],
     ["an App space's change made live", { backing: "app" as const, status: "resolved" as const, mergedBy: "Maria" }, "done", "Done · made live by Maria"],
     ["an App space's change being made", { backing: "app" as const, runningTurn: { action: "code" as const, since: "t" } }, "agent_working", "Agent making the change"],

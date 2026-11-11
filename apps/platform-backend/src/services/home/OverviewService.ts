@@ -1,4 +1,5 @@
 import { type OverviewData, type OverviewGroup, type OverviewTask } from "@viberglass/types";
+import type { TaskCompletionKind } from "../../persistence/ticketing/TaskThreadFactsDAO";
 import { TaskThreadListDAO } from "../../persistence/ticketing/TaskThreadListDAO";
 import { SpaceAccessService, type SpaceViewer } from "../spaces/SpaceAccessService";
 import { TaskSituationService } from "../tasks/TaskSituationService";
@@ -11,6 +12,12 @@ interface Dependencies {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const COMPLETION_KIND: Record<TaskCompletionKind, NonNullable<OverviewTask["completionKind"]>> = {
+  pull_request_merged: "merged",
+  pull_request_closed: "unmerged",
+  task_done: "closed",
+};
 
 /** Which group a task is in. Needing attention wins, so nothing is counted twice. */
 function groupOf({ situation }: OverviewTask): OverviewGroup {
@@ -54,7 +61,7 @@ export class OverviewService {
               task: { id: row.id, key: row.key, title: row.title, spaceSlug: row.spaceSlug, spaceName: row.spaceName },
               situation: about.completion && about.situation.state === "done" ? { ...about.situation, since: about.completion.at } : about.situation,
               pullRequestUrl: row.pullRequestUrl,
-              completionKind: about.completion ? about.completion.kind === "pull_request_merged" ? "merged" : "closed" : null,
+              completionKind: about.completion ? COMPLETION_KIND[about.completion.kind] : null,
             },
           ]
         : [];

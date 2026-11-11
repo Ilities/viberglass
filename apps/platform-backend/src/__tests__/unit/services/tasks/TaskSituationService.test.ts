@@ -140,6 +140,16 @@ describe("TaskSituationService", () => {
     expect(described?.situation).toMatchObject({ label: "Part 1 merged · build part 4" });
   });
 
+  it("says a task finished by its pull request closing without merging was closed without merging", async () => {
+    const { deps, service } = setup();
+    deps.thread.completions.mockResolvedValue(new Map([["t-1", { at: at("11:00"), kind: "pull_request_closed" }]]));
+
+    const described = (await service.describe([{ ...TASK, status: "resolved" }], viewer("owner"))).get("t-1");
+
+    expect(described?.situation).toMatchObject({ state: "done", label: "Done · closed without merging" });
+    expect(described?.completion).toEqual({ at: at("11:00").toISOString(), kind: "pull_request_closed" });
+  });
+
   it("asks for each fact once for the whole list", async () => {
     const { deps, service } = setup();
     await service.describe([TASK, { ...TASK, id: "t-2" }], viewer("owner"));

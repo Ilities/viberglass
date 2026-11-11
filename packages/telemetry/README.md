@@ -118,10 +118,11 @@ every PR in `job_run_manifests` with its state (`open`, `closed`, `merged`),
 merge and close times, and comment counts. The labels go in
 `pull_request_outcomes`, keyed by PR URL. It polls the SCM with the project's
 own connection token, so it needs no webhook, and its first sweeps backfill
-older PRs. Open PRs are checked again hourly; merged and closed are final.
-GitHub is the only source. `PR_OUTCOME_SWEEP_INTERVAL_MS` sets the
-sweep interval (default 15 minutes), and `DISABLE_BACKGROUND_SWEEPERS=true`
-turns it off along with the other sweepers.
+older PRs. An open PR is checked again on each sweep for its first day, then
+hourly; merged and closed are final. GitHub is the only source.
+`PR_OUTCOME_SWEEP_INTERVAL_MS` sets the sweep interval (default 5 minutes),
+and `DISABLE_BACKGROUND_SWEEPERS=true` turns it off along with the other
+sweepers.
 
 `GET /api/run-manifests/export?since=&until=&includeLogs=true` (admin only)
 streams the corpus as NDJSON, one `{ manifest, pullRequestOutcome, logs? }`

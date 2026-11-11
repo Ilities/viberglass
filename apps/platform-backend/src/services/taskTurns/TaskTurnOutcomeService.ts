@@ -12,9 +12,12 @@ import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { documentsAskedFor } from "./documentsAskedFor";
 import type { TurnDeliverable } from "./TurnDeliverableCheck";
 
-/** What the worker reports a turn produced. */
 import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
+import { intentOf } from "./intentOf";
 
+export { intentOf };
+
+/** What the worker reports a turn produced. */
 export interface TurnResult {
   success: boolean;
   documents?: { plan?: string; summary?: string };
@@ -33,28 +36,11 @@ export interface RecordedTurn {
   mentioned: string[];
 }
 
-const INTENT_LIMIT = 200;
-
 /** The artifacts that are a step of the task; a summary is about the conversation, so it mentions nobody. */
 const PRODUCT_STEP: Partial<Record<TaskTurnProduct, TicketWorkflowPhase>> = {
   plan: TICKET_WORKFLOW_PHASE.PLANNING,
   code: TICKET_WORKFLOW_PHASE.EXECUTION,
 };
-
-/**
- * The agent's first sentence, without the markdown it may start with: what it
- * set out to do, as a whole sentence for Home and the thread rather than a
- * line cut off mid-thought.
- */
-export function intentOf(reply: string): string | null {
-  const line = reply
-    .split("\n")
-    .map((entry) => entry.replace(/^[\s#>*_-]+/, "").replace(/\*\*|__|`/g, "").trim())
-    .find((entry) => entry.length > 0);
-  if (!line) return null;
-  const sentence = /^.+?[.!?](?=\s|$)/.exec(line)?.[0] ?? line;
-  return sentence.length > INTENT_LIMIT ? `${sentence.slice(0, INTENT_LIMIT - 1)}…` : sentence;
-}
 
 interface Dependencies {
   turns: Pick<AgentTurnDAO, "update">;

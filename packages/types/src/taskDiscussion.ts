@@ -104,6 +104,8 @@ export const TASK_ACTIVITY_KINDS = [
   /** A finished task opened again. */
   'task_reopened',
   'pull_request_merged',
+  /** The task's last open pull request was closed without merging, which finished the task. */
+  'pull_request_closed',
   /** A pull request for some of the plan's parts merged, with more parts to build. */
   'part_merged',
   /** The release built from the task's change is serving, by itself or within a later release. */

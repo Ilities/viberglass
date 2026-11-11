@@ -63,6 +63,14 @@ describe("TaskIssueMirror", () => {
     expect(posted(commenter)[1]).toContain("**Done.**");
   });
 
+  it("posts that the task is done with its pull request closed without merging", async () => {
+    const { commenter, mirror } = setup({ produced: [] });
+
+    await mirror.onActivity({ ticketId: "task-1", kind: "pull_request_closed", actorId: null, payload: { closedUnmerged: true } });
+
+    expect(posted(commenter)[0]).toContain("**Done.** The pull request was closed without merging.");
+  });
+
   it("posts the artifacts a Files turn made, linked to their versions", async () => {
     const { commenter, deps, mirror } = setup({ produced: [] });
     deps.turns.getByJobId.mockResolvedValue({

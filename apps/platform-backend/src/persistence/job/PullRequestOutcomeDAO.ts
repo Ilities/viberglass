@@ -1,6 +1,13 @@
 import type { PullRequestOutcome } from "@viberglass/types";
 import db from "../config/database";
 
+/** When an open PR is due again: a PR first seen after `recentSince` once checked before `recentBefore`, an older one before `olderBefore`. */
+export interface RecheckWindows {
+  recentSince: Date;
+  recentBefore: Date;
+  olderBefore: Date;
+}
+
 export interface PullRequestDueForCheck {
   pullRequestUrl: string;
   projectId: string | null;
@@ -13,11 +20,8 @@ export interface PullRequestDueForCheck {
  * either. A reopened PR therefore keeps its closed label.
  */
 export class PullRequestOutcomeDAO {
-  /**
-   * PRs never checked, then open or failed checks last seen before
-   * `recheckBefore`, oldest check first.
-   */
-  async listDueForCheck(recheckBefore: Date, limit: number): Promise<PullRequestDueForCheck[]> {
+  /** PRs never checked, then open or failed checks due again, oldest check first. */
+  async listDueForCheck(windows: RecheckWindows, limit: number): Promise<PullRequestDueForCheck[]> {
     const rows = await db
       .selectFrom("job_run_manifests as m")
       .leftJoin("pull_request_outcomes as o", "o.pull_request_url", "m.pull_request_url")
@@ -32,7 +36,10 @@ export class PullRequestOutcomeDAO {
           eb("o.pull_request_url", "is", null),
           eb.and([
             eb.or([eb("o.state", "is", null), eb("o.state", "=", "open")]),
-            eb("o.checked_at", "<", recheckBefore),
+            eb.or([
+              eb.and([eb("o.created_at", ">=", windows.recentSince), eb("o.checked_at", "<", windows.recentBefore)]),
+              eb.and([eb("o.created_at", "<", windows.recentSince), eb("o.checked_at", "<", windows.olderBefore)]),
+            ]),
           ]),
         ]),
       )

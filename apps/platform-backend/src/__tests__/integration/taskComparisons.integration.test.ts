@@ -120,17 +120,51 @@ describe("task comparisons against Postgres", () => {
       baseBranch: "viberglass/p",
       baseCommit: "aaa",
       createdBy: ids.user,
+      ask: { action: "code", message: "Please build the plan." },
     });
     await comparisons.addArm(id, ids.fork, ids.runner, 0);
     await comparisons.setWinner(id, ids.fork);
 
     const [listed] = await comparisons.listForParent(ids.parent);
-    expect(listed).toMatchObject({ id, baseCommit: "aaa", winnerTicketId: ids.fork, createdBy: { id: ids.user, name: "Ana" } });
+    expect(listed).toMatchObject({
+      id,
+      baseCommit: "aaa",
+      winnerTicketId: ids.fork,
+      createdBy: { id: ids.user, name: "Ana" },
+      ask: { action: "code", message: "Please build the plan." },
+    });
     expect(await comparisons.listArms([id])).toEqual([
-      expect.objectContaining({ ticketId: ids.fork, key: "WEB-2", runner: { id: ids.runner, name: "Claude Code", slug: "claude-code" } }),
+      expect.objectContaining({ ticketId: ids.fork, key: "WEB-2", runner: { id: ids.runner, name: "Claude Code", slug: "claude-code" }, waiting: true }),
     ]);
     expect(await comparisons.armOf(ids.fork)).toMatchObject({ comparison: { id }, runner: { slug: "claude-code" } });
     expect(await comparisons.armOf(ids.parent)).toBeNull();
+  });
+
+  it("starts a comparison's waiting forks one at a time, in order", async () => {
+    const comparisons = new TaskComparisonDAO();
+    const id = await comparisons.create({
+      parentTicketId: ids.parent,
+      forkedFromTurnId: null,
+      forkedAt: FORKED_AT,
+      baseBranch: null,
+      baseCommit: null,
+      createdBy: ids.user,
+      ask: { action: "plan", message: "" },
+    });
+    const runner = await one(sql<{ id: string }>`INSERT INTO clankers (name, slug) VALUES ('OpenCode', 'opencode') RETURNING id`.execute(mockDb));
+    const fork = async (key: string) =>
+      one(
+        sql<{ id: string }>`INSERT INTO tickets (project_id, task_number, task_key, timestamp, title, description, severity, category, metadata, ticket_system)
+          VALUES (${ids.space}, ${Number(key.split("-")[1])}, ${key}, now(), ${key}, '', 'medium', 'General', '{}', 'native') RETURNING id`.execute(mockDb),
+      );
+    const [first, second] = [await fork("WEB-4"), await fork("WEB-5")];
+    await comparisons.addArm(id, second.id, runner.id, 1);
+    await comparisons.addArm(id, first.id, ids.runner, 0);
+
+    expect(await comparisons.claimNextWaiting(id)).toEqual({ ticketId: first.id, clankerId: ids.runner });
+    expect(await comparisons.claimNextWaiting(id)).toEqual({ ticketId: second.id, clankerId: runner.id });
+    expect(await comparisons.claimNextWaiting(id)).toBeNull();
+    expect((await comparisons.listArms([id])).map((arm) => arm.waiting)).toEqual([false, false]);
   });
 
   it("sums each arm's runs", async () => {
@@ -141,7 +175,16 @@ describe("task comparisons against Postgres", () => {
     const stats = await new TaskComparisonArmStatsDAO().statsFor([ids.fork, ids.other]);
 
     expect(stats.get(ids.fork)).toMatchObject({ runs: 1, running: true, lastRunStatus: "active", costUsd: 1.5, durationMs: 2000, model: "glm-4.6" });
-    expect(stats.get(ids.other)).toMatchObject({ runs: 0, running: false, costUsd: null });
+    expect(stats.get(ids.other)).toMatchObject({ runs: 0, running: false, costUsd: null, pullRequestState: null });
+  });
+
+  it("reads where each arm's pull request stands", async () => {
+    await sql`INSERT INTO task_pull_requests (ticket_id, branch, url) VALUES (${ids.fork}, 'viberglass/web-2', 'https://github.com/acme/web/pull/2')`.execute(mockDb);
+    await sql`INSERT INTO pull_request_outcomes (pull_request_url, state, checked_at) VALUES ('https://github.com/acme/web/pull/2', 'closed', now())`.execute(mockDb);
+
+    const stats = await new TaskComparisonArmStatsDAO().statsFor([ids.fork]);
+
+    expect(stats.get(ids.fork)).toMatchObject({ pullRequestUrl: "https://github.com/acme/web/pull/2", pullRequestState: "closed" });
   });
 
   it("keeps forks out of the space's task list and counts", async () => {

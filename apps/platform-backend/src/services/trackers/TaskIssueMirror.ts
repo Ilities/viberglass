@@ -11,7 +11,7 @@ import type { RecordedActivity } from "../notifications/NotificationService";
 import type { ActivityListener } from "../tasks/activityListeners";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { TrackerCommenterResolver } from "./TrackerCommenterResolver";
-import { DONE_POST, inSpacePost, partMergedPost, planReadyPost, pullRequestPost, questionPost, replyPost } from "./trackerMirrorPosts";
+import { CLOSED_UNMERGED_POST, DONE_POST, inSpacePost, partMergedPost, planReadyPost, pullRequestPost, questionPost, replyPost } from "./trackerMirrorPosts";
 
 const logger = createChildLogger({ service: "TaskIssueMirror" });
 
@@ -78,6 +78,8 @@ export class TaskIssueMirror implements ActivityListener {
       }
       case "pull_request_merged":
         return [DONE_POST];
+      case "pull_request_closed":
+        return [CLOSED_UNMERGED_POST];
       case "task_done":
         // Closing the issue itself finished the task; the issue already shows it.
         return payload.source === link.provider ? [] : [DONE_POST];

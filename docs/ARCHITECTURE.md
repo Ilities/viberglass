@@ -167,7 +167,7 @@ Express.js REST API that serves as the central coordination point.
 - `SpaceFilesRunService`, `ArtifactService`: Files space snapshots and artifact versions
 - `SecretService`, `SecretResolutionService`: secret storage and resolving the secrets bound to a runner
 - `ClankerProvisioningService`: setting up a runner's compute (ECS task definitions, Lambda functions, Kubernetes checks)
-- Sweepers (`HeartbeatSweeper`, `OrphanSweeper`, `KubernetesJobReconciler`, `PullRequestOutcomeSweeper`): stale runs, Kubernetes Job state and merged pull requests
+- Sweepers (`HeartbeatSweeper`, `OrphanSweeper`, `KubernetesJobReconciler`, `PullRequestOutcomeSweeper`): stale runs, Kubernetes Job state and merged or closed pull requests
 
 ### Platform Frontend (`apps/platform-frontend`)
 

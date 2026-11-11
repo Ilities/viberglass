@@ -67,9 +67,21 @@ export function EventEntry({
   entry: Extract<TaskTimelineEntry, { kind: 'event' }>
   nameOf: (id: string) => string
 }) {
+  const { kind, payload } = entry.activity
+  const pullRequestUrl = kind === 'pull_request_merged' || kind === 'pull_request_closed' ? payload.pullRequestUrl : null
   return (
     <li className="-mt-3 ml-[42px] flex items-baseline justify-between gap-4 text-xs text-[var(--gray-10)]">
-      <span>{describeActivity(entry.activity, nameOf)}</span>
+      <span>
+        {describeActivity(entry.activity, nameOf)}
+        {typeof pullRequestUrl === 'string' && (
+          <>
+            {' · '}
+            <a href={pullRequestUrl} target="_blank" rel="noreferrer" className="underline hover:text-[var(--gray-12)]">
+              Pull request
+            </a>
+          </>
+        )}
+      </span>
       <Timestamp date={entry.at} className="shrink-0" />
     </li>
   )

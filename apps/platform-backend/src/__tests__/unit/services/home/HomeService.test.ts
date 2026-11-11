@@ -173,6 +173,29 @@ describe("OverviewService", () => {
     expect(overview.doneThisWeek[0]).toMatchObject({ task: { id: "recent" }, completionKind: "closed", situation: { since: "2026-10-14T09:00:00Z" } });
   });
 
+  it("tells a merge, a pull request closed without merging and a task closed by hand apart", async () => {
+    const now = new Date("2026-10-15T12:00:00Z");
+    const rows = ["merged", "unmerged", "closed"].map((id) => ({ ...row(id), status: "resolved" as const, pullRequestUrl: "https://example.com/pull/1" }));
+    const records = described(rows.map((entry) => [entry.id, situation({ state: "done", waitingOn: { kind: "nobody" } }), "2026-10-15T10:00:00Z"]));
+    const kinds = { merged: "pull_request_merged", unmerged: "pull_request_closed", closed: "task_done" } as const;
+    for (const [id, kind] of Object.entries(kinds)) {
+      const record = records.get(id);
+      if (record) record.completion = { at: "2026-10-14T09:00:00Z", kind };
+    }
+    const service = new OverviewService({
+      access: { visibleProjectIds: jest.fn().mockResolvedValue(null) },
+      list: { listCurrent: jest.fn().mockResolvedValue(rows) },
+      situations: { describe: jest.fn().mockResolvedValue(records) },
+      now: () => now,
+    });
+    const overview = await service.load({ id: "viewer", role: "viewer" });
+    expect(overview.doneThisWeek.map((task) => [task.task.id, task.completionKind])).toEqual([
+      ["merged", "merged"],
+      ["unmerged", "unmerged"],
+      ["closed", "closed"],
+    ]);
+  });
+
   it("keeps an intentional local takeover out of needs attention", async () => {
     const service = new OverviewService({
       access: { visibleProjectIds: jest.fn().mockResolvedValue(null) },

@@ -5,7 +5,12 @@ import { taskPath } from '@/lib/taskPath'
 import type { OverviewTask } from '@viberglass/types'
 import { useState } from 'react'
 
-/** What finished this week and how: a merged pull request, or closed by hand. */
+function PullRequestOutcome({ url, merged }: { url: string | null; merged: boolean }) {
+  const text = merged ? 'Pull request merged' : 'Pull request closed without merging'
+  return url ? <a href={url} target="_blank" rel="noreferrer" className="underline">{text}</a> : <>{text}</>
+}
+
+/** What finished this week and how: a merged pull request, one closed without merging, or closed by hand. */
 export function OverviewOutcomes({ tasks }: { tasks: OverviewTask[] }) {
   const [expanded, setExpanded] = useState(false)
   const visible = expanded ? tasks : tasks.slice(0, 5)
@@ -27,9 +32,9 @@ export function OverviewOutcomes({ tasks }: { tasks: OverviewTask[] }) {
                 </Link>
               </div>
               <div className="mt-1 text-xs text-[var(--gray-10)]">
-                {completionKind === 'merged' ? (pullRequestUrl ? (
-                  <a href={pullRequestUrl} target="_blank" rel="noreferrer" className="underline">Pull request merged</a>
-                ) : 'Pull request merged') : 'Closed manually'}
+                {completionKind === 'merged' || completionKind === 'unmerged' ? (
+                  <PullRequestOutcome url={pullRequestUrl} merged={completionKind === 'merged'} />
+                ) : 'Closed manually'}
                 {' · '}<Timestamp date={situation.since} /> · {task.spaceName}
               </div>
             </li>

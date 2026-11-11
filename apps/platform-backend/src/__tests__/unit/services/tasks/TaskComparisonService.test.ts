@@ -43,14 +43,14 @@ function setup() {
     },
     branches: { get: jest.fn().mockResolvedValue("viberglass/task-1") },
     forks: { fork: jest.fn(async (): Promise<Ticket> => ({ ...PARENT, id: `task-${(forks += 1) + 1}`, key: `WEB-${forks + 1}` })) },
-    turns: { ask: jest.fn().mockResolvedValue({}) },
+    queue: { startNext: jest.fn().mockResolvedValue(undefined) },
     discussion: { create: jest.fn().mockResolvedValue("message-1") },
   };
   return { deps, service: new TaskComparisonService(deps) };
 }
 
 describe("TaskComparisonService.start", () => {
-  it("forks the task once per runner and sends each fork the same ask with its runner", async () => {
+  it("forks the task once per runner, keeps the ask for each fork and starts the first", async () => {
     const { deps, service } = setup();
 
     await expect(service.start("task-1", "user-1", { agentIds: ["claude", "opencode"], message: "Build it", action: "code" })).resolves.toBe("cmp-1");
@@ -59,9 +59,13 @@ describe("TaskComparisonService.start", () => {
     expect(deps.forks.fork).toHaveBeenCalledWith(PARENT, expect.any(Date), "Gift notes · OpenCode", "user-1");
     expect(deps.comparisons.addArm).toHaveBeenCalledWith("cmp-1", "task-2", "claude", 0);
     expect(deps.comparisons.addArm).toHaveBeenCalledWith("cmp-1", "task-3", "opencode", 1);
-    expect(deps.turns.ask).toHaveBeenCalledWith("task-2", "user-1", { message: "Build it", action: "code", agentId: "claude" });
-    expect(deps.turns.ask).toHaveBeenCalledWith("task-3", "user-1", { message: "Build it", action: "code", agentId: "opencode" });
-    expect(deps.discussion.create).toHaveBeenCalledWith("task-1", "user-1", "Comparing Claude Code (WEB-2), OpenCode (WEB-3) on forks of this task.");
+    expect(deps.comparisons.create).toHaveBeenCalledWith(expect.objectContaining({ createdBy: "user-1", ask: { action: "code", message: "Build it" } }));
+    expect(deps.queue.startNext).toHaveBeenCalledWith("cmp-1");
+    expect(deps.discussion.create).toHaveBeenCalledWith(
+      "task-1",
+      "user-1",
+      "Comparing Claude Code (WEB-2), OpenCode (WEB-3) on forks of this task, one after another.",
+    );
   });
 
   it("forks at a finished turn from the commit pushed by then", async () => {
@@ -114,14 +118,6 @@ describe("TaskComparisonService.start", () => {
 
     await expect(service.start("task-1", "user-1", { agentIds: ["claude", "opencode"], message: "" })).rejects.toThrow("can't run yet");
     expect(deps.forks.fork).not.toHaveBeenCalled();
-  });
-
-  it("keeps the other forks running when one can't start", async () => {
-    const { deps, service } = setup();
-    deps.turns.ask.mockRejectedValueOnce(new Error("busy"));
-
-    await expect(service.start("task-1", "user-1", { agentIds: ["claude", "opencode"], message: "Go" })).resolves.toBe("cmp-1");
-    expect(deps.turns.ask).toHaveBeenCalledTimes(2);
   });
 });
 

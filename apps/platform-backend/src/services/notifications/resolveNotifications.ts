@@ -51,8 +51,11 @@ export function resolveNotifications(activity: ActivityForNotification, context:
         return to(owner.length > 0 ? owner : withRoles(context, ["requester"]), "run_failed_agent");
       }
       case "task_done":
+        // A fork not picked is finished along with its comparison; the original's line says so.
+        if (activity.payload.notPicked === true) return [];
         return to(withRoles(context, ["requester"]), "task_done");
       case "pull_request_merged":
+      case "pull_request_closed":
         return to(withRoles(context, ["requester", "owner"]), "task_done");
       case "part_merged":
         return to(withRoles(context, ["requester", "owner"]), "part_merged");

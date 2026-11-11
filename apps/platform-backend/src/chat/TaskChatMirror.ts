@@ -102,6 +102,8 @@ export class TaskChatMirror implements ActivityListener {
         return [payload.madeLive === true ? madeLivePost(text(payload.mergedBy)) : { markdown: "**Done.**" }];
       case "task_done":
         return [{ markdown: "**Done.**" }];
+      case "pull_request_closed":
+        return [{ markdown: "**Done.** The pull request was closed without merging." }];
       case "release_live": {
         const task = await this.deps.tickets.getSummary(ticketId);
         return [releasePost({ live: true, appUrl: task ? this.deps.apps.originFor(task.spaceSlug) : null })];

@@ -28,6 +28,7 @@ describe("notificationText for a merge", () => {
   it("says who merged it, when GitHub said", () => {
     expect(notificationText("task_done", null, "Gift notes", { merged: true, mergedBy: "dev" })).toBe("“Gift notes” is done: dev merged its pull request");
     expect(notificationText("task_done", null, "Gift notes", { merged: true })).toBe("“Gift notes” is done: its pull request was merged");
+    expect(notificationText("task_done", null, "Gift notes", { closedUnmerged: true })).toBe("“Gift notes” is done: its pull request was closed without merging");
   });
 
   it("says which part merged, and which can be built now", () => {

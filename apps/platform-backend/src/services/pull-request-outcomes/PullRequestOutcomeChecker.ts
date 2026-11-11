@@ -6,7 +6,7 @@ import type { MergeAttribution, PullRequestOutcomeListener } from "./pullRequest
 
 const logger = createChildLogger({ service: "PullRequestOutcomeChecker" });
 
-/** Reads one pull request's outcome from the space's code host, records it, and tells the listeners (a merge closes the task). */
+/** Reads one pull request's outcome from the space's code host, records it, and tells the listeners (a merge, or a close without merging, can finish the task). */
 export class PullRequestOutcomeChecker {
   constructor(
     private readonly outcomes: Pick<PullRequestOutcomeDAO, "recordOutcome">,
@@ -32,7 +32,7 @@ export class PullRequestOutcomeChecker {
     }
   }
 
-  /** A merged outcome is final and never checked again, so a listener's failure is logged rather than retried. */
+  /** A merged or closed outcome is final and never checked again, so a listener's failure is logged rather than retried. */
   private async tell(pullRequestUrl: string, outcome: PullRequestOutcome, attribution?: MergeAttribution): Promise<void> {
     for (const listener of this.listeners) {
       try {

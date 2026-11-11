@@ -8,6 +8,15 @@ export interface LatestRevisionFact {
   at: Date;
 }
 
+/** The thread lines that finish a task: by hand, by a merge, or by its pull request closed without merging. */
+const COMPLETION_KINDS = ["task_done", "pull_request_merged", "pull_request_closed"] as const;
+
+export type TaskCompletionKind = (typeof COMPLETION_KINDS)[number];
+
+function isCompletionKind(kind: string): kind is TaskCompletionKind {
+  return COMPLETION_KINDS.some((completion) => completion === kind);
+}
+
 export interface LastMessageFact {
   author: TaskPerson | null;
   body: string;
@@ -93,11 +102,11 @@ export class TaskThreadFactsDAO {
     return new Map(rows.flatMap((row) => (row.merged_by ? [[row.ticket_id, row.merged_by]] : [])));
   }
 
-  async completions(ticketIds: string[]): Promise<Map<string, { at: Date; kind: "task_done" | "pull_request_merged" }>> {
+  async completions(ticketIds: string[]): Promise<Map<string, { at: Date; kind: TaskCompletionKind }>> {
     if (ticketIds.length === 0) return new Map();
     const rows = await db.selectFrom("task_activity").distinctOn("ticket_id").select(["ticket_id", "kind", "created_at"])
-      .where("ticket_id", "in", ticketIds).where("kind", "in", ["task_done", "pull_request_merged"])
+      .where("ticket_id", "in", ticketIds).where("kind", "in", [...COMPLETION_KINDS])
       .orderBy("ticket_id").orderBy("created_at", "desc").execute();
-    return new Map(rows.flatMap((row) => row.kind === "task_done" || row.kind === "pull_request_merged" ? [[row.ticket_id, { at: row.created_at, kind: row.kind }]] : []));
+    return new Map(rows.flatMap((row) => isCompletionKind(row.kind) ? [[row.ticket_id, { at: row.created_at, kind: row.kind }]] : []));
   }
 }

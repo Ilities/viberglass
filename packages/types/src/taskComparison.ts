@@ -26,6 +26,10 @@ export interface TaskComparisonArm {
   /** What the latest turn set out to do, in the agent's words. */
   intent: string | null
   pullRequestUrl: string | null
+  /** Null until its pull request has been checked. */
+  pullRequestState: 'open' | 'closed' | 'merged' | null
+  /** Its first run waits for the forks before it to finish. */
+  waiting: boolean
   branch: string | null
   commit: string | null
   model: string | null

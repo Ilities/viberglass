@@ -1,5 +1,4 @@
 import { TASK_COMPARISON_ARMS, type Clanker, type StartTaskComparisonRequest, type Ticket } from "@viberglass/types";
-import logger from "../../config/logger";
 import type { TaskBranchDAO } from "../../persistence/ticketing/TaskBranchDAO";
 import type { TaskComparisonDAO } from "../../persistence/ticketing/TaskComparisonDAO";
 import type { TaskForkDAO } from "../../persistence/ticketing/TaskForkDAO";
@@ -8,7 +7,7 @@ import { TASK_COMPARISON_ERROR_CODE, TaskComparisonError } from "../errors/TaskC
 import type { SpaceRunAvailabilityService } from "../spaces/SpaceRunAvailabilityService";
 import type { TaskAskPolicyService } from "../taskTurns/TaskAskPolicyService";
 import type { TaskTurnAgentResolver } from "../taskTurns/TaskTurnAgentResolver";
-import type { TaskTurnService } from "../taskTurns/TaskTurnService";
+import type { ComparisonForkQueue } from "./ComparisonForkQueue";
 import type { TaskDiscussionService } from "./TaskDiscussionService";
 import type { TaskForkService } from "./TaskForkService";
 
@@ -22,7 +21,7 @@ interface Dependencies {
   forkPoints: Pick<TaskForkDAO, "turnFinishedAt" | "lastCommitBy">;
   branches: Pick<TaskBranchDAO, "get">;
   forks: Pick<TaskForkService, "fork">;
-  turns: Pick<TaskTurnService, "ask">;
+  queue: Pick<ComparisonForkQueue, "startNext">;
   discussion: Pick<TaskDiscussionService, "create">;
 }
 
@@ -35,9 +34,10 @@ interface ForkPoint {
 
 /**
  * Runs one task with several runners side by side: forks the task once per
- * runner at the same moment and sends each fork the same ask. Each fork is a
- * task of its own, with its own session, branch and pull request, so runs
- * on one never touch another's. The original points at the fork picked.
+ * runner at the same moment and sends each fork the same ask, one fork after
+ * another. Each fork is a task of its own, with its own session, branch and
+ * pull request, so runs on one never touch another's. The original points at
+ * the fork picked.
  */
 export class TaskComparisonService {
   constructor(private readonly deps: Dependencies) {}
@@ -67,34 +67,23 @@ export class TaskComparisonService {
       baseBranch: point.baseBranch,
       baseCommit: point.baseCommit,
       createdBy: actorId,
+      ask: { action, message: request.message },
     });
 
-    const arms: Array<{ fork: Ticket; agentId: string; runnerName: string }> = [];
+    const arms: Array<{ fork: Ticket; runnerName: string }> = [];
     for (const [position, agentId] of agentIds.entries()) {
       const runner = await this.deps.clankers.getClanker(agentId);
       const fork = await this.deps.forks.fork(parent, point.at, `${parent.title} · ${runner?.name ?? "agent"}`, actorId);
       await this.deps.comparisons.addArm(comparisonId, fork.id, agentId, position);
-      arms.push({ fork, agentId, runnerName: runner?.name ?? "agent" });
+      arms.push({ fork, runnerName: runner?.name ?? "agent" });
     }
     // Plain keys: task lists preview the thread's last message as text, and the comparison panel links each fork.
     await this.deps.discussion.create(
       parent.id,
       actorId,
-      `Comparing ${arms.map((arm) => `${arm.runnerName} (${arm.fork.key})`).join(", ")} on forks of this task.`,
+      `Comparing ${arms.map((arm) => `${arm.runnerName} (${arm.fork.key})`).join(", ")} on forks of this task, one after another.`,
     );
-    // One fork failing to start leaves the others running; its card shows it has no runs.
-    const asked = await Promise.allSettled(
-      arms.map(({ fork, agentId }) => this.deps.turns.ask(fork.id, actorId, { message: request.message, action, agentId })),
-    );
-    asked.forEach((result, index) => {
-      if (result.status === "rejected") {
-        logger.warn("A comparison fork couldn't start", {
-          comparisonId,
-          ticketId: arms[index].fork.id,
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-        });
-      }
-    });
+    await this.deps.queue.startNext(comparisonId);
     return comparisonId;
   }
 

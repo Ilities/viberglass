@@ -23,6 +23,8 @@ function arm(overrides: Partial<TaskComparisonArm>): TaskComparisonArm {
     lastRunStatus: 'completed',
     intent: 'I added the note field.',
     pullRequestUrl: 'https://github.com/acme/web/pull/7',
+    pullRequestState: 'open',
+    waiting: false,
     branch: 'viberglass/t-1-claude-code',
     commit: 'abc1234',
     model: 'claude-sonnet-5',

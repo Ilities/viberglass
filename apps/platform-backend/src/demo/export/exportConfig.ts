@@ -1,5 +1,11 @@
 import { isObjectRecord } from "@viberglass/types";
 
+export interface GitHubPersona {
+  login: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 export interface ExportConfig {
   emailDomain: string;
   /** Source address to exported address; everyone else gets their first name at `emailDomain`. */
@@ -13,6 +19,8 @@ export interface ExportConfig {
     sourceEmail: string | null;
     watchTaskKeys: string[];
   };
+  /** GitHub logins whose actions show as a persona instead, such as the account whose token the capture used. */
+  githubAccounts: Record<string, GitHubPersona>;
   /** Exact matches the secret scan reported and someone checked are harmless. */
   allowedFindings: string[];
 }
@@ -23,6 +31,7 @@ export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
   excludeUsers: [],
   spaces: null,
   viewer: { sourceEmail: null, watchTaskKeys: [] },
+  githubAccounts: {},
   allowedFindings: [],
 };
 
@@ -45,6 +54,25 @@ function emails(value: unknown): Record<string, string> {
   return mapping;
 }
 
+const loginFromName = (name: string): string => name.toLowerCase().replace(/[^a-z0-9-]/g, "");
+
+function githubAccounts(value: unknown): Record<string, GitHubPersona> {
+  if (value === undefined) return {};
+  if (!isObjectRecord(value)) throw new Error("githubAccounts must map source logins to personas");
+  const accounts: Record<string, GitHubPersona> = {};
+  for (const [from, persona] of Object.entries(value)) {
+    if (!isObjectRecord(persona) || typeof persona.name !== "string" || persona.name.trim() === "") {
+      throw new Error(`githubAccounts.${from} needs a name`);
+    }
+    if (persona.login !== undefined && typeof persona.login !== "string") throw new Error(`githubAccounts.${from}.login must be a string`);
+    if (persona.avatarUrl !== undefined && typeof persona.avatarUrl !== "string") throw new Error(`githubAccounts.${from}.avatarUrl must be a string`);
+    const login = persona.login ?? loginFromName(persona.name);
+    if (!login) throw new Error(`githubAccounts.${from} needs a login`);
+    accounts[from] = { login, name: persona.name, avatarUrl: persona.avatarUrl ?? null };
+  }
+  return accounts;
+}
+
 export function parseExportConfig(value: unknown): ExportConfig {
   if (!isObjectRecord(value)) throw new Error("The export config must be a JSON object");
   const viewer = isObjectRecord(value.viewer) ? value.viewer : {};
@@ -56,6 +84,7 @@ export function parseExportConfig(value: unknown): ExportConfig {
     excludeUsers: strings(value.excludeUsers, "excludeUsers"),
     spaces: value.spaces === undefined ? null : strings(value.spaces, "spaces"),
     viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys: strings(viewer.watchTaskKeys, "viewer.watchTaskKeys") },
+    githubAccounts: githubAccounts(value.githubAccounts),
     allowedFindings: strings(value.allowedFindings, "allowedFindings"),
   };
 }

@@ -15,7 +15,7 @@ import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantD
 import { TaskPlanPartMarkDAO } from "../../persistence/ticketing/TaskPlanPartMarkDAO";
 import { TaskPullRequestDAO } from "../../persistence/ticketing/TaskPullRequestDAO";
 import { TaskTakeoverDAO } from "../../persistence/ticketing/TaskTakeoverDAO";
-import { TaskThreadFactsDAO } from "../../persistence/ticketing/TaskThreadFactsDAO";
+import { TaskThreadFactsDAO, type TaskCompletionKind } from "../../persistence/ticketing/TaskThreadFactsDAO";
 import { TaskThreadListDAO, type ThreadTaskRow } from "../../persistence/ticketing/TaskThreadListDAO";
 
 export type SituationTask = Pick<ThreadTaskRow, "id" | "status" | "pullRequestUrl" | "createdAt" | "updatedAt">;
@@ -39,7 +39,7 @@ export interface DescribedTask {
   latestActivityAt: string;
   /** Independent requests addressed to this viewer. */
   attentionRequests: Array<{ source: string; kind: "question" | "mention" | "failure"; questionIds: string[]; questionText: string | null; mentionMessage?: HomeThread["lastMessage"] }>;
-  completion: { at: string; kind: "task_done" | "pull_request_merged" } | null;
+  completion: { at: string; kind: TaskCompletionKind } | null;
 }
 
 interface Dependencies {
@@ -154,6 +154,7 @@ export class TaskSituationService {
           openMentions: mentions.get(task.id) ?? [],
           lastMessageAt: lastMessageAt ? iso(lastMessageAt) : null,
           mergedBy: merges.get(task.id) ?? null,
+          closedUnmerged: completions.get(task.id)?.kind === "pull_request_closed",
           partMerged: partsMerged.get(task.id) ?? null,
           nextPart: nextUnmarked(partsMerged.get(task.id), marked.get(task.id)),
         };

@@ -73,6 +73,8 @@ export interface TaskSituationInput {
   lastMessageAt: string | null
   /** Who merged the pull request that finished the task, when GitHub said. */
   mergedBy?: string | null
+  /** The task finished because its pull request was closed without merging. */
+  closedUnmerged?: boolean
   /** The last part a merged pull request built, when the plan has parts still to build. */
   partMerged?: number | null
   /** The part to build after it, past parts marked done or skipped; the one after it when absent. */
@@ -129,7 +131,11 @@ export function taskSituation(input: TaskSituationInput, viewer: SituationViewer
 function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
   if (input.status === 'resolved') {
     const accepted = input.backing === 'app' ? 'made live' : 'merged'
-    const label = input.mergedBy ? `Done · ${accepted} by ${input.mergedBy}` : 'Done'
+    const label = input.closedUnmerged
+      ? 'Done · closed without merging'
+      : input.mergedBy
+        ? `Done · ${accepted} by ${input.mergedBy}`
+        : 'Done'
     return { state: 'done', label, waitingOn: { kind: 'nobody' }, since: input.lastTurn?.at ?? input.createdAt }
   }
 

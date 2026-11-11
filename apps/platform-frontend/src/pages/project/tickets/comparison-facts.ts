@@ -14,8 +14,14 @@ export function formatCostUsd(usd: number): string {
 }
 
 /** Where a fork stands, in a few words. */
-export function armState(arm: Pick<TaskComparisonArm, 'running' | 'runs' | 'lastRunStatus' | 'pullRequestUrl'>): string {
+export function armState(
+  arm: Pick<TaskComparisonArm, 'running' | 'waiting' | 'runs' | 'lastRunStatus' | 'pullRequestUrl' | 'pullRequestState' | 'status'>
+): string {
   if (arm.running) return 'Working…'
+  if (arm.pullRequestState === 'merged') return 'Merged'
+  if (arm.pullRequestState === 'closed') return 'Closed without merging'
+  if (arm.status === 'resolved') return 'Done'
+  if (arm.waiting) return 'Waiting for the forks before it'
   if (arm.runs === 0) return "Didn't start"
   if (arm.lastRunStatus === 'failed') return 'Last run failed'
   if (arm.lastRunStatus === 'cancelled') return 'Last run stopped'

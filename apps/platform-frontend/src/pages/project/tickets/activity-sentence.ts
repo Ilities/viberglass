@@ -51,6 +51,8 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'document_approved':
       return `${who} approved the ${step}`
     case 'task_done':
+      if (entry.payload.notPicked === true && typeof entry.payload.picked === 'string')
+        return `Not picked: ${entry.payload.picked}'s pull request was merged, so this fork is done`
       return tracker ? `Closed on ${tracker}, so the task is done` : `${who} marked the task as done`
     case 'task_reopened':
       return tracker ? `Reopened on ${tracker}, so the task is open again` : `${who} reopened the task`
@@ -59,9 +61,15 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
         return typeof entry.payload.mergedBy === 'string'
           ? `Made live by ${entry.payload.mergedBy}`
           : 'The change was made live'
+      if (typeof entry.payload.fork === 'string')
+        return typeof entry.payload.mergedBy === 'string'
+          ? `${entry.payload.fork}'s pull request was merged by ${entry.payload.mergedBy}`
+          : `${entry.payload.fork}'s pull request was merged`
       return typeof entry.payload.mergedBy === 'string'
         ? `Merged by ${entry.payload.mergedBy}`
         : 'The pull request was merged'
+    case 'pull_request_closed':
+      return 'The pull request was closed without merging'
     case 'release_live':
       return typeof entry.payload.withCommitSha === 'string'
         ? 'The change went live with a later release'

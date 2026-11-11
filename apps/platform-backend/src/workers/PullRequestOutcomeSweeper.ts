@@ -5,9 +5,11 @@ import type { PullRequestOutcomeChecker } from '../services/pull-request-outcome
 const logger = createChildLogger({ worker: 'PullRequestOutcomeSweeper' });
 
 export interface PullRequestOutcomeSweeperConfig {
-  sweepIntervalMs?: number;  // How often to sweep (default: 15 minutes)
-  recheckAfterMs?: number;   // Minimum gap between checks of one open PR (default: 1 hour)
-  batchSize?: number;        // PRs checked per sweep (default: 50)
+  sweepIntervalMs?: number;       // How often to sweep (default: 5 minutes)
+  recheckAfterMs?: number;        // Minimum gap between checks of a recent open PR (default: 4 minutes)
+  olderAfterMs?: number;          // How long after it was first seen an open PR counts as older (default: 1 day)
+  olderRecheckAfterMs?: number;   // Minimum gap between checks of an older open PR (default: 1 hour)
+  batchSize?: number;             // PRs checked per sweep (default: 50)
 }
 
 /**
@@ -17,6 +19,10 @@ export interface PullRequestOutcomeSweeperConfig {
  * Polls the SCM rather than waiting for webhooks, so PRs opened before this
  * existed, and PRs in repositories with no webhook configured, still get a
  * label. The first sweeps after deploy are the backfill.
+ *
+ * Each check is one GET per PR. A PR open for more than a day is usually
+ * waiting on people rather than about to merge, so it's checked hourly; a
+ * batch of 50 every 5 minutes stays far below GitHub's hourly request limit.
  */
 export class PullRequestOutcomeSweeper {
   private intervalId: NodeJS.Timeout | null = null;
@@ -28,8 +34,11 @@ export class PullRequestOutcomeSweeper {
     config: PullRequestOutcomeSweeperConfig = {},
   ) {
     this.config = {
-      sweepIntervalMs: config.sweepIntervalMs ?? 900_000,
-      recheckAfterMs: config.recheckAfterMs ?? 3_600_000,
+      sweepIntervalMs: config.sweepIntervalMs ?? 300_000,
+      // Under the sweep interval, so a PR checked on one sweep is due on the next.
+      recheckAfterMs: config.recheckAfterMs ?? 240_000,
+      olderAfterMs: config.olderAfterMs ?? 86_400_000,
+      olderRecheckAfterMs: config.olderRecheckAfterMs ?? 3_600_000,
       batchSize: config.batchSize ?? 50,
     };
   }
@@ -67,8 +76,15 @@ export class PullRequestOutcomeSweeper {
 
   /** Returns the number of PRs whose outcome was recorded. */
   async sweep(): Promise<number> {
-    const recheckBefore = new Date(Date.now() - this.config.recheckAfterMs);
-    const due = await this.outcomes.listDueForCheck(recheckBefore, this.config.batchSize);
+    const now = Date.now();
+    const due = await this.outcomes.listDueForCheck(
+      {
+        recentSince: new Date(now - this.config.olderAfterMs),
+        recentBefore: new Date(now - this.config.recheckAfterMs),
+        olderBefore: new Date(now - this.config.olderRecheckAfterMs),
+      },
+      this.config.batchSize,
+    );
 
     let recorded = 0;
     for (const { pullRequestUrl, projectId } of due) {

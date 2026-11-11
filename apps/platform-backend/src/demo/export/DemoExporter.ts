@@ -4,9 +4,11 @@ import { textValue, type Row } from "../bundle/jsonValues";
 import { newestPastOffset } from "../bundle/timestampOffsets";
 import type { BundleWriter } from "./BundleWriter";
 import { EmailMapping } from "./EmailMapping";
+import { GitHubAccountMapping } from "./GitHubAccountMapping";
 import type { ExportConfig } from "./exportConfig";
 import type { ObjectExporter } from "./ObjectExporter";
 import { objectReferences } from "./objectReferences";
+import { PiStartupNoticeRepair } from "./PiStartupNoticeRepair";
 import { RowSanitizer } from "./RowSanitizer";
 import { RowSelection } from "./RowSelection";
 import type { Finding, ForbiddenValue } from "./SecretScanner";
@@ -56,12 +58,13 @@ export class DemoExporter {
       this.config.emailDomain,
     );
     const sanitizer = new RowSanitizer(EXPORTED_TABLES, STRIPPED_JSON_KEYS, emails, exportedAt);
-    const taskFolders = TaskFolderRepair.from(selected);
+    const repairs = [TaskFolderRepair.from(selected), new PiStartupNoticeRepair(), new GitHubAccountMapping(this.config.githubAccounts)];
 
     const tables = new Map<string, Row[]>();
     const manifestTables: BundleTable[] = [];
     for (const [table, rows] of selected) {
-      const sanitized = sanitizer.sanitize(table, taskFolders.repair(table, rows), schema.columns.get(table) ?? []);
+      const repaired = repairs.reduce<Row[]>((current, repair) => repair.repair(table, current), [...rows]);
+      const sanitized = sanitizer.sanitize(table, repaired, schema.columns.get(table) ?? []);
       tables.set(table, sanitized.rows);
       manifestTables.push({ name: table, rows: sanitized.rows.length, timestampColumns: sanitized.timestampColumns });
     }

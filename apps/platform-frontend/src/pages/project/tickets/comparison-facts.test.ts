@@ -15,11 +15,20 @@ describe('comparison facts', () => {
   })
 
   it('says where a fork stands', () => {
-    const arm = { running: false, runs: 1, lastRunStatus: 'completed' as const, pullRequestUrl: null }
+    const arm = { running: false, waiting: false, runs: 1, lastRunStatus: 'completed' as const, pullRequestUrl: null, pullRequestState: null, status: 'in_review' as const }
     expect(armState({ ...arm, running: true })).toBe('Working…')
+    expect(armState({ ...arm, runs: 0, lastRunStatus: null, waiting: true })).toBe('Waiting for the forks before it')
     expect(armState({ ...arm, runs: 0, lastRunStatus: null })).toBe("Didn't start")
     expect(armState({ ...arm, lastRunStatus: 'failed' })).toBe('Last run failed')
     expect(armState({ ...arm, pullRequestUrl: 'https://github.com/acme/app/pull/3' })).toBe('Pull request open')
     expect(armState(arm)).toBe('Finished')
+  })
+
+  it("says how a fork's pull request ended, and when it was finished without one", () => {
+    const arm = { running: false, waiting: false, runs: 1, lastRunStatus: 'completed' as const, pullRequestUrl: 'https://github.com/acme/app/pull/3' }
+    expect(armState({ ...arm, pullRequestState: 'merged', status: 'resolved' })).toBe('Merged')
+    expect(armState({ ...arm, pullRequestState: 'closed', status: 'resolved' })).toBe('Closed without merging')
+    expect(armState({ ...arm, pullRequestState: 'open', status: 'resolved' })).toBe('Done')
+    expect(armState({ ...arm, runs: 0, waiting: true, pullRequestUrl: null, pullRequestState: null, status: 'resolved' })).toBe('Done')
   })
 })

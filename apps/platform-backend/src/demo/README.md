@@ -27,6 +27,7 @@ The config file is optional:
   "excludeUsers": ["ops@example.com"],
   "spaces": ["website", "customer-app"],
   "viewer": { "sourceEmail": "visitor@example.com", "watchTaskKeys": ["APP-3", "WEB-1"] },
+  "githubAccounts": { "Xantier": { "name": "Dev Patel", "login": "devpatel" } },
   "allowedFindings": []
 }
 ```
@@ -35,11 +36,14 @@ The config file is optional:
 - `excludeUsers` leaves people out; rows that need them go too, and optional references to them are cleared.
 - `spaces` limits the export to these space slugs. Without it every space is exported.
 - `viewer.sourceEmail` names a capture account that stood in for demo visitors, so its watches and mentions carry over. `viewer.watchTaskKeys` are tasks the shared viewer watches.
+- `githubAccounts` shows a GitHub account's actions as a persona, for when the capture used one person's token for everyone. A value that is the login, such as `mergedBy` on a merge, becomes `login` (it defaults to the name in lower case without spaces), or `name` under a name key; an avatar beside it becomes `avatarUrl` or is cleared; the login in text becomes `name`, and `@login` the persona's login. Links and `owner/repo` paths keep the real login, and GitHub itself still shows it.
 - `allowedFindings` lists exact strings the secret scan reported that someone checked and found harmless.
 
 Only tables listed in `export/tablePolicies.ts` are read. A table without a policy, a new one included, is left out and reported. Secrets, credentials, webhook configs and deliveries, sessions, API tokens, invites, password resets, the audit log, runner config files, MCP servers and skills are never exported. Runners keep their name, harness and model; model endpoints keep their name, base URL, format and model list; integrations keep their name and kind. Password hashes, callback tokens, bootstrap payloads, conversation-state archives and signed links are removed.
 
 Runs captured with older workers show `ta[REDACTED]` where the task's workspace folder `task-<ticket id>` was, because their redactor took the `sk-` in it for an API key. The exporter writes the folder name back into any row it can tie to a task through its session or job; for other rows it writes `task-` and the first 8 characters of the job or row id.
+
+Older Pi workers kept Pi's startup notice (its version, the context files and skills it found, and an update notice) at the start of a reply. The exporter takes it out of turns and their events and works out the turn's intent again from what remains; an event that held only the notice is left out.
 
 Before anything is written the exporter scans every row and object, gzipped ones unpacked, for credential shapes (provider API keys, GitHub and GitLab tokens, bearer tokens, keys in URLs, signed storage links, private keys) and for values the capture database keeps secret: password and token hashes, stored secret ciphertexts, callback tokens and the real addresses of everyone. Any finding stops the export and nothing is written. Litestream replica files are compressed with LZ4 and pass the scan unread.
 

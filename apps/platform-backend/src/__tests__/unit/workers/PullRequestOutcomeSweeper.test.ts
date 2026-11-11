@@ -40,9 +40,32 @@ describe('PullRequestOutcomeSweeper', () => {
   it('asks for PRs not checked within the recheck window', async () => {
     await sweeper.sweep();
 
-    const [recheckBefore, limit] = outcomes.listDueForCheck.mock.calls[0];
-    expect(Date.now() - (recheckBefore as Date).getTime()).toBe(60_000);
+    const [windows, limit] = outcomes.listDueForCheck.mock.calls[0];
+    expect(Date.now() - windows.recentBefore.getTime()).toBe(60_000);
     expect(limit).toBe(10);
+  });
+
+  it('rechecks a PR open less than a day every few minutes, and an older one hourly', async () => {
+    sweeper = new PullRequestOutcomeSweeper(outcomes, new PullRequestOutcomeChecker(outcomes, repositories));
+
+    await sweeper.sweep();
+
+    const [windows, limit] = outcomes.listDueForCheck.mock.calls[0];
+    expect(Date.now() - windows.recentSince.getTime()).toBe(86_400_000);
+    expect(Date.now() - windows.recentBefore.getTime()).toBe(240_000);
+    expect(Date.now() - windows.olderBefore.getTime()).toBe(3_600_000);
+    expect(limit).toBe(50);
+  });
+
+  it('sweeps every five minutes by default', async () => {
+    outcomes.listDueForCheck.mockResolvedValue([]);
+    sweeper = new PullRequestOutcomeSweeper(outcomes, new PullRequestOutcomeChecker(outcomes, repositories));
+
+    sweeper.start();
+    await jest.advanceTimersByTimeAsync(299_999);
+    expect(outcomes.listDueForCheck).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(outcomes.listDueForCheck).toHaveBeenCalledTimes(2);
   });
 
   it('records the outcome read with the project token', async () => {

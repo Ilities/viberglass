@@ -31,6 +31,8 @@ describe("resolveNotifications", () => {
     ["run_failed", { category: "platform" }, [{ userId: "admin-1", kind: "run_failed_setup" }, { userId: "admin-2", kind: "run_failed_setup" }]],
     ["run_failed", { category: "agent" }, [{ userId: "owner", kind: "run_failed_agent" }]],
     ["task_done", {}, [{ userId: "requester", kind: "task_done" }]],
+    ["task_done", { notPicked: true, picked: "WEB-2" }, []],
+    ["pull_request_closed", { closedUnmerged: true }, [{ userId: "requester", kind: "task_done" }, { userId: "owner", kind: "task_done" }]],
     ["pull_request_merged", { merged: true }, [{ userId: "requester", kind: "task_done" }, { userId: "owner", kind: "task_done" }]],
     ["part_merged", { parts: [1], next: 2 }, [{ userId: "requester", kind: "part_merged" }, { userId: "owner", kind: "part_merged" }]],
     ["release_failed", { reason: "unhealthy" }, [{ userId: "requester", kind: "release_failed" }, { userId: "owner", kind: "release_failed" }]],

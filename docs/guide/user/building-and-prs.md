@@ -38,7 +38,11 @@ While a part's pull request is open, the next part has Add to part N's pull requ
 
 ## When a task is done
 
-A task is done when the pull requests for all of its plan are merged, or its remaining parts are marked done or skipped. Viberglass checks the state of open pull requests regularly, so a merge on GitHub closes the task within about an hour. The requester and owner are told.
+A task is done when the pull requests for all of its plan are merged, or its remaining parts are marked done or skipped. The task list and the thread show it as Done · merged by, with the name GitHub gives for whoever merged it. The requester and owner are told.
+
+Closing a task's last open pull request without merging it finishes the task too, as Done · closed without merging. A task that has another pull request open, a build that hasn't opened its pull request yet, or an agent turn after the close stays open.
+
+Viberglass checks open pull requests every five minutes, so a merge or a close on GitHub shows within a few minutes. A pull request open for more than a day is checked hourly. A pull request closed and then reopened on GitHub stays closed in Viberglass; reopen the task to carry on with it.
 
 You can also finish a task by hand with Actions → Finish task, for work that ended another way. That keeps the history and merges nothing. Reopen task opens it again.
 

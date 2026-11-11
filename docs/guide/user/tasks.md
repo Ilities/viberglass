@@ -64,11 +64,19 @@ Token counts in the record keep cached input apart: uncached input is what the m
 
 To see how different agents or models handle the same work, choose Compare agents in the Actions menu, or Compare agents from here under one of the agent's finished turns. Pick two to four agents, what to ask each of them (Plan, Build or Reply), and optionally a message, then choose Compare.
 
-Each agent gets a fork: a task of its own in the same space, titled after the original and the agent, such as "Add dark mode · Claude Code". A fork starts from the task as it was at that moment, whether now or when the chosen turn finished. It gets what people had written in the thread, the plan, the summary, the parts marked finished, and the code on the task's branch at that point. The agents' own replies stay with the original, so every agent starts fresh from the same record. Nothing on a fork goes back to the issue tracker the original came from.
+Each agent gets a fork: a task of its own in the same space, titled after the original and the agent, such as "Add dark mode · Claude Code". The forks run one after another, in the order the agents were picked: the next fork starts when the one before it finishes its run, fails or is cancelled. Forks often share a provider's rate limit or a runner's machine, and running them together would make them compete. A fork that can't start is skipped. A fork starts from the task as it was at that moment, whether now or when the chosen turn finished. It gets what people had written in the thread, the plan, the summary, the parts marked finished, and the code on the task's branch at that point. The agents' own replies stay with the original, so every agent starts fresh from the same record. Nothing on a fork goes back to the issue tracker the original came from.
 
 Each fork works on its own branch, named after the original's with the agent added, such as `viberglass/<task>-claude-code`, and opens its own pull request. You can carry on talking to the agent in a fork like in any task.
 
-Forks don't appear in the space's task list. The original shows them under Agent comparisons, side by side: where each stands, what its latest turn set out to do, the model, how many runs, how long they took and what they cost, the branch and the pull request. Choose Pick this on the one you want to keep; the original marks it Picked and says so in its thread. Picking closes and merges nothing. A fork's page says which task it was forked from and links back to the comparison.
+Forks don't appear in the space's task list. The original shows them under Agent comparisons, side by side: where each stands (waiting for the forks before it, working, pull request open, merged, closed without merging or done), what its latest turn set out to do, the model, how many runs, how long they took and what they cost, the branch and the pull request. Choose Pick this on the one you want to keep; the original marks it Picked and says so in its thread. Picking closes and merges nothing. A fork's page says which task it was forked from and links back to the comparison.
+
+When a fork's pull request is merged and that finishes the fork, the comparison is decided:
+
+- The original is done as Done · merged by, and its thread names the fork and links its pull request.
+- That fork becomes the picked one, unless someone picked another already.
+- The other forks still open are done as not picked. Their pull requests stay open on GitHub; close them there.
+
+A fork whose pull request is closed without merging is done as closed without merging, like any task. The original stays open until a fork's pull request is merged or someone finishes it.
 
 ## The Actions menu
 

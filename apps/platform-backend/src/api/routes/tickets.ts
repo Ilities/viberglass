@@ -41,6 +41,10 @@ import { registerTaskCopyRoutes } from "./tickets/copyRoutes";
 import { TaskCopyService } from "../../services/tasks/TaskCopyService";
 import { registerTaskComparisonRoutes } from "./tickets/comparisonRoutes";
 import { TaskComparisonService } from "../../services/tasks/TaskComparisonService";
+import { ComparisonForkQueue } from "../../services/tasks/ComparisonForkQueue";
+import { ComparisonMergeFinisher } from "../../services/tasks/ComparisonMergeFinisher";
+import { registerActivityListener } from "../../services/tasks/activityListeners";
+import { TaskTurnFactsDAO } from "../../persistence/agentSession/TaskTurnFactsDAO";
 import { TaskComparisonViewService } from "../../services/tasks/TaskComparisonViewService";
 import { TaskForkService } from "../../services/tasks/TaskForkService";
 import { TaskComparisonDAO } from "../../persistence/ticketing/TaskComparisonDAO";
@@ -68,7 +72,7 @@ import { AgentQuestionAnswerService } from "../../services/questions/AgentQuesti
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskTimelineService } from "../../services/tasks/TaskTimelineService";
 import { TaskTurnService } from "../../services/taskTurns/TaskTurnService";
-import type { ActivityActor } from "../../services/tasks/TaskActivityRecorder";
+import { TaskActivityRecorder, type ActivityActor } from "../../services/tasks/TaskActivityRecorder";
 import { TaskDoneService } from "../../services/tasks/TaskDoneService";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { taskChangeGuard } from "../middleware/taskChangeGuards";
@@ -109,6 +113,11 @@ registerTaskCopyRoutes(router, {
 });
 const taskComparisons = new TaskComparisonDAO();
 const taskForks = new TaskForkDAO();
+const comparisonForkQueue = new ComparisonForkQueue({ comparisons: taskComparisons, turns: taskTurns, running: new TaskTurnFactsDAO() });
+registerActivityListener(comparisonForkQueue);
+registerActivityListener(
+  new ComparisonMergeFinisher({ comparisons: taskComparisons, tickets: new TicketDAO(), activity: new TaskActivityRecorder(), done: taskDone }),
+);
 registerTaskComparisonRoutes(router, {
   comparisons: new TaskComparisonService({
     tickets: ticketService,
@@ -127,7 +136,7 @@ registerTaskComparisonRoutes(router, {
       documents: ticketPhaseDocumentService,
       summaries: new TaskSummaryDAO(),
     }),
-    turns: taskTurns,
+    queue: comparisonForkQueue,
     discussion: taskDiscussion,
   }),
   views: new TaskComparisonViewService({ comparisons: taskComparisons, stats: new TaskComparisonArmStatsDAO(), tickets: ticketService }),

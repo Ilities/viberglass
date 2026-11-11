@@ -56,6 +56,7 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
           ? `“${taskTitle}” is done: ${payload.mergedBy} merged its pull request`
           : `“${taskTitle}” is done: its pull request was merged`
       }
+      if (payload.closedUnmerged === true) return `“${taskTitle}” is done: its pull request was closed without merging`
       return `${who} marked “${taskTitle}” as done`
     case 'release_failed':
       return `The change for “${taskTitle}” didn't go live${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`

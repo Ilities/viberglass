@@ -43,6 +43,7 @@ export class TaskComparisonViewService {
               title: arm.title,
               status: arm.status,
               runner: { id: arm.runner.id, name: arm.runner.name },
+              waiting: arm.waiting,
               ...armStats,
             },
           ];

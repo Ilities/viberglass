@@ -3,7 +3,7 @@ import type { TaskComparisonArm } from "@viberglass/types";
 import db from "../config/database";
 import { outcomeOf } from "../agentSession/turnOutcomeJson";
 
-export type ArmStats = Omit<TaskComparisonArm, "ticketId" | "key" | "title" | "status" | "runner">;
+export type ArmStats = Omit<TaskComparisonArm, "ticketId" | "key" | "title" | "status" | "runner" | "waiting">;
 
 const NO_RUNS: ArmStats = {
   running: false,
@@ -11,6 +11,7 @@ const NO_RUNS: ArmStats = {
   lastRunStatus: null,
   intent: null,
   pullRequestUrl: null,
+  pullRequestState: null,
   branch: null,
   commit: null,
   model: null,
@@ -57,12 +58,13 @@ export class TaskComparisonArmStatsDAO {
         .orderBy("finished_at", "desc")
         .execute(),
       db
-        .selectFrom("task_pull_requests")
-        .distinctOn("ticket_id")
-        .select(["ticket_id", "url", "branch"])
-        .where("ticket_id", "in", ticketIds)
-        .orderBy("ticket_id")
-        .orderBy("created_at", "desc")
+        .selectFrom("task_pull_requests as p")
+        .leftJoin("pull_request_outcomes as o", "o.pull_request_url", "p.url")
+        .distinctOn("p.ticket_id")
+        .select(["p.ticket_id", "p.url", "p.branch", "o.state"])
+        .where("p.ticket_id", "in", ticketIds)
+        .orderBy("p.ticket_id")
+        .orderBy("p.created_at", "desc")
         .execute(),
       db
         .selectFrom("agent_turns")
@@ -93,7 +95,7 @@ export class TaskComparisonArmStatsDAO {
     for (const row of latestCommits) update(row.ticket_id, { commit: row.commit_sha, branch: row.branch });
     for (const row of pullRequests) {
       const current = stats.get(row.ticket_id);
-      update(row.ticket_id, { pullRequestUrl: row.url, branch: current?.branch ?? row.branch });
+      update(row.ticket_id, { pullRequestUrl: row.url, pullRequestState: row.state ?? null, branch: current?.branch ?? row.branch });
     }
     for (const row of latestTurns) update(row.ticket_id, { intent: outcomeOf(row.content_json)?.intent ?? null });
     return stats;

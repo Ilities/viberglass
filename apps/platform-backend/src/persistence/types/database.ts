@@ -115,6 +115,9 @@ export interface TaskComparisonsTable {
   base_commit: string | null;
   winner_ticket_id: string | null;
   created_by: string | null;
+  /** What each fork is asked when its turn comes. */
+  ask_action: Generated<string>;
+  ask_message: Generated<string>;
   created_at: Generated<Timestamp>;
 }
 
@@ -123,6 +126,8 @@ export interface TaskComparisonArmsTable {
   comparison_id: string;
   clanker_id: string;
   position: number;
+  /** Null while the fork waits for the ones before it. */
+  started_at: Timestamp | null;
   created_at: Generated<Timestamp>;
 }
 

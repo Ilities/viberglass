@@ -6,7 +6,7 @@ export interface MergeAttribution {
   madeLiveBy: string;
 }
 
-/** Told about each outcome the sweeper records, such as a merge that closes a task. */
+/** Told about each outcome the sweeper records, such as a merge that finishes a task. */
 export interface PullRequestOutcomeListener {
   onOutcome(pullRequestUrl: string, outcome: PullRequestOutcome, attribution?: MergeAttribution): Promise<void>;
 }

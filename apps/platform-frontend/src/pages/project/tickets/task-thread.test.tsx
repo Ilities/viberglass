@@ -95,6 +95,15 @@ describe('describeActivity', () => {
     const merged = { kind: 'pull_request_merged' as const, actorType: 'system' as const, actor: null }
     expect(describeActivity(entry({ ...merged, payload: { mergedBy: 'dev-koskinen' } }), nameOf)).toBe('Merged by dev-koskinen')
     expect(describeActivity(entry({ ...merged, payload: {} }), nameOf)).toBe('The pull request was merged')
+    expect(describeActivity(entry({ ...merged, payload: { mergedBy: 'dev-koskinen', fork: 'WEB-2' } }), nameOf)).toBe(
+      "WEB-2's pull request was merged by dev-koskinen"
+    )
+    expect(describeActivity(entry({ kind: 'pull_request_closed', actorType: 'system', actor: null, payload: {} }), nameOf)).toBe(
+      'The pull request was closed without merging'
+    )
+    expect(describeActivity(entry({ kind: 'task_done', actorType: 'system', actor: null, payload: { notPicked: true, picked: 'WEB-2' } }), nameOf)).toBe(
+      "Not picked: WEB-2's pull request was merged, so this fork is done"
+    )
     const partMerged = { kind: 'part_merged' as const, actorType: 'system' as const, actor: null }
     expect(describeActivity(entry({ ...partMerged, payload: { parts: [1], next: 2, mergedBy: 'dev-koskinen' } }), nameOf)).toBe(
       'Part 1 merged by dev-koskinen; part 2 is next'

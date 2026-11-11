@@ -235,6 +235,12 @@ describe("TaskChatMirror", () => {
     );
   });
 
+  it("says a task is done when its pull request was closed without merging", async () => {
+    const { thread, mirror } = setup();
+    await mirror.onActivity(activity("pull_request_closed", { closedUnmerged: true }));
+    expect(thread.post).toHaveBeenCalledWith({ markdown: "**Done.** The pull request was closed without merging." });
+  });
+
   it("says who made a change live, then how its release ended", async () => {
     const { thread, mirror } = setup({ backingKind: "app" });
     await mirror.onActivity(activity("pull_request_merged", { merged: true, mergedBy: "Maria", madeLive: true }));

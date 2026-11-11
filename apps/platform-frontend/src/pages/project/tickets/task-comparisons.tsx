@@ -14,10 +14,10 @@ import { armFacts, armState } from './comparison-facts'
 const STATE_DOT = (arm: TaskComparisonArm) =>
   arm.running
     ? 'bg-blue-500 animate-pulse'
-    : arm.lastRunStatus === 'failed'
-      ? 'bg-red-500'
-      : arm.runs === 0
-        ? 'bg-[var(--gray-8)]'
+    : arm.pullRequestState === 'closed' || arm.waiting || arm.runs === 0
+      ? 'bg-[var(--gray-8)]'
+      : arm.lastRunStatus === 'failed' && arm.status !== 'resolved'
+        ? 'bg-red-500'
         : 'bg-green-600'
 
 function ArmCard({

@@ -96,7 +96,7 @@ const kubernetesJobReconciler = shouldRunBackgroundSweepers && process.env.KUBER
 
 const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
   ? new PullRequestOutcomeSweeper(new PullRequestOutcomeDAO(), createPullRequestOutcomeChecker(), {
-      sweepIntervalMs: parseInt(process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "900000", 10),
+      sweepIntervalMs: parseInt(process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "300000", 10),
     })
   : null;
 

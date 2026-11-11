@@ -5,7 +5,7 @@ import type { ColumnInfo, SchemaSnapshot } from "../../../demo/bundle/DatabaseSc
 import type { Row } from "../../../demo/bundle/jsonValues";
 import { BundleWriter } from "../../../demo/export/BundleWriter";
 import { DemoExporter, SecretsFoundError, type ExportSource } from "../../../demo/export/DemoExporter";
-import { DEFAULT_EXPORT_CONFIG } from "../../../demo/export/exportConfig";
+import { DEFAULT_EXPORT_CONFIG, type ExportConfig } from "../../../demo/export/exportConfig";
 
 const exportedAt = new Date("2026-11-01T12:00:00Z");
 const hoursBefore = (hours: number) => new Date(exportedAt.getTime() - hours * 3_600_000);
@@ -16,10 +16,11 @@ function source(rows: Record<string, Row[]>): ExportSource {
   const schema: SchemaSnapshot = {
     columns: new Map([
       ["users", [text("id"), text("email"), text("name"), text("password_hash")]],
-      ["task_activity", [text("id"), text("kind"), time("created_at")]],
+      ["task_activity", [text("id"), text("kind"), { name: "payload_json", type: "jsonb", nullable: true }, time("created_at")]],
       ["pull_request_outcomes", [text("pull_request_url"), time("checked_at")]],
       ["agent_sessions", [text("id"), text("ticket_id")]],
-      ["agent_session_events", [text("id"), text("session_id"), { name: "payload_json", type: "jsonb", nullable: false }]],
+      ["agent_turns", [text("id"), text("session_id"), text("content_markdown")]],
+      ["agent_session_events", [text("id"), text("session_id"), text("event_type"), { name: "payload_json", type: "jsonb", nullable: false }]],
       ["secrets", [text("id")]],
       ["shiny_new_table", [text("id")]],
     ]),
@@ -42,8 +43,8 @@ describe("DemoExporter", () => {
     await fs.rm(path.dirname(directory), { recursive: true, force: true });
   });
 
-  const exporter = (rows: Record<string, Row[]>, log: string[] = []) =>
-    new DemoExporter(source(rows), new BundleWriter(directory), () => ({ export: async () => ({ keys: [], contentTypes: {}, missing: [] }) }), DEFAULT_EXPORT_CONFIG, "capture", (line) => log.push(line));
+  const exporter = (rows: Record<string, Row[]>, log: string[] = [], config: ExportConfig = DEFAULT_EXPORT_CONFIG) =>
+    new DemoExporter(source(rows), new BundleWriter(directory), () => ({ export: async () => ({ keys: [], contentTypes: {}, missing: [] }) }), config, "capture", (line) => log.push(line));
 
   it("writes nothing when a row looks like a secret", async () => {
     const run = exporter({
@@ -70,6 +71,31 @@ describe("DemoExporter", () => {
 
     await fs.rm(directory, { recursive: true, force: true });
     const leaking = exporter(rows("/tmp/viberator-work/ta[REDACTED]/repo OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz")).export(exportedAt);
+    await expect(leaking).rejects.toBeInstanceOf(SecretsFoundError);
+  });
+
+  it("shows the capture's GitHub account as a persona and drops Pi's startup notice, then still scans what's left", async () => {
+    const config: ExportConfig = { ...DEFAULT_EXPORT_CONFIG, githubAccounts: { Xantier: { login: "devpatel", name: "Dev Patel", avatarUrl: null } } };
+    const notice = "pi v1.0.2\n---\n\n## Skills\n- /home/viberator/.agents/skills/viberglass-app/SKILL.md\n\n---\nNew version available: v1.5.2 (installed v1.0.2).\n";
+    const rows = (merge: string) => ({
+      users: [{ id: "u1", email: "maria@real.com", name: "Maria", password_hash: "x" }],
+      task_activity: [{ id: "a1", kind: "pull_request_merged", payload_json: { mergedBy: "Xantier", note: merge }, created_at: hoursBefore(1) }],
+      agent_sessions: [{ id: "s1", ticket_id: "t1" }],
+      agent_turns: [{ id: "turn1", session_id: "s1", content_markdown: `${notice}\nReading the repo.` }],
+      agent_session_events: [
+        { id: "e1", session_id: "s1", event_type: "assistant_message", payload_json: { text: notice } },
+        { id: "e2", session_id: "s1", event_type: "assistant_message", payload_json: { text: "Reading the repo." } },
+      ],
+    });
+    const table = async (name: string) => JSON.parse(await fs.readFile(path.join(directory, "tables", `${name}.json`), "utf8"));
+
+    await exporter(rows("merged by Xantier"), [], config).export(exportedAt);
+    expect((await table("task_activity"))[0].payload_json).toEqual({ mergedBy: "devpatel", note: "merged by Dev Patel" });
+    expect((await table("agent_turns"))[0].content_markdown).toBe("Reading the repo.");
+    expect((await table("agent_session_events")).map((event: Row) => event.id)).toEqual(["e2"]);
+
+    await fs.rm(directory, { recursive: true, force: true });
+    const leaking = exporter(rows("merged by Xantier with ghp_abcdefghijklmnopqrstuvwxyz0123456789"), [], config).export(exportedAt);
     await expect(leaking).rejects.toBeInstanceOf(SecretsFoundError);
   });
 

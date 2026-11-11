@@ -47,7 +47,7 @@ On Docker, the first run of each agent downloads its worker image, which can tak
 
 ## Other problems
 
-- A pull request was merged but the task is still open: merges are picked up by a regular check, within about an hour.
+- A pull request was merged or closed but the task is still open: pull requests are checked every five minutes, and hourly once they've been open for more than a day. A closed pull request leaves the task open when the task has another pull request open or being built, or the agent worked on it after the close.
 - Nobody gets email: check `EMAIL_FROM` and `SMTP_URL` (or SES on AWS), then Send test email under Settings → Notifications. On AWS, a new SES account only delivers to verified addresses until production access is granted.
 - Slack doesn't answer `/viberglass`: Settings → Connections → Slack should show Bot active, with the bot token and signing secret saved, and Slack must reach `https://<your backend>/api/webhooks/slack`. Until both are saved the route answers 503.
 - Someone can't see a space or a task: they may not have access. Check their workspace role, and whether the space is private. See [People and access](people-and-access.md).
