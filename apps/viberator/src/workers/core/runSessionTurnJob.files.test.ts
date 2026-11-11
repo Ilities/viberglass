@@ -16,6 +16,7 @@ jest.mock("./workingTreeChanges", () => ({
   listCodeChanges: mockListCodeChanges,
   discardCodeChanges: mockDiscard,
   restoreArtifactFiles: jest.fn(),
+  turnStartCommit: jest.fn(async () => "start123"),
 }));
 jest.mock("./deliverPullRequest", () => ({ deliverPullRequest: mockDeliver }));
 jest.mock("../runtime/SessionStateManager", () => ({ captureAndStore: jest.fn(), retrieveAndRestore: jest.fn() }));

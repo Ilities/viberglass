@@ -29,7 +29,8 @@ export interface CaptureState {
   screenshotDataUrl: string | null;
   recordingBlob: Blob | null;
   consoleEntries: ConsoleEntry[];
-  networkErrors: NetworkError[];
+  uncaughtErrors: UncaughtError[];
+  failedRequests: FailedRequest[];
   pageMetadata: PageMetadata;
   annotations: Annotation[];
 }
@@ -41,10 +42,23 @@ export interface ConsoleEntry {
   source?: string;
 }
 
-export interface NetworkError {
-  url: string;
-  status: number;
+/** A request the page made that failed: an error status, or no response at all. */
+export interface FailedRequest {
   method: string;
+  url: string;
+  /** Absent when there was no response. */
+  status?: number;
+  /** The browser's reason when there was no response, such as net::ERR_CONNECTION_REFUSED. */
+  error?: string;
+  timestamp: string;
+}
+
+export interface UncaughtError {
+  message: string;
+  stack?: string;
+  filename?: string;
+  lineno?: number;
+  colno?: number;
   timestamp: string;
 }
 
@@ -79,6 +93,7 @@ export interface Annotation {
 }
 
 export interface TicketMetadata {
+  capturedBy: "browser-extension";
   browser?: { name: string; version: string };
   os?: { name: string; version: string };
   screen?: {
@@ -95,14 +110,8 @@ export interface TicketMetadata {
     onLine: boolean;
   };
   console?: ConsoleEntry[];
-  errors?: Array<{
-    message: string;
-    stack?: string;
-    filename?: string;
-    lineno?: number;
-    colno?: number;
-    timestamp: string;
-  }>;
+  errors?: UncaughtError[];
+  failedRequests?: FailedRequest[];
   pageUrl?: string;
   referrer?: string;
   localStorage?: Record<string, unknown>;

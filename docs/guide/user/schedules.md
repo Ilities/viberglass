@@ -32,7 +32,7 @@ Restore app data puts the app's data back to a backup each time it runs, such as
 
 ## What a scheduled run does
 
-In a space with a repository, a scheduled run works in the repository; if the agent changes code, it opens a pull request.
+In a space with a repository, a scheduled run works in the repository; if the agent changes code, it opens a pull request. The agent names the pull request and writes its description; the commit has the same title. When the agent doesn't name it, the task template's name is the title.
 
 In a Files space there's no repository and no pull request. The run starts from the space's files as last saved, and saves them when it ends, for later runs and the space's tasks. Runs in the same space take turns: if another run is working on the files, a scheduled run waits for it to save them first. A run that fails or is cancelled partway still saves what it had, marked as partial.
 

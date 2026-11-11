@@ -20,6 +20,7 @@ const TICKET = {
   description: "Let people switch",
   externalTicketId: undefined,
   pullRequestUrl: undefined,
+  metadata: { timestamp: "2026-10-01T08:00:00Z", timezone: "UTC" },
 };
 
 function turn(overrides: Partial<AgentTurn>): AgentTurn {
@@ -123,6 +124,23 @@ describe("TaskTurnContextLoader", () => {
     expect(context.earlier).toEqual({ messages: [], openComments: [] });
     expect(revisions.listHandEditsSince).not.toHaveBeenCalled();
     expect(context.documents).toEqual({ plan: "# P" });
+  });
+
+  it("passes on what the browser extension captured, and nothing for a task it didn't create", async () => {
+    const { instance } = loader({});
+    const metadata = {
+      capturedBy: "browser-extension" as const,
+      pageUrl: "http://localhost:5173/checkout",
+      failedRequests: [{ method: "POST", url: "http://localhost:5173/api/billing/checkout", status: 402, timestamp: "2026-10-01T08:00:00Z" }],
+      timestamp: "2026-10-01T08:00:00Z",
+      timezone: "UTC",
+    };
+
+    const captured = await instance.load({ ...input, ticket: { ...TICKET, metadata } });
+    const typed = await instance.load(input);
+
+    expect(captured.ticket.browserCapture).toContain("POST http://localhost:5173/api/billing/checkout → 402");
+    expect(typed.ticket.browserCapture).toBeNull();
   });
 
   it("names the commit a stopped turn kept until a later turn delivers one", async () => {

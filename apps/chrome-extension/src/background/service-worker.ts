@@ -1,4 +1,15 @@
+import { failedRequestsOf, recordFailedRequests } from "./failed-requests";
+
+recordFailedRequests();
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === "GET_FAILED_REQUESTS") {
+    failedRequestsOf(message.tabId)
+      .then((data) => sendResponse({ data }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
   if (message.type === "CAPTURE_VISIBLE_TAB") {
     handleCaptureVisibleTab(message.scale)
       .then(sendResponse)

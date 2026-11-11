@@ -3,7 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import { simpleGit } from "simple-git";
 import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
-import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
+import { discardCodeChanges, listCodeChanges, restoreArtifactFiles, turnStartCommit } from "./workingTreeChanges";
 
 /** A repository with one commit, as the worker clones it. */
 async function repository(files: Record<string, string>): Promise<string> {
@@ -51,6 +51,51 @@ describe("what a turn produced", () => {
     expect(await listCodeChanges(dir)).toEqual([]);
     expect(fs.readFileSync(path.join(dir, "PLAN.md"), "utf-8")).toBe("the repo's own plan\n");
     expect(fs.existsSync(path.join(dir, "SUMMARY.md"))).toBe(false);
+  });
+
+  it("keeps the plan and takes it out of the index when the agent force-staged it", async () => {
+    const dir = await repository({ "app.js": "1\n" });
+    const start = await turnStartCommit(dir);
+    const snapshot = materializeArtifacts(dir, {});
+    write(dir, "PLAN.md", "# The agent's plan\n");
+    await simpleGit({ baseDir: dir }).raw(["add", "-f", "--", "PLAN.md"]);
+
+    expect(collectArtifacts(dir, snapshot)).toEqual({ plan: "# The agent's plan\n" });
+    await restoreArtifactFiles(dir, start);
+
+    expect(await listCodeChanges(dir)).toEqual([]);
+    expect((await simpleGit({ baseDir: dir }).status()).files).toEqual([]);
+    expect(fs.existsSync(path.join(dir, "PLAN.md"))).toBe(false);
+  });
+
+  it("takes a plan the agent committed itself back out, so the next commit removes it", async () => {
+    const dir = await repository({ "app.js": "1\n" });
+    const start = await turnStartCommit(dir);
+    materializeArtifacts(dir, {});
+    write(dir, "PLAN.md", "# Committed plan\n");
+    write(dir, "app.js", "2\n");
+    const git = simpleGit({ baseDir: dir });
+    await git.raw(["add", "-f", "--", "PLAN.md", "app.js"]);
+    await git.commit("agent's own commit");
+
+    await restoreArtifactFiles(dir, start);
+    await git.commit("viberglass commit", ["--allow-empty"]);
+
+    expect(await git.raw(["ls-tree", "--name-only", "HEAD"])).toBe("app.js\n");
+  });
+
+  it("puts back the repository's own plan when the agent committed a revision of it", async () => {
+    const dir = await repository({ "app.js": "1\n", "PLAN.md": "the repo's own plan\n" });
+    const start = await turnStartCommit(dir);
+    write(dir, "PLAN.md", "# Revised\n");
+    const git = simpleGit({ baseDir: dir });
+    await git.add(["PLAN.md"]);
+    await git.commit("agent's own commit");
+
+    await restoreArtifactFiles(dir, start);
+
+    expect(fs.readFileSync(path.join(dir, "PLAN.md"), "utf-8")).toBe("the repo's own plan\n");
+    expect(await listCodeChanges(dir)).toEqual([]);
   });
 
   it("lists changed and new files as code, but not the pull request notes the agent leaves", async () => {

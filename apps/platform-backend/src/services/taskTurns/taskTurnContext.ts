@@ -38,6 +38,8 @@ export interface TaskTurnContext {
     description: string;
     externalTicketId: string | null;
     pullRequestUrl: string | null;
+    /** What the browser extension captured from the page the task came from; null when it didn't create the task. */
+    browserCapture: string | null;
   };
   documents: { plan: string };
   /**

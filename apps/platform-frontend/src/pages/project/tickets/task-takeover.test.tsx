@@ -36,4 +36,20 @@ describe('TaskTakeoverCard', () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(commands[1]))
   })
+
+  it('starts an unpushed branch from the base branch without tracking it, and says how to push the task branch', () => {
+    const unpushed = { ...BRANCH, pushed: false }
+    render(
+      <Theme>
+        <TaskTakeoverCard taskId="t-1" branch={unpushed} canSteer onHandedBack={jest.fn()} />
+      </Theme>
+    )
+
+    expect(checkoutCommands(unpushed)).toEqual([
+      'git clone https://github.com/example/web.git',
+      'git fetch origin main',
+      'git switch --no-track -c feature/login origin/main',
+    ])
+    expect(screen.getByText('git push -u origin feature/login')).toBeInTheDocument()
+  })
 })

@@ -21,6 +21,24 @@ describe("ticketSchema", () => {
     );
   });
 
+  it("keeps what the browser extension captured, failed requests with their method included", () => {
+    const metadata = {
+      capturedBy: "browser-extension",
+      failedRequests: [
+        { method: "POST", url: "http://localhost:5173/api/billing/checkout", status: 402, timestamp: "2026-11-11T17:00:00Z" },
+        { method: "GET", url: "http://localhost:5173/logo.png", error: "net::ERR_CONNECTION_REFUSED", timestamp: "2026-11-11T17:00:01Z" },
+      ],
+      timestamp: "2026-11-11T17:00:02Z",
+      timezone: "Europe/Helsinki",
+    };
+
+    const result = ticketSchema.validate({ ...baseTicket, metadata });
+
+    expect(result.error).toBeUndefined();
+    expect(result.value.metadata.capturedBy).toBe("browser-extension");
+    expect(result.value.metadata.failedRequests.map((request: { method: string }) => request.method)).toEqual(["POST", "GET"]);
+  });
+
   it("takes no starting phase: a task's phase follows what it has produced", () => {
     const result = ticketSchema.validate({ ...baseTicket, workflowPhase: "execution" });
 

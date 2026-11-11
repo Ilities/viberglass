@@ -7,11 +7,14 @@ import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { HandoffCard } from '../jobs/handoff-card'
 
-/** How to get the task's branch onto your machine with git, one command each. */
+/**
+ * How to get the task's branch onto your machine with git, one command each.
+ * A branch started from the base branch doesn't track it, so pushing never goes to the base branch.
+ */
 export function checkoutCommands(branch: TaskCodeBranch): string[] {
   const git = branch.pushed
     ? [`git fetch origin ${branch.branch}`, `git switch ${branch.branch}`]
-    : [`git fetch origin ${branch.baseBranch}`, `git switch -c ${branch.branch} origin/${branch.baseBranch}`]
+    : [`git fetch origin ${branch.baseBranch}`, `git switch --no-track -c ${branch.branch} origin/${branch.baseBranch}`]
   return [`git clone ${branch.repositoryUrl}`, ...git]
 }
 
@@ -57,7 +60,11 @@ export function TaskTakeoverCard({ taskId, branch, canSteer, onHandedBack, resum
         )
       }
     >
-      <p>The agent is paused. Push your commits to the task&apos;s branch, then hand it back: the agent reads what you pushed first.</p>
+      <p>
+        The agent is paused. Push your commits to the task&apos;s branch with{' '}
+        <code className="font-mono text-xs">git push -u origin {branch.branch}</code>, then hand it back: the agent reads
+        what you pushed first.
+      </p>
       {resumes}
       <pre aria-label="Checkout commands" className="mt-3 rounded-md bg-[var(--gray-3)] p-3 font-mono text-xs text-[var(--gray-12)]">
         {/* A long command wraps with a hanging indent, so a continuation reads as part of it; copying keeps it one line. */}

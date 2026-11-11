@@ -115,6 +115,7 @@ export function TicketForm({
 
       try {
         const metadata: TicketMetadata = {
+          capturedBy: "browser-extension",
           browser: {
             name: capture.pageMetadata.browserName,
             version: capture.pageMetadata.browserVersion,
@@ -137,10 +138,8 @@ export function TicketForm({
             onLine: capture.pageMetadata.onLine,
           },
           console: capture.consoleEntries,
-          errors: capture.networkErrors.map((ne) => ({
-            message: `${ne.method} ${ne.url} → ${ne.status}`,
-            timestamp: ne.timestamp,
-          })),
+          errors: capture.uncaughtErrors,
+          failedRequests: capture.failedRequests,
           // The backend refuses an empty address; pages like the new tab have none.
           pageUrl: capture.pageMetadata.url || undefined,
           referrer: capture.pageMetadata.referrer || undefined,

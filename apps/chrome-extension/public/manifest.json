@@ -3,7 +3,7 @@
   "name": "Viberglass",
   "version": "1.0.0",
   "description": "Create Viberglass tasks from any page, with a screenshot, a recording and the page's context, and ask an agent to write the plan",
-  "permissions": ["activeTab", "tabCapture", "storage", "scripting", "offscreen"],
+  "permissions": ["activeTab", "tabCapture", "storage", "scripting", "offscreen", "webRequest"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",
@@ -14,6 +14,14 @@
       "128": "icons/icon-128.png"
     }
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/console-recorder.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

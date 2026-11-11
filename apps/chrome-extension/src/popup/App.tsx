@@ -10,13 +10,15 @@ import {
   clearAllCapture,
 } from "@/storage";
 import { TicketForm } from "./components/TicketForm";
+import { collectPageContext, type PageContext } from "./page-context";
 import { Logo } from "@/components/Logo";
 
 const initialCapture: CaptureState = {
   screenshotDataUrl: null,
   recordingBlob: null,
   consoleEntries: [],
-  networkErrors: [],
+  uncaughtErrors: [],
+  failedRequests: [],
   pageMetadata: {
     url: "",
     title: "",
@@ -61,35 +63,13 @@ export function App() {
 
       let tabUrl = "";
       let tabTitle = "";
-      let pageMetadata: CaptureState["pageMetadata"] | null = null;
+      let page: PageContext = {};
 
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         tabUrl = tab?.url || "";
         tabTitle = tab?.title || "";
-
-        if (tab?.id && tab.url && !tab.url.startsWith("chrome")) {
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ["content/context-collector.js"],
-            });
-
-            const response = await new Promise<{
-              data?: { metadata?: CaptureState["pageMetadata"] };
-            }>((resolve) => {
-              chrome.tabs.sendMessage(
-                tab.id!,
-                { type: "COLLECT_CONTEXT" },
-                (res) => resolve(res ?? {}),
-              );
-            });
-
-            if (response?.data?.metadata) {
-              pageMetadata = response.data.metadata;
-            }
-          } catch {}
-        }
+        if (tab?.id && tab.url && !tab.url.startsWith("chrome")) page = await collectPageContext(tab.id);
       } catch {}
 
       setAuth(storedAuth);
@@ -97,7 +77,10 @@ export function App() {
         ...prev,
         screenshotDataUrl: storedScreenshot,
         recordingBlob,
-        pageMetadata: pageMetadata ?? {
+        consoleEntries: page.consoleEntries ?? [],
+        uncaughtErrors: page.uncaughtErrors ?? [],
+        failedRequests: page.failedRequests ?? [],
+        pageMetadata: page.pageMetadata ?? {
           url: tabUrl,
           title: tabTitle,
           referrer: "",

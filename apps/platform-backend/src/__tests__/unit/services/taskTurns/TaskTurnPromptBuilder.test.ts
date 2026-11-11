@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/148_artifact_declaration_unmentioned";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/157_browser_capture_in_cold_start";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -40,7 +40,7 @@ function phaseComment(content: string, createdAt: string): PhaseDocumentComment 
 
 function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
   return {
-    ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null },
+    ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null, browserCapture: null },
     documents: { plan: "" },
     parts: { building: null, adding: null, addedTo: null, built: null },
     people: [],
@@ -89,6 +89,17 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).toContain("Don't change any other file in the repository");
   });
 
+  it("gives a cold session what the browser extension captured, inside the task", async () => {
+    const capture = "Page: http://localhost:5173/checkout\nFailed requests:\n  - POST http://localhost:5173/api/billing/checkout → 402";
+    const base = context();
+    const { prompt, coldStartPrompt } = await builder.build("p", context({ ticket: { ...base.ticket, browserCapture: capture } }), "plan", false);
+
+    expect(coldStartPrompt).toContain(`<captured-by-browser-extension>\n${capture}\n</captured-by-browser-extension>\n</task>`);
+    expect(prompt).not.toContain("captured-by-browser-extension");
+    const without = await builder.build("p", context(), "plan", false);
+    expect(without.coldStartPrompt).not.toContain("captured-by-browser-extension");
+  });
+
   it("starts a cold session with the task so far, then the same turn", async () => {
     const { prompt, coldStartPrompt } = await builder.build(
       "p",
@@ -132,7 +143,7 @@ describe("TaskTurnPromptBuilder", () => {
     const { prompt } = await builder.build(
       "p",
       context({
-        ticket: { title: "T", description: "D", externalTicketId: null, pullRequestUrl: "https://github.com/acme/app/pull/7" },
+        ticket: { title: "T", description: "D", externalTicketId: null, pullRequestUrl: "https://github.com/acme/app/pull/7", browserCapture: null },
         fresh: {
           messages: [],
           comments: [],

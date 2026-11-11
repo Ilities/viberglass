@@ -141,17 +141,18 @@ Needs: GH-03; an API token.
 1. `npm run build -w viberglass`.
 2. In a clone of the test repository: `VIBERGLASS_URL=http://localhost:9088 VIBERGLASS_TOKEN=<token> node <repo>/packages/cli/dist/cli.js checkout <TASK-KEY>`.
 3. Run it in a clone of a different repository.
+4. On a task taken over before the agent pushed its branch: check it out, commit, and run a plain `git push`.
 
-Expect: (2) the task branch checked out. (3) Refused because the origin doesn't match.
+Expect: (2) the task branch checked out. (3) Refused because the origin doesn't match. (4) The push creates the task's branch on origin; the base branch is untouched.
 
 ## Chrome extension (EXT)
 
 ### EXT-01 · Capture to task
 1. `npm run build -w @viberglass/chrome-extension`; load `apps/chrome-extension/dist` unpacked in Chrome.
 2. Options: set the server URL; sign in from the popup.
-3. On any page: capture the screen, an area and an element; annotate; create a task in a space.
+3. On a page that logs a console error and makes a failing POST request (and loads a missing image): capture the screen, an area and an element; annotate; create a task in a space with Ask the agent to write the plan on.
 
-Expect: the task has the screenshot(s) and page context (URL, console errors) under Media.
+Expect: the task has the screenshot(s) under Media, and a Captured by the browser extension section with the page's address, browser and viewport; opening its count lists the console error and the failed requests with their real methods (`POST … → 4xx`, `GET …/missing.png → 404`). The plan turn's prompt includes the same details.
 
 ## Run-record export (EXPORT)
 

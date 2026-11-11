@@ -11,7 +11,7 @@ import { withJobLifecycle } from "./jobLifecycle";
 import { captureAndStore, retrieveAndRestore } from "../runtime/SessionStateManager";
 import { deliverPullRequest } from "./deliverPullRequest";
 import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
-import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
+import { discardCodeChanges, listCodeChanges, restoreArtifactFiles, turnStartCommit } from "./workingTreeChanges";
 import { QuestionRelay } from "../../questions/QuestionRelay";
 import { httpMcpServersOf } from "../runtime/workerMcpServers";
 import { peoplesChanges } from "./peoplesChanges";
@@ -48,6 +48,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const appData = await localAppDataCopy(data.context?.appDataCopy, appDataCopyDir(repoDir), logger);
     const withPushed = (prompt: string | undefined) =>
       withAppDataCopy(withTaskMedia(prompt && preface ? `${preface}\n\n${prompt}` : prompt, media), appData);
+    const startCommit = files ? undefined : await turnStartCommit(repoDir);
     const snapshot = materializeArtifacts(repoDir, {
       plan: data.context?.planDocument,
       summary: data.context?.summaryDocument,
@@ -95,7 +96,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const stopped = onStop(async () => {
       // A stopped Files run's space waits briefly for this save, so it goes first.
       const filesSaved = files ? await savePartialFiles(files, repoDir, setup.materializedFiles, logger) : false;
-      await keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch, filesSaved });
+      await keepPartialWork(partialRun, { repoDir, snapshot, startCommit, taskBranch: setup.taskBranch, filesSaved });
     });
     await sendProgress("execute", "Running ACP agent turn");
     const relay = new QuestionRelay(
@@ -109,7 +110,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
         if (files) await savePartialFiles(files, repoDir, setup.materializedFiles, logger);
         // A stalled build is kept like a stopped one, so the next turn carries on from it.
         if (!files && error instanceof JobFailureError && error.code === JOB_FAILURE_CODE.AGENT_STALLED) {
-          const code = await keepPartialCode(partialRun, repoDir, setup.taskBranch);
+          const code = await keepPartialCode(partialRun, repoDir, setup.taskBranch, startCommit);
           if (code) throw new JobFailureError(error.code, error.message, code);
         }
         throw error;
@@ -139,7 +140,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
         filesSnapshot,
       };
     }
-    await restoreArtifactFiles(repoDir);
+    await restoreArtifactFiles(repoDir, startCommit);
     const changedFiles = await listCodeChanges(repoDir);
     const turn: JobResult = {
       success: true,

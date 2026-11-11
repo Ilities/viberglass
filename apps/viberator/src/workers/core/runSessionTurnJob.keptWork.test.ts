@@ -13,6 +13,7 @@ jest.mock("./workingTreeChanges", () => ({
   listCodeChanges: mockListCodeChanges,
   discardCodeChanges: jest.fn(),
   restoreArtifactFiles: jest.fn(),
+  turnStartCommit: jest.fn(async () => "start123"),
 }));
 jest.mock("./deliverPullRequest", () => ({ deliverPullRequest: mockDeliver }));
 jest.mock("./peoplesChanges", () => ({ peoplesChanges: jest.fn(async () => null) }));
@@ -106,7 +107,7 @@ it("keeps a stalled build's code and fails with the commit it kept", async () =>
 
   const error = await runSessionTurnJob(params()).catch((e: unknown) => e);
 
-  expect(mockKeepPartialCode).toHaveBeenCalledWith(expect.objectContaining({ allowCode: true }), repoDir, BRANCH);
+  expect(mockKeepPartialCode).toHaveBeenCalledWith(expect.objectContaining({ allowCode: true }), repoDir, BRANCH, "start123");
   expect(error).toBeInstanceOf(JobFailureError);
   expect(error).toMatchObject({ code: JOB_FAILURE_CODE.AGENT_STALLED, kept: { commitHash: "wip456", branch: BRANCH.name } });
 });

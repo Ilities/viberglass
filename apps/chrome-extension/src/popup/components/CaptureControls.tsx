@@ -1,4 +1,5 @@
 import type { CaptureState } from "@/types";
+import { collectPageContext } from "../page-context";
 
 interface Props {
   capture: CaptureState;
@@ -6,6 +7,8 @@ interface Props {
 }
 
 export function CaptureControls({ capture, setCapture }: Props) {
+  const consoleCount = capture.consoleEntries.length + capture.uncaughtErrors.length;
+
   async function handleAreaScreenshot() {
     await chrome.runtime.sendMessage({ type: "INJECT_AREA_SELECTOR" });
     window.close();
@@ -43,21 +46,14 @@ export function CaptureControls({ capture, setCapture }: Props) {
     });
     if (!tab?.id) return;
 
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ["content/context-collector.js"],
-    });
-
-    chrome.tabs.sendMessage(tab.id, { type: "COLLECT_CONTEXT" }, (response) => {
-      if (response?.data) {
-        setCapture((prev) => ({
-          ...prev,
-          consoleEntries: response.data.console || [],
-          networkErrors: response.data.errors || [],
-          pageMetadata: response.data.metadata || prev.pageMetadata,
-        }));
-      }
-    });
+    const page = await collectPageContext(tab.id);
+    setCapture((prev) => ({
+      ...prev,
+      consoleEntries: page.consoleEntries ?? [],
+      uncaughtErrors: page.uncaughtErrors ?? [],
+      failedRequests: page.failedRequests ?? [],
+      pageMetadata: page.pageMetadata || prev.pageMetadata,
+    }));
   }
 
   return (
@@ -124,9 +120,9 @@ export function CaptureControls({ capture, setCapture }: Props) {
           <span className="text-gray-600 font-medium" title={capture.pageMetadata.url}>
             {new URL(capture.pageMetadata.url).host}
           </span>
-          {capture.consoleEntries.length > 0 || capture.networkErrors.length > 0
-            ? ` — ${capture.consoleEntries.length} console ${capture.consoleEntries.length === 1 ? "entry" : "entries"}, ${capture.networkErrors.length} network ${capture.networkErrors.length === 1 ? "error" : "errors"}`
-            : " — no console or network errors found"}
+          {consoleCount > 0 || capture.failedRequests.length > 0
+            ? ` — ${consoleCount} console ${consoleCount === 1 ? "error" : "errors"}, ${capture.failedRequests.length} failed ${capture.failedRequests.length === 1 ? "request" : "requests"}`
+            : " — no console errors or failed requests found"}
         </p>
       )}
     </div>

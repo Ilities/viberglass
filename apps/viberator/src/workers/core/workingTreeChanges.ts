@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { simpleGit } from "simple-git";
+import { simpleGit, type SimpleGit } from "simple-git";
 import { ARTIFACT_FILES, VIBERGLASS_FILES } from "./turnArtifacts";
 
 /** What the agent changed in the repository, new files included, leaving out the files Viberglass reads. */
@@ -9,13 +9,38 @@ export async function listCodeChanges(repoDir: string): Promise<string[]> {
   return status.files.map((file) => file.path).filter((filePath) => !VIBERGLASS_FILES.has(filePath));
 }
 
-/** Puts the plan and summary files back as the repository has them, so they are never committed. */
-export async function restoreArtifactFiles(repoDir: string): Promise<void> {
+/** The commit a turn starts from, which the plan and summary files go back to afterwards; undefined outside a repository. */
+export async function turnStartCommit(repoDir: string): Promise<string | undefined> {
+  try {
+    return (await simpleGit({ baseDir: repoDir }).revparse(["HEAD"])).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Puts the plan and summary files back as the turn's start commit has them,
+ * so they are never committed, whether the agent left them untracked, staged
+ * them or committed them itself.
+ */
+export async function restoreArtifactFiles(repoDir: string, startCommit = "HEAD"): Promise<void> {
   const git = simpleGit({ baseDir: repoDir });
   for (const file of Object.values(ARTIFACT_FILES)) {
-    const tracked = (await git.raw(["ls-files", "--", file])).trim().length > 0;
-    if (tracked) await git.checkout(["HEAD", "--", file]);
-    else fs.rmSync(path.join(repoDir, file), { force: true });
+    if (await committedIn(git, startCommit, file)) {
+      await git.raw(["checkout", startCommit, "--", file]);
+    } else {
+      await git.raw(["rm", "--cached", "--quiet", "--ignore-unmatch", "--", file]);
+      fs.rmSync(path.join(repoDir, file), { force: true });
+    }
+  }
+}
+
+async function committedIn(git: SimpleGit, commit: string, file: string): Promise<boolean> {
+  try {
+    await git.raw(["cat-file", "-e", `${commit}:${file}`]);
+    return true;
+  } catch {
+    return false;
   }
 }
 

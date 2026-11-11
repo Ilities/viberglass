@@ -100,10 +100,13 @@ export async function runClawJob(
       );
     }
 
-    const pullRequestTitle = resolvePullRequestTitle(repoDir, task);
+    // The task is the whole rendered prompt; it never names the pull request or the commit.
+    const ticket = { title: context?.clawTemplateName?.trim() || "Scheduled task" };
+    const pullRequestTitle = resolvePullRequestTitle(repoDir, task, ticket);
     const pullRequestDescription = resolvePullRequestDescription({
       repoDir,
       task,
+      ticket,
       changedFiles,
       testsWereRequested: executionContext.runTests,
     });
@@ -117,7 +120,7 @@ export async function runClawJob(
           [ATTR_VG_CHANGED_FILE_COUNT]: changedFiles.length,
         }),
       },
-      async () => gitService.commitChanges(repoDir, task),
+      async () => gitService.commitChanges(repoDir, pullRequestTitle),
     );
 
     await sendProgress("push", "Pushing branch to remote");

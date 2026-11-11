@@ -27,6 +27,7 @@ import {
 } from './task-artifact-view'
 import { ComparisonForkBanner, TaskComparisons } from './task-comparisons'
 import { TaskContextLine } from './task-context-line'
+import { TaskBrowserCapture } from './task-browser-capture'
 import { TaskDescription } from './task-description'
 import { TaskFailureNotice } from './task-failure-notice'
 import { TaskHeader } from './task-header'
@@ -267,6 +268,7 @@ export function TicketDetailPage() {
         {comparisons.view?.armOf && <ComparisonForkBanner armOf={comparisons.view.armOf} space={project} />}
         <TaskContextLine ticket={ticket} people={people} />
         <TaskDescription key={ticket.id} description={ticket.description} />
+        <TaskBrowserCapture key={`capture-${ticket.id}`} metadata={ticket.metadata} />
 
         {!wide && <TaskViewSwitch view={narrowView} onView={setNarrowView} canPost={Boolean(capabilities?.canPost)} />}
 

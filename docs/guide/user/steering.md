@@ -25,8 +25,8 @@ Cancel run on a running turn stops that run. Members and admins have it. The thr
 When the agent has a branch for the task, you can work on it yourself. Tasks in a Files space have no branch, so there's nothing to take over.
 
 1. Choose Take over. The agent is paused, and the task shows who has the work.
-2. The Taken over card shows the commands to get the branch, such as `git clone`, `git fetch` and `git switch`. If the agent hasn't pushed the branch yet, the commands start it from the base branch.
-3. Work on the branch, run your checks, and push the commits you want the agent to see.
+2. The Taken over card shows the commands to get the branch, such as `git clone`, `git fetch` and `git switch`. If the agent hasn't pushed the branch yet, the commands start it from the base branch without tracking it.
+3. Work on the branch, run your checks, and push the commits you want the agent to see with `git push -u origin <the task's branch>`. Before the first push the task's branch doesn't exist on the remote; this push creates it.
 4. Optionally write a note for the agent: what you changed and what it should do next.
 5. Choose Hand back. The agent carries on from your commits, reading what you pushed first.
 
@@ -43,7 +43,7 @@ export VIBERGLASS_TOKEN=<an API token from Settings → API tokens>
 viberglass checkout WEB-42
 ```
 
-It checks that your clone's origin is the task's repository, fetches the branch and switches to it.
+It checks that your clone's origin is the task's repository, fetches the branch and switches to it. If the agent hasn't pushed the branch yet, it starts it from the base branch and sets its upstream to the task's branch on origin, so `git push` creates that branch and never pushes to the base branch. It ends with the push command to use before you hand back.
 
 ## When a run fails
 

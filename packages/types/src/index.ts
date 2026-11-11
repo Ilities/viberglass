@@ -24,6 +24,7 @@ export * from './artifacts'
 
 // Ticket types (internal tickets)
 export * from './ticket'
+export * from './browserCapture'
 
 
 // Integration types

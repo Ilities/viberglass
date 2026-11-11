@@ -321,7 +321,7 @@ describe('TaskThread and the agent', () => {
       expect(Array.from(commands.querySelectorAll('code'), (line) => line.textContent)).toEqual([
         'git clone https://github.com/acme/web',
         'git fetch origin main',
-        'git switch -c viberglass/t-1 origin/main',
+        'git switch --no-track -c viberglass/t-1 origin/main',
       ])
       // Says which agent handing back resumes, before anyone does.
       expect(await screen.findByText(/Carrying on resumes Claude only, and asks it to build again/)).toBeInTheDocument()

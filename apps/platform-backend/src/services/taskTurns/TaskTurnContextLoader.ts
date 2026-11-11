@@ -26,6 +26,7 @@ import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
 import { addsToOpen, describeTurnParts } from "./describeTurnParts";
 import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage, TurnPerson } from "./taskTurnContext";
+import { formatBrowserCapture } from "./formatBrowserCapture";
 
 /** How much of the thread a cold start reads, newest last; what the latest summary covers is left to it. */
 const MESSAGE_LIMIT = 40;
@@ -50,7 +51,7 @@ interface Dependencies {
 }
 
 export interface LoadTurnContextInput {
-  ticket: Pick<Ticket, "id" | "projectId" | "title" | "description" | "externalTicketId" | "pullRequestUrl">;
+  ticket: Pick<Ticket, "id" | "projectId" | "title" | "description" | "externalTicketId" | "pullRequestUrl" | "metadata">;
   sessionId: string;
   /** The turn being prompted, which doesn't count as the agent's last one. */
   turnId: string;
@@ -127,6 +128,7 @@ export class TaskTurnContextLoader {
         description: ticket.description,
         externalTicketId: ticket.externalTicketId ?? null,
         pullRequestUrl: continues || !buildParts ? (ticket.pullRequestUrl ?? null) : null,
+        browserCapture: formatBrowserCapture(ticket.metadata),
       },
       documents: { plan: plan.content.trim() },
       parts: describeTurnParts(parts, buildParts),

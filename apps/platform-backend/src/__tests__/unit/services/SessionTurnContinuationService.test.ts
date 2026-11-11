@@ -56,7 +56,7 @@ function makeUserTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
 }
 
 const context: TaskTurnContext = {
-  ticket: { title: "Dark mode", description: "Users want it", externalTicketId: null, pullRequestUrl: null },
+  ticket: { title: "Dark mode", description: "Users want it", externalTicketId: null, pullRequestUrl: null, browserCapture: null },
   documents: { plan: "" },
   parts: { building: null, adding: null, addedTo: null, built: null },
   people: [],

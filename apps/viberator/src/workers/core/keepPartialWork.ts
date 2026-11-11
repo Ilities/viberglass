@@ -20,6 +20,8 @@ export interface PartialWorkRun {
 export interface PartialWorkInput {
   repoDir: string;
   snapshot: ArtifactSnapshot;
+  /** The commit the turn started from, which the plan and summary files go back to. */
+  startCommit?: string;
   taskBranch: TaskBranch | undefined;
   /** A Files run saved its files first; the platform records them on the turn. */
   filesSaved?: boolean;
@@ -33,7 +35,7 @@ export interface PartialWorkInput {
  */
 export async function keepPartialWork(run: PartialWorkRun, input: PartialWorkInput): Promise<void> {
   const documents = collectArtifacts(input.repoDir, input.snapshot);
-  const code = await keepPartialCode(run, input.repoDir, input.taskBranch);
+  const code = await keepPartialCode(run, input.repoDir, input.taskBranch, input.startCommit);
   if (Object.keys(documents).length === 0 && !code && !input.filesSaved) return;
   run.logger.info("Keeping what the stopped turn had done", { jobId: run.jobId, documents: Object.keys(documents), commitHash: code?.commitHash });
   await run.callbacks.sendPartialResult(run.jobId, run.tenantId, { documents, commitHash: code?.commitHash, branch: code?.branch });
@@ -49,9 +51,10 @@ export async function keepPartialCode(
   run: Pick<PartialWorkRun, "allowCode" | "gitAuth" | "git">,
   repoDir: string,
   taskBranch: TaskBranch | undefined,
+  startCommit?: string,
 ): Promise<KeptCode | null> {
   if (!run.allowCode || !taskBranch) return null;
-  await restoreArtifactFiles(repoDir);
+  await restoreArtifactFiles(repoDir, startCommit);
   if ((await listCodeChanges(repoDir)).length === 0) return null;
   if (!taskBranch.continued) await run.git.createBranch(repoDir, taskBranch.name);
   const commitHash = await run.git.commitChanges(repoDir, "Work in progress: the run was stopped partway");

@@ -10,6 +10,6 @@ cd <a clone of the task's repository>
 viberglass checkout WEB-42
 ```
 
-It checks that the clone's origin is the task's repository, fetches the branch and switches to it. Push your commits to that branch, then hand the work back in Viberglass.
+It checks that the clone's origin is the task's repository, fetches the branch and switches to it. When the agent hasn't pushed the branch yet, it starts it from the base branch with the task's branch on origin as its upstream, so `git push` creates that branch rather than pushing to the base branch. Push your commits with `git push -u origin <branch>`, then hand the work back in Viberglass.
 
 Needs Node.js 20 or later and git.

@@ -6,6 +6,7 @@ import type { TaskSituation } from './taskSituation'
  */
 
 import { AutoFixStatus, Severity, TicketOrigin } from './common'
+import type { BROWSER_EXTENSION_CAPTURE, FailedRequest } from './browserCapture'
 
 export const TICKET_STATUS = {
   OPEN: 'open',
@@ -107,12 +108,15 @@ export interface Annotation {
 
 // Complete metadata object captured with ticket
 export interface TicketMetadata {
+  /** Set by the browser extension on the tasks it creates. */
+  capturedBy?: typeof BROWSER_EXTENSION_CAPTURE
   browser?: BrowserInfo
   os?: OSInfo
   screen?: ScreenInfo
   network?: NetworkInfo
   console?: LogEntry[]
   errors?: ErrorInfo[]
+  failedRequests?: FailedRequest[]
   pageUrl?: string
   referrer?: string
   localStorage?: Record<string, unknown>

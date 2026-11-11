@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { AVAILABLE_AGENT_TYPES, CLAW_SCHEDULE_ACTIONS, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SPACE_BACKING_KINDS, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
+import { AVAILABLE_AGENT_TYPES, BROWSER_EXTENSION_CAPTURE, CLAW_SCHEDULE_ACTIONS, ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SPACE_BACKING_KINDS, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -17,6 +17,7 @@ export const ticketSchema = Joi.object({
   severity: Joi.string().valid("low", "medium", "high", "critical").default("medium"),
   category: Joi.string().min(1).max(100).default("General"),
   metadata: Joi.object({
+    capturedBy: Joi.string().valid(BROWSER_EXTENSION_CAPTURE).optional(),
     browser: Joi.object({
       name: Joi.string().allow("").optional(),
       version: Joi.string().allow("").optional(),
@@ -53,6 +54,15 @@ export const ticketSchema = Joi.object({
         filename: Joi.string().optional(),
         lineno: Joi.number().optional(),
         colno: Joi.number().optional(),
+        timestamp: Joi.date().optional(),
+      }),
+    ),
+    failedRequests: Joi.array().items(
+      Joi.object({
+        method: Joi.string().required(),
+        url: Joi.string().required(),
+        status: Joi.number().integer().optional(),
+        error: Joi.string().optional(),
         timestamp: Joi.date().optional(),
       }),
     ),

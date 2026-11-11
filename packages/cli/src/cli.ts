@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process'
-import { checkoutPlan, sameRepository } from './checkoutPlan'
+import { checkoutPlan, handBackNote, sameRepository } from './checkoutPlan'
 import { fetchTaskBranch } from './taskBranchClient'
 
 const USAGE = `Usage: viberglass checkout <task>
@@ -26,8 +26,7 @@ async function checkout(task: string): Promise<void> {
   }
   for (const command of checkoutPlan(branch)) git(command)
 
-  const holder = branch.takenOver ? `${branch.takenOver.by.name} has the work` : 'Nobody has taken the work over yet; take it over in Viberglass first'
-  console.log(`\nOn ${branch.branch}. ${holder}. Push your commits here, then hand back in Viberglass.`)
+  console.log(`\n${handBackNote(branch)}`)
 }
 
 async function main(argv: string[]): Promise<number> {

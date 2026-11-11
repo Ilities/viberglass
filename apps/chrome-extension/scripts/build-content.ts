@@ -8,6 +8,7 @@ const contentScripts = [
   "src/content/element-selector.ts",
   "src/content/annotator.ts",
   "src/content/context-collector.ts",
+  "src/content/console-recorder.ts",
 ];
 
 const backgroundScript = "src/background/service-worker.ts";

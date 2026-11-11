@@ -105,6 +105,8 @@ export interface BaseWorkerPayload {
     /** The ticket as written, for a fallback PR title and description. */
     ticketTitle?: string;
     ticketDescription?: string;
+    /** A scheduled run's task template, which names its pull request when the agent doesn't. */
+    clawTemplateName?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
@@ -274,6 +276,8 @@ export interface CodingJobData {
     /** The ticket as written, for a fallback PR title and description. */
     ticketTitle?: string;
     ticketDescription?: string;
+    /** A scheduled run's task template, which names its pull request when the agent doesn't. */
+    clawTemplateName?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
