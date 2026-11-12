@@ -25,6 +25,7 @@ describe('DemoInstanceBanner', () => {
     renderBanner()
 
     expect(await screen.findByText('This is a read-only demo of Viberglass. It resets every night.')).toBeInTheDocument()
+    expect(screen.getByText('Read-only demo, resets nightly')).toHaveClass('sm:hidden')
     expect(screen.getByRole('link', { name: 'Source on GitHub' })).toHaveAttribute('href', 'https://github.com/Ilities/viberglass')
     expect(screen.getByRole('link', { name: 'Install your own' })).toHaveAttribute(
       'href',

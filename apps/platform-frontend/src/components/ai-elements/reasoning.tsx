@@ -26,8 +26,8 @@ export function Reasoning({
       )}
       {...props}
     >
-      <summary className="cursor-pointer list-none select-none font-medium text-[var(--gray-11)] marker:content-none after:ml-2 after:text-[10px] after:text-[var(--gray-9)] after:content-['(expand)'] group-open:after:content-['(collapse)']">
-        <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent-9)] align-middle opacity-60" />
+      <summary className="flex min-h-8 cursor-pointer list-none items-center select-none font-medium text-[var(--gray-11)] marker:content-none [&::-webkit-details-marker]:hidden after:ml-2 after:text-xs after:font-normal after:text-[var(--gray-10)] after:content-['(expand)'] group-open:after:content-['(collapse)']">
+        <span className="mr-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-9)] align-middle opacity-60" />
         {title}
       </summary>
       <div className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--gray-12)]">

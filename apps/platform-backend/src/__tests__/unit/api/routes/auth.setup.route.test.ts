@@ -32,9 +32,11 @@ jest.mock("../../../../api/auth/config", () => ({
 }));
 
 const mockIsDemoInstance = jest.fn(() => false);
+const mockDemoSignIn = jest.fn((): { email: string; password: string } | undefined => undefined);
 
 jest.mock("../../../../config/demoInstance", () => ({
   isDemoInstance: () => mockIsDemoInstance(),
+  demoSignIn: () => mockDemoSignIn(),
 }));
 
 jest.mock("../../../../api/auth/utils", () => ({
@@ -109,6 +111,24 @@ describe("initial user authentication setup", () => {
     await handler({}, res);
 
     expect(res.json).toHaveBeenCalledWith({ requiresInitialUser: false, demoInstance: true });
+  });
+
+  it("includes the shared viewer's sign-in on a demo instance that has one", async () => {
+    mockUserDao.hasAnyUsers.mockResolvedValue(true);
+    mockIsDemoInstance.mockReturnValueOnce(true);
+    mockDemoSignIn.mockReturnValueOnce({ email: "demo@viberglass.io", password: "viberglass-demo" });
+    const handler = getRouteHandler("/setup-status", "get");
+    if (typeof handler !== "function")
+      throw new Error("Route handler was not a function");
+    const res = buildResponse();
+
+    await handler({}, res);
+
+    expect(res.json).toHaveBeenCalledWith({
+      requiresInitialUser: false,
+      demoInstance: true,
+      demoSignIn: { email: "demo@viberglass.io", password: "viberglass-demo" },
+    });
   });
 
   it("creates the initial administrator and signs them in", async () => {

@@ -81,7 +81,7 @@ describe('BuildPullRequests', () => {
     mockList.mockResolvedValue([pullRequest(7, 1, null)])
     render(<BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/7" runs={[]} />)
 
-    expect(await screen.findByText('acme/app/pull/7')).toBeInTheDocument()
+    expect(await screen.findByText('acme/app#7')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'The whole plan' })).not.toBeInTheDocument()
   })
 
@@ -89,8 +89,8 @@ describe('BuildPullRequests', () => {
     mockList.mockResolvedValue([pullRequest(7, 1, 1), pullRequest(9, 2, null)])
     render(<BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/9" runs={[]} />)
 
-    expect(await screen.findByRole('region', { name: 'Part 1' })).toHaveTextContent('acme/app/pull/7')
-    expect(screen.getByRole('region', { name: 'Parts 2 to the end' })).toHaveTextContent('acme/app/pull/9')
+    expect(await screen.findByRole('region', { name: 'Part 1' })).toHaveTextContent('acme/app#7')
+    expect(screen.getByRole('region', { name: 'Parts 2 to the end' })).toHaveTextContent('acme/app#9')
   })
 })
 

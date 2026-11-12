@@ -1,10 +1,16 @@
-import { addressPath, repositoryNameFrom, repositoryWebUrl, gitHubTokenUrl } from './repositoryAddress'
+import { addressPath, pullRequestLabel, repositoryNameFrom, repositoryWebUrl, gitHubTokenUrl } from './repositoryAddress'
 
 describe('repositoryAddress', () => {
   it('shows an address by its path, whatever the host', () => {
     expect(addressPath('https://github.com/acme/web/pull/12')).toBe('acme/web/pull/12')
     expect(addressPath('https://gitlab.example.com/group/web.git')).toBe('group/web')
     expect(addressPath('acme/web')).toBe('acme/web')
+  })
+
+  it('names a pull or merge request by its repository and number', () => {
+    expect(pullRequestLabel('https://github.com/acme/purchase-approvals/pull/2')).toBe('acme/purchase-approvals#2')
+    expect(pullRequestLabel('https://gitlab.example.com/group/sub/web/-/merge_requests/5')).toBe('group/sub/web!5')
+    expect(pullRequestLabel('https://example.com/acme/web/changes/3')).toBe('acme/web/changes/3')
   })
 
   it('links a repository only when its address names a host', () => {

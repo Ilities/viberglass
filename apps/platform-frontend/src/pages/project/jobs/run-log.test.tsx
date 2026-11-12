@@ -1,5 +1,5 @@
 import type { JobStatus } from '@/service/api/job-api'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { RunLog } from './run-log'
 
 const mockListRunEvents = jest.fn()
@@ -44,7 +44,7 @@ describe('RunLog', () => {
     mockListRunEvents.mockResolvedValue(EVENTS)
     render(<RunLog job={job('active')} isPolling />)
 
-    expect(await screen.findByText('git status')).toBeInTheDocument()
+    expect(await screen.findByTitle('git status')).toBeInTheDocument()
     expect(screen.getByText('Exploring the repository.')).toBeInTheDocument()
     expect(screen.getByText('1 tool call · live')).toBeInTheDocument()
     expect(screen.getByText(/Worker log/)).toHaveTextContent('Worker log · 1 line')
@@ -57,5 +57,28 @@ describe('RunLog', () => {
 
     expect(await screen.findByText('Worker lines: Cloning repository')).toBeInTheDocument()
     expect(screen.queryByText(/tool call/)).not.toBeInTheDocument()
+  })
+
+  it('shows a call once, without the repository root as its files, and the full command when opened', async () => {
+    const command = 'git status --short; git diff --stat; cat .gitignore'
+    mockListRunEvents.mockResolvedValue([
+      {
+        id: 'e1',
+        sequence: 1,
+        eventType: 'tool_call_started',
+        payloadJson: { toolCallId: 'c1', toolName: command, input: { command }, locations: ['/tmp/viberator-work/task-1/repo'] },
+        createdAt: '',
+      },
+      { id: 'e2', sequence: 2, eventType: 'tool_call_completed', payloadJson: { toolCallId: 'c1', success: true, output: ' M src/app.ts' }, createdAt: '' },
+    ])
+    render(<RunLog job={job('completed')} isPolling={false} />)
+
+    const line = await screen.findByTitle(command)
+    expect(line.closest('summary')?.textContent).toBe(`${command}Output`)
+    expect(screen.queryByText('.')).not.toBeInTheDocument()
+    expect(screen.getByText('M src/app.ts')).not.toBeVisible()
+
+    fireEvent.click(line)
+    expect(screen.getByText('M src/app.ts')).toBeVisible()
   })
 })

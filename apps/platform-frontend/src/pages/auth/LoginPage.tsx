@@ -6,7 +6,7 @@ import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
 import { Strong, Text, TextLink } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
-import { getSetupStatus } from '@/service/api/auth-api'
+import { getSetupStatus, type SetupStatus } from '@/service/api/auth-api'
 import { safeRedirect } from '@/lib/safeRedirect'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
@@ -18,6 +18,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [requiresInitialUser, setRequiresInitialUser] = useState<boolean | null>(null)
+  const [demo, setDemo] = useState<Pick<SetupStatus, 'demoInstance' | 'demoSignIn'>>({ demoInstance: false })
   const [confirmPassword, setConfirmPassword] = useState('')
 
   const redirect = searchParams.get('redirect')
@@ -30,7 +31,10 @@ export function LoginPage() {
 
   useEffect(() => {
     void getSetupStatus()
-      .then((result) => setRequiresInitialUser(result.requiresInitialUser))
+      .then((result) => {
+        setRequiresInitialUser(result.requiresInitialUser)
+        setDemo({ demoInstance: result.demoInstance, demoSignIn: result.demoSignIn })
+      })
       .catch(() => setRequiresInitialUser(false))
   }, [])
 
@@ -81,6 +85,17 @@ export function LoginPage() {
           {error}
         </div>
       )}
+      {demo.demoSignIn && !requiresInitialUser ? (
+        <div role="note" aria-label="Demo sign-in" className="rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] px-4 py-3 text-sm text-[var(--gray-11)]">
+          <p>Sign in to the demo with:</p>
+          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+            <dt>Email</dt>
+            <dd className="font-mono break-all text-[var(--gray-12)]">{demo.demoSignIn.email}</dd>
+            <dt>Password</dt>
+            <dd className="font-mono break-all text-[var(--gray-12)]">{demo.demoSignIn.password}</dd>
+          </dl>
+        </div>
+      ) : null}
       {requiresInitialUser ? (
         <Field>
           <Label>Full name</Label>
@@ -113,16 +128,18 @@ export function LoginPage() {
           <input type="checkbox" name="remember" className="size-4" />
           <Label>Remember me</Label>
         </label>
-        <Text>
-          <TextLink href="/forgot-password">
-            <Strong>Forgot password?</Strong>
-          </TextLink>
-        </Text>
+        {demo.demoInstance ? null : (
+          <Text>
+            <TextLink href="/forgot-password">
+              <Strong>Forgot password?</Strong>
+            </TextLink>
+          </Text>
+        )}
       </div> : null}
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (requiresInitialUser ? 'Creating administrator...' : 'Logging in...') : (requiresInitialUser ? 'Create administrator' : 'Login')}
       </Button>
-      {requiresInitialUser ? null : <Text>Need an account? Ask an administrator to add you.</Text>}
+      {requiresInitialUser || demo.demoInstance ? null : <Text>Need an account? Ask an administrator to add you.</Text>}
     </form>
     </>
   )

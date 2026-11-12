@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { AppDataBackup, ClawScheduleSummary, ClawTaskTemplateSummary } from '@viberglass/types'
 import { getAppBackups } from '@/service/api/app-api'
 import { createClawSchedule, getClawSchedules, getClawTaskTemplates, pauseClawSchedule } from '@/service/api/claw-api'
@@ -82,6 +82,34 @@ describe('SchedulesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pause Monday feedback summary' }))
     expect(await screen.findByRole('button', { name: 'Resume Monday feedback summary' })).toBeInTheDocument()
     expect(pauseClawSchedule).toHaveBeenCalledWith('s-1')
+  })
+
+  it('shows each schedule as a card with its facts on a phone-width screen', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({ matches: query === '(max-width: 639px)', addEventListener: jest.fn(), removeEventListener: jest.fn() }),
+    })
+    jest.mocked(getClawTaskTemplates).mockResolvedValue([TEMPLATE])
+    jest.mocked(getClawSchedules).mockResolvedValue([schedule('s-1', 'Monday feedback summary', true)])
+    try {
+      render(
+        <Theme>
+          <SchedulesTab projectId="space-1" onCreateTemplate={() => {}} />
+        </Theme>
+      )
+
+      const list = await screen.findByRole('list', { name: 'Schedules' })
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      const card = within(list).getByRole('listitem')
+      expect(card).toHaveTextContent('Monday feedback summary')
+      expect(card).toHaveTextContent('Feedback summary')
+      expect(card).toHaveTextContent('ScheduleEvery week')
+      expect(card).toHaveTextContent('StatusActive')
+      expect(card).toHaveTextContent('Runs / fails0 / 0')
+      expect(within(card).getByRole('button', { name: 'Pause Monday feedback summary' })).toBeInTheDocument()
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia')
+    }
   })
 
   it("lets an App space's maintainer turn the app off on a schedule, without a template", async () => {

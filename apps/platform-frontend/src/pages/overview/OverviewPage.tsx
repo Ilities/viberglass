@@ -107,7 +107,7 @@ export function OverviewPage() {
       {overview && (
         <>
           <DashboardMetrics overview={overview} />
-          <div className="grid gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
             <div>
               <OverviewSection id="overview-needsAttention" title="Needs attention" empty="Nothing is failed or asking a question." badged tasks={overview.needsAttention} />
               {!space && spaces.length > 0 && (

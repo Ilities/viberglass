@@ -11,7 +11,12 @@ export type AuthUser = {
   role?: WorkspaceRole
 }
 
-export type SetupStatus = { requiresInitialUser: boolean; demoInstance: boolean }
+export type SetupStatus = {
+  requiresInitialUser: boolean
+  demoInstance: boolean
+  /** The shared viewer's sign-in, on a demo instance that's set one. */
+  demoSignIn?: { email: string; password: string }
+}
 
 type AuthResponse = {
   token: string

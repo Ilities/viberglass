@@ -114,7 +114,7 @@ export function HomePage() {
           action={canCreate ? <AskForSomething spaces={spaces} /> : undefined}
         />
       ) : (
-        <div className="grid gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
           <div>
           <nav aria-label="Your requests" className="mb-6 flex flex-wrap gap-5 border-b border-[var(--gray-5)]">
             {([{ key: 'now', label: 'Now', count: needsYou.length }, { key: 'waiting', label: 'Waiting', count: waiting.length }, { key: 'later', label: 'Later', count: later.length }] as const).map((tab) => <button key={tab.key} type="button" aria-current={attentionTab === tab.key ? 'page' : undefined} onClick={() => { setAttentionTab(tab.key); setShowAllNeeds(false) }} className={`border-b-2 pb-3 text-sm ${attentionTab === tab.key ? 'border-[var(--accent-9)] text-[var(--gray-12)]' : 'border-transparent text-[var(--gray-10)]'}`}>{tab.label} <span className="text-xs">{tab.count}</span></button>)}

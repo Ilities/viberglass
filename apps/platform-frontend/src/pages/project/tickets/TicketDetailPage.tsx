@@ -59,7 +59,7 @@ export function TicketDetailPage() {
   const { user } = useAuth()
   const canInspectRuns = seesRuns(user?.role)
   const navigate = useNavigate()
-  const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
+  const { data, isLoading, loadFailure, retry, reload, setTicket, setDocument } = useTaskPage(id)
   // The page's address may name the task by its key; people are looked up by its id.
   const people = useTaskParticipants(data?.ticket.id)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -138,6 +138,21 @@ export function TicketDetailPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-[var(--gray-9)]">Loading task…</div>
+      </div>
+    )
+  }
+  if (loadFailure === 'failed') {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <EmptyState
+          title="Couldn't load this task"
+          description="Check your connection, then try again."
+          action={
+            <Button outline onClick={retry}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     )
   }

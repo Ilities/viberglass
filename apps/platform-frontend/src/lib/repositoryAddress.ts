@@ -8,6 +8,15 @@ export function addressPath(address: string): string {
   }
 }
 
+/** "acme/web#12" for a GitHub pull request or "group/web!12" for a GitLab merge request; any other address as addressPath has it. */
+export function pullRequestLabel(address: string): string {
+  const path = addressPath(address)
+  const pull = /^(.+?)\/pull\/(\d+)$/.exec(path)
+  if (pull) return `${pull[1]}#${pull[2]}`
+  const merge = /^(.+?)\/-\/merge_requests\/(\d+)$/.exec(path)
+  return merge ? `${merge[1]}!${merge[2]}` : path
+}
+
 /** A repository identifier as a browsable URL: a URL, or host/owner/repo. A bare owner/repo names no host, so none. */
 export function repositoryWebUrl(repository: string): string | null {
   if (repository.startsWith('http://') || repository.startsWith('https://')) return repository.replace(/\.git$/, '')

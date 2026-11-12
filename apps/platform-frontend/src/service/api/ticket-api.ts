@@ -101,11 +101,19 @@ export async function getTicketStats(params: { projectId?: string; projectSlug?:
   return data.data
 }
 
+/** The task doesn't exist, or the person can't see it; other failures are worth trying again. */
+export class TaskNotFoundError extends Error {
+  constructor() {
+    super('Task not found')
+    this.name = 'TaskNotFoundError'
+  }
+}
+
 export async function getTicket(id: string): Promise<Ticket> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Task not found')
+      throw new TaskNotFoundError()
     }
     throw new Error('Failed to fetch task')
   }
@@ -117,7 +125,7 @@ export async function getTicket(id: string): Promise<Ticket> {
 export async function getTaskByKey(key: string): Promise<Ticket> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/by-key/${encodeURIComponent(key)}`)
   if (!response.ok) {
-    throw new Error(response.status === 404 ? 'Task not found' : 'Failed to fetch task')
+    throw response.status === 404 ? new TaskNotFoundError() : new Error('Failed to fetch task')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data

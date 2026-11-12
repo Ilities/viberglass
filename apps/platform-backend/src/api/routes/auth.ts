@@ -13,7 +13,7 @@ import { requireAuth } from "../middleware/authentication";
 import { buildAuthResponse } from "../auth/authResponse";
 import { loginRateLimit } from "../middleware/loginRateLimit";
 import { isAuthEnabled } from "../auth/config";
-import { isDemoInstance } from "../../config/demoInstance";
+import { demoSignIn, isDemoInstance } from "../../config/demoInstance";
 import {
   clearAuthCookie,
   createSessionToken,
@@ -80,7 +80,12 @@ router.post("/register", validateRegister, async (req, res) => {
 
 router.get("/setup-status", async (_req, res) => {
   try {
-    res.json({ requiresInitialUser: !(await userDao.hasAnyUsers()), demoInstance: isDemoInstance() });
+    const signIn = demoSignIn();
+    res.json({
+      requiresInitialUser: !(await userDao.hasAnyUsers()),
+      demoInstance: isDemoInstance(),
+      ...(signIn && { demoSignIn: signIn }),
+    });
   } catch (error) {
     logger.error("Error checking initial setup status", {
       error: error instanceof Error ? error.message : error,

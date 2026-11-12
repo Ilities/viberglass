@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Cross2Icon, HamburgerMenuIcon } from '@radix-ui/react-icons'
+import { Theme } from '@radix-ui/themes'
 import { motion } from 'motion/react'
 import React, { createContext, useState } from 'react'
 import { NavbarItem } from './navbar'
@@ -31,23 +32,26 @@ function MobileSidebar({ open, close, children }: React.PropsWithChildren<{ open
     <Dialog.Root open={open} onOpenChange={(nextOpen) => (!nextOpen ? close() : undefined)}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[1px] transition data-[state=closed]:opacity-0 data-[state=closed]:duration-200 data-[state=closed]:ease-in data-[state=open]:duration-300 data-[state=open]:ease-out lg:hidden" />
-        <Dialog.Content className="fixed inset-y-0 left-0 w-full max-w-80 overflow-hidden bg-white transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:-translate-x-full lg:hidden dark:bg-zinc-950">
-          <Dialog.Title className="sr-only">Main navigation</Dialog.Title>
-          <Dialog.Description className="sr-only">Browse spaces, pages, and account actions.</Dialog.Description>
-          <div className="mobile-drawer-frame flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-zinc-950/10 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 dark:border-white/10">
-              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Navigation</p>
-              <Dialog.Close asChild>
-                <NavbarItem aria-label="Close navigation">
-                  <CloseMenuIcon />
-                </NavbarItem>
-              </Dialog.Close>
+        {/* Portalled outside the app's theme root, so it takes the theme again for the body font and Radix avatars. */}
+        <Theme asChild>
+          <Dialog.Content className="fixed inset-y-0 left-0 w-full max-w-80 overflow-hidden bg-white transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:-translate-x-full lg:hidden dark:bg-zinc-950">
+            <Dialog.Title className="sr-only">Main navigation</Dialog.Title>
+            <Dialog.Description className="sr-only">Browse spaces, pages, and account actions.</Dialog.Description>
+            <div className="mobile-drawer-frame flex h-full flex-col">
+              <div className="flex items-center justify-between border-b border-zinc-950/10 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 dark:border-white/10">
+                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Navigation</p>
+                <Dialog.Close asChild>
+                  <NavbarItem aria-label="Close navigation">
+                    <CloseMenuIcon />
+                  </NavbarItem>
+                </Dialog.Close>
+              </div>
+              <SidebarCloseContext.Provider value={true}>
+                <SidebarCollapsedContext.Provider value={false}>{children}</SidebarCollapsedContext.Provider>
+              </SidebarCloseContext.Provider>
             </div>
-            <SidebarCloseContext.Provider value={true}>
-              <SidebarCollapsedContext.Provider value={false}>{children}</SidebarCollapsedContext.Provider>
-            </SidebarCloseContext.Provider>
-          </div>
-        </Dialog.Content>
+          </Dialog.Content>
+        </Theme>
       </Dialog.Portal>
     </Dialog.Root>
   )
@@ -92,7 +96,7 @@ export function StackedLayout({
         </MobileSidebar>
 
         {/* Navbar on mobile */}
-        <header className="app-topbar flex items-center px-4 lg:hidden">
+        <header className="app-topbar sticky top-0 z-30 flex items-center px-4 lg:hidden">
           <div className="py-2.5">
             <NavbarItem onClick={() => setShowSidebar(true)} aria-label="Open navigation">
               <OpenMenuIcon />
@@ -110,7 +114,7 @@ export function StackedLayout({
           className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0 lg:pt-0 lg:pr-0 lg:pb-0 max-lg:!pl-3"
         >
           {/* Beside the sidebar the content fills the window; a frame inset from its edges only reads as a card on small screens. */}
-          <div className="app-frame grow p-6 lg:border-0 lg:p-10 lg:shadow-none">
+          <div className="app-frame grow p-4 sm:p-6 lg:border-0 lg:p-10 lg:shadow-none">
             <div className="mx-auto max-w-screen-2xl">{children}</div>
           </div>
         </motion.main>

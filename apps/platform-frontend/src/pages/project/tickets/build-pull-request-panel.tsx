@@ -6,9 +6,9 @@ import { formatJobStatus } from '@/data'
 import type { BuildPullRequest } from '@/service/api/build-api'
 import type { JobListItem } from '@/service/api/job-api'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { formatRunDuration } from '../jobs/run-facts'
-import { addressPath } from '@/lib/repositoryAddress'
+import { pullRequestLabel } from '@/lib/repositoryAddress'
 import { MakeLiveButton } from './make-live-button'
 import { openablePreviewUrl, OpenPreviewLink, previewStatus, TryItButton } from './change-preview'
 import type { AppPreview } from '@/service/api/build-api'
@@ -107,7 +107,7 @@ export function BuildPullRequestPanel({
     <div className="@container space-y-8 py-4">
       {change && headSha && (change.canTry || change.canMakeLive) && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-md bg-[var(--gray-2)] px-4 py-3">
-          <p className="min-w-0 flex-1 text-sm text-[var(--gray-11)]">{changeMessage(tried, change)}</p>
+          <p className="min-w-0 flex-[1_1_14rem] text-sm text-[var(--gray-11)]">{changeMessage(tried, change)}</p>
           <div className="flex shrink-0 gap-3">
             {change.canTry && (
               <TryItButton
@@ -128,15 +128,30 @@ export function BuildPullRequestPanel({
       <div className="grid gap-8 @min-[40rem]:grid-cols-2">
         <FactList title={change ? 'Change' : 'Pull request'}>
           <Fact label={change ? 'Code' : 'Link'}>
-            <a href={pullRequestUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-start gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
-              <span className="min-w-0 break-all">{addressPath(pullRequestUrl)}</span>
+            <a href={pullRequestUrl} title={pullRequestUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-start gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
+              <span className="min-w-0 break-words">
+                {pullRequestLabel(pullRequestUrl)
+                  .split('/')
+                  .map((segment, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && (
+                        <>
+                          /<wbr />
+                        </>
+                      )}
+                      {segment}
+                    </Fragment>
+                  ))}
+              </span>
               <ExternalLinkIcon className="mt-0.5 size-3.5 shrink-0" />
             </a>
           </Fact>
           {change && (details?.state === 'open' || change.preview) && (
             <Fact label="Preview">
-              {previewStatus(change.preview, headSha)}
-              {previewUrl && !buttonOpensPreview && <OpenPreviewLink url={previewUrl} />}
+              <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                {previewStatus(change.preview, headSha)}
+                {previewUrl && !buttonOpensPreview && <OpenPreviewLink url={previewUrl} />}
+              </span>
               {change.preview?.state === 'failed' && change.preview.statusMessage && (
                 <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-[var(--gray-11)]">{change.preview.statusMessage}</pre>
               )}

@@ -76,6 +76,29 @@ describe('LoginPage initial administrator setup', () => {
     expect(screen.queryByLabelText('Full name')).not.toBeInTheDocument()
   })
 
+  it("shows a demo's shared sign-in and leaves out password reset and account requests", async () => {
+    mockedGetSetupStatus.mockResolvedValue({
+      requiresInitialUser: false,
+      demoInstance: true,
+      demoSignIn: { email: 'demo@viberglass.io', password: 'viberglass-demo' },
+    })
+    renderLogin()
+
+    const signIn = await screen.findByRole('note', { name: 'Demo sign-in' })
+    expect(signIn).toHaveTextContent('demo@viberglass.io')
+    expect(signIn).toHaveTextContent('viberglass-demo')
+    expect(screen.queryByText('Forgot password?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Need an account? Ask an administrator to add you.')).not.toBeInTheDocument()
+  })
+
+  it('shows password reset and no demo sign-in on an ordinary instance', async () => {
+    mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: false, demoInstance: false })
+    renderLogin()
+
+    expect(await screen.findByText('Forgot password?')).toBeVisible()
+    expect(screen.queryByRole('note', { name: 'Demo sign-in' })).not.toBeInTheDocument()
+  })
+
   it('does not submit mismatched administrator passwords', async () => {
     const user = userEvent.setup()
     mockedGetSetupStatus.mockResolvedValue({ requiresInitialUser: true, demoInstance: false })

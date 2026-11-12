@@ -30,6 +30,14 @@ spec:
           image: {{ .Values.backend.image | quote }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           {{- include "viberglass.backendEnvironment" . | nindent 10 }}
+          {{- if .Values.demo.enabled }}
+          # The sign-in page shows the shared viewer's account; the reset's Secret holds it.
+          env:
+            - name: DEMO_VIEWER_EMAIL
+              valueFrom: {secretKeyRef: {name: {{ .Values.demo.reset.viewerSecret | quote }}, key: email, optional: true}}
+            - name: DEMO_VIEWER_PASSWORD
+              valueFrom: {secretKeyRef: {name: {{ .Values.demo.reset.viewerSecret | quote }}, key: password, optional: true}}
+          {{- end }}
           ports:
             - {name: http, containerPort: 3000}
             {{- if .Values.preview.publicUrl }}

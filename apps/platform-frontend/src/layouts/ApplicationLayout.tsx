@@ -94,7 +94,7 @@ export function ApplicationLayout() {
           />
         }
       >
-        <DemoInstanceBanner className="mb-6" />
+        <DemoInstanceBanner className="mb-3 sm:mb-6" />
         <DemoWorkspaceBanner />
         <SpaceOutlet />
       </StackedLayout>

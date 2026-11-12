@@ -1,14 +1,11 @@
 import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/components/alert'
-import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/dialog'
 import { EmptyState } from '@/components/empty-state'
 import { Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { Textarea } from '@/components/textarea'
-import { Timestamp } from '@/components/timestamp'
 import { getAppBackups } from '@/service/api/app-api'
 import {
   createClawSchedule,
@@ -20,7 +17,7 @@ import {
   resumeClawSchedule,
   updateClawSchedule,
 } from '@/service/api/claw-api'
-import { PauseIcon, Pencil1Icon, PlayIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { PlusIcon } from '@radix-ui/react-icons'
 import {
   isAppScheduleAction,
   parseIntervalExpression,
@@ -35,6 +32,7 @@ import { CronScheduleField } from './cron-schedule-field'
 import { buildCron, defaultCronBuilder, describeCron, parseCronBuilder, type CronBuilder } from './cronSchedule'
 import { backupLabel } from '../app/backup-text'
 import { RestoreBackupField } from './restore-backup-field'
+import { SchedulesList } from './schedules-list'
 
 type IntervalUnit = 'minutes' | 'hours' | 'days' | 'weeks'
 const UNIT_SUFFIX: Record<IntervalUnit, string> = { minutes: 'm', hours: 'h', days: 'd', weeks: 'w' }
@@ -65,22 +63,6 @@ const emptyForm: ScheduleForm = {
   intervalUnit: 'hours',
   cron: defaultCronBuilder,
   timezone: 'UTC',
-}
-
-function formatExpression(s: ClawScheduleSummary): string {
-  if (s.scheduleType === 'interval' && s.intervalExpression) {
-    const parsed = parseIntervalExpression(s.intervalExpression)
-    if (parsed) {
-      const singular: Record<string, string> = { minutes: 'minute', hours: 'hour', days: 'day', weeks: 'week' }
-      return parsed.value === 1 ? `Every ${singular[parsed.unit]}` : `Every ${parsed.value} ${parsed.unit}`
-    }
-    return s.intervalExpression
-  }
-  if (s.scheduleType === 'cron' && s.cronExpression) {
-    const description = describeCron(s.cronExpression)
-    return description ? `${description} (${s.timezone})` : s.cronExpression
-  }
-  return '—'
 }
 
 const ACTION_LABELS: Record<ClawScheduleAction, string> = {
@@ -322,74 +304,17 @@ export function SchedulesTab({ projectId, onCreateTemplate, appActions = false, 
       )}
 
       {schedules.length > 0 ? (
-        <Table className="mt-6">
-          <TableHead>
-            <TableRow>
-              <TableHeader>Name</TableHeader>
-              <TableHeader>Does</TableHeader>
-              <TableHeader>Schedule</TableHeader>
-              <TableHeader>Status</TableHeader>
-              <TableHeader>Last run</TableHeader>
-              <TableHeader>Runs / fails</TableHeader>
-              <TableHeader />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {schedules.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="min-w-40 font-medium whitespace-normal text-zinc-950 dark:text-white">
-                  {s.name}
-                </TableCell>
-                <TableCell className="min-w-48 whitespace-normal text-zinc-500 dark:text-zinc-400">
-                  {whatItDoes(s)}
-                </TableCell>
-                <TableCell
-                  className="min-w-48 whitespace-normal text-zinc-500 dark:text-zinc-400"
-                  title={s.scheduleType === 'cron' ? (s.cronExpression ?? undefined) : undefined}
-                >
-                  {formatExpression(s)}
-                </TableCell>
-                <TableCell>
-                  <Badge color={s.isActive ? 'green' : 'zinc'}>{s.isActive ? 'Active' : 'Paused'}</Badge>
-                </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">
-                  {s.lastRunAt ? <Timestamp date={s.lastRunAt} /> : '—'}
-                </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">
-                  {s.runCount} / {s.failureCount}
-                </TableCell>
-                <TableCell>
-                  {canChange(s) && (
-                    <div className="flex items-center justify-end gap-2">
-                      <Button plain aria-label={`Edit ${s.name}`} onClick={() => openEdit(s)}>
-                        <Pencil1Icon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        plain
-                        onClick={() => toggleActive(s)}
-                        aria-label={`${s.isActive ? 'Pause' : 'Resume'} ${s.name}`}
-                        title={s.isActive ? 'Pause' : 'Resume'}
-                      >
-                        {s.isActive ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        surface
-                        color="red"
-                        aria-label={`Delete ${s.name}`}
-                        onClick={() => {
-                          setToDelete(s)
-                          setDeleteOpen(true)
-                        }}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SchedulesList
+          schedules={schedules}
+          whatItDoes={whatItDoes}
+          canChange={canChange}
+          onEdit={openEdit}
+          onToggleActive={toggleActive}
+          onDelete={(s) => {
+            setToDelete(s)
+            setDeleteOpen(true)
+          }}
+        />
       ) : readOnly || templates.length > 0 || appActions ? (
         <div className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-zinc-500 dark:text-zinc-400">No schedules yet.</p>

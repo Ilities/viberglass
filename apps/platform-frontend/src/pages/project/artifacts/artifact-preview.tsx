@@ -1,6 +1,8 @@
 import { Button } from '@/components/button'
 import { MarkdownDocument } from '@/pages/project/tickets/markdown/markdown-document'
 import { getArtifactPreview } from '@/service/api/artifact-api'
+import { cn } from '@/lib/utils'
+import { Cross2Icon, EnterFullScreenIcon } from '@radix-ui/react-icons'
 import type { ArtifactPreview } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -32,7 +34,8 @@ export function ArtifactPreviewView({
   const [preview, setPreview] = useState<ArtifactPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const retried = useRef(false)
-  const frame = useRef<HTMLIFrameElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
+  const [fullScreen, setFullScreen] = useState(false)
   /** The frame's address that has finished loading, so a new one shows as loading again. */
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
 
@@ -59,6 +62,12 @@ export function ArtifactPreviewView({
     const timer = setTimeout(() => void load(), wait)
     return () => clearTimeout(timer)
   }, [expiresAt, load])
+
+  useEffect(() => {
+    const changed = () => setFullScreen(document.fullscreenElement !== null && document.fullscreenElement === stage.current)
+    document.addEventListener('fullscreenchange', changed)
+    return () => document.removeEventListener('fullscreenchange', changed)
+  }, [])
 
   if (error) {
     return (
@@ -113,21 +122,33 @@ export function ArtifactPreviewView({
     )
   }
 
+  // iPhone Safari has no full screen for anything but video; there the preview opens in a tab of its own,
+  // where the preview address still sandboxes it.
+  const openInTab = () => window.open(preview.url, '_blank', 'noopener')
+  const enterFullScreen = () => {
+    const box = stage.current
+    if (document.fullscreenEnabled && box?.requestFullscreen) void box.requestFullscreen().catch(openInTab)
+    else openInTab()
+  }
+
   return (
     <div>
       <div className="mb-2 flex justify-end">
-        <Button outline size="small" onClick={() => void frame.current?.requestFullscreen?.()}>
+        <Button outline size="small" onClick={enterFullScreen}>
+          <EnterFullScreenIcon aria-hidden />
           Full screen
         </Button>
       </div>
-      <div className="relative aspect-video w-full overflow-hidden rounded-md border border-[var(--gray-5)] bg-white">
+      <div
+        ref={stage}
+        className={cn('relative w-full overflow-hidden bg-white', !fullScreen && 'aspect-video rounded-md border border-[var(--gray-5)]')}
+      >
         {loadedUrl !== preview.url && (
           <p role="status" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white text-sm text-[var(--gray-10)]">
             Loading the preview…
           </p>
         )}
         <iframe
-          ref={frame}
           key={preview.url}
           src={preview.url}
           title={`Preview of ${title}`}
@@ -135,7 +156,7 @@ export function ArtifactPreviewView({
           allow="fullscreen"
           allowFullScreen
           referrerPolicy="no-referrer"
-          className="absolute inset-0 size-full"
+          className={cn('absolute inset-x-0 bottom-0 w-full', fullScreen ? 'top-11 h-[calc(100%-2.75rem)]' : 'top-0 h-full')}
           onLoad={() => setLoadedUrl(preview.url)}
           onError={() => {
             // One fresh address, in case this one expired while the page was open.
@@ -144,6 +165,15 @@ export function ArtifactPreviewView({
             void load()
           }}
         />
+        {fullScreen && (
+          <div className="absolute inset-x-0 top-0 z-20 flex h-11 items-center justify-between gap-3 border-b border-[var(--gray-5)] bg-[var(--color-panel-solid)] px-3">
+            <p className="min-w-0 truncate text-sm font-medium text-[var(--gray-12)]">{title}</p>
+            <Button outline size="small" onClick={() => void document.exitFullscreen().catch(() => undefined)} className="!h-8 shrink-0">
+              <Cross2Icon aria-hidden />
+              Exit full screen
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

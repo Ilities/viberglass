@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { formatBytes } from '@/lib/artifacts'
-import { FileIcon, FileTextIcon } from '@radix-ui/react-icons'
+import { DownloadIcon, FileIcon, FileTextIcon, Pencil1Icon, TrashIcon } from '@radix-ui/react-icons'
 import {
   SPACE_TEXT_FILE_EXTENSIONS,
   SPACE_TEXT_FILE_MAX_BYTES,
@@ -49,6 +49,9 @@ export function fileRows(files: SpaceFilesManifestEntry[]): FileRow[] {
   return rows
 }
 
+// On a phone the actions are icons, so the file's name gets the width.
+const ACTION_CLASS = 'max-sm:!size-8 max-sm:!p-0'
+
 export function FilesTable({
   files,
   canChange,
@@ -84,23 +87,26 @@ export function FilesTable({
               ) : (
                 <FileIcon aria-hidden className="size-4 shrink-0 text-[var(--gray-10)]" />
               )}
-              <span className="truncate text-[var(--gray-12)]" title={row.file.path}>
+              <span className="text-[var(--gray-12)] [overflow-wrap:anywhere] sm:truncate" title={row.file.path}>
                 {row.name}
               </span>
             </span>
-            <span className="flex shrink-0 items-center gap-2">
-              <span className="w-16 text-right text-xs text-[var(--gray-10)] tabular-nums">{formatBytes(row.file.bytes)}</span>
+            <span className="flex shrink-0 items-center gap-2 max-sm:gap-1">
+              <span className="w-16 text-right text-xs text-[var(--gray-10)] tabular-nums max-sm:w-auto">{formatBytes(row.file.bytes)}</span>
               {canChange && isEditableText(row.file) && (
-                <Button plain size="small" onClick={() => onEdit(row.file.path)} aria-label={`Edit ${row.file.path}`}>
-                  Edit
+                <Button plain size="small" className={ACTION_CLASS} onClick={() => onEdit(row.file.path)} aria-label={`Edit ${row.file.path}`}>
+                  <Pencil1Icon aria-hidden className="size-4 sm:hidden" />
+                  <span className="max-sm:hidden">Edit</span>
                 </Button>
               )}
-              <Button plain size="small" onClick={() => onDownload(row.file.path)} aria-label={`Download ${row.file.path}`}>
-                Download
+              <Button plain size="small" className={ACTION_CLASS} onClick={() => onDownload(row.file.path)} aria-label={`Download ${row.file.path}`}>
+                <DownloadIcon aria-hidden className="size-4 sm:hidden" />
+                <span className="max-sm:hidden">Download</span>
               </Button>
               {canChange && (
-                <Button plain size="small" onClick={() => onDelete(row.file.path)} aria-label={`Delete ${row.file.path}`}>
-                  Delete
+                <Button plain size="small" className={ACTION_CLASS} onClick={() => onDelete(row.file.path)} aria-label={`Delete ${row.file.path}`}>
+                  <TrashIcon aria-hidden className="size-4 sm:hidden" />
+                  <span className="max-sm:hidden">Delete</span>
                 </Button>
               )}
             </span>

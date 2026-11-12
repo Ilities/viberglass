@@ -210,7 +210,7 @@ export function TaskThread({
   return (
     <section
       aria-label="Conversation"
-      className="space-y-5 rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-6 max-sm:px-4"
+      className="space-y-5 rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-6 max-sm:border-0 max-sm:bg-transparent max-sm:p-0"
     >
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-base font-semibold text-[var(--gray-12)]">Conversation</h2>

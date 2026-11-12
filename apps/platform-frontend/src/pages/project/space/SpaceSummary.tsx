@@ -46,7 +46,7 @@ export function SpaceSummary() {
       {error && <div className="mb-6 text-sm"><p className="mb-3 text-red-700 dark:text-red-400">Couldn&apos;t refresh this space{overview ? '; showing the last loaded information' : ''}.</p><Button outline onClick={() => setRetry((value) => value + 1)}>Try again</Button></div>}
       {overview && <>
         <DashboardMetrics overview={overview} />
-        <div className="grid gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
           <div>
             <OverviewSection id="overview-needsAttention" title="Needs attention" empty="Nothing needs attention right now." badged tasks={overview.needsAttention} />
             <CollapsedOverviewSection id="overview-waiting" title="Waiting on people" empty="Nothing is waiting on anyone." tasks={overview.waiting} />

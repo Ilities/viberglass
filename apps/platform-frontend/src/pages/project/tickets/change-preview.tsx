@@ -72,7 +72,7 @@ export function OpenPreviewLink({ url }: { url: string }) {
       href={url}
       target="_blank"
       rel="noopener"
-      className="ml-2 inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current"
+      className="-my-1.5 inline-flex items-center gap-1 py-1.5 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current"
     >
       Open preview
       <ExternalLinkIcon className="size-3.5" />
