@@ -6,6 +6,9 @@ export interface GitHubPersona {
   avatarUrl: string | null;
 }
 
+/** Something the shared viewer has pinned to Home: an App space by slug, or an artifact by its space's slug and its title. */
+export type ViewerPinSpec = { app: string } | { space: string; artifact: string };
+
 export interface ExportConfig {
   emailDomain: string;
   /** Source address to exported address; everyone else gets their first name at `emailDomain`. */
@@ -24,6 +27,7 @@ export interface ExportConfig {
     /** A source person who becomes the shared viewer, keeping what they watch and where they're mentioned. */
     sourceEmail: string | null;
     watchTaskKeys: string[];
+    pins: ViewerPinSpec[];
   };
   /** GitHub logins whose actions show as a persona instead, such as the account whose token the capture used. */
   githubAccounts: Record<string, GitHubPersona>;
@@ -39,7 +43,7 @@ export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
   excludeJobs: [],
   excludeMessages: [],
   spaces: null,
-  viewer: { sourceEmail: null, watchTaskKeys: [] },
+  viewer: { sourceEmail: null, watchTaskKeys: [], pins: [] },
   githubAccounts: {},
   allowedFindings: [],
 };
@@ -61,6 +65,18 @@ function emails(value: unknown): Record<string, string> {
     mapping[from] = to;
   }
   return mapping;
+}
+
+function viewerPins(value: unknown): ViewerPinSpec[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error("viewer.pins must be a list");
+  return value.map((entry, index) => {
+    if (isObjectRecord(entry) && typeof entry.app === "string" && entry.space === undefined && entry.artifact === undefined) return { app: entry.app };
+    if (isObjectRecord(entry) && typeof entry.space === "string" && typeof entry.artifact === "string" && entry.app === undefined) {
+      return { space: entry.space, artifact: entry.artifact };
+    }
+    throw new Error(`viewer.pins[${index}] must name an app, or a space and an artifact`);
+  });
 }
 
 const loginFromName = (name: string): string => name.toLowerCase().replace(/[^a-z0-9-]/g, "");
@@ -99,7 +115,7 @@ export function parseExportConfig(value: unknown): ExportConfig {
     excludeJobs: strings(value.excludeJobs, "excludeJobs"),
     excludeMessages: strings(value.excludeMessages, "excludeMessages"),
     spaces: value.spaces === undefined ? null : strings(value.spaces, "spaces"),
-    viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys },
+    viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys, pins: viewerPins(viewer.pins) },
     githubAccounts: githubAccounts(value.githubAccounts),
     allowedFindings: strings(value.allowedFindings, "allowedFindings"),
   };

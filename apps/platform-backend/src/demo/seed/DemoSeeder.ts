@@ -10,6 +10,7 @@ import type { ObjectImporter } from "./ObjectImporter";
 import { seedRow, type SeedRowContext } from "./seedRows";
 import { TableWriter } from "./TableWriter";
 import { ViewerAccount, type ViewerCredentials } from "./ViewerAccount";
+import { ViewerPins } from "./ViewerPins";
 
 export interface SeedOptions {
   force: boolean;
@@ -23,6 +24,7 @@ export interface SeedSettings {
   viewer: ViewerCredentials;
   hashPassword: (password: string) => Promise<string>;
   log: (line: string) => void;
+  random?: () => number;
 }
 
 const parseRows = (table: string, value: unknown): Row[] => {
@@ -102,7 +104,8 @@ export class DemoSeeder {
         await writer.fillDeferred(table, rows.get(table) ?? [], schema.columns.get(table) ?? [], columns, schema.primaryKeys.get(table) ?? []);
       }
       for (const table of plan.order) await client.query(`ALTER TABLE ${escapeIdentifier(table)} ENABLE TRIGGER USER`);
-      await new ViewerAccount(client, this.settings.hashPassword, this.settings.log).apply(manifest.viewer, this.settings.viewer);
+      const viewerId = await new ViewerAccount(client, this.settings.hashPassword, this.settings.log).apply(manifest.viewer, this.settings.viewer);
+      await new ViewerPins(client, this.settings.random).apply(viewerId, manifest.viewer.pins);
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");

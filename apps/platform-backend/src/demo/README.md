@@ -29,7 +29,11 @@ The config file is optional:
   "excludeJobs": ["job_1794416193294_0e88b7eb"],
   "excludeMessages": ["e0db893d-a0a8-469f-bed8-91bfe6d2fb62"],
   "spaces": ["website", "customer-app"],
-  "viewer": { "sourceEmail": "visitor@example.com", "watchTaskKeys": ["APP-3", "WEB-1"] },
+  "viewer": {
+    "sourceEmail": "visitor@example.com",
+    "watchTaskKeys": ["APP-3", "WEB-1"],
+    "pins": [{ "app": "bookings" }, { "space": "leadership", "artifact": "Board update deck" }]
+  },
   "githubAccounts": { "Xantier": { "name": "Dev Patel", "login": "devpatel" } },
   "allowedFindings": []
 }
@@ -42,7 +46,7 @@ The config file is optional:
 - `excludeMessages` leaves task messages out by id, with their mentions, the activity entry that posted them, attachments no other message uses, the agent turn and session events that carried the message to an agent, and a question the message answered. Runs the message started stay. Later turn prompts that quoted the thread lose the message's block, and the export stops if the message's text still shows anywhere else.
 - A key or id in `excludeTasks`, `excludeJobs` or `excludeMessages` that the capture doesn't have stops the export.
 - `spaces` limits the export to these space slugs. Without it every space is exported.
-- `viewer.sourceEmail` names a capture account that stood in for demo visitors, so its watches and mentions carry over. `viewer.watchTaskKeys` are tasks the shared viewer watches.
+- `viewer.sourceEmail` names a capture account that stood in for demo visitors, so its watches and mentions carry over. `viewer.watchTaskKeys` are tasks the shared viewer watches. `viewer.pins` are pinned to the shared viewer's Home: an App space by its slug, or an artifact by its space's slug and its exact title. The exporter writes their ids into the manifest and stops on a name the export doesn't have, or an artifact title its space holds twice.
 - `githubAccounts` shows a GitHub account's actions as a persona, for when the capture used one person's token for everyone. A value that is the login, such as `mergedBy` on a merge, becomes `login` (it defaults to the name in lower case without spaces), or `name` under a name key; an avatar beside it becomes `avatarUrl` or is cleared; the login in text becomes `name`, and `@login` the persona's login. Links and `owner/repo` paths keep the real login, and GitHub itself still shows it.
 - `allowedFindings` lists exact strings the secret scan reported that someone checked and found harmless.
 
@@ -70,7 +74,7 @@ It reads the instance's usual `DB_*` or `DATABASE_URL` and `S3_*` settings, plus
 | `DEMO_VIEWER_NAME` | Defaults to "Demo visitor". |
 | `DEMO_NEWEST_ACTIVITY_AGE_HOURS` | How long ago the newest task activity, message, turn, job or plan revision lands. Defaults to 24. |
 
-The database must be migrated and empty; `--force` skips the emptiness check. The seeder uploads the objects, then writes every row in one transaction with update triggers off. Every time moves by the same amount. Exported people get a password nobody knows. Jobs get fresh unpublished callback tokens. Apps with a live release are seeded on and stopped, and previews with a release likewise, so the reconcilers start them. Scheduled template runs are paused; app schedules, such as an hourly restore of app data to a manual backup, keep their state.
+The database must be migrated and empty; `--force` skips the emptiness check. The seeder uploads the objects, then writes every row in one transaction with update triggers off. Every time moves by the same amount. Exported people get a password nobody knows. Jobs get fresh unpublished callback tokens. The viewer's pins are added in a fresh random order on every seed, so the Home a visitor sees changes from one reset to the next. Apps with a live release are seeded on and stopped, and previews with a release likewise, so the reconcilers start them. Scheduled template runs are paused; app schedules, such as an hourly restore of app data to a manual backup, keep their state.
 
 To test locally from `apps/platform-backend`, use `npx tsx src/demo/seedDemo.ts` with `DEMO_FIXTURES_PATH`.
 

@@ -16,6 +16,7 @@ import type { Finding, ForbiddenValue } from "./SecretScanner";
 import { SecretScanner } from "./SecretScanner";
 import { selectionContext, viewerUserId } from "./selectionContext";
 import { TaskFolderRepair } from "./TaskFolderRepair";
+import { resolveViewerPins } from "./viewerPins";
 import { ACTIVITY_COLUMNS, EXCLUDED_OBJECT_PREFIXES, EXCLUDED_TABLES, EXPORTED_TABLES, LOOSE_REFERENCES, STRIPPED_JSON_KEYS } from "./tablePolicies";
 
 export interface ExportSource {
@@ -71,6 +72,7 @@ export class DemoExporter {
       tables.set(table, sanitized.rows);
       manifestTables.push({ name: table, rows: sanitized.rows.length, timestampColumns: sanitized.timestampColumns });
     }
+    const viewerPins = resolveViewerPins(this.config.viewer.pins, (table) => tables.get(table) ?? []);
     const offsets = ACTIVITY_COLUMNS.flatMap(([table, column]) =>
       (tables.get(table) ?? []).flatMap((row) => {
         const value = row[column];
@@ -96,7 +98,7 @@ export class DemoExporter {
         tables: manifestTables,
         objects: exported.keys,
         contentTypes: exported.contentTypes,
-        viewer: { userId: viewerId, watchTaskKeys: this.config.viewer.watchTaskKeys },
+        viewer: { userId: viewerId, watchTaskKeys: this.config.viewer.watchTaskKeys, pins: viewerPins },
       };
       await this.writer.finish(tables, manifest);
       return manifest;

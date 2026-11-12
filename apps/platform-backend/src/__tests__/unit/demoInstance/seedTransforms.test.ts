@@ -126,7 +126,7 @@ describe("parseBundleManifest", () => {
   it("rejects another format and fills in what an older bundle lacks", () => {
     expect(() => parseBundleManifest({ format: 2 })).toThrow(/format 1/);
     const manifest = parseBundleManifest({ format: 1, sourceBucket: "b", newestActivityOffsetMs: -5, tables: [], objects: [] });
-    expect(manifest.viewer).toEqual({ userId: null, watchTaskKeys: [] });
+    expect(manifest.viewer).toEqual({ userId: null, watchTaskKeys: [], pins: [] });
     expect(manifest.contentTypes).toEqual({});
   });
 });
