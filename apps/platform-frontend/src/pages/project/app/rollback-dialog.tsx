@@ -2,7 +2,7 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Description, Label } from '@/components/fieldset'
 import { Radio, RadioField, RadioGroup } from '@/components/radio'
-import type { AppRelease } from '@viberglass/types'
+import type { AppReleaseView } from '@viberglass/types'
 import { useState } from 'react'
 import { isOlder, shortSha } from './releases-table'
 
@@ -22,8 +22,8 @@ export function RollbackDialog({
   onClose,
   onConfirm,
 }: {
-  release: AppRelease
-  current: AppRelease | null
+  release: AppReleaseView
+  current: AppReleaseView | null
   /** When the release's data is from; null when there's no copy of it. */
   dataPointAt: string | null
   onClose: () => void

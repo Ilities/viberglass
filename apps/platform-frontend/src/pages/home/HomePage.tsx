@@ -29,6 +29,8 @@ import {
 import { NextStepsChecklist } from './next-steps-checklist'
 import { WorkspaceHealth } from './workspace-health'
 import { HomeProgress } from './home-progress'
+import { PinnedRow } from './pinned-row'
+import { usePins } from '@/hooks/usePins'
 
 const POLL_MS = 30_000
 
@@ -47,6 +49,7 @@ export function HomePage() {
   const revision = useApiRefresh('/api/spaces', '/api/tasks', '/api/home', '/api/setup/space', '/api/setup/demo')
   const reload = () => setReloads((count) => count + 1)
   const landing = landingFor(user?.role)
+  const { pins, unpin, reorder } = usePins()
 
   useEffect(() => {
     if (landing !== '/') return
@@ -101,6 +104,8 @@ export function HomePage() {
           </Button>
         </div>
       )}
+
+      {pins && <PinnedRow pins={pins} onUnpin={(pin) => void unpin(pin.target)} onReorder={(ordered) => void reorder(ordered)} />}
 
       {empty && !failed ? (
         <EmptyState

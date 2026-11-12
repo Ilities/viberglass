@@ -62,8 +62,9 @@ export class AppPreviewDAO {
     return rows.map(toPreview);
   }
 
+  /** Newest first. */
   async listForProject(projectId: string): Promise<AppPreviewRecord[]> {
-    const rows = await db.selectFrom("app_previews").selectAll().where("project_id", "=", projectId).execute();
+    const rows = await db.selectFrom("app_previews").selectAll().where("project_id", "=", projectId).orderBy("created_at", "desc").execute();
     return rows.map(toPreview);
   }
 

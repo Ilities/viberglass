@@ -12,7 +12,7 @@ const links = new ArtifactPreviewLinks(() => ({ PREVIEW_PUBLIC_URL: "http://prev
 function version(overrides: Partial<StoredArtifactVersion> = {}): StoredArtifactVersion {
   return {
     id: VERSION_ID, artifactId: "a-1", number: 1, format: "html", entrypoint: "deck/index.html", fileCount: 2, totalBytes: 30,
-    status: "available", producedBy: { kind: "run", jobId: "job-1", taskId: null }, createdAt: "", projectId: "space-1",
+    status: "available", cover: null, producedBy: { kind: "run", jobId: "job-1", taskId: null }, createdAt: "", projectId: "space-1",
     storagePrefix: "s3://bucket/spaces/space-1/artifacts/a-1/versions/v-1/files/",
     files: [
       { path: "deck/index.html", bytes: 20, sha256: "a", contentType: "text/html; charset=utf-8" },

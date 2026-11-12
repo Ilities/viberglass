@@ -5,6 +5,7 @@ import type { Database } from "../../persistence/types/database";
 import { up } from "../../migrations/119_space_files";
 import { up as upArtifacts } from "../../migrations/121_artifacts";
 import { up as upChanges } from "../../migrations/124_space_file_changes";
+import { up as upCovers } from "../../migrations/158_artifact_version_covers";
 import { ArtifactDAO, type NewArtifactVersion } from "../../persistence/artifacts/ArtifactDAO";
 import { SpaceFileChangesDAO } from "../../persistence/spaceFiles/SpaceFileChangesDAO";
 import { SpaceFileObjectsDAO } from "../../persistence/spaceFiles/SpaceFileObjectsDAO";
@@ -61,6 +62,7 @@ beforeAll(async () => {
   await up(mockDb);
   await upArtifacts(mockDb);
   await upChanges(mockDb);
+  await upCovers(mockDb);
 }, 60_000);
 
 afterAll(async () => {
@@ -222,6 +224,7 @@ function versionOf(artifactId: string, versionId: string, create: boolean, snaps
     versionId, artifactId, create, projectId: SPACE, ticketId: TICKET, title: "Q4 deck", snapshotId, jobId, createdBy: null,
     format: "html", entrypoint: "deck/index.html", files: [{ path: "deck/index.html", bytes: 5, sha256: "f".repeat(64), contentType: "text/html" }],
     storagePrefix: `s3://bucket/spaces/${SPACE}/artifacts/${artifactId}/versions/${versionId}/files/`, totalBytes: 5,
+    cover: { kind: "deck", slides: ["Q4 deck"], slideCount: 1 },
   };
 }
 
@@ -239,7 +242,11 @@ describe("artifacts", () => {
     await dao.commitCheckpoint(snapshotFor(second, uuid(21), uuid(20)), [versionOf(uuid(30), uuid(32), false, uuid(21), second)]);
 
     const detail = await artifacts.getDetail(SPACE, uuid(30));
-    expect(detail).toMatchObject({ taskKey: "FQD-1", versionCount: 2, currentVersion: { id: uuid(32), number: 2 } });
+    expect(detail).toMatchObject({
+      taskKey: "FQD-1",
+      versionCount: 2,
+      currentVersion: { id: uuid(32), number: 2, cover: { kind: "deck", slides: ["Q4 deck"], slideCount: 1 } },
+    });
     expect(detail?.versions.map((version) => version.number)).toEqual([2, 1]);
     await expect(artifacts.listForJob(second)).resolves.toEqual([expect.objectContaining({ versionId: uuid(32), number: 2 })]);
   });

@@ -161,11 +161,11 @@ describe('ApplicationLayout navigation', () => {
     }
   })
 
-  it('shows Home, Overview, the spaces and, for admins, one Settings entry', async () => {
+  it('shows Home, Overview, Outputs, the spaces and, for admins, one Settings entry', async () => {
     renderLayout('/')
     const drawer = await openDrawer()
 
-    for (const label of ['Home', 'Overview']) {
+    for (const label of ['Home', 'Overview', 'Outputs']) {
       expect(within(drawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
     expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings')
@@ -190,12 +190,13 @@ describe('ApplicationLayout navigation', () => {
     expect(outside.filter((name) => !inside.includes(name))).toEqual([])
   })
 
-  it('gives viewers Home and Overview, and Settings for the agents list', async () => {
+  it('gives viewers Home, Overview and Outputs, and Settings for the agents list', async () => {
     asRole('viewer')
     renderLayout('/')
     const drawer = await openDrawer()
 
     expect(within(drawer).getByRole('link', { name: /^Overview$/i })).toHaveAttribute('href', '/overview')
+    expect(within(drawer).getByRole('link', { name: /^Outputs$/i })).toHaveAttribute('href', '/outputs')
     expect(within(drawer).getByRole('link', { name: /^Home$/i })).toHaveAttribute('href', '/')
     expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings')
   })

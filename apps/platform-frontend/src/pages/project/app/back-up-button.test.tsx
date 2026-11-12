@@ -12,6 +12,8 @@ const APP: AppView = {
   statusMessage: null,
   currentRelease: null,
   releases: [],
+  tasks: {},
+  previews: [],
   dataPoints: {},
   rollback: null,
   backupDue: false,

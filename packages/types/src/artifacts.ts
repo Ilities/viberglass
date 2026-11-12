@@ -37,6 +37,13 @@ export interface ArtifactVersionFile extends SpaceFilesManifestEntry {
   contentType: string
 }
 
+/** What a version's cover is drawn from, read from its entry file when it's saved. */
+export type ArtifactCover =
+  | { kind: 'deck'; slides: string[]; slideCount: number }
+  | { kind: 'page'; heading: string | null; excerpt: string }
+  | { kind: 'table'; columns: string[]; rows: string[][] }
+  | { kind: 'keys'; keys: string[] }
+
 export interface ArtifactVersionSummary {
   id: string
   artifactId: string
@@ -47,6 +54,8 @@ export interface ArtifactVersionSummary {
   fileCount: number
   totalBytes: number
   status: ArtifactVersionStatus
+  /** Null for images, which are their own cover, and for versions saved before covers existed. */
+  cover: ArtifactCover | null
   /** The run that produced it, or the person whose edit did. */
   producedBy: { kind: 'run'; jobId: string; taskId: string | null } | { kind: 'person'; userId: string | null }
   createdAt: string

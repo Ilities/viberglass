@@ -1,37 +1,32 @@
 import { Button } from '@/components/button'
 import { Link } from '@/components/link'
 import { PageHeader } from '@/components/page-header'
+import { PinButton } from '@/components/pin-button'
 import { PageMeta } from '@/components/page-meta'
-import { Select } from '@/components/select'
 import { useProject } from '@/context/project-context'
 import { usePersonName } from '@/hooks/usePeople'
+import { usePins } from '@/hooks/usePins'
 import { artifactPath, formatBytes, formatLabel } from '@/lib/artifacts'
-import { formatTimestamp } from '@/lib/formatters'
 import { taskPath } from '@/lib/taskPath'
 import { downloadArtifactVersion, getArtifact } from '@/service/api/artifact-api'
-import type { ArtifactDetail, ArtifactVersionSummary } from '@viberglass/types'
+import { markPinOpened } from '@/service/api/pins-api'
+import type { ArtifactDetail, PinTarget } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArtifactPreviewView } from './artifact-preview'
+import { ArtifactVersions } from './artifact-versions'
 
-/** "Version 3 · 12 Oct · by a run", for the version picker. */
-export function versionLabel(version: ArtifactVersionSummary, personName: (id: string | null) => string | null): string {
-  const by = version.producedBy.kind === 'run' ? 'by an agent' : `edited by ${personName(version.producedBy.userId) ?? 'someone'}`
-  const expired = version.status === 'expired' ? ' · no longer kept' : ''
-  return `Version ${version.number} · ${formatTimestamp(version.createdAt)} · ${by}${expired}`
-}
-
-/** One artifact: a version to preview and download, and the others to pick from. */
 export function ArtifactPage() {
   const { project, isLoading } = useProject()
   const { artifactId } = useParams<{ artifactId: string }>()
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const personName = usePersonName()
   const [artifact, setArtifact] = useState<ArtifactDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const projectId = project?.id
+  const pins = usePins()
+  const pinTarget: PinTarget = { kind: 'artifact', artifactId: artifactId ?? '' }
 
   const load = useCallback(async () => {
     if (!projectId || !artifactId) return
@@ -46,6 +41,11 @@ export function ArtifactPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Opening it clears its "new version" mark on Home.
+  useEffect(() => {
+    if (artifactId) void markPinOpened({ kind: 'artifact', artifactId }).catch(() => undefined)
+  }, [artifactId])
 
   if (isLoading) return <p className="py-20 text-center text-sm text-[var(--gray-10)]">Loading…</p>
   if (!project) return null
@@ -110,50 +110,48 @@ export function ArtifactPage() {
             : 'No version is kept.'
         }
         actions={
-          version &&
-          version.status === 'available' && (
-            <Button outline onClick={download}>
-              Download
-            </Button>
-          )
+          <>
+            <PinButton pinned={pins.isPinned(pinTarget)} onToggle={() => void pins.toggle(pinTarget)} />
+            {version && version.status === 'available' && (
+              <Button outline onClick={download}>
+                Download
+              </Button>
+            )}
+          </>
         }
       />
 
-      {artifact.versions.length > 1 && version && (
-        <div className="mb-4 max-w-md">
-          <Select
-            aria-label="Version"
-            value={version.id}
-            onChange={(id) => navigate(artifactPath(project.slug, artifact.id, id), { replace: true })}
-          >
-            {artifact.versions.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {versionLabel(candidate, personName)}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
-
-      <section
-        aria-label="Preview"
-        className="rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-5 max-sm:px-3"
-      >
-        {version ? (
-          <ArtifactPreviewView
-            projectId={project.id}
+      <div className={artifact.versions.length > 1 ? 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]' : undefined}>
+        <section
+          aria-label="Preview"
+          className="rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-5 max-sm:px-3"
+        >
+          {version ? (
+            <ArtifactPreviewView
+              projectId={project.id}
+              artifactId={artifact.id}
+              versionId={version.id}
+              title={artifact.title}
+              currentVersionHref={
+                artifact.currentVersion && !isCurrent ? artifactPath(project.slug, artifact.id, artifact.currentVersion.id) : null
+              }
+              onDownload={download}
+            />
+          ) : (
+            <p className="py-10 text-center text-sm text-[var(--gray-10)]">This artifact has no version kept any more.</p>
+          )}
+        </section>
+        {artifact.versions.length > 1 && (
+          <ArtifactVersions
+            spaceSlug={project.slug}
             artifactId={artifact.id}
-            versionId={version.id}
-            title={artifact.title}
-            currentVersionHref={
-              artifact.currentVersion && !isCurrent ? artifactPath(project.slug, artifact.id, artifact.currentVersion.id) : null
-            }
-            onDownload={download}
+            versions={artifact.versions}
+            selectedId={version?.id ?? null}
+            currentId={artifact.currentVersion?.id ?? null}
+            personName={personName}
           />
-        ) : (
-          <p className="py-10 text-center text-sm text-[var(--gray-10)]">This artifact has no version kept any more.</p>
         )}
-      </section>
+      </div>
     </>
   )
 }

@@ -1,5 +1,6 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import type {
+  ArtifactCover,
   ArtifactDetail,
   ArtifactFormat,
   ArtifactSummary,
@@ -29,6 +30,8 @@ export interface NewArtifactVersion {
   files: ArtifactVersionFile[];
   storagePrefix: string;
   totalBytes: number;
+  /** Read from the entry file while its files are stored. */
+  cover: ArtifactCover | null;
 }
 
 /** A version with what serving or purging it needs. */
@@ -94,6 +97,7 @@ export class ArtifactDAO {
           files: JSON.stringify(version.files),
           storage_prefix: version.storagePrefix,
           total_bytes: version.totalBytes,
+          cover: version.cover ? JSON.stringify(version.cover) : null,
         })
         .execute();
       await trx
@@ -248,7 +252,7 @@ export class ArtifactDAO {
   }
 
   async markPurged(versionId: string): Promise<void> {
-    await db.updateTable("artifact_versions").set({ purged_at: sql`now()` }).where("id", "=", versionId).execute();
+    await db.updateTable("artifact_versions").set({ purged_at: sql`now()`, cover: null }).where("id", "=", versionId).execute();
   }
 
   private summaryQuery() {
@@ -318,6 +322,7 @@ function toVersion(row: VersionRow, jobTicketId: string | null): ArtifactVersion
     fileCount: row.files.length,
     totalBytes: Number(row.total_bytes),
     status: row.unavailable_at ? "expired" : "available",
+    cover: row.cover,
     producedBy: row.job_id ? { kind: "run", jobId: row.job_id, taskId: jobTicketId } : { kind: "person", userId: row.created_by },
     createdAt: row.created_at.toISOString(),
   };

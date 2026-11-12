@@ -21,6 +21,8 @@ export * from './appHosting'
 export * from './appPreview'
 export * from './appAccess'
 export * from './artifacts'
+export * from './outputs'
+export * from './pins'
 
 // Ticket types (internal tickets)
 export * from './ticket'

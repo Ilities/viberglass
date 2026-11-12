@@ -1,9 +1,11 @@
-import { liveAppInstance, type AppHost, type AppPower, type AppView } from "@viberglass/types";
+import { liveAppInstance, type AppHost, type AppPower, type AppRelease, type AppReleaseView, type AppView } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import type { AppDAO } from "../../persistence/apps/AppDAO";
 import type { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
+import type { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
 import type { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import type { AppSpaceDAO, AppSpaceRef } from "../../persistence/apps/AppSpaceDAO";
+import type { TaskRefsDAO } from "../../persistence/ticketing/TaskRefsDAO";
 import type { AppOrigins } from "./AppOrigins";
 import type { AppReconciler } from "./AppReconciler";
 import { AppSpaceError } from "./AppSpaceError";
@@ -12,6 +14,11 @@ const logger = createChildLogger({ service: "AppService" });
 
 const RELEASES_SHOWN = 20;
 const LOG_LINES = 300;
+
+/** Build logs run to 64 KB each, so the page fetches one when it's opened. */
+function withoutLog({ buildLog: _log, ...release }: AppRelease): AppReleaseView {
+  return release;
+}
 
 /** An App space's app as its page shows it, and turning it on or off, for good when its space is archived. */
 export class AppService {
@@ -23,6 +30,8 @@ export class AppService {
     private readonly reconciler: Pick<AppReconciler, "reconcile">,
     private readonly host: () => AppHost | null,
     private readonly origins: Pick<AppOrigins, "originFor">,
+    private readonly previews: Pick<AppPreviewDAO, "listForProject">,
+    private readonly tasks: Pick<TaskRefsDAO, "refsFor">,
   ) {}
 
   async view(projectId: string): Promise<AppView> {
@@ -34,18 +43,29 @@ export class AppService {
       ? (releases.find((release) => release.id === currentId) ?? (await this.releases.getById(currentId)))
       : null;
     const dataPoints = await this.backups.dataPoints(projectId);
+    const previews = (await this.previews.listForProject(projectId)).filter((preview) => preview.state !== "off");
+    const taskIds = [...releases.flatMap((release) => (release.ticketId ? [release.ticketId] : [])), ...previews.map((preview) => preview.ticketId)];
+    const tasks = await this.tasks.refsFor(taskIds);
     return {
       power: app?.power ?? "on",
       state: app?.state ?? "off",
       statusMessage: app?.statusMessage ?? null,
-      currentRelease,
-      releases,
+      currentRelease: currentRelease && withoutLog(currentRelease),
+      releases: releases.map(withoutLog),
+      tasks: Object.fromEntries(tasks),
+      previews: previews.map((preview) => ({ id: preview.id, taskId: preview.ticketId, state: preview.state, statusMessage: preview.statusMessage })),
       dataPoints: Object.fromEntries(dataPoints.map((point) => [point.releaseId, point.takenAt.toISOString()])),
       rollback: app?.rollback ? { releaseId: app.rollback.releaseId, withData: app.rollback.backupId !== null } : null,
       backupDue: app?.backupDue ?? false,
       dataRestoreDue: Boolean(app?.dataRestore),
       url: this.origins.originFor(space.slug),
     };
+  }
+
+  /** A release's build output; null when the release isn't this app's. */
+  async buildLog(projectId: string, releaseId: string): Promise<{ buildLog: string | null } | null> {
+    const release = await this.releases.getById(releaseId);
+    return release && release.projectId === projectId ? { buildLog: release.buildLog } : null;
   }
 
   /** Records what's wanted and returns at once; starting or stopping goes on in the background. */

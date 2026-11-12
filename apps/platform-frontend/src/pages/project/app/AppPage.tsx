@@ -1,19 +1,23 @@
 import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
 import { PageMeta } from '@/components/page-meta'
+import { PinButton } from '@/components/pin-button'
 import { SpacePageBar } from '@/components/space-page-bar'
 import { Timestamp } from '@/components/timestamp'
 import { useProject } from '@/context/project-context'
+import { usePins } from '@/hooks/usePins'
 import { getApp, rollBackApp, turnAppOff, turnAppOn } from '@/service/api/app-api'
 import { RocketIcon } from '@radix-ui/react-icons'
-import type { AppRelease, AppRunState, AppSettingsView, AppView } from '@viberglass/types'
+import type { AppReleaseView, AppRunState, AppSettingsView, AppView } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AppAccess } from './app-access'
+import { AppBackups } from './app-backups'
 import { AppLogs } from './app-logs'
 import { AppSettings } from './app-settings'
 import { BackUpButton } from './back-up-button'
+import { ChangesInPreview } from './changes-in-preview'
 import { NightScheduleHint } from './night-schedule-hint'
 import { ReleasesTable, shortSha } from './releases-table'
 import { RollbackDialog } from './rollback-dialog'
@@ -32,9 +36,10 @@ const STATE_LABELS: Record<AppRunState, string> = {
 export function AppPage() {
   const { project, isLoading } = useProject()
   const [app, setApp] = useState<AppView | null>(null)
+  const pins = usePins()
   const [loadError, setLoadError] = useState<string | null>(null)
   const [switching, setSwitching] = useState(false)
-  const [restoring, setRestoring] = useState<AppRelease | null>(null)
+  const [restoring, setRestoring] = useState<AppReleaseView | null>(null)
   const [missingSettings, setMissingSettings] = useState<string[]>([])
   const settingsLoaded = useCallback((view: AppSettingsView) => setMissingSettings(view.missing), [])
   const projectId = project?.id
@@ -85,7 +90,7 @@ export function AppPage() {
     }
   }
 
-  const rollBack = async (release: AppRelease, withData: boolean) => {
+  const rollBack = async (release: AppReleaseView, withData: boolean) => {
     try {
       setApp(await rollBackApp(project.id, release.id, withData))
       setRestoring(null)
@@ -119,6 +124,7 @@ export function AppPage() {
               {canMaintain && app.currentRelease && (
                 <BackUpButton projectId={project.id} app={app} onStarted={setApp} />
               )}
+              <PinButton pinned={pins.isPinned({ kind: 'app', spaceId: project.id })} onToggle={() => void pins.toggle({ kind: 'app', spaceId: project.id })} />
             </>
           )
         }
@@ -159,8 +165,11 @@ export function AppPage() {
         />
       ) : (
         <ReleasesTable
+          projectId={project.id}
+          spaceSlug={project.slug}
           releases={app.releases}
           current={app.currentRelease}
+          tasks={app.tasks}
           onRestore={canMaintain && !app.rollback && !turning ? setRestoring : undefined}
         />
       )}
@@ -174,6 +183,9 @@ export function AppPage() {
           onConfirm={(withData) => rollBack(restoring, withData)}
         />
       )}
+
+      {app && <ChangesInPreview spaceSlug={project.slug} previews={app.previews} tasks={app.tasks} />}
+      {canMaintain && app && <AppBackups projectId={project.id} refreshKey={app.backupDue} />}
 
       {canMaintain && <AppSettings projectId={project.id} onLoad={settingsLoaded} />}
       {canMaintain && <AppAccess projectId={project.id} />}

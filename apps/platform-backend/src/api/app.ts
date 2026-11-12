@@ -31,6 +31,8 @@ import auditLogRouter from "./routes/auditLog";
 import accountLinksRouter from "./routes/accountLinks";
 import meRouter from "./routes/me";
 import homeRouter from "./routes/home";
+import outputsRouter from "./routes/outputs";
+import pinsRouter from "./routes/pins";
 import clawRouter from "./routes/claw";
 import agentSessionsRouter from "./routes/agentSessions";
 import promptTemplatesRouter from "./routes/promptTemplates";
@@ -246,6 +248,8 @@ app.use("/api/invites", requireRole("admin"), auditRequests(INVITE_AUDIT), invit
 app.use("/api/audit-log", requireRole("admin"), auditLogRouter);
 app.use("/api/account-links", accountLinksRouter);
 app.use("/api/me", meRouter);
+app.use("/api/outputs", outputsRouter);
+app.use("/api/pins", pinsRouter);
 app.use("/api", homeRouter);
 app.use("/api/claw", requireRunReader, clawRouter);
 app.use("/api/agent-sessions", agentSessionsRouter);

@@ -46,6 +46,15 @@ export async function rollBackApp(projectId: string, releaseId: string, withData
   return readData(response, "Couldn't roll the app back")
 }
 
+/** A release's build output, kept with it when the build finished. */
+export async function getReleaseBuildLog(projectId: string, releaseId: string): Promise<string | null> {
+  const { buildLog } = await readData<{ buildLog: string | null }>(
+    await apiFetch(`${appUrl(projectId)}/releases/${releaseId}/build-log`),
+    "Couldn't load the build log"
+  )
+  return buildLog
+}
+
 /** Newest first. */
 export async function getAppBackups(projectId: string): Promise<AppDataBackup[]> {
   return readData(await apiFetch(`${appUrl(projectId)}/backups`), "Couldn't load the app's backups")

@@ -4,6 +4,7 @@ import type { ArtifactVersionFile, SpaceFilesManifestEntry } from "@viberglass/t
 import { ArtifactDAO, type NewArtifactVersion } from "../../persistence/artifacts/ArtifactDAO";
 import { readArchiveFiles } from "../spaceFiles/spaceArchiveFiles";
 import { artifactVersionPrefix, objectUrlUnder, type SpaceFilesStore } from "../spaceFiles/SpaceFilesStore";
+import { artifactCover } from "./artifactCover";
 import { InvalidArtifactDeclaration, resolveArtifactDeclarations } from "./artifactDeclarations";
 
 /** A stable id from a seed, so saving the same files again names the same artifacts and versions. */
@@ -89,7 +90,10 @@ export class ArtifactRegistrar {
     });
   }
 
-  /** Copies each version's files out of the saved archive into the version's own place in storage. */
+  /**
+   * Copies each version's files out of the saved archive into the version's
+   * own place in storage, and reads each version's cover from its entry file.
+   */
   async storeFiles(openArchive: () => Promise<Readable>, versions: NewArtifactVersion[]): Promise<void> {
     if (versions.length === 0) return;
     const targets = new Map<string, Array<{ url: string; contentType: string }>>();
@@ -102,6 +106,9 @@ export class ArtifactRegistrar {
     }
     await readArchiveFiles(await openArchive(), (path) => targets.has(path), async (path, content) => {
       for (const target of targets.get(path) ?? []) await this.store.put(target.url, content, content.length, target.contentType);
+      for (const version of versions) {
+        if (version.entrypoint === path) version.cover = artifactCover(version.format, content);
+      }
     });
   }
 
@@ -118,6 +125,7 @@ export class ArtifactRegistrar {
       createdBy: source.createdBy,
       storagePrefix: artifactVersionPrefix(this.store.bucket(), source.projectId, fields.artifactId, fields.versionId),
       totalBytes: fields.files.reduce((sum, file) => sum + file.bytes, 0),
+      cover: null,
     };
   }
 }

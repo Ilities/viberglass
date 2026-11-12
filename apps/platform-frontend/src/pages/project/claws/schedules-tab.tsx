@@ -33,7 +33,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CronScheduleField } from './cron-schedule-field'
 import { buildCron, defaultCronBuilder, describeCron, parseCronBuilder, type CronBuilder } from './cronSchedule'
-import { backupLabel, RestoreBackupField } from './restore-backup-field'
+import { backupLabel } from '../app/backup-text'
+import { RestoreBackupField } from './restore-backup-field'
 
 type IntervalUnit = 'minutes' | 'hours' | 'days' | 'weeks'
 const UNIT_SUFFIX: Record<IntervalUnit, string> = { minutes: 'm', hours: 'h', days: 'd', weeks: 'w' }

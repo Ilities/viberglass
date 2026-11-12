@@ -14,7 +14,7 @@ import {
 } from '@/components/sidebar'
 import type { AuthUser } from '@/service/api/auth-api'
 import type { Project } from '@/service/api/project-api'
-import { ActivityLogIcon, ChevronUpIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon } from '@radix-ui/react-icons'
+import { ActivityLogIcon, ChevronUpIcon, LayersIcon, GearIcon, HomeIcon, LockClosedIcon, PlusIcon } from '@radix-ui/react-icons'
 import { isRunner, seesRuns } from '@/lib/roles'
 import clsx from 'clsx'
 import { useContext } from 'react'
@@ -81,6 +81,12 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
               <ActivityLogIcon />
             </NavIcon>
             <SidebarLabel>Overview</SidebarLabel>
+          </SidebarItem>
+          <SidebarItem href="/outputs" current={pathname.startsWith('/outputs')}>
+            <NavIcon>
+              <LayersIcon />
+            </NavIcon>
+            <SidebarLabel>Outputs</SidebarLabel>
           </SidebarItem>
         </SidebarSection>
 

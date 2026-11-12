@@ -1,5 +1,5 @@
 import type { ColumnType, RawBuilder } from "kysely";
-import type { ArtifactFormat, ArtifactVersionFile, IntegrationCredentialType, SpaceBackingKind, SpaceFilesManifestEntry, SpaceFilesSnapshotSummary, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
+import type { ArtifactCover, ArtifactFormat, ArtifactVersionFile, IntegrationCredentialType, SpaceBackingKind, SpaceFilesManifestEntry, SpaceFilesSnapshotSummary, TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
 import type {
   AgentPendingRequestStatus,
   AgentPendingRequestType,
@@ -611,6 +611,17 @@ export interface UsersTable {
   deactivated_at: Timestamp | null;
 }
 
+export interface UserPinsTable {
+  id: Generated<string>;
+  user_id: string;
+  artifact_id: string | null;
+  app_project_id: string | null;
+  title: string;
+  position: number;
+  last_opened_at: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
+  created_at: Generated<Timestamp>;
+}
+
 export interface UserChatIdentitiesTable {
   user_id: string;
   adapter_name: string;
@@ -1012,6 +1023,7 @@ export interface ArtifactVersionsTable {
   files: ColumnType<ArtifactVersionFile[], string, string>;
   storage_prefix: string;
   total_bytes: ColumnType<string, number, number>;
+  cover: ColumnType<ArtifactCover | null, string | null | undefined, string | null>;
   created_at: Generated<Date>;
   unavailable_at: Date | null;
   purged_at: Date | null;
@@ -1078,6 +1090,7 @@ export interface Database {
   artifacts: ArtifactsTable;
   artifact_versions: ArtifactVersionsTable;
   user_chat_identities: UserChatIdentitiesTable;
+  user_pins: UserPinsTable;
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
   tickets: TicketsTable;

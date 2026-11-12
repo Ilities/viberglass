@@ -19,6 +19,7 @@ import { SetupPage } from '@/pages/setup/SetupPage'
 
 // Main pages
 import { HomePage } from '@/pages/home/HomePage'
+import { OutputsPage } from '@/pages/outputs/OutputsPage'
 import { OverviewPage } from '@/pages/overview/OverviewPage'
 import { NewProjectPage } from '@/pages/NewProjectPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -97,6 +98,7 @@ export function AppRoutes() {
         {/* Main routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/outputs" element={<OutputsPage />} />
         {/* First-run setup (admins only), in the app so the workspace it makes is right there */}
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/spaces/new" element={<NewProjectPage />} />

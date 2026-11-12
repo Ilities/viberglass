@@ -28,6 +28,7 @@ import { AppDataGrantSweep } from "../services/apps/AppDataGrantSweep";
 import { AppDataGrantDAO } from "../persistence/apps/AppDataGrantDAO";
 import { AppDataCopier } from "../services/apps/AppDataCopier";
 import { AppRetentionDAO } from "../persistence/apps/AppRetentionDAO";
+import { ArtifactCoverBackfill } from "../services/artifacts/ArtifactCoverBackfill";
 import { AppRetention } from "../services/apps/AppRetention";
 import { S3SpaceFilesStore } from "../services/spaceFiles/SpaceFilesStore";
 import { TaskActivityRecorder } from "../services/tasks/TaskActivityRecorder";
@@ -256,6 +257,10 @@ function onListening(): void {
     kubernetesJobReconciler?.start();
     pullRequestOutcomeSweeper?.start();
     for (const sweeper of periodicSweepers) sweeper.start();
+    new ArtifactCoverBackfill()
+      .run()
+      .then((covered) => covered > 0 && logger.info("Gave earlier artifact versions their covers", { covered }))
+      .catch((error: unknown) => logger.error("Artifact cover backfill failed", { error }));
   } else {
     logger.info("Background sweepers are disabled");
   }

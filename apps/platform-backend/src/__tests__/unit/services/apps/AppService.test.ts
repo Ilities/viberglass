@@ -10,6 +10,13 @@ const NEWER = appRelease("newer");
 
 const origins = { originFor: (slug: string) => `https://${slug}.apps.example.com` };
 
+/** A release as the page gets it, without its build log. */
+const shown = ({ buildLog: _log, ...release }: typeof LIVE) => release;
+
+function preview(id: string, state: "off" | "running" | "failed", ticketId: string) {
+  return { id, address: `preview-${id}`, projectId: "space-1", ticketId, pullRequestUrl: "https://x/pull/1", commitSha: "f".repeat(40), releaseId: null, runningReleaseId: null, power: "on" as const, state, statusMessage: state === "failed" ? "exit code 1" : null, busySince: null, startedAt: null, lastOpenedAt: null, triedCommitSha: null };
+}
+
 function build(app: AppRecord | null, isApp = true, archived = false) {
   const host = fakeAppHost();
   const deps = {
@@ -26,8 +33,14 @@ function build(app: AppRecord | null, isApp = true, archived = false) {
     releases: { listForProject: jest.fn(async () => [NEWER, LIVE]), getById: jest.fn(async () => LIVE) },
     backups: { dataPoints: jest.fn(async () => [{ backupId: "b1", releaseId: LIVE.id, takenAt: new Date("2026-11-03T13:00:00.000Z") }]) },
     reconciler: { reconcile: jest.fn(async () => true) },
+    previews: { listForProject: jest.fn(async () => [preview("p2", "running", "t-2"), preview("p1", "off", "t-1")]) },
+    tasks: { refsFor: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id, { key: id.toUpperCase(), title: `Task ${id}` }]))) },
   };
-  return { service: new AppService(deps.spaces, deps.apps, deps.releases, deps.backups, deps.reconciler, () => host, origins), deps, host };
+  return {
+    service: new AppService(deps.spaces, deps.apps, deps.releases, deps.backups, deps.reconciler, () => host, origins, deps.previews, deps.tasks),
+    deps,
+    host,
+  };
 }
 
 const failed: AppRecord = { projectId: "space-1", power: "on", state: "failed", statusMessage: "exit code 1", currentReleaseId: "live", busySince: null, rollback: null, credentialsExpireAt: null, archiveBackupDue: false, restartDue: false, dataRestore: null, backupDue: false };
@@ -41,7 +54,9 @@ describe("AppService", () => {
       state: "off",
       statusMessage: null,
       currentRelease: null,
-      releases: [NEWER, LIVE],
+      releases: [shown(NEWER), shown(LIVE)],
+      tasks: { "t-2": { key: "T-2", title: "Task t-2" } },
+      previews: [{ id: "p2", taskId: "t-2", state: "running", statusMessage: null }],
       dataPoints: { [LIVE.id]: "2026-11-03T13:00:00.000Z" },
       rollback: null,
       backupDue: false,
@@ -53,8 +68,20 @@ describe("AppService", () => {
   it("shows the current release among the releases", async () => {
     const { service, deps } = build({ ...failed, state: "running", statusMessage: null });
 
-    await expect(service.view("space-1")).resolves.toMatchObject({ state: "running", currentRelease: LIVE });
+    await expect(service.view("space-1")).resolves.toMatchObject({ state: "running", currentRelease: shown(LIVE) });
     expect(deps.releases.getById).not.toHaveBeenCalled();
+  });
+
+  it("leaves build logs out of the view, and gives one only for the app's own release", async () => {
+    const { service, deps } = build(null);
+
+    const view = await service.view("space-1");
+    expect(view.releases.every((release) => !("buildLog" in release))).toBe(true);
+
+    deps.releases.getById.mockResolvedValueOnce({ ...LIVE, buildLog: "npm run build" });
+    await expect(service.buildLog("space-1", LIVE.id)).resolves.toEqual({ buildLog: "npm run build" });
+    deps.releases.getById.mockResolvedValueOnce({ ...LIVE, projectId: "space-2" });
+    await expect(service.buildLog("space-1", LIVE.id)).resolves.toBeNull();
   });
 
   it("refuses spaces that aren't App spaces", async () => {

@@ -13,7 +13,7 @@ import { validateUuidParam } from "../middleware/validation";
  */
 export function registerAppRoutes(
   router: Router,
-  apps: Pick<AppService, "view" | "setPower" | "logs">,
+  apps: Pick<AppService, "view" | "setPower" | "logs" | "buildLog">,
   access: Pick<SpaceAccessService, "assertCanMaintain">,
   rollbacks: Pick<AppRollbackService, "restore">,
   backups: Pick<AppBackupService, "list" | "requestBackup">,
@@ -49,6 +49,21 @@ export function registerAppRoutes(
         res.status(202).json({ success: true, data: await apps.view(req.params.projectId) });
       } catch (error) {
         next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/:projectId/app/releases/:releaseId/build-log",
+    validateUuidParam("projectId"),
+    validateUuidParam("releaseId"),
+    async (req, res, next) => {
+      try {
+        const log = await apps.buildLog(req.params.projectId, req.params.releaseId);
+        if (!log) return res.status(404).json({ error: "Release not found" });
+        return res.json({ success: true, data: log });
+      } catch (error) {
+        return next(error);
       }
     },
   );

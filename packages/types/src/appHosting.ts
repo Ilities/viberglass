@@ -1,3 +1,4 @@
+import type { AppPreviewState } from './appPreview'
 import type { AppRelease } from './appRelease'
 
 /** Whether the space's maintainers want the app running. */
@@ -6,14 +7,29 @@ export type AppPower = 'on' | 'off'
 /** What the app is doing now. `failed` means it should be on but isn't serving. */
 export type AppRunState = 'off' | 'starting' | 'running' | 'stopping' | 'failed'
 
+/** A release as the App page lists it; its build log is fetched when someone opens it. */
+export type AppReleaseView = Omit<AppRelease, 'buildLog'>
+
+/** A task's change running in a preview, as the App page lists it. */
+export interface AppPreviewEntry {
+  id: string
+  taskId: string
+  state: AppPreviewState
+  statusMessage: string | null
+}
+
 export interface AppView {
   power: AppPower
   state: AppRunState
   /** Why the app isn't serving, or why the newest release didn't go live. */
   statusMessage: string | null
-  currentRelease: AppRelease | null
+  currentRelease: AppReleaseView | null
   /** Newest first. */
-  releases: AppRelease[]
+  releases: AppReleaseView[]
+  /** The tasks its releases and previews came from, by id. */
+  tasks: Record<string, { key: string; title: string }>
+  /** Changes in a preview that isn't switched off, newest first. */
+  previews: AppPreviewEntry[]
   /** For each release that can be rolled back to with its data, when that data is from. */
   dataPoints: Record<string, string>
   /** A rollback asked for that hasn't happened yet. */

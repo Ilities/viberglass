@@ -3,6 +3,7 @@ import { AppDAO } from "../../persistence/apps/AppDAO";
 import { AppDataBackupDAO } from "../../persistence/apps/AppDataBackupDAO";
 import { AppDataOrderDAO } from "../../persistence/apps/AppDataOrderDAO";
 import { AppPreviewDAO } from "../../persistence/apps/AppPreviewDAO";
+import { TaskRefsDAO } from "../../persistence/ticketing/TaskRefsDAO";
 import { AppReleaseDAO } from "../../persistence/apps/AppReleaseDAO";
 import { AppReleaseRollbackDAO } from "../../persistence/apps/AppReleaseRollbackDAO";
 import { AppSettingDAO } from "../../persistence/apps/AppSettingDAO";
@@ -86,7 +87,7 @@ export function appHosting(): AppHosting {
   const previewReconciler = new AppPreviewReconciler(previews, releases, host, runner);
   const origins = new AppOrigins();
   hosting = {
-    service: new AppService(spaces, apps, releases, backups, reconciler, host, origins),
+    service: new AppService(spaces, apps, releases, backups, reconciler, host, origins, previews, new TaskRefsDAO()),
     rollbacks: new AppRollbackService(spaces, apps, releases, backups, reconciler),
     backups: new AppBackupService(spaces, apps, backups, orders, reconciler),
     settings: new AppSettingsService(spaces, settings, secrets, releases, apps, reconciler, (projectId, name) =>

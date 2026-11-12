@@ -25,6 +25,7 @@ function setup() {
     view: jest.fn().mockResolvedValue(VIEW),
     setPower: jest.fn().mockResolvedValue({ ...VIEW, power: "off" }),
     logs: jest.fn().mockResolvedValue("listening\n"),
+    buildLog: jest.fn().mockResolvedValue({ buildLog: "npm run build\n" }),
   };
   const rollbacks = { restore: jest.fn().mockResolvedValue(undefined) };
   const backups = { list: jest.fn().mockResolvedValue([]), requestBackup: jest.fn().mockResolvedValue(undefined) };
@@ -53,6 +54,17 @@ function setup() {
 }
 
 describe("an App space's app", () => {
+  it("gives a release's build log to anyone who sees the space, and 404 for another app's release", async () => {
+    const { app, apps } = setup();
+
+    const response = await request(app).get(`/api/spaces/${SPACE_ID}/app/releases/${RELEASE_ID}/build-log`).set("x-role", "member").expect(200);
+    expect(response.body.data).toEqual({ buildLog: "npm run build\n" });
+    expect(apps.buildLog).toHaveBeenCalledWith(SPACE_ID, RELEASE_ID);
+
+    apps.buildLog.mockResolvedValueOnce(null);
+    await request(app).get(`/api/spaces/${SPACE_ID}/app/releases/${RELEASE_ID}/build-log`).set("x-role", "member").expect(404);
+  });
+
   it("is shown to anyone who sees the space", async () => {
     const { app } = setup();
 

@@ -23,6 +23,7 @@ function version(number: number): ArtifactVersionSummary {
     fileCount: 3,
     totalBytes: 20_000,
     status: 'available',
+    cover: null,
     producedBy: { kind: 'run', jobId: 'job', taskId: 'task-1' },
     createdAt: '2026-10-19T11:40:00.000Z',
   }

@@ -1,16 +1,19 @@
 import { Theme } from '@radix-ui/themes'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import type { ArtifactDetail, ArtifactPreview, ArtifactVersionSummary, Project } from '@viberglass/types'
+import type { ArtifactDetail, ArtifactOutput, ArtifactPreview, ArtifactVersionSummary, Project } from '@viberglass/types'
 import { useProject } from '@/context/project-context'
-import { getArtifact, getArtifactPreview, getArtifacts } from '@/service/api/artifact-api'
-import { ArtifactPage, versionLabel } from './ArtifactPage'
+import { getArtifact, getArtifactPreview } from '@/service/api/artifact-api'
+import { getOutputs, getOutputsSummary } from '@/service/api/outputs-api'
+import { getPins, markPinOpened } from '@/service/api/pins-api'
+import { ArtifactPage } from './ArtifactPage'
 import { ArtifactsPage } from './ArtifactsPage'
 
 jest.mock('@/context/project-context', () => ({ useProject: jest.fn() }))
 jest.mock('@/hooks/usePeople', () => ({ usePersonName: () => (id: string | null) => (id === 'u-1' ? 'Maria' : null) }))
+jest.mock('@/service/api/outputs-api', () => ({ getOutputs: jest.fn(), getOutputsSummary: jest.fn() }))
+jest.mock('@/service/api/pins-api', () => ({ getPins: jest.fn(), addPin: jest.fn(), removePin: jest.fn(), reorderPins: jest.fn(), markPinOpened: jest.fn() }))
 jest.mock('@/service/api/artifact-api', () => ({
-  getArtifacts: jest.fn(),
   getArtifact: jest.fn(),
   getArtifactPreview: jest.fn(),
   downloadArtifactVersion: jest.fn(async () => undefined),
@@ -43,6 +46,7 @@ function version(number: number, overrides: Partial<ArtifactVersionSummary> = {}
     fileCount: 4,
     totalBytes: 40_000,
     status: 'available',
+    cover: null,
     producedBy: { kind: 'run', jobId: 'job', taskId: 'task-1' },
     createdAt: '2026-10-12T10:00:00.000Z',
     ...overrides,
@@ -75,19 +79,50 @@ function renderAt(path: string) {
   )
 }
 
-beforeEach(() => jest.clearAllMocks())
+const OUTPUT: ArtifactOutput = {
+  type: 'artifact',
+  id: 'artifact:ver-2',
+  kind: 'deck',
+  spaceId: 'space-1',
+  spaceSlug: 'deck',
+  spaceName: 'Deck',
+  taskId: 'task-1',
+  taskKey: 'DECK-1',
+  createdAt: '2026-10-12T10:00:00.000Z',
+  artifactId: 'art-1',
+  versionId: 'ver-2',
+  title: 'Q4 roadmap deck',
+  number: 2,
+  format: 'html',
+  entrypoint: 'deck/index.html',
+  cover: { kind: 'deck', slides: ['Q4 roadmap'], slideCount: 6 },
+  current: true,
+  expired: false,
+  producedBy: { kind: 'agent' },
+  imageUrl: null,
+}
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  jest.mocked(getPins).mockResolvedValue([])
+  jest.mocked(markPinOpened).mockResolvedValue(undefined)
+  jest.mocked(getOutputsSummary).mockResolvedValue({ counts: { all: 1, app: 0, deck: 1, doc: 0, data: 0, pdf: 0, image: 0 }, week: { made: 0, spaces: 0, releasesLive: 0 } })
+})
 
 describe('ArtifactsPage', () => {
-  it('lists artifacts with their task and current version', async () => {
-    jest.mocked(getArtifacts).mockResolvedValue([DETAIL])
+  it("shows the space's artifacts as covers, each version's latest only", async () => {
+    jest.mocked(getOutputs).mockResolvedValue({ items: [OUTPUT], nextCursor: null })
     renderAt('/spaces/deck/artifacts')
-    expect(await screen.findByRole('link', { name: 'Q4 roadmap deck' })).toHaveAttribute('href', '/spaces/deck/artifacts/art-1')
-    expect(screen.getByRole('link', { name: 'DECK-1' })).toHaveAttribute('href', '/spaces/deck/tasks/DECK-1')
-    expect(screen.getByText(/Version 2/)).toBeInTheDocument()
+
+    const card = await screen.findByRole('article')
+    expect(within(card).getByRole('heading', { name: 'Q4 roadmap deck' })).toBeInTheDocument()
+    expect(within(card).getByText('New version from the agent for DECK-1')).toBeInTheDocument()
+    expect(getOutputs).toHaveBeenCalledWith(expect.objectContaining({ spaceId: 'space-1', latest: true }))
+    expect(screen.queryByRole('combobox', { name: 'Space' })).not.toBeInTheDocument()
   })
 
   it('explains how to get an artifact when there are none', async () => {
-    jest.mocked(getArtifacts).mockResolvedValue([])
+    jest.mocked(getOutputs).mockResolvedValue({ items: [], nextCursor: null })
     renderAt('/spaces/deck/artifacts')
     expect(await screen.findByText('No artifacts yet')).toBeInTheDocument()
   })
@@ -123,6 +158,29 @@ describe('ArtifactPage', () => {
     expect(screen.getByText(/shows the start of the file/)).toBeInTheDocument()
   })
 
+  it('lists every version beside the preview, marking the current one and those no longer kept', async () => {
+    jest.mocked(getArtifact).mockResolvedValue({ ...DETAIL, versions: [version(2), version(1, { status: 'expired', producedBy: { kind: 'person', userId: 'u-1' } })] })
+    jest.mocked(getArtifactPreview).mockResolvedValue({ kind: 'expired' })
+    renderAt('/spaces/deck/artifacts/art-1?version=ver-1')
+
+    const versions = await screen.findByRole('navigation', { name: 'Versions' })
+    const [newest, oldest] = within(versions).getAllByRole('link')
+    expect(newest).toHaveTextContent(/v2By the agentCurrent/)
+    expect(newest).toHaveAttribute('href', '/spaces/deck/artifacts/art-1?version=ver-2')
+    expect(oldest).toHaveTextContent(/Edited by Maria.*No longer kept/)
+    expect(oldest).toHaveAttribute('aria-current', 'page')
+    expect(within(versions).getByText('1 kept of 2')).toBeInTheDocument()
+  })
+
+  it('pins the artifact from its page, and clears its new-version mark on opening', async () => {
+    jest.mocked(getArtifact).mockResolvedValue(DETAIL)
+    jest.mocked(getArtifactPreview).mockResolvedValue({ kind: 'expired' })
+    renderAt('/spaces/deck/artifacts/art-1')
+
+    expect(await screen.findByRole('button', { name: 'Pin to Home' })).toBeInTheDocument()
+    expect(markPinOpened).toHaveBeenCalledWith({ kind: 'artifact', artifactId: 'art-1' })
+  })
+
   it('says an old version is no longer kept and links to the current one', async () => {
     jest.mocked(getArtifact).mockResolvedValue(DETAIL)
     jest.mocked(getArtifactPreview).mockResolvedValue({ kind: 'expired' })
@@ -143,13 +201,5 @@ describe('ArtifactPage', () => {
 
     expect(await screen.findByText('Spreadsheets can’t be previewed yet.')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Download' })).toHaveLength(2)
-  })
-})
-
-describe('versionLabel', () => {
-  it('says who made each version and whether it is still kept', () => {
-    const name = (id: string | null) => (id === 'u-1' ? 'Maria' : null)
-    expect(versionLabel(version(1, { status: 'expired' }), name)).toMatch(/^Version 1 · .+ · by an agent · no longer kept$/)
-    expect(versionLabel(version(3, { producedBy: { kind: 'person', userId: 'u-1' } }), name)).toMatch(/edited by Maria$/)
   })
 })
