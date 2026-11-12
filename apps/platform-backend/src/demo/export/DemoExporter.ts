@@ -15,6 +15,7 @@ import { RowSelection } from "./RowSelection";
 import type { Finding, ForbiddenValue } from "./SecretScanner";
 import { SecretScanner } from "./SecretScanner";
 import { selectionContext, viewerUserId } from "./selectionContext";
+import { SignedLinkRepair } from "./SignedLinkRepair";
 import { TaskFolderRepair } from "./TaskFolderRepair";
 import { resolveViewerPins } from "./viewerPins";
 import { ACTIVITY_COLUMNS, EXCLUDED_OBJECT_PREFIXES, EXCLUDED_TABLES, EXPORTED_TABLES, LOOSE_REFERENCES, STRIPPED_JSON_KEYS } from "./tablePolicies";
@@ -62,7 +63,7 @@ export class DemoExporter {
       this.config.emailDomain,
     );
     const sanitizer = new RowSanitizer(EXPORTED_TABLES, STRIPPED_JSON_KEYS, emails, exportedAt);
-    const repairs = [excludedMessages, TaskFolderRepair.from(selected), new PiStartupNoticeRepair(), new GitHubAccountMapping(this.config.githubAccounts)];
+    const repairs = [excludedMessages, TaskFolderRepair.from(selected), new PiStartupNoticeRepair(), new GitHubAccountMapping(this.config.githubAccounts), new SignedLinkRepair()];
 
     const tables = new Map<string, Row[]>();
     const manifestTables: BundleTable[] = [];

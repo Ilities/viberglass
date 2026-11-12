@@ -14,6 +14,9 @@ describe("SecretScanner", () => {
     ["credentials in a URL", "cloning https://x-access-token:abc123@github.com/acme/app.git"],
     ["AWS access key", "AKIAIOSFODNN7EXAMPLE"],
     ["signed storage link", "https://minio/bucket/key?X-Amz-Credential=abc&X-Amz-Signature=def"],
+    ["signed storage link", "https://glm-file.bigmodel.cn/ccproxy/file-input/abc-1?OSSAccessKeyId=LTAIexample&Expires=1&Signature=xyz"],
+    ["signed storage link", "https://storage.googleapis.com/b/o?GoogleAccessId=svc%40p.iam&Signature=xyz"],
+    ["signed storage link", "https://acct.blob.core.windows.net/c/o?sv=2022-11-02&sig=abc"],
     ["Z.ai API key", "key 0123456789abcdef0123456789abcdef.AbCdEfGhIjKlMnOp"],
     ["private key", "-----BEGIN OPENSSH PRIVATE KEY-----"],
   ])("finds a %s", (kind, text) => {
@@ -28,6 +31,10 @@ describe("SecretScanner", () => {
 
   it("leaves ordinary prose about passwords and tokens alone", () => {
     expect(scanner.scanText("A customer can't reset their password on mobile; the run used 48000 tokens.", "here")).toEqual([]);
+  });
+
+  it("leaves a signed link without its query and a Signature header alone", () => {
+    expect(scanner.scanText("https://glm-file.bigmodel.cn/ccproxy/file-input/abc-1 and Set-Cookie: a=b; Expires=Wed; Signature=none", "here")).toEqual([]);
   });
 
   it("doesn't take a task's workspace folder for an sk- key", () => {

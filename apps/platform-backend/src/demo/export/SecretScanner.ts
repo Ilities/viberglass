@@ -1,5 +1,6 @@
 import { gunzipSync } from "zlib";
 import { eachString } from "../bundle/jsonValues";
+import { SIGNATURE_PARAMETERS } from "./SignedLinkRepair";
 
 export interface Finding {
   location: string;
@@ -28,7 +29,7 @@ const CREDENTIAL_PATTERNS: ReadonlyArray<{ kind: string; pattern: RegExp }> = [
   { kind: "Z.ai API key", pattern: /\b[0-9a-f]{32}\.[A-Za-z0-9]{16}\b/g },
   { kind: "JSON web token", pattern: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g },
   { kind: "private key", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/g },
-  { kind: "signed storage link", pattern: /X-Amz-(?:Signature|Credential|Security-Token)=[^&\s"]*/g },
+  { kind: "signed storage link", pattern: new RegExp(`[?&](?:amp;)?(?:${SIGNATURE_PARAMETERS.join("|")})=[^&\\s"'\\\\]+`, "gi") },
   { kind: "password hash", pattern: /\b[0-9a-f]{32}:[0-9a-f]{128}\b/g },
 ];
 
