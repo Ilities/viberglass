@@ -42,4 +42,9 @@ describe("SecretScanner", () => {
     const allowing = new SecretScanner([], ["AKIAIOSFODNN7EXAMPLE"]);
     expect(allowing.scanText("The docs' sample key AKIAIOSFODNN7EXAMPLE", "here")).toEqual([]);
   });
+
+  it("skips source values someone has checked", () => {
+    const allowing = new SecretScanner([{ kind: "a real email address", value: "Paula@Partner.example" }], ["paula@partner.example"]);
+    expect(allowing.scanText("Signed off by paula@partner.example", "here")).toEqual([]);
+  });
 });

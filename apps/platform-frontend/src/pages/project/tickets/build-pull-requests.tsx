@@ -57,7 +57,7 @@ export function BuildPullRequests({
   }, [ticketId, latestUrl, buildKey, madeLive])
 
   if (!pullRequests || pullRequests.length === 0) {
-    const reading = error ? { pullRequestUrl: latestUrl, details: null, comments: [], unavailableReason: error } : null
+    const reading = error ? { pullRequestUrl: latestUrl, details: null, comments: [], unavailableReason: error, recorded: null } : null
     return <BuildPullRequestPanel pullRequestUrl={latestUrl} pullRequest={reading} builds={builds} change={changeFor(latestUrl)} />
   }
   if (pullRequests.length === 1) {

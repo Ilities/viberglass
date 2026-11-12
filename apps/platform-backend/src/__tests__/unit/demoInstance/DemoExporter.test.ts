@@ -18,6 +18,7 @@ function source(rows: Record<string, Row[]>): ExportSource {
       ["users", [text("id"), text("email"), text("name"), text("password_hash")]],
       ["task_activity", [text("id"), text("kind"), { name: "payload_json", type: "jsonb", nullable: true }, time("created_at")]],
       ["pull_request_outcomes", [text("pull_request_url"), time("checked_at")]],
+      ["task_messages", [text("id"), text("ticket_id"), text("body_markdown")]],
       ["agent_sessions", [text("id"), text("ticket_id")]],
       ["agent_turns", [text("id"), text("session_id"), text("content_markdown")]],
       ["agent_session_events", [text("id"), text("session_id"), text("event_type"), { name: "payload_json", type: "jsonb", nullable: false }]],
@@ -96,6 +97,34 @@ describe("DemoExporter", () => {
 
     await fs.rm(directory, { recursive: true, force: true });
     const leaking = exporter(rows("merged by Xantier with ghp_abcdefghijklmnopqrstuvwxyz0123456789"), [], config).export(exportedAt);
+    await expect(leaking).rejects.toBeInstanceOf(SecretsFoundError);
+  });
+
+  it("takes a left-out message out of the threads later prompts quoted, and stops when its text still shows", async () => {
+    const config: ExportConfig = { ...DEFAULT_EXPORT_CONFIG, excludeMessages: ["m2"] };
+    const thread = [
+      `<message from="Jonas" at="2026-11-11 16:56 UTC">\nWrite the plan\n</message>`,
+      `<message from="Jonas" at="2026-11-11 17:00 UTC">\nThat failed twice. Try &lt;another&gt; agent.\n</message>`,
+      `<message from="Jonas" at="2026-11-11 17:06 UTC">\nBuild it\n</message>`,
+    ];
+    const rows = (reply: string) => ({
+      users: [{ id: "u1", email: "maria@real.com", name: "Maria", password_hash: "x" }],
+      task_messages: [
+        { id: "m1", ticket_id: "t1", body_markdown: "Write the plan" },
+        { id: "m2", ticket_id: "t1", body_markdown: "That failed twice. Try <another> agent.\n" },
+      ],
+      agent_sessions: [{ id: "s1", ticket_id: "t1" }],
+      agent_turns: [{ id: "turn1", session_id: "s1", content_markdown: reply }],
+      agent_session_events: [{ id: "e1", session_id: "s1", event_type: "turn_started", payload_json: { fullPrompt: `<thread>\n${thread.join("\n")}\n</thread>` } }],
+    });
+    const table = async (name: string) => JSON.parse(await fs.readFile(path.join(directory, "tables", `${name}.json`), "utf8"));
+
+    await exporter(rows("Building it."), [], config).export(exportedAt);
+    expect((await table("task_messages")).map((message: Row) => message.id)).toEqual(["m1"]);
+    expect((await table("agent_session_events"))[0].payload_json).toEqual({ fullPrompt: `<thread>\n${thread[0]}\n${thread[2]}\n</thread>` });
+
+    await fs.rm(directory, { recursive: true, force: true });
+    const leaking = exporter(rows("You said: That failed twice. Try <another> agent."), [], config).export(exportedAt);
     await expect(leaking).rejects.toBeInstanceOf(SecretsFoundError);
   });
 

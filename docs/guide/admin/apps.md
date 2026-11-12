@@ -32,7 +32,7 @@ Use a domain that only apps use.
 
 When a change is made live, or the repository's main branch moves on GitHub, Viberglass builds a release. Builds run on a runner Viberglass creates for itself on the default worker target, in the `viberglass-app-builder-node` image; they don't use the space's agents or their credentials. The branch is checked every minute (`APP_RELEASE_POLL_INTERVAL_MS`). A release is the built app as an archive in object storage.
 
-Going live stops the running release, backs up its data and starts the new release, which has 2 minutes (`APPS_HEALTH_TIMEOUT_MS`) to answer `/healthz`. If it doesn't, the backup is restored and the previous release starts again. Releases never overlap, because an app has one SQLite database and one copy of it in storage.
+Going live stops the running release, backs up its data and starts the new release. The host has 5 minutes (`APPS_START_TIMEOUT_MS`) to get it running, which covers scheduling the pod, attaching its volumes and pulling its image; from then on the release has 2 minutes (`APPS_HEALTH_TIMEOUT_MS`) to answer `/healthz`. Previews start the same way. If it doesn't, the backup is restored and the previous release starts again. Releases never overlap, because an app has one SQLite database and one copy of it in storage.
 
 Releases run in the `viberglass-app-runtime-node` image. It downloads the release, restores the database from object storage, and runs the app with [Litestream](https://litestream.io) copying every change back, about once a second. A replaced container, pod or task restores its data from there. Both images are published next to the worker images, with the same registry and tag (`VIBERATOR_WORKER_REGISTRY`, `VIBERATOR_WORKER_IMAGE_TAG`); `APP_BUILDER_IMAGE` and `APP_RUNTIME_IMAGE` name others.
 
@@ -87,6 +87,7 @@ These go on the backend. The install guides set the ones their target needs.
 | `APPS_PORT` | | The gateway's port, 8891 in every install. |
 | `APPS_TRUST_PROXY` | | `true` behind a proxy that appends the client's address to `X-Forwarded-For`. |
 | `APPS_MEMORY_MB`, `APPS_CPUS` | 512, 1 (0.25 on AWS) | Each app's and preview's memory and CPUs. |
+| `APPS_START_TIMEOUT_MS` | 300000 | How long the host has to get an app or preview running, before its health check's time starts. |
 | `APPS_HEALTH_TIMEOUT_MS` | 120000 | How long a new release has to answer its health check. |
 | `APPS_PREVIEW_OFF_HOUR`, `APPS_PREVIEW_IDLE_HOURS` | 3, 4 | When previews turn off. |
 | `APPS_KEEP_PREVIEWS_ON` | false | `true` keeps previews running until their change ends, for an instance that shows previews to people who can't start them, such as a demo. Chart value `apps.keepPreviewsOn`. |

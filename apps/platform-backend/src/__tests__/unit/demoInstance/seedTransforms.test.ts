@@ -108,6 +108,15 @@ describe("insertOrder", () => {
     expect(plan.deferred.get("space_file_snapshots")).toEqual(["parent_snapshot_id"]);
   });
 
+  it("defers a reference on the cycle, not one that only waits on it", () => {
+    const plan = insertOrder(
+      ["task_mentions", "agent_turns", "jobs"],
+      [fk("task_mentions", "agent_turn_id", "agent_turns"), fk("agent_turns", "job_id", "jobs"), fk("jobs", "turn_id", "agent_turns")],
+    );
+    expect(plan.deferred.has("task_mentions")).toBe(false);
+    expect(plan.order.indexOf("agent_turns")).toBeLessThan(plan.order.indexOf("task_mentions"));
+  });
+
   it("refuses a cycle through required references", () => {
     expect(() => insertOrder(["a", "b"], [fk("a", "b_id", "b", false), fk("b", "a_id", "a", false)])).toThrow(/required columns/);
   });

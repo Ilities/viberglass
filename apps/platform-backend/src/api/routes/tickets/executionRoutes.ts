@@ -5,6 +5,8 @@ import { isTaskPlanPartMark } from "@viberglass/types";
 import type { TaskPartMarksService } from "../../../services/tasks/TaskPartMarksService";
 import type { TaskPartsService } from "../../../services/tasks/TaskPartsService";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
+import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
+import { spaceViewerOf } from "../../middleware/spaceAccessGuards";
 import { validateUuidParam } from "../../middleware/validation";
 
 interface TicketExecutionRouteDependencies {
@@ -12,6 +14,7 @@ interface TicketExecutionRouteDependencies {
   buildPullRequestService: Pick<BuildPullRequestService, "listForTask">;
   parts: Pick<TaskPartsService, "state">;
   marks: Pick<TaskPartMarksService, "mark" | "unmark" | "discardBuild">;
+  spaceAccess: Pick<SpaceAccessService, "describe">;
 }
 
 export function registerTicketExecutionRoutes(
@@ -21,6 +24,7 @@ export function registerTicketExecutionRoutes(
     buildPullRequestService,
     parts,
     marks,
+    spaceAccess,
   }: TicketExecutionRouteDependencies,
 ): void {
   // GET /api/tasks/:id/build/pull-requests - The task's pull requests and their open review comments
@@ -30,7 +34,9 @@ export function registerTicketExecutionRoutes(
       if (!ticket) {
         return res.status(404).json({ error: "Ticket not found" });
       }
-      return res.json({ success: true, data: await buildPullRequestService.listForTask(ticket) });
+      const viewer = spaceViewerOf(req);
+      const canConfigure = viewer ? (await spaceAccess.describe(viewer, ticket.projectId)).canMaintain : false;
+      return res.json({ success: true, data: await buildPullRequestService.listForTask(ticket, { canConfigure }) });
     } catch (err) {
       logger.error("Error reading the build pull requests", {
         error: err instanceof Error ? err.message : String(err),

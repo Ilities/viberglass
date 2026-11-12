@@ -4,6 +4,7 @@ import { textValue, type Row } from "../bundle/jsonValues";
 import { newestPastOffset } from "../bundle/timestampOffsets";
 import type { BundleWriter } from "./BundleWriter";
 import { EmailMapping } from "./EmailMapping";
+import { ExcludedMessageRepair } from "./ExcludedMessageRepair";
 import { GitHubAccountMapping } from "./GitHubAccountMapping";
 import type { ExportConfig } from "./exportConfig";
 import type { ObjectExporter } from "./ObjectExporter";
@@ -49,7 +50,9 @@ export class DemoExporter {
     for (const table of Object.keys(EXPORTED_TABLES)) if (schema.columns.has(table)) raw.set(table, await this.source.rows(table));
 
     const rowsOf = (table: string) => raw.get(table) ?? [];
-    const selected = new RowSelection(EXPORTED_TABLES, [...schema.foreignKeys, ...LOOSE_REFERENCES]).select(raw, selectionContext(rowsOf, this.config));
+    const context = selectionContext(rowsOf, this.config);
+    const selected = new RowSelection(EXPORTED_TABLES, [...schema.foreignKeys, ...LOOSE_REFERENCES]).select(raw, context);
+    const excludedMessages = ExcludedMessageRepair.from(rowsOf("task_messages"), context.excludedMessageIds);
     const users = selected.get("users") ?? [];
     const viewerId = viewerUserId(users, this.config.viewer.sourceEmail);
     const emails = new EmailMapping(
@@ -58,7 +61,7 @@ export class DemoExporter {
       this.config.emailDomain,
     );
     const sanitizer = new RowSanitizer(EXPORTED_TABLES, STRIPPED_JSON_KEYS, emails, exportedAt);
-    const repairs = [TaskFolderRepair.from(selected), new PiStartupNoticeRepair(), new GitHubAccountMapping(this.config.githubAccounts)];
+    const repairs = [excludedMessages, TaskFolderRepair.from(selected), new PiStartupNoticeRepair(), new GitHubAccountMapping(this.config.githubAccounts)];
 
     const tables = new Map<string, Row[]>();
     const manifestTables: BundleTable[] = [];
@@ -75,7 +78,7 @@ export class DemoExporter {
       }),
     );
 
-    const scanner = new SecretScanner(await this.source.forbiddenValues(schema.columns), this.config.allowedFindings);
+    const scanner = new SecretScanner([...(await this.source.forbiddenValues(schema.columns)), ...excludedMessages.forbiddenValues()], this.config.allowedFindings);
     const findings: Finding[] = [];
     for (const [table, rows] of tables) rows.forEach((row, index) => findings.push(...scanner.scanValue(row, `${table} ${textValue(row, "id") ?? `row ${index + 1}`}`)));
 

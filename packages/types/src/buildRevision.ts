@@ -42,8 +42,22 @@ export interface BuildPullRequest {
   details: BuildPullRequestDetails | null
   /** Unresolved review threads, and review summaries and comments since the last build. */
   comments: PullRequestReviewComment[]
-  /** Why the pull request could not be read, when it could not. */
+  /** Why the pull request could not be read, when it could not and the reader may act on it. */
   unavailableReason: string | null
+  /** What Viberglass last recorded about it, for when it could not be read. */
+  recorded: RecordedPullRequest | null
+}
+
+/** A pull request as Viberglass last saw it on its code host. */
+export interface RecordedPullRequest {
+  state: BuildPullRequestState | null
+  mergedAt: string | null
+  closedAt: string | null
+  /** Who merged it, as the merge was recorded on the task. */
+  mergedBy: string | null
+  commentCount: number | null
+  reviewCommentCount: number | null
+  checkedAt: string
 }
 
 /** One of a task's pull requests: the parts of the plan it builds, on its own branch. */

@@ -49,6 +49,17 @@ describe("the preview origin", () => {
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
+  it("serves a PDF unsandboxed, so browsers show it, but still framed only by the app and never sniffed", async () => {
+    const pdf = version({ format: "pdf", entrypoint: "report.pdf", files: [{ path: "report.pdf", bytes: 20, sha256: "a", contentType: "application/pdf" }] });
+    const { app, path } = setup(pdf);
+    const response = await request(app).get(path("report.pdf"));
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toBe("application/pdf");
+    expect(response.headers["content-security-policy"]).toBe("frame-ancestors http://localhost:3000");
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
   it("resolves relative assets under the same link", async () => {
     const { app, path } = setup();
     const base = path("deck/index.html").replace(/index\.html$/, "");

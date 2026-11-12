@@ -24,6 +24,13 @@ function excludedJobIds(rowsOf: RowsOf, ids: readonly string[]): Set<string> {
   return new Set(found.values());
 }
 
+function excludedMessageIds(rowsOf: RowsOf, ids: readonly string[]): Set<string> {
+  const found = idsByColumn(rowsOf("task_messages"), "id", new Set(ids));
+  const unknown = ids.filter((id) => !found.has(id));
+  if (unknown.length > 0) throw new Error(`No task message with the id ${unknown.join(", ")}`);
+  return new Set(found.values());
+}
+
 function excludedTaskIds(rowsOf: RowsOf, keys: readonly string[]): Set<string> {
   const found = idsByColumn(rowsOf("tickets"), "task_key", new Set(keys));
   const unknown = keys.filter((key) => !found.has(key));
@@ -31,7 +38,7 @@ function excludedTaskIds(rowsOf: RowsOf, keys: readonly string[]): Set<string> {
   return new Set(found.values());
 }
 
-/** Resolves the config's spaces, people, tasks and jobs against the source rows. */
+/** Resolves the config's spaces, people, tasks, jobs and messages against the source rows. */
 export function selectionContext(rowsOf: RowsOf, config: ExportConfig): SelectionContext {
   const excluded = idsByColumn(rowsOf("users"), "email", lower(config.excludeUsers), (email) => email.toLowerCase());
   let spaceIds: Set<string> | null = null;
@@ -47,6 +54,7 @@ export function selectionContext(rowsOf: RowsOf, config: ExportConfig): Selectio
     excludedUserIds: new Set(excluded.values()),
     excludedTaskIds: excludedTaskIds(rowsOf, config.excludeTasks),
     excludedJobIds: excludedJobIds(rowsOf, config.excludeJobs),
+    excludedMessageIds: excludedMessageIds(rowsOf, config.excludeMessages),
     jobProjects: jobProjects(rowsOf),
   };
 }

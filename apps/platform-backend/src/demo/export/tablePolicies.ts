@@ -8,6 +8,7 @@ export interface SelectionContext {
   excludedUserIds: ReadonlySet<string>;
   excludedTaskIds: ReadonlySet<string>;
   excludedJobIds: ReadonlySet<string>;
+  excludedMessageIds: ReadonlySet<string>;
   /** Each job's space, for jobs no task points at. */
   jobProjects: ReadonlyMap<string, string>;
 }
@@ -105,7 +106,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, TablePolicy>> = {
   media_assets: { keepWhile: referencedBy(MEDIA_REFERENCES, "id") },
   tickets: { keep: (row, context) => !context.excludedTaskIds.has(idValue(row, "id") ?? "") },
   task_participants: {},
-  task_messages: {},
+  task_messages: { keep: (row, context) => !context.excludedMessageIds.has(idValue(row, "id") ?? "") },
   task_message_images: {},
   task_mentions: { owners: ["message_id", "agent_turn_id"] },
   task_reads: {},
@@ -121,9 +122,9 @@ export const EXPORTED_TABLES: Readonly<Record<string, TablePolicy>> = {
   ticket_phase_document_comments: {},
   ticket_phase_runs: {},
   agent_sessions: {},
-  agent_turns: { owners: ["job_id"] },
+  agent_turns: { owners: ["job_id", "task_message_id"] },
   agent_session_events: { owners: ["job_id", "turn_id"] },
-  agent_pending_requests: {},
+  agent_pending_requests: { owners: ["answer_message_id"] },
   jobs: {
     keep: (row, context) => {
       if (textValue(row, "job_kind") === "agent_login") return false;

@@ -19,4 +19,24 @@ describe('ArtifactPreviewView', () => {
     fireEvent.load(frame)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
+
+  it('sandboxes web pages but not PDFs, which browsers refuse to show in a sandbox', async () => {
+    const expiresAt = new Date(Date.now() + 3_600_000).toISOString()
+    mockPreview.mockResolvedValueOnce({ kind: 'frame', format: 'html', url: 'http://preview.test/v/1/deck/index.html', expiresAt })
+    const { unmount } = render(
+      <Theme>
+        <ArtifactPreviewView projectId="p" artifactId="a" versionId="v" title="Deck" currentVersionHref={null} onDownload={jest.fn()} />
+      </Theme>
+    )
+    expect(await screen.findByTitle('Preview of Deck')).toHaveAttribute('sandbox', 'allow-scripts')
+    unmount()
+
+    mockPreview.mockResolvedValueOnce({ kind: 'frame', format: 'pdf', url: 'http://preview.test/v/2/report.pdf', expiresAt })
+    render(
+      <Theme>
+        <ArtifactPreviewView projectId="p" artifactId="a" versionId="v2" title="Report" currentVersionHref={null} onDownload={jest.fn()} />
+      </Theme>
+    )
+    expect(await screen.findByTitle('Preview of Report')).not.toHaveAttribute('sandbox')
+  })
 })

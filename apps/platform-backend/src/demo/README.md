@@ -27,6 +27,7 @@ The config file is optional:
   "excludeUsers": ["ops@example.com"],
   "excludeTasks": ["WEB-4"],
   "excludeJobs": ["job_1794416193294_0e88b7eb"],
+  "excludeMessages": ["e0db893d-a0a8-469f-bed8-91bfe6d2fb62"],
   "spaces": ["website", "customer-app"],
   "viewer": { "sourceEmail": "visitor@example.com", "watchTaskKeys": ["APP-3", "WEB-1"] },
   "githubAccounts": { "Xantier": { "name": "Dev Patel", "login": "devpatel" } },
@@ -37,7 +38,9 @@ The config file is optional:
 - `emails` maps capture addresses to demo ones. Everyone else becomes `<first name>@<emailDomain>`. Every capture address is replaced wherever it appears in a row.
 - `excludeUsers` leaves people out; rows that need them go too, and optional references to them are cleared.
 - `excludeTasks` leaves tasks out by key, with everything that belongs to them: their thread, sessions, turns, runs and their logs, plan documents, pull requests, previews, attachments and the objects those name. A comparison whose parent task is left out goes too; a task left out of a comparison drops out of its forks, and stops being its winner. Artifacts and releases built from the task stay, no longer linked to it.
-- `excludeJobs` leaves runs out by job id, with their manifests, logs, progress and session events, the agent turns they carried out and the task activity that names them, so the thread shows no run at all. The task stays. A question the run asked stays in the thread with its answer, and a plan revision it wrote stays. A key or id the capture doesn't have stops the export.
+- `excludeJobs` leaves runs out by job id, with their manifests, logs, progress and session events, the agent turns they carried out and the task activity that names them, so the thread shows no run at all. The task stays. A question the run asked stays in the thread with its answer, and a plan revision it wrote stays.
+- `excludeMessages` leaves task messages out by id, with their mentions, the activity entry that posted them, attachments no other message uses, the agent turn and session events that carried the message to an agent, and a question the message answered. Runs the message started stay. Later turn prompts that quoted the thread lose the message's block, and the export stops if the message's text still shows anywhere else.
+- A key or id in `excludeTasks`, `excludeJobs` or `excludeMessages` that the capture doesn't have stops the export.
 - `spaces` limits the export to these space slugs. Without it every space is exported.
 - `viewer.sourceEmail` names a capture account that stood in for demo visitors, so its watches and mentions carry over. `viewer.watchTaskKeys` are tasks the shared viewer watches.
 - `githubAccounts` shows a GitHub account's actions as a persona, for when the capture used one person's token for everyone. A value that is the login, such as `mergedBy` on a merge, becomes `login` (it defaults to the name in lower case without spaces), or `name` under a name key; an avatar beside it becomes `avatarUrl` or is cleared; the login in text becomes `name`, and `@login` the persona's login. Links and `owner/repo` paths keep the real login, and GitHub itself still shows it.

@@ -1,6 +1,6 @@
 import { APP_HEALTH_PATH, type AppHost, type AppRelease } from "@viberglass/types";
 import type { AppDAO } from "../../persistence/apps/AppDAO";
-import { appHealthTimeoutMs, APP_STOP_GRACE_SECONDS } from "./appHostingConfig";
+import { appStartTimeouts, APP_STOP_GRACE_SECONDS, type AppStartTimeouts } from "./appHostingConfig";
 import type { AppInstanceRole, AppInstanceSpecs, AppLaunch } from "./AppInstanceSpecs";
 
 const POLL_MS = 2000;
@@ -23,13 +23,17 @@ export const fetchHealthProbe: HealthProbe = {
   },
 };
 
-/** Starts a release on a host and waits until it answers its health check. */
+/**
+ * Starts a release on a host and waits until it answers its health check. The
+ * health check's time only counts once the host runs the app's process, so
+ * waiting for a node, an image or a volume doesn't use it up.
+ */
 export class AppInstanceRunner {
   constructor(
     private readonly specs: Pick<AppInstanceSpecs, "specFor">,
     private readonly apps: Pick<AppDAO, "recordCredentials">,
     private readonly probe: HealthProbe = fetchHealthProbe,
-    private readonly timeoutMs: () => number = () => appHealthTimeoutMs(process.env),
+    private readonly timeouts: () => AppStartTimeouts = () => appStartTimeouts(process.env),
     private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   ) {}
 
@@ -61,23 +65,34 @@ export class AppInstanceRunner {
 
   private async waitHealthy(host: AppHost, instance: string): Promise<string | null> {
     const url = `${host.address(instance)}${APP_HEALTH_PATH}`;
-    const deadline = Date.now() + this.timeoutMs();
+    const { startMs, healthMs } = this.timeouts();
+    const startBy = Date.now() + startMs;
+    let deadline: number | null = null;
     let lastStatus: number | null = null;
-    while (Date.now() < deadline) {
+    while (deadline === null || Date.now() < deadline) {
       lastStatus = await this.probe.status(url);
       if (lastStatus === 200) return null;
       const status = await host.status(instance);
       if (status.state === "stopped" || status.state === "missing") {
         return this.withLogs(host, instance, status.detail ?? "The app stopped while starting");
       }
+      if (deadline === null && status.state !== "starting") deadline = Date.now() + healthMs;
+      if (deadline === null && Date.now() >= startBy) {
+        const waiting = `The host didn't get the app running within ${seconds(startMs)} seconds`;
+        return status.detail ? `${waiting}: ${status.detail}` : waiting;
+      }
       await this.sleep(POLL_MS);
     }
     const answer = lastStatus === null ? "didn't answer" : `answered ${lastStatus}`;
-    return this.withLogs(host, instance, `The app ${answer} on ${APP_HEALTH_PATH} within ${Math.round(this.timeoutMs() / 1000)} seconds`);
+    return this.withLogs(host, instance, `The app ${answer} on ${APP_HEALTH_PATH} within ${seconds(healthMs)} seconds of starting`);
   }
 
   private async withLogs(host: AppHost, instance: string, reason: string): Promise<string> {
     const logs = (await host.logs(instance, LOG_LINES_IN_REASON).catch(() => "")).trim();
     return logs ? `${reason}. Its last output:\n${logs}` : reason;
   }
+}
+
+function seconds(ms: number): number {
+  return Math.round(ms / 1000);
 }

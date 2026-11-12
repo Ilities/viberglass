@@ -63,6 +63,7 @@ function pullRequest(number: number, firstPart: number, lastPart: number | null)
     details: null,
     comments: [],
     unavailableReason: null,
+    recorded: null,
   }
 }
 
@@ -90,6 +91,50 @@ describe('BuildPullRequests', () => {
 
     expect(await screen.findByRole('region', { name: 'Part 1' })).toHaveTextContent('acme/app/pull/7')
     expect(screen.getByRole('region', { name: 'Parts 2 to the end' })).toHaveTextContent('acme/app/pull/9')
+  })
+})
+
+describe("BuildPullRequests when GitHub can't be read", () => {
+  const recorded = {
+    state: 'merged' as const,
+    mergedAt: '2026-09-06T10:00:00.000Z',
+    closedAt: '2026-09-06T10:00:00.000Z',
+    mergedBy: 'octocat',
+    commentCount: 3,
+    reviewCommentCount: 1,
+    checkedAt: '2026-09-06T11:00:00.000Z',
+  }
+
+  it('shows what Viberglass recorded instead of unknowns', async () => {
+    mockList.mockResolvedValue([{ ...pullRequest(7, 1, null), recorded }])
+    render(<BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/7" runs={[]} />)
+
+    expect(await screen.findByText('Merged')).toBeInTheDocument()
+    expect(screen.getByText('octocat')).toBeInTheDocument()
+    expect(screen.getByText('viberglass/t-7')).toBeInTheDocument()
+    expect(screen.getByText('3 comments, 1 on the code')).toBeInTheDocument()
+    expect(screen.getByText('Last checked')).toBeInTheDocument()
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument()
+    expect(screen.queryByText('Changes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Commits')).not.toBeInTheDocument()
+  })
+
+  it('says it has not been checked yet when nothing was recorded, without a configuration note', async () => {
+    mockList.mockResolvedValue([pullRequest(7, 1, null)])
+    render(<BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/7" runs={[]} />)
+
+    expect(await screen.findByText('Not checked yet')).toBeInTheDocument()
+    expect(screen.getByText('Not available')).toBeInTheDocument()
+    expect(screen.queryByText(/token/)).not.toBeInTheDocument()
+  })
+
+  it('shows the note on the repository connection when the server sends one', async () => {
+    const reason = "Live details from the code host need a working repository connection: the space's repository connection has no token"
+    mockList.mockResolvedValue([{ ...pullRequest(7, 1, null), recorded, unavailableReason: reason }])
+    render(<BuildPullRequests ticketId="t-1" latestUrl="https://github.com/acme/app/pull/7" runs={[]} />)
+
+    expect(await screen.findByText(reason)).toBeInTheDocument()
+    expect(screen.getByText('Merged')).toBeInTheDocument()
   })
 })
 

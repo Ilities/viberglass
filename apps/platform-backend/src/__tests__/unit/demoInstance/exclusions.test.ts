@@ -136,8 +136,34 @@ function capture(): Map<string, Row[]> {
   ]);
 }
 
-function exportWith(config: { excludeTasks?: string[]; excludeJobs?: string[] }): Map<string, Row[]> {
+type Exclusions = { excludeTasks?: string[]; excludeJobs?: string[]; excludeMessages?: string[] };
+
+/** CA-3 after a retry: the person's message started a fresh session, and the pasted screenshot only it carried. */
+function withRetry(): Map<string, Row[]> {
   const source = capture();
+  const add = (table: string, rows: Row[]) => source.set(table, [...(source.get(table) ?? []), ...rows]);
+  add("media_assets", [{ id: "m-retry", url: "s3://capture/media/retry.png" }]);
+  add("task_messages", [{ id: "msg-retry", ticket_id: "t-ca3" }]);
+  add("task_message_images", [{ id: "img-retry", message_id: "msg-retry", media_id: "m-retry" }]);
+  add("agent_sessions", [{ id: "s-retry", ticket_id: "t-ca3", last_job_id: null, last_turn_id: "turn-reply", latest_pending_request_id: "q-retry" }]);
+  add("agent_turns", [
+    { id: "turn-retry", session_id: "s-retry", role: "user", job_id: null, task_message_id: "msg-retry", consumed_by_turn_id: "turn-reply" },
+    { id: "turn-reply", session_id: "s-retry", role: "assistant", job_id: null, task_message_id: null, consumed_by_turn_id: null },
+  ]);
+  add("agent_session_events", [
+    { id: "e-retry-said", session_id: "s-retry", turn_id: "turn-retry", job_id: null },
+    { id: "e-reply", session_id: "s-retry", turn_id: "turn-reply", job_id: null },
+  ]);
+  add("agent_pending_requests", [{ id: "q-retry", session_id: "s-retry", turn_id: "turn-reply", job_id: null, answer_message_id: "msg-retry" }]);
+  add("task_mentions", [{ id: "mention-retry", ticket_id: "t-ca3", message_id: "msg-retry", agent_turn_id: null }]);
+  add("task_activity", [
+    { id: "a-posted", ticket_id: "t-ca3", kind: "message_posted", payload_json: { messageId: "msg-retry", mentioned: [] } },
+    { id: "a-retry-asked", ticket_id: "t-ca3", kind: "question_asked", payload_json: { questionId: "q-retry" } },
+  ]);
+  return source;
+}
+
+function exportWith(config: Exclusions, source = capture()): Map<string, Row[]> {
   const context = selectionContext((table) => source.get(table) ?? [], { ...DEFAULT_EXPORT_CONFIG, ...config });
   return new RowSelection(EXPORTED_TABLES, [...FOREIGN_KEYS, ...LOOSE_REFERENCES]).select(source, context);
 }
@@ -201,14 +227,38 @@ describe("leaving out a run", () => {
   });
 });
 
+describe("leaving out a message", () => {
+  const selected = exportWith({ excludeMessages: ["msg-retry"] }, withRetry());
+
+  it("takes its mentions, attachment, activity entry and the user turn made from it with it", () => {
+    expect(ids(selected, "task_messages")).toEqual(["msg-ask", "msg-answer", "msg-lap"]);
+    expect(ids(selected, "task_message_images")).toEqual(["img"]);
+    expect(ids(selected, "media_assets")).toEqual(["m-shot", "m-pasted"]);
+    expect(ids(selected, "task_mentions")).not.toContain("mention-retry");
+    expect(ids(selected, "task_activity")).not.toContain("a-posted");
+    expect(ids(selected, "agent_turns")).not.toContain("turn-retry");
+    expect(ids(selected, "agent_session_events")).not.toContain("e-retry-said");
+  });
+
+  it("keeps the run it started, and leaves out a question it answered", () => {
+    expect(ids(selected, "agent_turns")).toContain("turn-reply");
+    expect(ids(selected, "agent_session_events")).toContain("e-reply");
+    expect(ids(selected, "agent_pending_requests")).toEqual(["q-notes"]);
+    expect(ids(selected, "task_activity")).not.toContain("a-retry-asked");
+    expect(selected.get("agent_sessions")?.find((row) => row.id === "s-retry")).toMatchObject({ last_turn_id: "turn-reply", latest_pending_request_id: null });
+  });
+});
+
 describe("exclusion config", () => {
-  it("stops on a task key or job id the capture doesn't have", () => {
+  it("stops on a task key, job id or message id the capture doesn't have", () => {
     expect(() => exportWith({ excludeTasks: ["NOPE-1"] })).toThrow("No task with the key NOPE-1");
     expect(() => exportWith({ excludeJobs: ["job_missing"] })).toThrow("No job with the id job_missing");
+    expect(() => exportWith({ excludeMessages: ["msg-missing"] })).toThrow("No task message with the id msg-missing");
   });
 
   it("reads the lists and refuses to watch a task it leaves out", () => {
-    expect(parseExportConfig({ excludeTasks: ["LAP-1"], excludeJobs: ["j1"] })).toMatchObject({ excludeTasks: ["LAP-1"], excludeJobs: ["j1"] });
+    expect(parseExportConfig({ excludeTasks: ["LAP-1"], excludeJobs: ["j1"], excludeMessages: ["m1"] })).toMatchObject({ excludeTasks: ["LAP-1"], excludeJobs: ["j1"], excludeMessages: ["m1"] });
+    expect(() => parseExportConfig({ excludeMessages: [1] })).toThrow("excludeMessages must be a list of strings");
     expect(() => parseExportConfig({ excludeJobs: "j1" })).toThrow("excludeJobs must be a list of strings");
     expect(() => parseExportConfig({ excludeTasks: ["LAP-1"], viewer: { watchTaskKeys: ["LAP-1"] } })).toThrow("viewer.watchTaskKeys names excluded tasks: LAP-1");
   });

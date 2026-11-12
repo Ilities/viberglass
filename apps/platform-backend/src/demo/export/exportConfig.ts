@@ -16,6 +16,8 @@ export interface ExportConfig {
   excludeTasks: string[];
   /** Job ids left out with what they produced; their tasks stay. */
   excludeJobs: string[];
+  /** Task message ids left out with what repeats or depends on them. */
+  excludeMessages: string[];
   /** Space slugs to export; null exports every space. */
   spaces: string[] | null;
   viewer: {
@@ -35,6 +37,7 @@ export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
   excludeUsers: [],
   excludeTasks: [],
   excludeJobs: [],
+  excludeMessages: [],
   spaces: null,
   viewer: { sourceEmail: null, watchTaskKeys: [] },
   githubAccounts: {},
@@ -94,6 +97,7 @@ export function parseExportConfig(value: unknown): ExportConfig {
     excludeUsers: strings(value.excludeUsers, "excludeUsers"),
     excludeTasks,
     excludeJobs: strings(value.excludeJobs, "excludeJobs"),
+    excludeMessages: strings(value.excludeMessages, "excludeMessages"),
     spaces: value.spaces === undefined ? null : strings(value.spaces, "spaces"),
     viewer: { sourceEmail: viewer.sourceEmail ?? null, watchTaskKeys },
     githubAccounts: githubAccounts(value.githubAccounts),

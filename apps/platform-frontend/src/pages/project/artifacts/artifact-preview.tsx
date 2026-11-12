@@ -9,8 +9,9 @@ const RENEW_BEFORE_MS = 60_000
 
 /**
  * One version's preview. Text is rendered here; web pages, presentations,
- * images and PDFs load in a sandboxed frame from the separate preview
- * address, which has no access to the app or the person's sign-in.
+ * images and PDFs load in a frame from the separate preview address, which
+ * has no access to the app or the person's sign-in. The frame is sandboxed
+ * except for PDFs, which browsers won't show in a sandbox.
  */
 export function ArtifactPreviewView({
   projectId,
@@ -130,7 +131,7 @@ export function ArtifactPreviewView({
           key={preview.url}
           src={preview.url}
           title={`Preview of ${title}`}
-          sandbox="allow-scripts"
+          sandbox={preview.format === 'pdf' ? undefined : 'allow-scripts'}
           allow="fullscreen"
           allowFullScreen
           referrerPolicy="no-referrer"

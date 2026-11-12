@@ -36,7 +36,12 @@ env:
     valueFrom: {secretKeyRef: {name: {{ required "demo.reset.viewerSecret is required" $root.Values.demo.reset.viewerSecret | quote }}, key: email}}
   - name: DEMO_VIEWER_PASSWORD
     valueFrom: {secretKeyRef: {name: {{ $root.Values.demo.reset.viewerSecret | quote }}, key: password}}
+  - {name: NODE_OPTIONS, value: {{ printf "--max-old-space-size=%v" $root.Values.demo.reset.seed.heapMb | quote }}}
   {{- end }}
 securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+{{- if .seed }}
+resources: {{ toYaml $root.Values.demo.reset.seed.resources | nindent 2 }}
+{{- else }}
 resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: "1", memory: 1Gi}}
+{{- end }}
 {{- end -}}

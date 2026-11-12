@@ -15,12 +15,17 @@ import type { AppPreview } from '@/service/api/build-api'
 
 type BadgeColor = 'green' | 'red' | 'blue' | 'zinc'
 
+/** The live state when the code host could be read, else the one Viberglass last recorded. */
 function pullRequestState(pullRequest: BuildPullRequest, isChange: boolean): { label: string; color: BadgeColor } | null {
-  const details = pullRequest.details
-  if (!details?.state) return null
-  if (details.state === 'merged') return { label: isChange ? 'Made live' : 'Merged', color: 'green' }
-  if (details.state === 'closed') return { label: 'Closed', color: 'red' }
-  return details.isDraft ? { label: 'Draft', color: 'zinc' } : { label: isChange ? 'Ready' : 'Open', color: 'blue' }
+  const state = pullRequest.details?.state ?? pullRequest.recorded?.state
+  if (!state) return null
+  if (state === 'merged') return { label: isChange ? 'Made live' : 'Merged', color: 'green' }
+  if (state === 'closed') return { label: 'Closed', color: 'red' }
+  return pullRequest.details?.isDraft ? { label: 'Draft', color: 'zinc' } : { label: isChange ? 'Ready' : 'Open', color: 'blue' }
+}
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
 /** In an App space the pull request is the task's change, which can be tried and made live from here. */
@@ -53,10 +58,26 @@ function Missing({ children }: { children: ReactNode }) {
   return <span className="text-[var(--gray-9)]">{children}</span>
 }
 
+/** Open review comments when GitHub could be read; otherwise why not, or when Viberglass last checked. */
+function ReviewFact({ pullRequest }: { pullRequest: BuildPullRequest | null }) {
+  if (pullRequest === null) return <Fact label="Review"><Missing>Reading…</Missing></Fact>
+  if (pullRequest.unavailableReason) return <Fact label="Review"><Missing>{pullRequest.unavailableReason}</Missing></Fact>
+  if (!pullRequest.details) {
+    return pullRequest.recorded ? (
+      <Fact label="Last checked"><Timestamp date={pullRequest.recorded.checkedAt} /></Fact>
+    ) : (
+      <Fact label="Review"><Missing>Not available</Missing></Fact>
+    )
+  }
+  const count = pullRequest.comments.length
+  return <Fact label="Review">{count > 0 ? plural(count, 'open comment') : <Missing>No open comments</Missing>}</Fact>
+}
+
 /**
  * A pull request as GitHub has it now, and what reviewers still want changed;
  * with `builds`, also the builds that went into it. `pullRequest` is null
- * while it's being read.
+ * while it's being read. When GitHub can't be read, it shows what Viberglass
+ * recorded when it last checked.
  */
 export function BuildPullRequestPanel({
   pullRequestUrl,
@@ -65,12 +86,15 @@ export function BuildPullRequestPanel({
   change,
 }: {
   pullRequestUrl: string
-  pullRequest: BuildPullRequest | null
+  pullRequest: (BuildPullRequest & { branch?: string }) | null
   builds?: JobListItem[]
   change?: ChangeView
 }) {
   const latestBuild = builds?.[0]
   const details = pullRequest?.details ?? null
+  const recorded = details ? null : (pullRequest?.recorded ?? null)
+  const branch = details?.headBranch ?? pullRequest?.branch ?? null
+  const closedAt = recorded?.state === 'merged' ? recorded.mergedAt : recorded?.state === 'closed' ? recorded.closedAt : null
   const state = pullRequest ? pullRequestState(pullRequest, Boolean(change)) : null
   const comments = pullRequest?.comments ?? []
   const headSha = details?.state === 'open' && !details.isDraft ? details.headSha : null
@@ -128,30 +152,44 @@ export function BuildPullRequestPanel({
           )}
           {details?.title && <Fact label="Title">{details.title}</Fact>}
           <Fact label="State">
-            {state ? <Badge color={state.color}>{state.label}</Badge> : <Missing>{pullRequest ? 'Unknown' : 'Reading…'}</Missing>}
+            {state ? (
+              <>
+                <Badge color={state.color}>{state.label}</Badge>
+                {closedAt && <span className="text-[var(--gray-9)]"> · <Timestamp date={closedAt} /></span>}
+              </>
+            ) : (
+              <Missing>{!pullRequest ? 'Reading…' : details ? 'Unknown' : 'Not checked yet'}</Missing>
+            )}
           </Fact>
-          <Fact label="Branch">
-            {details?.headBranch ? (
+          {recorded?.mergedBy && <Fact label={change ? 'Made live by' : 'Merged by'}>{recorded.mergedBy}</Fact>}
+          {branch && (
+            <Fact label="Branch">
               <span className="font-mono text-[13px]">
-                {details.headBranch}
-                {details.baseBranch && <span className="text-[var(--gray-9)]"> → {details.baseBranch}</span>}
+                {branch}
+                {details?.baseBranch && <span className="text-[var(--gray-9)]"> → {details.baseBranch}</span>}
               </span>
-            ) : (
-              <Missing>Unknown</Missing>
-            )}
-          </Fact>
-          <Fact label="Changes">
-            {details?.additions !== null && details?.additions !== undefined && details.deletions !== null ? (
-              <span className="tabular-nums">
-                <span className="text-green-700 dark:text-green-400">+{details.additions}</span>{' '}
-                <span className="text-red-700 dark:text-red-400">−{details.deletions}</span>
-                {details.changedFiles !== null && <span className="text-[var(--gray-9)]"> in {details.changedFiles} file{details.changedFiles === 1 ? '' : 's'}</span>}
-              </span>
-            ) : (
-              <Missing>Unknown</Missing>
-            )}
-          </Fact>
-          <Fact label="Commits">{details?.commitCount ?? <Missing>Unknown</Missing>}</Fact>
+            </Fact>
+          )}
+          {details && (
+            <Fact label="Changes">
+              {details.additions !== null && details.deletions !== null ? (
+                <span className="tabular-nums">
+                  <span className="text-green-700 dark:text-green-400">+{details.additions}</span>{' '}
+                  <span className="text-red-700 dark:text-red-400">−{details.deletions}</span>
+                  {details.changedFiles !== null && <span className="text-[var(--gray-9)]"> in {plural(details.changedFiles, 'file')}</span>}
+                </span>
+              ) : (
+                <Missing>Unknown</Missing>
+              )}
+            </Fact>
+          )}
+          {details && <Fact label="Commits">{details.commitCount ?? <Missing>Unknown</Missing>}</Fact>}
+          {recorded?.commentCount !== null && recorded?.commentCount !== undefined && (
+            <Fact label="Comments">
+              {plural(recorded.commentCount, 'comment')}
+              {recorded.reviewCommentCount ? `, ${recorded.reviewCommentCount} on the code` : ''}
+            </Fact>
+          )}
         </FactList>
 
         <FactList title={builds ? 'Builds' : 'Review'}>
@@ -165,17 +203,7 @@ export function BuildPullRequestPanel({
               <Fact label="Took">{formatRunDuration(latestBuild.processedAt, latestBuild.finishedAt) ?? <Missing>Not started</Missing>}</Fact>
             </>
           )}
-          <Fact label="Review">
-            {pullRequest === null ? (
-              <Missing>Reading…</Missing>
-            ) : pullRequest.unavailableReason ? (
-              <Missing>{pullRequest.unavailableReason}</Missing>
-            ) : comments.length > 0 ? (
-              `${comments.length} open comment${comments.length === 1 ? '' : 's'}`
-            ) : (
-              <Missing>No open comments</Missing>
-            )}
-          </Fact>
+          <ReviewFact pullRequest={pullRequest} />
         </FactList>
       </div>
 

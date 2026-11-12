@@ -17,6 +17,7 @@ Viberglass is self-hosted: its database, files and secrets stay in infrastructur
 - On Kubernetes, workers run in their own namespace with no service account token, and network policies limit where they can connect. Network policies need a network plugin that enforces them.
 - In Files spaces, workers fetch and save the space's files through short-lived signed URLs for that run only, and get no storage credentials.
 - Artifact previews run the agent's HTML and scripts. They're served from a host of their own, where the app's sign-in cookies never go, in a sandbox, through signed links that work for an hour.
+- PDF previews are the exception to the sandbox: browsers won't show a PDF in a sandboxed frame. A PDF is shown by the browser's own viewer, which doesn't run it as a web page, and it's still served from the preview host, only to frames on the app's address, with its declared type and no content sniffing, so a file that isn't a PDF can't render as a page there. Any other file a PDF links to in its version is served sandboxed as usual.
 
 ## Credentials
 

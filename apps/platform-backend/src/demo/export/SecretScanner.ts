@@ -47,10 +47,12 @@ export class SecretScanner {
   private readonly allowed: ReadonlySet<string>;
 
   constructor(forbidden: Iterable<ForbiddenValue>, allowed: Iterable<string> = []) {
+    this.allowed = new Set(allowed);
+    const allowedLower = new Set([...this.allowed].map((value) => value.toLowerCase()));
     this.forbidden = [...forbidden]
       .filter((item) => item.value.length >= MIN_FORBIDDEN_LENGTH)
-      .map((item) => ({ kind: item.kind, value: item.value.toLowerCase() }));
-    this.allowed = new Set(allowed);
+      .map((item) => ({ kind: item.kind, value: item.value.toLowerCase() }))
+      .filter((item) => !allowedLower.has(item.value));
   }
 
   scanText(text: string, location: string): Finding[] {

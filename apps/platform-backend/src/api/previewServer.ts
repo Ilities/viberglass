@@ -8,21 +8,27 @@ const logger = createChildLogger({ server: "preview" });
 
 /** The headers every preview response gets, whatever it is. */
 export function previewHeaders(appOrigin: string | null, contentType: string): Record<string, string> {
-  const pdf = contentType === "application/pdf";
-  return {
-    "Content-Type": contentType,
-    // A sandbox even if the file is opened on its own: scripts run, but with no
-    // origin of their own, no forms, no top-level navigation and no network
-    // beyond this version's own files. Browsers' PDF viewers don't run sandboxed.
-    "Content-Security-Policy": [
-      ...(pdf ? [] : ["sandbox allow-scripts allow-popups"]),
+  const frameAncestors = `frame-ancestors ${appOrigin ?? "'none'"}`;
+  // Browsers refuse to show a PDF in a sandbox, and their viewers don't run
+  // the file's scripts as a page; the explicit type and nosniff keep anything
+  // else from being rendered as one.
+  const policy = contentType === "application/pdf"
+    ? [frameAncestors]
+    : [
+      // A sandbox even if the file is opened on its own: scripts run, but with no
+      // origin of their own, no forms, no top-level navigation and no network
+      // beyond this version's own files.
+      "sandbox allow-scripts allow-popups",
       "default-src 'self' data: blob: 'unsafe-inline' 'unsafe-eval'",
       "connect-src 'self' data: blob:",
       "form-action 'none'",
       "base-uri 'self'",
       "object-src 'none'",
-      `frame-ancestors ${appOrigin ?? "'none'"}`,
-    ].join("; "),
+      frameAncestors,
+    ];
+  return {
+    "Content-Type": contentType,
+    "Content-Security-Policy": policy.join("; "),
     // Module scripts and fetches from a sandboxed (opaque) origin are cross-origin requests.
     "Access-Control-Allow-Origin": "*",
     "Cross-Origin-Resource-Policy": "cross-origin",

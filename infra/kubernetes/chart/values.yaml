@@ -66,6 +66,12 @@ demo:
       prefix: ""
     # A Secret with the shared viewer's `email` and `password`.
     viewerSecret: viberglass-demo-viewer
+    # The seeder holds the whole bundle in memory; its heap must fit the limit.
+    seed:
+      heapMb: 2560
+      resources:
+        requests: {cpu: 100m, memory: 512Mi}
+        limits: {cpu: "1", memory: 3Gi}
     # Where the reset reaches the Kubernetes API; narrow to the API server's address where it's known.
     apiServer:
       cidrs: ["0.0.0.0/0"]

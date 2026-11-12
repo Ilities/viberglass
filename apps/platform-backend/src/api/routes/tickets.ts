@@ -249,6 +249,7 @@ registerTicketExecutionRoutes(router, {
   buildPullRequestService,
   parts: new TaskPartsService(),
   marks: new TaskPartMarksService(),
+  spaceAccess,
 });
 
 const agentSessionDAO = new AgentSessionDAO();

@@ -26,10 +26,23 @@ export function insertOrder(tables: readonly string[], foreignKeys: readonly For
   const done = new Set<string>();
   const remaining = [...tables];
   const blockers = (table: string) => (pending.get(table) ?? []).filter((key) => !done.has(key.references));
+  // A table that only waits on a cycle mustn't be deferred: its check constraints may forbid the nulls.
+  const onCycle = (table: string): boolean => {
+    const seen = new Set<string>();
+    const stack = blockers(table).map((key) => key.references);
+    while (stack.length > 0) {
+      const next = stack.pop() as string;
+      if (next === table) return true;
+      if (seen.has(next)) continue;
+      seen.add(next);
+      stack.push(...blockers(next).map((key) => key.references));
+    }
+    return false;
+  };
   while (remaining.length > 0) {
     let index = remaining.findIndex((table) => blockers(table).length === 0);
     if (index === -1) {
-      index = remaining.findIndex((table) => blockers(table).every((key) => key.nullable));
+      index = remaining.findIndex((table) => onCycle(table) && blockers(table).every((key) => key.nullable));
       if (index === -1) throw new Error(`Tables reference each other through required columns: ${remaining.join(", ")}`);
       const table = remaining[index];
       blockers(table).forEach(defer);

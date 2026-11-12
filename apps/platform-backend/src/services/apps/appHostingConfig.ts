@@ -104,9 +104,15 @@ export function fargateSize(cpus: number, memoryMb: number): { cpu: string; memo
 /** Host firewall rules for apps name this range, so changing it means changing them too. */
 export const DEFAULT_APP_NETWORK_POOL = "10.250.0.0/16";
 
-/** How long an app gets to answer its health check after starting. */
-export function appHealthTimeoutMs(env: Env): number {
-  return positive(env.APPS_HEALTH_TIMEOUT_MS, 120_000);
+export interface AppStartTimeouts {
+  /** How long the host gets to get the app's process running, such as while volumes attach. */
+  startMs: number;
+  /** How long the app then gets to answer its health check. */
+  healthMs: number;
+}
+
+export function appStartTimeouts(env: Env): AppStartTimeouts {
+  return { startMs: positive(env.APPS_START_TIMEOUT_MS, 300_000), healthMs: positive(env.APPS_HEALTH_TIMEOUT_MS, 120_000) };
 }
 
 /** Long enough for the app to shut down and Litestream to send its last changes. */

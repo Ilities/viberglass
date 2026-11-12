@@ -1,4 +1,5 @@
-import type { PullRequestOutcome } from "@viberglass/types";
+import type { PullRequestOutcome, RecordedPullRequest } from "@viberglass/types";
+import { sql } from "kysely";
 import db from "../config/database";
 
 /** When an open PR is due again: a PR first seen after `recentSince` once checked before `recentBefore`, an older one before `olderBefore`. */
@@ -53,6 +54,41 @@ export class PullRequestOutcomeDAO {
         ? [{ pullRequestUrl: row.pull_request_url, projectId: row.project_id }]
         : [],
     );
+  }
+
+  /** What was last recorded about these pull requests, by URL, with who merged each when its task recorded that. */
+  async recordedFor(pullRequestUrls: string[]): Promise<Map<string, RecordedPullRequest>> {
+    if (pullRequestUrls.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("pull_request_outcomes as o")
+      .select((eb) => [
+        "o.pull_request_url",
+        "o.state",
+        "o.merged_at",
+        "o.closed_at",
+        "o.comment_count",
+        "o.review_comment_count",
+        "o.checked_at",
+        eb
+          .selectFrom("task_activity as a")
+          .select(sql<string | null>`a.payload_json->>'mergedBy'`.as("merged_by"))
+          .where("a.kind", "=", "pull_request_merged")
+          .where(sql<string>`a.payload_json->>'pullRequestUrl'`, "=", eb.ref("o.pull_request_url"))
+          .orderBy("a.created_at", "desc")
+          .limit(1)
+          .as("merged_by"),
+      ])
+      .where("o.pull_request_url", "in", pullRequestUrls)
+      .execute();
+    return new Map(rows.map((row) => [row.pull_request_url, {
+      state: row.state,
+      mergedAt: row.merged_at?.toISOString() ?? null,
+      closedAt: row.closed_at?.toISOString() ?? null,
+      mergedBy: row.merged_by ?? null,
+      commentCount: row.comment_count,
+      reviewCommentCount: row.review_comment_count,
+      checkedAt: row.checked_at.toISOString(),
+    }]));
   }
 
   async recordOutcome(pullRequestUrl: string, outcome: PullRequestOutcome): Promise<void> {
