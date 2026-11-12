@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import { getChangePreviews, tryChange, type AppPreview } from '@/service/api/build-api'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -56,6 +57,27 @@ export function previewStatus(preview: AppPreview | null, headSha: string | null
     case 'running':
       return stale ? 'Running an older version' : 'Running'
   }
+}
+
+/** A running preview's address, or null while it can't be opened. */
+export function openablePreviewUrl(preview: AppPreview | null): string | null {
+  if (!preview || preview.power !== 'on' || preview.state !== 'running') return null
+  return preview.url
+}
+
+/** Open preview as a plain link, for whoever sees the change without a button that opens it. */
+export function OpenPreviewLink({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener"
+      className="ml-2 inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current"
+    >
+      Open preview
+      <ExternalLinkIcon className="size-3.5" />
+    </a>
+  )
 }
 
 /**

@@ -13,6 +13,8 @@ Viberglass runs on your own servers, with the coding agents and models you choos
 
 [![Watch the overview (3:00): a week at a 25-person company, with an internal app, a competitor brief, a bug fix and a proposal](docs/guide/images/intro-video.jpg)](https://viberglass.io/#video)
 
+Try the read-only demo at [demo.viberglass.io](https://demo.viberglass.io): sign in as `demo@viberglass.io` with the password `viberglass-demo` and look around a 25-person company's workspace, with its apps, documents and code changes. It resets every night.
+
 ## Apps
 
 An App space builds one internal tool for the team, such as an equipment tracker or an approval list, and Viberglass runs it. Someone describes the app in a task and the agent writes it. Each change runs in a preview with a copy of the live data, and goes live when the task's owner or a maintainer says so. Viberglass keeps the code in a private repository, backs up the app's data, signs people in with their Viberglass accounts and can give an app to people outside the team without showing them anything else. See [Apps](docs/guide/user/apps.md).

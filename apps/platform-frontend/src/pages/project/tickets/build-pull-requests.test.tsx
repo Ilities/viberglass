@@ -198,6 +198,48 @@ describe('BuildPullRequests in an App space', () => {
     expect(screen.queryByRole('button', { name: 'Try it' })).not.toBeInTheDocument()
   })
 
+  it('lets a viewer open a running preview without offering Try it', async () => {
+    mockList.mockResolvedValue([openChange()])
+    mockPreviews.mockResolvedValue([preview()])
+    render(
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: false, canTry: false, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
+    )
+
+    const link = await screen.findByRole('link', { name: 'Open preview' })
+    expect(link).toHaveAttribute('href', 'https://preview-abcd2345.apps.example.com')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.getByText('Running')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Try/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make it live' })).not.toBeInTheDocument()
+  })
+
+  it("opens a running preview when the change's latest commit can't be read", async () => {
+    const reason = "Live details from the code host need a working repository connection: the space's repository connection has no token"
+    mockList.mockResolvedValue([{ ...pullRequest(3, 1, null), unavailableReason: reason }])
+    mockPreviews.mockResolvedValue([preview()])
+    render(
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: true, canTry: true, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(await screen.findByRole('link', { name: 'Open preview' })).toHaveAttribute('href', 'https://preview-abcd2345.apps.example.com')
+    expect(screen.queryByRole('button', { name: /Try/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make it live' })).not.toBeInTheDocument()
+  })
+
+  it("doesn't link to a preview that isn't running", async () => {
+    mockList.mockResolvedValue([openChange()])
+    mockPreviews.mockResolvedValue([preview({ power: 'off', state: 'off' })])
+    render(
+      <BuildPullRequests ticketId="t-1" latestUrl={CHANGE_URL} runs={[]} change={{ ticketId: 't-1', canMakeLive: false, canTry: false, onMadeLive: jest.fn() }} />,
+      { wrapper: MemoryRouter }
+    )
+
+    expect(await screen.findByText('Off')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open preview' })).not.toBeInTheDocument()
+  })
+
   it("doesn't show a preview for a change that was made live", async () => {
     const change = openChange()
     mockList.mockResolvedValue([{ ...change, details: change.details && { ...change.details, state: 'merged' } }])

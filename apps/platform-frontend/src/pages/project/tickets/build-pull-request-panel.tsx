@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 import { formatRunDuration } from '../jobs/run-facts'
 import { addressPath } from '@/lib/repositoryAddress'
 import { MakeLiveButton } from './make-live-button'
-import { previewStatus, TryItButton } from './change-preview'
+import { openablePreviewUrl, OpenPreviewLink, previewStatus, TryItButton } from './change-preview'
 import type { AppPreview } from '@/service/api/build-api'
 
 type BadgeColor = 'green' | 'red' | 'blue' | 'zinc'
@@ -100,6 +100,8 @@ export function BuildPullRequestPanel({
   const headSha = details?.state === 'open' && !details.isDraft ? details.headSha : null
   const tried = Boolean(headSha && change?.preview?.triedCommitSha === headSha)
   const canMakeLiveNow = Boolean(change?.canMakeLive && tried)
+  const previewUrl = openablePreviewUrl(change?.preview ?? null)
+  const buttonOpensPreview = Boolean(change?.canTry && headSha && change.preview?.commitSha === headSha)
 
   return (
     <div className="@container space-y-8 py-4">
@@ -134,6 +136,7 @@ export function BuildPullRequestPanel({
           {change && (details?.state === 'open' || change.preview) && (
             <Fact label="Preview">
               {previewStatus(change.preview, headSha)}
+              {previewUrl && !buttonOpensPreview && <OpenPreviewLink url={previewUrl} />}
               {change.preview?.state === 'failed' && change.preview.statusMessage && (
                 <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-[var(--gray-11)]">{change.preview.statusMessage}</pre>
               )}
