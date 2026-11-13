@@ -373,6 +373,11 @@ export const setupNewRepositorySchema = Joi.object({
   token: Joi.string().trim().min(1).max(1000).required(),
 });
 
+export const setupAppHomeSchema = Joi.object({
+  owner: Joi.string().trim().min(1).max(200).required(),
+  token: Joi.string().trim().min(1).max(1000).required(),
+});
+
 /** A repository created with a code host connection's token: the chosen credential, else its default. */
 export const newConnectionRepositorySchema = Joi.object({
   ...newRepositoryFields,

@@ -218,6 +218,30 @@ describe("SetupRepositoryService", () => {
       expect(host.creator.createRepository).not.toHaveBeenCalled();
     });
 
+    it("saves a token that can create repositories under the owner, with the owner's own spelling", async () => {
+      const { service, host, saveByName } = build();
+      host.creator.listOwners.mockResolvedValue([{ name: "jane", kind: "user" }, { name: "Acme", kind: "organization" }]);
+
+      await expect(service.saveCreatingToken("acme", "ghp_abc")).resolves.toEqual({
+        integrationId: "integration-new",
+        credentialId: "credential-new",
+        owner: "Acme",
+      });
+      expect(saveByName).toHaveBeenCalledWith("GITHUB_TOKEN", "ghp_abc");
+    });
+
+    it("names the owners it can use when the token can't create repositories under this one, and saves nothing", async () => {
+      const { service, host, saveByName } = build();
+      host.creator.listOwners.mockResolvedValue([{ name: "jane", kind: "user" }]);
+
+      await expect(service.saveCreatingToken("acme", "ghp_abc")).rejects.toMatchObject({
+        code: SETUP_SERVICE_ERROR_CODE.OWNER_UNAVAILABLE,
+        statusCode: 422,
+        message: "This token can't create repositories under acme. Choose one of: jane.",
+      });
+      expect(saveByName).not.toHaveBeenCalled();
+    });
+
     it("explains when the code host can't create repositories", async () => {
       const service = new SetupRepositoryService(() => ({ system: "github", label: "GitHub", repository: fakeRepositoryHost() }));
 

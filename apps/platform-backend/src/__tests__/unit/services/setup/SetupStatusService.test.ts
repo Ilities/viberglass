@@ -1,4 +1,4 @@
-import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ModelEndpoint, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
+import type { AppSpaceRequirement, Clanker, ClankerStatus, IntegrationCredential, Integration, ModelEndpoint, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
 import type { Project } from "@viberglass/types";
 import { SetupStatusService } from "../../../../services/setup/SetupStatusService";
 import { fakeCreatingRepositoryHost, fakeRepositoryHost } from "../../../helpers/fakeRepositoryHost";
@@ -74,7 +74,7 @@ function runner(status: ClankerStatus): Clanker {
   };
 }
 
-function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; files?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[]; creates?: boolean }) {
+function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; files?: boolean; agent?: ClankerStatus | null; endpoints?: ModelEndpoint[]; creates?: boolean; app?: boolean; appMissing?: AppSpaceRequirement[] }) {
   const defaultAgent = state.agent ? runner(state.agent) : null;
   return new SetupStatusService({
     secrets: {
@@ -84,7 +84,7 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
     integrations: { listIntegrations: async () => (state.github ? [GITHUB] : []) },
     codeHost: () => ({ system: "github", label: "GitHub", repository: state.creates === false ? fakeRepositoryHost() : fakeCreatingRepositoryHost() }),
     credentials: { getDefaultForIntegration: async () => (state.github ? TOKEN : null) },
-    projects: { listProjects: async () => [...(state.files ? [{ ...PROJECT, id: "files-space", backingKind: "files" as const }] : []), ...(state.space ? [PROJECT] : [])] },
+    projects: { listProjects: async () => [...(state.files ? [{ ...PROJECT, id: "files-space", backingKind: "files" as const }] : []), ...(state.space ? [{ ...PROJECT, backingKind: state.app ? ("app" as const) : ("git" as const) }] : [])] },
     scmConfigs: { getByProjectId: async () => (state.space ? SCM : null) },
     clankers: {
       getClankerBySlug: async () => defaultAgent,
@@ -92,6 +92,12 @@ function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?:
     },
     demo: { getDemo: async () => null },
     endpoints: { list: async () => state.endpoints ?? [] },
+    appHome: {
+      status: async () => {
+        const missing = state.appMissing ?? ["app_home"];
+        return { home: null, availability: { available: missing.length === 0, missing } };
+      },
+    },
   });
 }
 
@@ -110,6 +116,7 @@ describe("SetupStatusService", () => {
       connectedEndpoints: [],
       repositoryConnected: false,
       createsRepositories: true,
+      appSpaces: "needs_home",
       space: null,
       agent: null,
       complete: false,
@@ -125,11 +132,24 @@ describe("SetupStatusService", () => {
       connectedEndpoints: [],
       repositoryConnected: true,
       createsRepositories: true,
+      appSpaces: "needs_home",
       space: { projectId: "project-1", name: "Web", slug: "web", backingKind: "git", repositoryUrl: "https://github.com/acme/web" },
       agent: { clankerId: "clanker-1", agentName: "OpenCode", status: "deploying", statusMessage: "Docker image ready" },
       complete: false,
       demo: null,
     });
+  });
+
+  it("resumes an App space as an App space", async () => {
+    const status = await service({ space: true, app: true }).getStatus();
+    expect(status.space).toMatchObject({ backingKind: "app" });
+  });
+
+  it("offers App spaces when they're ready, or when setup can save the App home itself", async () => {
+    expect((await service({ appMissing: [] }).getStatus()).appSpaces).toBe("available");
+    expect((await service({ appMissing: ["app_home"] }).getStatus()).appSpaces).toBe("needs_home");
+    expect((await service({ appMissing: ["apps_domain", "app_home"] }).getStatus()).appSpaces).toBe("unavailable");
+    expect((await service({ appMissing: ["app_home"], creates: false }).getStatus()).appSpaces).toBe("unavailable");
   });
 
   it("doesn't offer to create a repository when the code host can't", async () => {

@@ -30,6 +30,7 @@ import {
   setupRepositorySchema,
   setupRepositoryOwnersSchema,
   setupNewRepositorySchema,
+  setupAppHomeSchema,
   newConnectionRepositorySchema,
   setupSpaceSchema,
   appHomeSchema,
@@ -170,6 +171,7 @@ export const validateSetupRepositoryOwners = createValidator(setupRepositoryOwne
 export const validateSetupNewRepository = createValidator(setupNewRepositorySchema, {
   name: "setupNewRepository",
 });
+export const validateSetupAppHome = createValidator(setupAppHomeSchema, { name: "setupAppHome" });
 export const validateNewConnectionRepository = createValidator(newConnectionRepositorySchema, {
   name: "newConnectionRepository",
 });

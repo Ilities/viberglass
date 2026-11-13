@@ -9,7 +9,7 @@ Settings → Apps lists what's still missing. App spaces are offered when people
 - An apps domain: `APPS_DOMAIN`, a wildcard domain apps are served under, such as `apps.viberglass.example.com`.
 - Object storage, where app data, backups and releases are kept (`S3_BUCKET`).
 - Somewhere to run apps. Docker always can. On Kubernetes the chart sets it up when `apps.domain` is set, and on AWS the platform stack does when `appsDomain` is set.
-- An App home, chosen on the same page.
+- An App home, chosen on the same page or in first-run setup.
 
 ## The App home
 

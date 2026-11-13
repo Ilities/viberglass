@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
+  AppHomeStatus,
   CreatedSpace,
   CreateSetupSpaceRequest,
   DefaultAgent,
@@ -61,6 +62,10 @@ export async function listSetupRepositoryOwners(token: string): Promise<Reposito
 
 export async function createSetupRepository(repository: NewRepository, token: string): Promise<SavedRepository> {
   return readData(await post('repository/new', { ...repository, token }), "Couldn't create the repository")
+}
+
+export async function saveSetupAppHome(owner: string, token: string): Promise<AppHomeStatus> {
+  return readData(await post('app-home', { owner, token }), "Couldn't check the token")
 }
 
 export async function createSpace(input: CreateSetupSpaceRequest): Promise<CreatedSpace> {

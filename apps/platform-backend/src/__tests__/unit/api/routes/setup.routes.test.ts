@@ -8,6 +8,7 @@ import {
 const mockModelKeyService = { saveModelKey: jest.fn() };
 const mockRepositoryService = { saveRepository: jest.fn(), listOwners: jest.fn(), createRepository: jest.fn() };
 const mockSpaceService = { createSpace: jest.fn() };
+const mockAppHomeService = { saveAppHome: jest.fn() };
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
@@ -24,6 +25,10 @@ jest.mock("../../../../services/setup/SetupRepositoryService", () => ({
 
 jest.mock("../../../../services/setup/SetupSpaceService", () => ({
   SetupSpaceService: jest.fn(() => mockSpaceService),
+}));
+
+jest.mock("../../../../services/setup/SetupAppHomeService", () => ({
+  SetupAppHomeService: jest.fn(() => mockAppHomeService),
 }));
 
 import setupRouter from "../../../../api/routes/setup";
@@ -150,6 +155,20 @@ describe("setup routes", () => {
   it("needs a name for the new repository", async () => {
     await request(app).post("/api/setup/repository/new").send({ owner: "acme", token: "ghp_abc" }).expect(400);
     expect(mockRepositoryService.createRepository).not.toHaveBeenCalled();
+  });
+
+  it("saves the App home from a token and an owner", async () => {
+    mockAppHomeService.saveAppHome.mockResolvedValue({ home: { owner: "acme" }, availability: { available: true, missing: [] } });
+
+    const response = await request(app).post("/api/setup/app-home").send({ owner: "acme", token: "ghp_abc" }).expect(200);
+
+    expect(response.body.data.availability.available).toBe(true);
+    expect(mockAppHomeService.saveAppHome).toHaveBeenCalledWith("acme", "ghp_abc", null);
+  });
+
+  it("needs an owner for the App home", async () => {
+    await request(app).post("/api/setup/app-home").send({ token: "ghp_abc" }).expect(400);
+    expect(mockAppHomeService.saveAppHome).not.toHaveBeenCalled();
   });
 
   it("creates the first space", async () => {

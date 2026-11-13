@@ -113,6 +113,8 @@ export function SetupPage() {
         {step === 'repository' && (
           <RepositoryStep
             createsRepositories={loaded.status.createsRepositories}
+            appSpaces={loaded.status.appSpaces}
+            onAppHomeSaved={() => setLoaded({ ...loaded, status: { ...loaded.status, appSpaces: 'available' } })}
             onChooseWithoutRepository={(backingKind) => {
               setRepository(null)
               setSpaceBacking(backingKind)

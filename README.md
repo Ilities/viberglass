@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
 
-Viberglass is an open-source internal tool builder that you host yourself, where coding agents write the apps. Anyone on the team describes the tool they need in a task, such as an equipment tracker or an approval list. The agent builds it and asks the requester when something is unclear. Each change runs in a preview with a copy of the live data before the requester or a maintainer makes it live. Viberglass keeps the code in a private repository, signs people in, backs up the data and can roll back any release. The same tasks can produce documents and presentations, or change your own product through a reviewed GitHub pull request.
+Viberglass is an open-source internal tool builder that you host yourself, where coding agents write the apps and Viberglass runs them. Anyone on the team describes the tool they need in a task, such as an equipment tracker or an approval list. The agent builds it and asks the requester when something is unclear. Each change runs in a preview with a copy of the live data before the requester or a maintainer makes it live. Viberglass keeps the code in a private repository, signs people in, backs up the data and can roll back to a recent release. The same tasks can produce documents and presentations, or change your own product through a reviewed GitHub pull request.
 
 Viberglass runs on your own servers, with the coding agents and models you choose. Your tasks, files, app data and code stay there, and there's no Viberglass cloud or account to sign up for. Agents send a model only what the task in front of them needs, with your own key, and with a model you host yourself nothing leaves your network.
 
@@ -26,7 +26,7 @@ An App space builds one internal tool for the team, such as an equipment tracker
 </tr>
 <tr>
 <td>A change ready to try in a preview, then make live.</td>
-<td>Any earlier release can be rolled back, with or without its data.</td>
+<td>A recent release can be rolled back, with or without its data.</td>
 </tr>
 </table>
 
@@ -149,7 +149,7 @@ cd viberglass
 docker compose up -d
 ```
 
-This pulls the published images, so nothing is built. Open http://localhost:3000. The first visit creates the administrator account, then setup walks you through:
+This pulls the published images, so nothing is built. Open http://localhost:3000, or follow [Getting started](docs/guide/admin/getting-started.md) from here to a first app. The first visit creates the administrator account, then setup walks you through:
 
 1. A model key: pick a provider and paste a key, or point at a custom endpoint.
 2. The space's backing: a Git repository, with a GitHub repository and a fine-grained token that can push a branch and open a pull request (setup links to GitHub's token form with the permissions filled in), or Files, for documents and presentations.

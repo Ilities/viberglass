@@ -10,6 +10,7 @@ import {
   validateSetupRepository,
   validateSetupRepositoryOwners,
   validateSetupNewRepository,
+  validateSetupAppHome,
   validateSetupSpace,
   validateSetupAgent,
 } from "../middleware/validation";
@@ -17,6 +18,7 @@ import { requireAuth } from "../middleware/authentication";
 import { SetupModelKeyService } from "../../services/setup/SetupModelKeyService";
 import { SetupRepositoryService } from "../../services/setup/SetupRepositoryService";
 import { SetupSpaceService } from "../../services/setup/SetupSpaceService";
+import { SetupAppHomeService } from "../../services/setup/SetupAppHomeService";
 import { SetupAgentService } from "../../services/setup/SetupAgentService";
 import { SetupStatusService } from "../../services/setup/SetupStatusService";
 import { SetupNextStepsService } from "../../services/setup/SetupNextStepsService";
@@ -27,6 +29,7 @@ const router = express.Router();
 const modelKeyService = new SetupModelKeyService();
 const repositoryService = new SetupRepositoryService();
 const spaceService = new SetupSpaceService();
+const appHomeService = new SetupAppHomeService();
 const agentService = new SetupAgentService();
 const statusService = new SetupStatusService();
 const nextStepsService = new SetupNextStepsService();
@@ -113,6 +116,16 @@ router.post(
   asyncHandler(async (req, res) => {
     const saved = await repositoryService.createRepository({ owner: req.body.owner, name: req.body.name }, req.body.token);
     res.status(201).json({ success: true, data: saved });
+  }),
+);
+
+// POST /api/setup/app-home - Check a token can create repositories under the owner and make it the App home
+router.post(
+  "/app-home",
+  validateSetupAppHome,
+  asyncHandler(async (req, res) => {
+    const status = await appHomeService.saveAppHome(req.body.owner, req.body.token, req.authContext?.user.id ?? null);
+    res.json({ success: true, data: status });
   }),
 );
 

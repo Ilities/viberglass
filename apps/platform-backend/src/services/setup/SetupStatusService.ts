@@ -8,6 +8,7 @@ import {
   type DemoWorkspace,
   type ModelEndpoint,
   type ProjectScmConfig,
+  type AppHomeStatus,
   type SetupStatus,
 } from "@viberglass/types";
 import type { Project } from "@viberglass/types";
@@ -21,6 +22,7 @@ import { SecretDAO } from "../../persistence/secret/SecretDAO";
 import { DEFAULT_AGENT_SLUG } from "./SetupAgentService";
 import { findSetupCodeHost, type SetupCodeHost } from "./setupCodeHost";
 import { DemoWorkspaceService } from "../demo/DemoWorkspaceService";
+import { createAppHomeService } from "../apps/createAppSpaceServices";
 
 interface Dependencies {
   secrets: { getLatestSecretForProvider(provider: ModelProviderId): Promise<{ id: string } | null> };
@@ -35,6 +37,7 @@ interface Dependencies {
   };
   demo: { getDemo(): Promise<DemoWorkspace | null> };
   endpoints: { list(): Promise<ModelEndpoint[]> };
+  appHome: { status(): Promise<AppHomeStatus> };
 }
 
 const defaults = (): Dependencies => ({
@@ -47,6 +50,7 @@ const defaults = (): Dependencies => ({
   clankers: new ClankerDAO(),
   demo: new DemoWorkspaceService(),
   endpoints: new ModelEndpointDAO(),
+  appHome: createAppHomeService(),
 });
 
 /** What setup has already done, so the flow resumes at the first step that's left. */
@@ -58,7 +62,7 @@ export class SetupStatusService {
   }
 
   async getStatus(): Promise<SetupStatus> {
-    const [connectedProviders, endpoints, repositoryConnected, space, defaultAgent, runners, demo] = await Promise.all([
+    const [connectedProviders, endpoints, repositoryConnected, space, defaultAgent, runners, demo, appHome] = await Promise.all([
       this.getConnectedProviders(),
       this.deps.endpoints.list(),
       this.isRepositoryConnected(),
@@ -66,6 +70,7 @@ export class SetupStatusService {
       this.deps.clankers.getClankerBySlug(DEFAULT_AGENT_SLUG),
       this.deps.clankers.listClankers(200),
       this.deps.demo.getDemo(),
+      this.deps.appHome.status(),
     ]);
 
     const agent = defaultAgent
@@ -76,13 +81,15 @@ export class SetupStatusService {
           statusMessage: defaultAgent.statusMessage ?? null,
         }
       : null;
+    const createsRepositories = this.deps.codeHost()?.repository.creator !== undefined;
     const hasActiveRunner = runners.some((runner) => runner.status === "active");
 
     return {
       connectedProviders,
       connectedEndpoints: endpoints.map((endpoint) => ({ id: endpoint.id, name: endpoint.name, models: endpoint.models })),
       repositoryConnected,
-      createsRepositories: this.deps.codeHost()?.repository.creator !== undefined,
+      createsRepositories,
+      appSpaces: appSpacesState(appHome, createsRepositories),
       space,
       agent,
       complete: space !== null && hasActiveRunner,
@@ -107,7 +114,7 @@ export class SetupStatusService {
     return connection ? (await this.deps.credentials.getDefaultForIntegration(connection.id)) !== null : false;
   }
 
-  /** A space with a repository wins over a Files space, so a workspace that has one still resumes Git setup. */
+  /** A space with a repository (Git or App) wins over a Files space, so a workspace that has one still resumes it. */
   private async findSpace(): Promise<SetupStatus["space"]> {
     let filesSpace: SetupStatus["space"] = null;
     for (const project of await this.deps.projects.listProjects(50)) {
@@ -121,11 +128,18 @@ export class SetupStatusService {
           projectId: project.id,
           name: project.name,
           slug: project.slug,
-          backingKind: "git",
+          backingKind: project.backingKind === "app" ? "app" : "git",
           repositoryUrl: scmConfig.sourceRepository,
         };
       }
     }
     return filesSpace;
   }
+}
+
+/** Setup can save the App home itself, so it offers App spaces when that's all that's missing. */
+function appSpacesState(appHome: AppHomeStatus, createsRepositories: boolean): SetupStatus["appSpaces"] {
+  if (appHome.availability.available) return "available";
+  const onlyHomeMissing = appHome.availability.missing.every((requirement) => requirement === "app_home");
+  return onlyHomeMissing && createsRepositories ? "needs_home" : "unavailable";
 }

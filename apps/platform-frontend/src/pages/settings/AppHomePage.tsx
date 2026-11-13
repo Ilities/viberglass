@@ -7,6 +7,7 @@ import { Select } from '@/components/select'
 import { Text } from '@/components/text'
 import { NO_SELECTION } from '@/pages/project/settings/RepositoryFields'
 import { useWorkspaceConnections } from '@/pages/project/settings/useWorkspaceConnections'
+import { gitHubTokenUrl } from '@/lib/repositoryAddress'
 import { getAppHome, removeAppHome, saveAppHome } from '@/service/api/app-home-api'
 import type { AppHomeStatus, AppSpaceRequirement } from '@viberglass/types'
 import { useEffect, useState } from 'react'
@@ -126,7 +127,16 @@ export function AppHomePage() {
                     <Link href="/settings/connections" className="text-[var(--accent-11)] underline underline-offset-2">
                       Connect GitHub
                     </Link>{' '}
-                    with a token that can create repositories.
+                    with a token that can create repositories.{' '}
+                    <a
+                      href={gitHubTokenUrl('', { createsRepositories: true })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[var(--accent-11)] underline underline-offset-2"
+                    >
+                      Create one on GitHub
+                    </a>{' '}
+                    with access to All repositories.
                   </Description>
                 )}
               </Field>

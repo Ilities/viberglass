@@ -3,12 +3,12 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { NewRepositoryFields, RepositorySourceField } from '@/components/new-repository-fields'
 import { SpaceBackingField } from '@/components/space-backing-field'
-import { useAppSpacesAvailable } from '@/hooks/useAppSpacesAvailable'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useNewRepository } from '@/hooks/useNewRepository'
 import { gitHubTokenUrl } from '@/lib/repositoryAddress'
-import { createSetupRepository, listSetupRepositoryOwners, saveRepository } from '@/service/api/setup-api'
-import type { RepositoryAccess, SpaceBackingKind } from '@viberglass/types'
+import { createSetupRepository, listSetupRepositoryOwners, saveRepository, saveSetupAppHome } from '@/service/api/setup-api'
+import type { RepositoryAccess, SetupStatus, SpaceBackingKind } from '@viberglass/types'
+import { AppHomeFields } from './AppHomeFields'
 import { useState } from 'react'
 import { ExternalLink, SetupError, SetupFrame } from './SetupFrame'
 
@@ -18,16 +18,22 @@ function looksLikeToken(token: string): boolean {
 
 export function RepositoryStep({
   createsRepositories,
+  appSpaces,
+  onAppHomeSaved,
   onDone,
   onChooseWithoutRepository,
 }: {
   createsRepositories: boolean
+  appSpaces: SetupStatus['appSpaces']
+  onAppHomeSaved: () => void
   onDone: (repository: RepositoryAccess) => void
   /** Files and App spaces need no repository from this step. */
   onChooseWithoutRepository: (backingKind: Exclude<SpaceBackingKind, 'git'>) => void
 }) {
-  const [backingKind, setBackingKind] = useState<SpaceBackingKind>('git')
-  const appSpacesAvailable = useAppSpacesAvailable()
+  const offerApp = appSpaces !== 'unavailable'
+  const [backingKind, setBackingKind] = useState<SpaceBackingKind>(offerApp ? 'app' : 'git')
+  const [appOwner, setAppOwner] = useState('')
+  const settingUpApps = backingKind === 'app' && appSpaces === 'needs_home'
   const [repository, setRepository] = useState('')
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -40,13 +46,19 @@ export function RepositoryStep({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (backingKind !== 'git') {
+    if (backingKind !== 'git' && !settingUpApps) {
       onChooseWithoutRepository(backingKind)
       return
     }
     setError(null)
     setIsChecking(true)
     try {
+      if (settingUpApps) {
+        await saveSetupAppHome(appOwner, token)
+        onAppHomeSaved()
+        onChooseWithoutRepository('app')
+        return
+      }
       onDone(
         creating
           ? await createSetupRepository({ owner: newRepository.owner, name: newRepository.name.trim() }, token)
@@ -87,28 +99,43 @@ export function RepositoryStep({
       </Description>
     </Field>
   )
-  const submitLabel = creating
+  const submitLabel = settingUpApps
+    ? isChecking
+      ? 'Checking with GitHub…'
+      : 'Continue'
+    : creating
     ? isChecking
       ? 'Creating the repository…'
       : 'Create repository'
     : isChecking
       ? 'Checking with GitHub…'
       : 'Continue'
-  const incomplete = creating ? !newRepository.isReady || !token.trim() : !repository.trim() || !token.trim()
+  const incomplete = settingUpApps
+    ? !appOwner || !token.trim()
+    : backingKind === 'git' && (creating ? !newRepository.isReady || !token.trim() : !repository.trim() || !token.trim())
 
   return (
     <SetupFrame
       step={2}
       title="Choose your space backing"
       intro={
-        appSpacesAvailable
-          ? 'Use a repository for code, Files for documents, presentations and other artifacts, or App for a tool your team uses.'
+        offerApp
+          ? 'Choose App for a tool your team uses, a repository for code, or Files for documents, presentations and other artifacts.'
           : 'Use a repository for code, or Files for documents, presentations and other artifacts.'
       }
     >
       <form onSubmit={handleSubmit} className="grid gap-6">
         <SetupError message={error} />
-        <SpaceBackingField value={backingKind} onChange={setBackingKind} offerApp={appSpacesAvailable} />
+        <SpaceBackingField value={backingKind} onChange={setBackingKind} offerApp={offerApp} />
+        {settingUpApps && (
+          <AppHomeFields
+            token={token}
+            onTokenChange={setToken}
+            owner={appOwner}
+            onOwnerChange={setAppOwner}
+            disabled={isChecking}
+          />
+        )}
         {backingKind === 'git' && createsRepositories && (
           <RepositorySourceField
             value={newRepository.source}
@@ -144,7 +171,7 @@ export function RepositoryStep({
           </>
         )}
         <div>
-          <Button type="submit" color="brand" disabled={isChecking || (backingKind === 'git' && incomplete)}>
+          <Button type="submit" color="brand" disabled={isChecking || incomplete}>
             {submitLabel}
           </Button>
         </div>

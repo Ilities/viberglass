@@ -6,6 +6,7 @@ const FRESH: SetupStatus = {
   connectedEndpoints: [],
   repositoryConnected: false,
   createsRepositories: true,
+  appSpaces: 'unavailable',
   space: null,
   agent: null,
   complete: false,

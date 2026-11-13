@@ -89,12 +89,20 @@ export interface SetupStatus {
   repositoryConnected: boolean
   /** The code host setup connects can create repositories, so setup offers to make one. */
   createsRepositories: boolean
+  /** App spaces can be created, or can once setup saves an App home, or can't be on this installation. */
+  appSpaces: 'available' | 'needs_home' | 'unavailable'
   space: Pick<CreatedSpace, 'projectId' | 'name' | 'slug' | 'backingKind' | 'repositoryUrl'> | null
   agent: { clankerId: string; agentName: string; status: ClankerStatus; statusMessage: string | null } | null
   /** A space exists and a runner can work on it; setup has nothing left to ask. */
   complete: boolean
   /** Set while the demo workspace is loaded. */
   demo: DemoWorkspace | null
+}
+
+/** API contract of `POST /api/setup/app-home`: the token App spaces' repositories are created with, and their owner. */
+export interface SetupAppHomeRequest {
+  owner: string
+  token: string
 }
 
 /** The admin's home checklist after setup: each item is ticked from real state. */

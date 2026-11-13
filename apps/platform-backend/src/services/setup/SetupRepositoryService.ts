@@ -75,6 +75,23 @@ export class SetupRepositoryService {
     return { ...access, ...(await this.saveConnection(codeHost, token)) };
   }
 
+  /** Checks the token can create repositories under the owner, then saves it like a pasted repository's token. */
+  async saveCreatingToken(owner: string, rawToken: string): Promise<{ integrationId: string; credentialId: string; owner: string }> {
+    const { codeHost, creator } = this.requireCreator();
+    const token = readToken(rawToken);
+    const owners = await asSetupError(creator.listOwners(token));
+    const match = owners.find((candidate) => candidate.name.toLowerCase() === owner.trim().toLowerCase());
+    if (!match) {
+      throw new SetupServiceError(
+        SETUP_SERVICE_ERROR_CODE.OWNER_UNAVAILABLE,
+        owners.length > 0
+          ? `This token can't create repositories under ${owner.trim()}. Choose one of: ${owners.map((o) => o.name).join(", ")}.`
+          : "This token can't create repositories. Create one with the link above, with access to All repositories.",
+      );
+    }
+    return { ...(await this.saveConnection(codeHost, token)), owner: match.name };
+  }
+
   private requireCreator(): { codeHost: SetupCodeHost; creator: RepositoryCreator } {
     const codeHost = requireSetupCodeHost(this.codeHost);
     const creator = codeHost.repository.creator;

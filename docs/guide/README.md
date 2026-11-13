@@ -1,6 +1,6 @@
 # Viberglass guide
 
-How to use Viberglass with your team, and how to run it. Viberglass is a self-hosted workspace where people and coding agents work on the same tasks: someone asks for a change, an agent writes a plan, the team discusses it, and the agent builds it as a GitHub pull request. For work that isn't code, a space can keep shared files instead of a repository, and the agent delivers documents and presentations there. An App space builds an internal app for the team, which Viberglass runs, backs up and signs people in to.
+How to use Viberglass with your team, and how to run it. Viberglass is an open-source internal tool builder that you host yourself, where coding agents write the apps and Viberglass runs them. Someone asks for a tool in a task, the agent builds it, and Viberglass runs it, backs it up and signs people in to it. The same tasks can produce documents and presentations in a space that keeps shared files, or change your own product through a GitHub pull request.
 
 ## Using Viberglass
 
@@ -24,6 +24,7 @@ For product managers, support and QA leads, designers, reviewers and engineers.
 
 For whoever installs and looks after the workspace.
 
+- [Getting started](admin/getting-started.md): from `docker compose up` to a first app, then to a server your team uses.
 - [Install with Docker](admin/install-docker.md): try it on one machine, and the first-run setup.
 - [Install on Kubernetes](admin/install-kubernetes.md): the Helm chart, locally and on a managed cluster.
 - [Install on OVHcloud](admin/install-ovhcloud.md): the Helm chart on OVHcloud Managed Kubernetes, with its managed PostgreSQL and Object Storage.

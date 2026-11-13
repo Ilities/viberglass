@@ -1,15 +1,15 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { createSetupRepository, listSetupRepositoryOwners, saveRepository } from '@/service/api/setup-api'
-import { getAppHome } from '@/service/api/app-home-api'
+import { createSetupRepository, listSetupRepositoryOwners, saveRepository, saveSetupAppHome } from '@/service/api/setup-api'
+import type { SetupStatus } from '@viberglass/types'
 import { RepositoryStep } from './RepositoryStep'
 
 jest.mock('@/service/api/setup-api', () => ({
   createSetupRepository: jest.fn(),
   listSetupRepositoryOwners: jest.fn(),
   saveRepository: jest.fn(),
+  saveSetupAppHome: jest.fn(),
 }))
-jest.mock('@/service/api/app-home-api', () => ({ getAppHome: jest.fn() }))
 
 const SAVED = {
   fullName: 'acme/laptop-tracker',
@@ -20,11 +20,22 @@ const SAVED = {
   credentialId: 'c1',
 }
 
-function renderStep(createsRepositories = true, onChooseWithoutRepository = jest.fn()) {
+function renderStep(
+  createsRepositories = true,
+  onChooseWithoutRepository = jest.fn(),
+  appSpaces: SetupStatus['appSpaces'] = 'unavailable',
+  onAppHomeSaved = jest.fn()
+) {
   const onDone = jest.fn()
   render(
     <Theme>
-      <RepositoryStep createsRepositories={createsRepositories} onDone={onDone} onChooseWithoutRepository={onChooseWithoutRepository} />
+      <RepositoryStep
+        createsRepositories={createsRepositories}
+        appSpaces={appSpaces}
+        onAppHomeSaved={onAppHomeSaved}
+        onDone={onDone}
+        onChooseWithoutRepository={onChooseWithoutRepository}
+      />
     </Theme>
   )
   return onDone
@@ -40,19 +51,43 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = jest.fn()
 })
 
-it('moves on without a repository when App is chosen and the workspace offers it', async () => {
+beforeEach(() => {
+  jest.resetAllMocks()
+})
+
+it('starts on App and moves on without a repository when App spaces are ready', () => {
   const onChooseWithoutRepository = jest.fn()
-  renderStep(true, onChooseWithoutRepository)
-  await screen.findByText(/or App for a tool your team uses/)
-  fireEvent.click(screen.getByRole('combobox', { name: 'Space backing' }))
-  fireEvent.click(await screen.findByRole('option', { name: 'App' }))
+  renderStep(true, onChooseWithoutRepository, 'available')
+  expect(screen.getByText(/Choose App for a tool your team uses/)).toBeInTheDocument()
+  expect(screen.queryByLabelText('GitHub access token')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(onChooseWithoutRepository).toHaveBeenCalledWith('app')
 })
 
-beforeEach(() => {
-  jest.resetAllMocks()
-  jest.mocked(getAppHome).mockResolvedValue({ home: null, availability: { available: true, missing: [] } })
+it('saves the App home from a token and an owner when that is all App spaces still need', async () => {
+  jest.mocked(listSetupRepositoryOwners).mockResolvedValue([
+    { name: 'jane', kind: 'user' },
+    { name: 'acme', kind: 'organization' },
+  ])
+  jest.mocked(saveSetupAppHome).mockResolvedValue({ home: null, availability: { available: true, missing: [] } })
+  const onChooseWithoutRepository = jest.fn()
+  const onAppHomeSaved = jest.fn()
+  renderStep(true, onChooseWithoutRepository, 'needs_home', onAppHomeSaved)
+
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('GitHub access token'), { target: { value: 'ghp_abc' } })
+  await waitFor(() => expect(listSetupRepositoryOwners).toHaveBeenCalledWith('ghp_abc'))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+  await waitFor(() => expect(onChooseWithoutRepository).toHaveBeenCalledWith('app'))
+  expect(saveSetupAppHome).toHaveBeenCalledWith('jane', 'ghp_abc')
+  expect(onAppHomeSaved).toHaveBeenCalled()
+})
+
+it("doesn't offer App when the installation can't run apps", () => {
+  renderStep(true, jest.fn(), 'unavailable')
+  expect(screen.getByText(/Use a repository for code, or Files/)).toBeInTheDocument()
 })
 
 it('creates a repository where the token can, and hands it on like a checked one', async () => {

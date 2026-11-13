@@ -15,7 +15,7 @@ export function SpaceBackingField({ value, onChange, disabled, offerApp = false 
   disabled?: boolean
   offerApp?: boolean
 }) {
-  const kinds = SPACE_BACKING_KINDS.filter((kind) => kind !== 'app' || offerApp)
+  const kinds: SpaceBackingKind[] = offerApp ? ['app', ...SPACE_BACKING_KINDS.filter((kind) => kind !== 'app')] : SPACE_BACKING_KINDS.filter((kind) => kind !== 'app')
   return (
     <Field>
       <Label>Space backing</Label>
