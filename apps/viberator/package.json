@@ -33,6 +33,7 @@
     "@viberglass/agent-claude-code": "*",
     "@viberglass/agent-codex": "*",
     "@viberglass/agent-core": "*",
+    "@viberglass/agent-deepseek-harness": "*",
     "@viberglass/agent-fake": "*",
     "@viberglass/agent-kimi": "*",
     "@viberglass/agent-mistral-vibe": "*",

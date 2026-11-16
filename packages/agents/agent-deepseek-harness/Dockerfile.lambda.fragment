@@ -1,0 +1,2 @@
+# Fragment: DeepSeek Harness (dsh) (Amazon Linux, as root)
+RUN npm install -g @deepseek-ai/dsh@0.2.1-rc.2 @openma/deepseek-harness-acp@0.4.39
