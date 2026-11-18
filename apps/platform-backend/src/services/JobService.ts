@@ -23,6 +23,7 @@ import { currentActorId } from "../api/auth/requestActor";
 import { releaseSpaceFiles } from "./spaceFiles/releaseSpaceFiles";
 import { spaceFilesRuns, type SpaceFilesRunService } from "./spaceFiles/SpaceFilesRunService";
 import { ClawRunCompletion } from "./claw/ClawRunCompletion";
+import { kubernetesRunLimiter, type KubernetesRunLimiter } from "../workers/capacity/KubernetesRunLimiter";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -47,6 +48,7 @@ export class JobService {
   private readonly activity = new TaskActivityRecorder();
   private readonly pullRequests = new TaskPullRequestDAO();
   private readonly spaceFiles: Pick<SpaceFilesRunService, "release"> = spaceFilesRuns;
+  private readonly workerLimit: Pick<KubernetesRunLimiter, "release"> = kubernetesRunLimiter;
 
   constructor(private readonly scheduledRuns: Pick<ClawRunCompletion, "finish"> = new ClawRunCompletion()) {
     this.ticketDAO = new TicketDAO();
@@ -188,6 +190,7 @@ export class JobService {
     logger.info("Job status updated", { jobId, status, ...updates });
 
     if (status === "completed" || status === "failed" || status === "cancelled") {
+      this.workerLimit.release(jobId);
       await releaseSpaceFiles(this.spaceFiles, jobId);
     }
 

@@ -48,6 +48,7 @@ On Docker, the first run of each agent downloads its worker image, which can tak
 
 ## Other problems
 
+- A run stays at Waiting for a free worker: as many Kubernetes workers are running as Settings → Workers allows, and it starts when one finishes. Raise the limit only if your nodes have room. See [How many run at once](agents-and-models.md#how-many-run-at-once).
 - A pull request was merged or closed but the task is still open: pull requests are checked every five minutes, and hourly once they've been open for more than a day. A closed pull request leaves the task open when the task has another pull request open or being built, or the agent worked on it after the close.
 - Nobody gets email: check `EMAIL_FROM` and `SMTP_URL` (or SES on AWS), then Send test email under Settings → Notifications. On AWS, a new SES account only delivers to verified addresses until production access is granted.
 - Slack doesn't answer `/viberglass`: Settings → Connections → Slack should show Bot active, with the bot token and signing secret saved, and Slack must reach `https://<your backend>/api/webhooks/slack`. Until both are saved the route answers 503.

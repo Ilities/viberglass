@@ -53,6 +53,8 @@ import { startAppGateway } from "./appGateway/startAppGateway";
 import { SpaceFileChangeQueue } from "../services/spaceFiles/SpaceFileChangeQueue";
 import { SpaceFilesOrphanCleanup } from "../services/spaceFiles/SpaceFilesOrphanCleanup";
 import { SpaceFilesRetention } from "../services/spaceFiles/SpaceFilesRetention";
+import { kubernetesRunLimiter } from "../workers/capacity/KubernetesRunLimiter";
+import { loadWorkerLimit } from "../workers/capacity/loadWorkerLimit";
 
 // Load environment variables
 dotenv.config();
@@ -162,6 +164,11 @@ const periodicSweepers = shouldRunBackgroundSweepers
         "app retention",
         (now) => appRetention.sweep(now),
         parseInt(process.env.APP_RETENTION_SWEEP_INTERVAL_MS || "3600000", 10),
+      ),
+      new PeriodicSweeper(
+        "worker limit",
+        () => kubernetesRunLimiter.resync(),
+        parseInt(process.env.WORKER_LIMIT_SWEEP_INTERVAL_MS || "60000", 10),
       ),
       new PeriodicSweeper(
         "credential expiry warnings",
@@ -295,6 +302,12 @@ async function startServer(): Promise<void> {
     logger.debug(
       "RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations",
     );
+  }
+
+  try {
+    await loadWorkerLimit(kubernetesRunLimiter, new JobService());
+  } catch (error) {
+    logger.error("Failed to load the worker limit; Kubernetes runs start without one", { error });
   }
 
   // Builds the chat bot from the chat connections in the background: the

@@ -34,6 +34,7 @@ import {
   newConnectionRepositorySchema,
   setupSpaceSchema,
   appHomeSchema,
+  workerLimitSchema,
   setupAgentSchema,
   registerSchema,
   createUserSchema,
@@ -177,6 +178,7 @@ export const validateNewConnectionRepository = createValidator(newConnectionRepo
 });
 export const validateSetupSpace = createValidator(setupSpaceSchema, { name: "setupSpace" });
 export const validateAppHome = createValidator(appHomeSchema, { name: "appHome" });
+export const validateWorkerLimit = createValidator(workerLimitSchema, { name: "workerLimit" });
 export const validateSetupAgent = createValidator(setupAgentSchema, { name: "setupAgent" });
 export const validateRegister = createValidator(registerSchema);
 export const validateCreateUser = createValidator(createUserSchema);

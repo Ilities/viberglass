@@ -56,7 +56,7 @@ Local installs use `<namespace>-workers` by default. Override it with `--worker-
 - Model/Git credentials stay in the encrypted database and are delivered through authenticated bootstrap. Each worker mounts its own callback-token Secret; worker Pods receive no shared object-storage credentials.
 - `S3_ENDPOINT` is reachable from Pods. `S3_PUBLIC_ENDPOINT` is the browser-reachable signing endpoint; locally it is `http://localhost:39000`. Worker media links use the internal endpoint.
 - Instructions, task media, phase documents, Files space snapshots and artifacts, and archived conversation state use object storage. Restarts retain data while the cluster/PVCs exist.
-- Resource requests and limits consume cluster capacity. A worker namespace quota limits concurrency; requests exceeding quota fail admission.
+- Resource requests and limits consume cluster capacity. A worker namespace quota limits concurrency; requests exceeding quota fail admission. Settings → Workers caps how many workers run at once, and runs over it wait for a free worker.
 - Workers request short-lived URLs for their instructions/media and assigned session archive. Pod scheduling, image-pull and admission diagnostics appear in the existing run log. Silent agent steps send a heartbeat every minute, so a healthy long run is not stopped at thirty minutes.
 - The chart includes network policies. Local validation does not certify policy enforcement. Use a NetworkPolicy-capable CNI in a production cluster and test private Git/storage egress rules.
 

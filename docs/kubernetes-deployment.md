@@ -55,6 +55,7 @@ Embedded PostgreSQL/MinIO are available in `values-local.yaml` for development. 
 - Existing worker Jobs retain their image and run during app rolling updates. Keep the callback service stable and allow sufficient termination time. Worker Pods get a 60 second termination grace period to save their work when stopped. Maintain bootstrap/callback compatibility between deployed versions.
 - Helm rollback can restore a Deployment, **not reverse database migrations**. Review schema compatibility before rollback; restore a backup when rollback requires it.
 - Adjust `workers.quota` and per-Clanker resources together. Quotas do not add nodes; pending Pods need schedulable node capacity. Production nodes must have room for the app, system workloads, and concurrent Jobs.
+- Set Settings → Workers to how many workers the nodes and quota hold at once. Runs over that limit stay queued until a worker finishes, people's runs ahead of scheduled runs and app builds, instead of being refused or left Pending. Runs still waiting when the backend restarts fail and have to be started again.
 - The supported deployment uses `backend.replicas: 1`; sweepers and dispatch coordination run in that process.
 - Use ingress annotations/TLS resources appropriate to your installed controller. Certificate issuance/renewal belongs to the cluster operator; the chart references an existing TLS Secret.
 

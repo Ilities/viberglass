@@ -28,6 +28,11 @@ jest.mock("../../../persistence/job/JobWorkerDAO", () => ({
   JobWorkerDAO: jest.fn(() => ({ record: (...args: unknown[]) => mockRecordWorker(...args) })),
 }));
 
+const mockEnterLimit = jest.fn();
+jest.mock("../../../workers/capacity/KubernetesRunLimiter", () => ({
+  kubernetesRunLimiter: { enter: (...args: unknown[]) => mockEnterLimit(...args) },
+}));
+
 // Mock WorkerInvokerFactory
 jest.mock("../../../workers/WorkerInvokerFactory", () => ({
   getWorkerInvokerFactory: jest.fn(),
@@ -107,6 +112,46 @@ describe("WorkerExecutionService", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  describe("Kubernetes worker limit", () => {
+    const kubernetesClanker = (): Clanker => ({
+      ...mockClanker,
+      deploymentStrategy: { id: "strategy-k8s", name: "kubernetes", description: "Kubernetes", createdAt: "2024-01-01T00:00:00Z" },
+    });
+
+    it("leaves other runners alone", async () => {
+      mockInvoker.invoke.mockResolvedValue({ executionId: "exec-1", workerType: "lambda" });
+      await service.executeJob(mockJob, mockClanker);
+      expect(mockEnterLimit).not.toHaveBeenCalled();
+    });
+
+    it("keeps a run over the limit queued until a worker is free", async () => {
+      let start: (started: boolean) => void = () => undefined;
+      mockEnterLimit.mockReturnValue({ waiting: true, turn: new Promise<boolean>((resolve) => (start = resolve)) });
+      mockInvoker.invoke.mockResolvedValue({ executionId: "job-k8s", workerType: "kubernetes" });
+
+      const execution = service.executeJob({ ...mockJob, jobKind: JOB_KIND.CLAW } as JobData, kubernetesClanker());
+      await jest.advanceTimersByTimeAsync(0);
+
+      expect(mockEnterLimit).toHaveBeenCalledWith("job-123", true);
+      expect(mockJobService.updateJobStatus).toHaveBeenCalledWith("job-123", "queued", {
+        progress: expect.objectContaining({ waitingForWorker: true }),
+      });
+      expect(mockInvoker.invoke).not.toHaveBeenCalled();
+
+      start(true);
+      await expect(execution).resolves.toMatchObject({ success: true });
+      expect(mockInvoker.invoke).toHaveBeenCalledTimes(1);
+    });
+
+    it("doesn't start a run that ended while it waited", async () => {
+      mockEnterLimit.mockReturnValue({ waiting: true, turn: Promise.resolve(false) });
+      const result = await service.executeJob(mockJob, kubernetesClanker());
+      expect(result.success).toBe(false);
+      expect(mockInvoker.invoke).not.toHaveBeenCalled();
+      expect(mockJobService.updateJobStatus).not.toHaveBeenCalledWith("job-123", "active", expect.anything());
+    });
   });
 
   describe("Retry Logic - Transient Errors", () => {

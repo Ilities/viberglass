@@ -14,6 +14,7 @@ import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 import { stopSpaceFiles } from "../spaceFiles/stopSpaceFiles";
 import { spaceFilesRuns, type SpaceFilesRunService } from "../spaceFiles/SpaceFilesRunService";
 import { ClawRunCompletion } from "../claw/ClawRunCompletion";
+import { kubernetesRunLimiter, type KubernetesRunLimiter } from "../../workers/capacity/KubernetesRunLimiter";
 
 interface TicketStatusSynchronizer {
   synchronize(ticketId: string): Promise<unknown>;
@@ -25,6 +26,7 @@ const logger = createChildLogger({ service: "JobCancellationService" });
 
 export class JobCancellationService {
   private readonly spaceFiles: Pick<SpaceFilesRunService, "stop"> = spaceFilesRuns;
+  private readonly workerLimit: Pick<KubernetesRunLimiter, "release"> = kubernetesRunLimiter;
 
   constructor(
     private readonly sessionDAO = new AgentSessionDAO(),
@@ -77,6 +79,7 @@ export class JobCancellationService {
       .where("status", "in", ["queued", "active"])
       .execute();
 
+    this.workerLimit.release(jobId);
     await stopSpaceFiles(this.spaceFiles, jobId);
     await this.scheduledRuns.finish({ id: jobId, context: job.context }, { status: "cancelled", errorMessage: "Run cancelled by user" });
     await beforeWorkerStops?.();

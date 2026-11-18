@@ -33,6 +33,7 @@ export const AUDIT_ACTION_TEXT = {
   'runner.deleted': 'deleted an agent',
   'runner.started': 'started an agent',
   'runner.stopped': 'stopped an agent',
+  'runner.limit_set': 'changed how many Kubernetes workers run at once',
   'mcp_server.created': 'approved an MCP server',
   'mcp_server.updated': 'changed an MCP server',
   'mcp_server.deleted': 'removed an MCP server',

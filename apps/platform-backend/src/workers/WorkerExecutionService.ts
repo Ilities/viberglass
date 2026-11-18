@@ -1,5 +1,5 @@
 import { JobWorkerDAO } from "../persistence/job/JobWorkerDAO";
-import { JOB_FAILURE_CODE, type Clanker, type Project } from "@viberglass/types";
+import { JOB_FAILURE_CODE, JOB_KIND, type Clanker, type Project } from "@viberglass/types";
 import {
   ATTR_VG_CLANKER_ID,
   ATTR_VG_JOB_ID,
@@ -18,8 +18,12 @@ import { getWorkerInvokerFactory } from "./WorkerInvokerFactory";
 import { WorkerError } from "./errors/WorkerError";
 import { JobService } from "../services/JobService";
 import { createChildLogger } from "../config/logger";
+import { getStrategyType } from "../clanker-config";
+import { kubernetesRunLimiter, type KubernetesRunLimiter } from "./capacity/KubernetesRunLimiter";
 
 const logger = createChildLogger({ service: "WorkerExecutionService" });
+
+const BACKGROUND_KINDS = new Set<string>([JOB_KIND.CLAW, JOB_KIND.BUILD_RELEASE]);
 
 export interface ExecutionConfig {
   maxRetries?: number; // Default: 3
@@ -40,6 +44,7 @@ export class WorkerExecutionService {
   private factory = getWorkerInvokerFactory();
   private jobService = new JobService();
   private workers = new JobWorkerDAO();
+  private limiter: Pick<KubernetesRunLimiter, "enter"> = kubernetesRunLimiter;
   private config: Required<ExecutionConfig>;
 
   constructor(config: ExecutionConfig = {}) {
@@ -107,6 +112,10 @@ export class WorkerExecutionService {
     const baseMaxAttempts = this.config.maxRetries + 1;
     const absoluteMaxAttempts =
       baseMaxAttempts + this.config.maxPendingConflictRetries;
+
+    if (getStrategyType(clanker) === "kubernetes" && !(await this.waitForWorker(job))) {
+      return { success: false, error: "The run ended while it waited for a free worker", attempts };
+    }
 
     // Mark job as active before invocation
     await this.jobService.updateJobStatus(job.id, "active", {
@@ -290,6 +299,18 @@ export class WorkerExecutionService {
       error: errorMessage,
       attempts,
     };
+  }
+
+  /** False when the run ended while it waited. */
+  private async waitForWorker(job: JobData): Promise<boolean> {
+    const { waiting, turn } = this.limiter.enter(job.id, BACKGROUND_KINDS.has(job.jobKind));
+    if (waiting) {
+      // The flag lets a restarted backend find runs it can no longer start.
+      await this.jobService.updateJobStatus(job.id, "queued", {
+        progress: { message: "Waiting for a free worker", waitingForWorker: true, timestamp: Date.now() },
+      });
+    }
+    return turn;
   }
 
   private calculateBackoff(attempt: number): number {

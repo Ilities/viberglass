@@ -30,4 +30,18 @@ export class WorkspaceSettingsDAO {
       .onConflict((conflict) => conflict.column("id").doUpdateSet(values))
       .execute();
   }
+
+  async getWorkerMaxRuns(): Promise<number | null> {
+    const row = await db.selectFrom("workspace_settings").select("worker_max_runs").executeTakeFirst();
+    return row?.worker_max_runs ?? null;
+  }
+
+  async setWorkerMaxRuns(maxRuns: number | null, updatedBy: string | null): Promise<void> {
+    const values = { worker_max_runs: maxRuns, updated_by: updatedBy, updated_at: new Date() };
+    await db
+      .insertInto("workspace_settings")
+      .values(values)
+      .onConflict((conflict) => conflict.column("id").doUpdateSet(values))
+      .execute();
+  }
 }

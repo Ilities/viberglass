@@ -109,8 +109,10 @@ describe("pins against Postgres", () => {
 
   it("marks a new version until the pin is opened, and follows the artifact's renames", async () => {
     const pins = service();
-    clock = new Date("2026-11-12T13:00:00.000Z");
-    await version(ids.deck, 2, "2026-11-12T12:30:00Z");
+    // Pins are stamped by the database's clock, so the new version has to come after it.
+    const published = new Date(Date.now() + 60_000);
+    clock = new Date(published.getTime() + 60_000);
+    await version(ids.deck, 2, published.toISOString());
     await sql`UPDATE artifacts SET title = 'Q4 board deck' WHERE id = ${ids.deck}`.execute(mockDb);
 
     const deck = (await pins.list(viewer())).find((pin) => pin.target.kind === "artifact" && pin.target.artifactId === ids.deck);

@@ -178,6 +178,7 @@ export interface WorkspaceSettingsTable {
   app_home_integration_id: string | null;
   app_home_credential_id: string | null;
   app_home_owner: string | null;
+  worker_max_runs: number | null;
   updated_by: string | null;
   updated_at: Generated<Timestamp>;
 }

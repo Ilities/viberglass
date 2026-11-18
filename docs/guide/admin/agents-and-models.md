@@ -27,6 +27,10 @@ Agents ask people their questions through Viberglass, which shows each one as a 
 
 When a model provider refuses requests for a usage limit, Kimi Code and OpenCode wait for the limit to reset without saying so. When the reset is more than five minutes away, Viberglass stops the run with the provider's error instead of letting it wait.
 
+### How many run at once
+
+On Kubernetes, Settings → Workers sets how many workers run at once across all runners; empty means no limit. Set it to what your nodes and the worker namespace quota hold. A run over the limit waits, showing Waiting for a free worker, and starts when another run finishes. People's runs go ahead of scheduled runs and app builds. A run still waiting when Viberglass restarts fails and has to be started again. Runners on Docker, ECS and Lambda aren't limited.
+
 ## Create a runner
 
 Open Settings → Agents and choose New agent.

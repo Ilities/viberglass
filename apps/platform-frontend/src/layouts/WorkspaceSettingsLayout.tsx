@@ -15,6 +15,7 @@ import {
   LockClosedIcon,
   PersonIcon,
   RocketIcon,
+  DashboardIcon,
 } from '@radix-ui/react-icons'
 import type { ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
@@ -38,6 +39,7 @@ const ADVANCED = [
   { name: 'Models', href: '/settings/models', icon: <CubeIcon /> },
   { name: 'MCP servers', href: '/settings/mcp-servers', icon: <ComponentInstanceIcon /> },
   { name: 'Skills', href: '/settings/skills', icon: <LightningBoltIcon /> },
+  { name: 'Workers', href: '/settings/workers', icon: <DashboardIcon /> },
   { name: 'Prompt templates', href: '/settings/prompt-templates', icon: <FileTextIcon /> },
   { name: 'Run records', href: '/settings/run-records', icon: <BarChartIcon /> },
   { name: 'Audit log', href: '/settings/audit-log', icon: <CounterClockwiseClockIcon /> },

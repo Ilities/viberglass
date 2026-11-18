@@ -411,6 +411,10 @@ export const appHomeSchema = Joi.object({
   owner: Joi.string().trim().min(1).max(200).required(),
 });
 
+export const workerLimitSchema = Joi.object({
+  maxRuns: Joi.number().integer().min(1).max(10000).allow(null).required(),
+});
+
 const secretProviderSchema = Joi.string()
   .valid(...MODEL_PROVIDERS.map((provider) => provider.id))
   .allow(null);

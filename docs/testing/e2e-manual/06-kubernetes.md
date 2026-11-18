@@ -86,6 +86,12 @@ Expect: activation can succeed; within roughly three minutes, the run fails with
 
 Expect: the second Job is refused by admission; the run fails with a clear setup failure.
 
+### K8S-12b · Worker limit
+1. Set Settings → Workers to 1. On a Kubernetes runner start run A, then a scheduled run S, then run B from a task.
+2. Cancel B while it waits; start run C from a task; let A finish.
+
+Expect: Settings → Workers shows 1 running and the rest waiting; a waiting run shows Waiting for a free worker and has no Job; B never gets a Job; when A finishes, C starts before S.
+
 ### K8S-13 · Rolling upgrade during a run
 1. Start a long run; `helm upgrade` with a new backend image tag.
 

@@ -56,6 +56,10 @@ export const APP_HOME_AUDIT: AuditRule[] = [
   { method: "DELETE", path: "/", action: "connection.app_home_cleared", targetType: "connection" },
 ];
 
+export const WORKER_LIMIT_AUDIT: AuditRule[] = [
+  { method: "PUT", path: "/", action: "runner.limit_set", targetType: "runner", details: (req) => ({ maxRuns: bodyField(req, "maxRuns") }) },
+];
+
 export const MEMBER_AUDIT: AuditRule[] = [
   { method: "POST", path: "/", action: "member.created", targetType: "member", details: (req) => ({ email: bodyField(req, "email"), role: bodyField(req, "role") }) },
   { method: "PATCH", path: "/:id/role", action: "member.role_changed", targetType: "member", targetParam: "id", details: (req) => ({ role: bodyField(req, "role") }) },

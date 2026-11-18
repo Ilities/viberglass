@@ -49,6 +49,7 @@ import {
 } from "./middleware/notFoundHandling";
 import mcpRouter from "./routes/mcp";
 import { createAppHomeRouter } from "./routes/appHome";
+import { createWorkerLimitRouter } from "./routes/workerLimit";
 import { createAppsRouter } from "./routes/apps";
 import { createAgentDirectoryRouter } from "./routes/agentDirectory";
 import { ClankerListing } from "../services/ClankerListing";
@@ -65,6 +66,7 @@ import { auditRequests } from "./middleware/auditRequests";
 import {
   CONNECTION_AUDIT,
   APP_HOME_AUDIT,
+  WORKER_LIMIT_AUDIT,
   INVITE_AUDIT,
   MCP_SERVER_AUDIT,
   MEMBER_AUDIT,
@@ -225,6 +227,7 @@ app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/apps", createAppsRouter(appSignIn().service, createAppDirectory()));
 app.use("/api/app-home", adminOnlyChanges(), auditRequests(APP_HOME_AUDIT), createAppHomeRouter());
+app.use("/api/worker-limit", adminOnlyChanges(), auditRequests(WORKER_LIMIT_AUDIT), createWorkerLimitRouter());
 // Everyone who sees runs gets the agents list; the runners' configuration is admins' alone.
 app.use(
   "/api/agents",
